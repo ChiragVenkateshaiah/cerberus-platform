@@ -13,13 +13,49 @@ See [docs/plan.md](docs/plan.md) for the full phased roadmap (Phases 0–8).
 
 ## Architecture
 
-Files/RDS-API sources → ingestion → S3 bronze → transform → S3 silver/gold →
-Glue Catalog + Athena, orchestrated end to end and layered with Terraform,
-IAM, CI/CD, observability, and Well-Architected review.
+```mermaid
+flowchart LR
+    ORCH["Orchestration — Phase 5<br/>Airflow / Step Functions"]
+
+    subgraph SRC["Sources"]
+        F["Files"]
+        A["RDS / API"]
+    end
+
+    ORCH ~~~ SRC
+
+    ING["Ingestion — P0 / P3<br/>bash → Lambda"]
+    BRZ[("S3 Bronze<br/>raw")]
+    TRN["Transform — P2 / P4<br/>Spark / dbt"]
+
+    subgraph SERVE["Serving"]
+        SG[("S3 Silver / Gold")]
+        CAT[["Glue Data Catalog"]]
+        ATH{{"Athena — query<br/>+ dbt (gold)"}}
+    end
+
+    ORCH -. triggers .-> ING
+    F --> ING
+    A --> ING
+    ING --> BRZ
+    BRZ --> TRN
+    TRN --> SG
+    SG --> CAT
+    SG --> ATH
+
+    subgraph XCUT["Cross-cutting"]
+        direction LR
+        TF["Terraform<br/>(all infra)"]
+        IAM["IAM<br/>(least privilege)"]
+        CICD["CI/CD — P6"]
+        OBS["Observability +<br/>data quality — P7"]
+        WA["Well-Architected — P8"]
+    end
+```
 
 This is the target end-state, not current state (see [Status](#status)
-above). For the diagram and current-state notes, see
-[docs/architecture.md](docs/architecture.md#target-architecture-north-star).
+above). For current-state notes and the governing constraints behind this
+diagram, see [docs/architecture.md](docs/architecture.md).
 
 ## Repository layout
 
