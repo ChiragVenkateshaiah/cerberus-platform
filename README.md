@@ -14,48 +14,63 @@ See [docs/plan.md](docs/plan.md) for the full phased roadmap (Phases 0–8).
 ## Architecture
 
 ```mermaid
-flowchart LR
-    ORCH["Orchestration — Phase 5<br/>Airflow / Step Functions"]
-
-    subgraph SRC["Sources"]
-        F["Files"]
-        A["RDS / API"]
-    end
-
-    ORCH ~~~ SRC
-
-    ING["Ingestion — P0 / P3<br/>bash → Lambda"]
-    BRZ[("S3 Bronze<br/>raw")]
-    TRN["Transform — P2 / P4<br/>Spark / dbt"]
-
-    subgraph SERVE["Serving"]
-        SG[("S3 Silver / Gold")]
-        CAT[["Glue Data Catalog"]]
-        ATH{{"Athena — query<br/>+ dbt (gold)"}}
-    end
-
-    ORCH -. triggers .-> ING
-    F --> ING
-    A --> ING
-    ING --> BRZ
-    BRZ --> TRN
-    TRN --> SG
-    SG --> CAT
-    SG --> ATH
-
-    subgraph XCUT["Cross-cutting"]
+flowchart TB
+    subgraph FOUND["Foundation & tooling"]
         direction LR
-        TF["Terraform<br/>(all infra)"]
-        IAM["IAM<br/>(least privilege)"]
-        CICD["CI/CD — P6"]
-        OBS["Observability +<br/>data quality — P7"]
-        WA["Well-Architected — P8"]
+        GIT["Git + GitHub<br/>public repo"]
+        ADR["Markdown ADRs"]
+        MK["Makefile<br/>TF_BIN swappable"]
     end
+
+    subgraph PIPE["Lakehouse pipeline"]
+        direction LR
+        SAMPLE["Sample data<br/>payments-shaped<br/>(NovaPay-echo)"]
+        ING1["Bash + AWS CLI<br/>systemd timer (Phase 0)"]
+        ING2["AWS Lambda<br/>event-driven (later phase)"]
+        BRZ[("S3 Bronze<br/>raw")]
+        SPARK["Apache Spark on EKS<br/>spin-up / destroy"]
+        SLV[("S3 Silver<br/>cleaned")]
+        DBT["dbt models<br/>silver to gold"]
+        GLD[("S3 Gold<br/>curated")]
+        ATH{{"Amazon Athena<br/>serverless SQL"}}
+
+        SAMPLE --> ING1 --> BRZ
+        SAMPLE -.-> ING2 -.-> BRZ
+        BRZ --> SPARK --> SLV --> DBT --> GLD --> ATH
+    end
+
+    subgraph GOV["Provisioning, access and delivery - cross-cutting"]
+        direction LR
+        TF["Terraform BUSL 1.1<br/>OpenTofu-swappable via TF_BIN"]
+        TFSTATE[("Terraform state<br/>S3 bucket + DynamoDB lock")]
+        IAM["AWS IAM<br/>least privilege per component"]
+        CICD["CI/CD - later phase<br/>GitHub Actions / CodePipeline"]
+        TF --- TFSTATE
+        CICD -. plan / apply .-> TF
+    end
+
+    GIT -. git push .-> CICD
+    TF -. provisions .-> PIPE
+    IAM -. least-privilege .-> PIPE
+
+    classDef storage fill:#dbeafe,stroke:#1e3a8a,color:#1e3a8a
+    classDef compute fill:#dcfce7,stroke:#14532d,color:#14532d
+    classDef provisioning fill:#fef3c7,stroke:#78350f,color:#78350f
+    classDef tooling fill:#f3e8ff,stroke:#4c1d95,color:#4c1d95
+    classDef query fill:#fee2e2,stroke:#7f1d1d,color:#7f1d1d
+
+    class BRZ,SLV,GLD,TFSTATE storage
+    class SPARK,ING1,ING2 compute
+    class TF,IAM,CICD provisioning
+    class GIT,ADR,MK tooling
+    class DBT,ATH query
+    class SAMPLE tooling
 ```
 
 This is the target end-state, not current state (see [Status](#status)
-above). For current-state notes and the governing constraints behind this
-diagram, see [docs/architecture.md](docs/architecture.md).
+above). For current-state notes, the full stack table, and the governing
+constraints behind this diagram, see
+[docs/architecture.md](docs/architecture.md).
 
 ## Repository layout
 
