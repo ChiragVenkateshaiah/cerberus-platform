@@ -58,7 +58,7 @@ layered on top of a platform that already works.
 
 | Phase | Theme | Stack introduced | Course alignment | Status |
 |------:|-------|------------------|------------------|--------|
-| 0 | Manual foundation | Git, AWS CLI, S3, IAM, bash, systemd | DevOps prereq, Linux | 🔨 In progress |
+| 0 | Manual foundation | Git, AWS CLI, S3, IAM, bash, systemd | DevOps prereq, Linux | ✅ Complete |
 | 1 | IaC foundation | Terraform | Terraform for Beginners | ⬜ Planned |
 | 2 | **MVP: end-to-end lakehouse** | Athena, Glue Data Catalog, dbt | AWS fundamentals, S3 | ⬜ Planned |
 | 3 | Event-driven ingestion | Lambda, S3 events / EventBridge | AWS Lambda | ⬜ Planned |

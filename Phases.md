@@ -12,13 +12,13 @@ the specific "what's next" live in [checkpoint.md](checkpoint.md)._
 
 ⬜ Planned · 🔨 In progress · ✅ Complete
 
-## Phase 0 — Manual foundation 🔨
+## Phase 0 — Manual foundation ✅
 
 - [x] 0.1 Repo scaffold
-- [ ] 0.2 AWS account hygiene + billing alarm
-- [ ] 0.3 Manual S3 bronze bucket
-- [ ] 0.4 Bash ingestion script on a systemd timer
-- [ ] 0.5 Manual Terraform state backend (S3 + DynamoDB lock)
+- [x] 0.2 AWS account hygiene + billing alarm
+- [x] 0.3 Manual S3 bronze bucket
+- [x] 0.4 Bash ingestion script on a systemd timer
+- [x] 0.5 Manual Terraform state backend (S3 + DynamoDB lock)
 
 ## Phase 1 — IaC foundation ⬜
 
