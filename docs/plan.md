@@ -60,8 +60,15 @@ These are not phases — they run through every phase.
   code against the state backend hand-built in Phase 0. There is no separate
   "convert to Terraform" phase; each phase writes its own modules.
 - **Architecture.** Every phase closes with a Well-Architected pass against
-  its own work and an ADR recording the reasoning. Architecture is built by
-  repetition across phases, not deferred to a hardening phase at the end.
+  its own work and an ADR recording the reasoning — tracked as a real subtask
+  in [Phases.md](../Phases.md), not left as an aspiration. Architecture is
+  built by repetition across phases, not deferred to a hardening phase at the
+  end. Hardening concerns land where they belong: VPC design and multi-AZ with
+  EKS in Phase 3, the least-privilege IAM review in Phase 7, tagging at
+  creation time throughout.
+- **Cost + tagging.** Resources are tagged when created, never retrofitted.
+  Cost is reviewed in each phase's Well-Architected pass rather than batched
+  into a cleanup phase.
 
 ## The MVP — Milestone 1
 
@@ -132,11 +139,15 @@ layered on top of a platform that already works.
 
 ### Phase 3 — Scalable compute
 - **Goal:** Move the heavy transform onto distributed compute.
-- **Stack:** Spark on EKS (via the Spark Operator).
+- **Stack:** Spark on EKS (via the Spark Operator), on a purpose-designed VPC.
+- **Networking:** this is the one part of the platform that genuinely needs VPC
+  design — subnets, AZ spread, routing — since the rest of the stack is
+  serverless. Multi-AZ node groups are decided here too, not deferred.
 - **Cost note:** EKS is **not** free-tier (~$0.10/hr control plane). Provision,
   run the job, `terraform destroy`. Treat as a spin-up/tear-down module.
 - **Done when:** a Spark job runs on EKS against S3 and writes to silver/gold.
-- **Artifact:** EKS + Spark manifests as code; doubles as CKA-adjacent practice.
+- **Artifact:** VPC + EKS + Spark manifests as code, an ADR on the network
+  design; doubles as CKA-adjacent practice.
 
 ### Phase 4 — Orchestration
 - **Goal:** Turn a sequence of jobs into a managed pipeline.
@@ -167,7 +178,10 @@ layered on top of a platform that already works.
 - **Goal:** Prove the whole platform works as one system under a realistic
   synthetic payments workload — the capstone.
 - **Stack:** scaled-up synthetic payments generation exercising every layer;
-  the AWS Well-Architected Tool for a formal self-review.
+  the AWS Well-Architected Tool for a formal platform-wide self-review.
+- **Security debt:** this is where Phase 0's deliberate shortcut is repaid —
+  `cerberus-admin` still holds `AdministratorAccess`, and the least-privilege
+  review scopes it (and every per-phase role) down to what is actually used.
 - **Done when:** a full run from generated payments through bronze/silver/gold
   to an Athena result completes orchestrated, monitored, and tested — and the
   platform survives a self-run Well-Architected review.

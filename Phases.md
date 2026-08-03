@@ -16,8 +16,13 @@ the specific "what's next" live in [checkpoint.md](checkpoint.md)._
 
 - **IaC in Terraform** — every resource from Phase 1 onward is provisioned as
   code; each phase writes its own modules. No separate conversion phase.
-- **Architecture** — each phase closes with a Well-Architected pass over its
-  own work plus an ADR recording the reasoning.
+- **Architecture** — every phase closes with a Well-Architected pass over its
+  own work plus an ADR. This is a real checkbox in each phase below, not an
+  aspiration: architecture is built by repetition, so it is tracked like any
+  other deliverable.
+- **Cost + tagging** — resources are tagged when created, not retrofitted.
+  Cost is reviewed as part of each phase's Well-Architected pass rather than
+  batched into a cleanup phase.
 
 ## Phase 0 — Foundation (built by hand) ✅
 
@@ -26,6 +31,9 @@ the specific "what's next" live in [checkpoint.md](checkpoint.md)._
 - [x] 0.3 Manual S3 bronze bucket
 - [x] 0.4 Bash ingestion script on a systemd timer
 - [x] 0.5 Manual Terraform state backend (S3 + DynamoDB lock)
+
+_Predates the per-phase Well-Architected pass. Its deliberate shortcut —
+`cerberus-admin` holding `AdministratorAccess` — is repaid by 7.3._
 
 ## Phase 1 — MVP: end-to-end lakehouse 🎯 ⬜
 
@@ -41,6 +49,7 @@ the specific "what's next" live in [checkpoint.md](checkpoint.md)._
 - [ ] 1.10 Athena demo query against gold
 - [ ] 1.11 Verify `terraform apply` builds and `terraform destroy` tears down cleanly
 - [ ] 1.12 MVP architecture write-up (definition-of-done artifact)
+- [ ] 1.13 Well-Architected pass + ADR
 
 ## Phase 2 — Event-driven ingestion ⬜
 
@@ -49,14 +58,18 @@ the specific "what's next" live in [checkpoint.md](checkpoint.md)._
 - [ ] 2.3 IAM role for the Lambda
 - [ ] 2.4 ADR: push vs. pull ingestion
 - [ ] 2.5 Retire the Phase 0 systemd timer
+- [ ] 2.6 Well-Architected pass + ADR
 
 ## Phase 3 — Scalable compute ⬜
 
-- [ ] 3.1 EKS cluster module (spin-up/destroy pattern, not standing infra)
-- [ ] 3.2 Spark Operator install
-- [ ] 3.3 Spark job manifest against S3
-- [ ] 3.4 Verify writes to silver/gold
-- [ ] 3.5 `terraform destroy` after each run (cost discipline)
+- [ ] 3.1 VPC design for the cluster (subnets, AZs, routing) + ADR
+- [ ] 3.2 EKS cluster module (spin-up/destroy pattern, not standing infra)
+- [ ] 3.3 Multi-AZ node group decision
+- [ ] 3.4 Spark Operator install
+- [ ] 3.5 Spark job manifest against S3
+- [ ] 3.6 Verify writes to silver/gold
+- [ ] 3.7 `terraform destroy` after each run (cost discipline)
+- [ ] 3.8 Well-Architected pass + ADR
 
 ## Phase 4 — Orchestration ⬜
 
@@ -64,6 +77,7 @@ the specific "what's next" live in [checkpoint.md](checkpoint.md)._
 - [ ] 4.2 State machine definition as code
 - [ ] 4.3 Retries + visibility
 - [ ] 4.4 Full ingest → transform → serve flow as one orchestrated run
+- [ ] 4.5 Well-Architected pass + ADR
 
 ## Phase 5 — CI/CD ⬜
 
@@ -71,6 +85,7 @@ the specific "what's next" live in [checkpoint.md](checkpoint.md)._
 - [ ] 5.2 `terraform apply` on merge
 - [ ] 5.3 Pipeline code CI (lint/test)
 - [ ] 5.4 Green build badge on README
+- [ ] 5.5 Well-Architected pass + ADR
 
 ## Phase 6 — Observability & data quality ⬜
 
@@ -79,14 +94,17 @@ the specific "what's next" live in [checkpoint.md](checkpoint.md)._
 - [ ] 6.3 dbt tests or Great Expectations suite
 - [ ] 6.4 Lineage
 - [ ] 6.5 SLO write-up
+- [ ] 6.6 Well-Architected pass + ADR
 
 ## Phase 7 — End-to-end platform validation ⬜
 
 - [ ] 7.1 Scaled-up synthetic payments workload
 - [ ] 7.2 Full orchestrated run exercising every layer
-- [ ] 7.3 Self-run Well-Architected review (AWS Well-Architected Tool)
-- [ ] 7.4 Cost + security summary
-- [ ] 7.5 End-to-end demo (GIF or short video)
+- [ ] 7.3 Least-privilege IAM review (repay Phase 0's `AdministratorAccess`)
+- [ ] 7.4 Self-run Well-Architected review across the whole platform
+      (AWS Well-Architected Tool)
+- [ ] 7.5 Cost + security summary
+- [ ] 7.6 End-to-end demo (GIF or short video)
 
 ---
 
