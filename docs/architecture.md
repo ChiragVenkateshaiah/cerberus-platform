@@ -1,8 +1,8 @@
 # Architecture
 
-_Status: Phase 0 — this document tracks the architecture as it actually
-exists today. For the target end-state and phased plan, see
-[plan.md](plan.md)._
+_Status: Phase 0 complete, Phase 1 next — this document tracks the
+architecture as it actually exists today. For the target end-state and phased
+plan, see [plan.md](plan.md)._
 
 ## Governing constraints
 
@@ -10,23 +10,29 @@ These shape every architectural decision in this repo (see
 [plan.md's guiding principles](plan.md#guiding-principles)):
 
 - **Everything as code after Phase 0.** Phase 0 is the one hand-built
-  exception, kept deliberately small so it can be re-created in Terraform
-  in Phase 1. From Phase 1 onward, if it isn't in Terraform, it doesn't exist.
+  exception, kept deliberately small. From Phase 1 onward, if it isn't in
+  Terraform, it doesn't exist — and Terraform is cross-cutting, written by
+  each phase for its own resources rather than in one conversion phase.
 - **Cost discipline.** Free tier wherever possible. The one non-free
-  component (EKS, Phase 4) is treated as spin-up/run-job/tear-down, not a
+  component (EKS, Phase 3) is treated as spin-up/run-job/tear-down, not a
   standing resource — `terraform destroy` is part of the normal workflow.
 - **MVP boundary.** The lakehouse is queryable end to end at the close of
-  Phase 2 (raw → bronze → silver → gold → Athena, all built by
-  `terraform apply`). Everything after Phase 2 deepens an already-working
+  Phase 1 (raw → bronze → silver → gold → Athena, all built by
+  `terraform apply`). Everything after Phase 1 deepens an already-working
   platform rather than building toward a first working state.
+- **Synthetic payments as the data domain.** From Phase 1 the pipeline models
+  generated payments data. Phase 0's weather ingestion was a placeholder to
+  prove the mechanism and remains only as that phase's artifact.
 
-## Current state (Phase 0)
+## Current state (Phase 0 complete)
 
-Provisioned manually, not yet code-defined. Phase 0 stands up the project
+Provisioned manually, not yet code-defined. Phase 0 stood up the project
 skeleton and lands raw data in a hand-created S3 bronze bucket via a bash
 script on a systemd timer, with a hand-created S3 + DynamoDB Terraform
-state backend prepared for Phase 1 to build on. None of this is
-Terraform-managed yet — re-creating it as code is exactly what Phase 1 does.
+state backend ready for Phase 1 to build on. None of this is
+Terraform-managed yet — adopting it as code is part of Phase 1. The live
+resource inventory is listed in
+[plan.md](plan.md#existing-infrastructure).
 
 ## Target architecture (north star)
 
@@ -47,7 +53,7 @@ flowchart TB
         direction LR
         SAMPLE["Sample data<br/>payments-shaped<br/>(NovaPay-echo)"]
         ING1["Bash + AWS CLI<br/>systemd timer (Phase 0)"]
-        ING2["AWS Lambda<br/>event-driven (later phase)"]
+        ING2["AWS Lambda<br/>event-driven (Phase 2)"]
         BRZ[("S3 Bronze<br/>raw")]
         SPARK["Apache Spark on EKS<br/>spin-up / destroy"]
         SLV[("S3 Silver<br/>cleaned")]
@@ -65,7 +71,7 @@ flowchart TB
         TF["Terraform BUSL 1.1<br/>OpenTofu-swappable via TF_BIN"]
         TFSTATE[("Terraform state<br/>S3 bucket + DynamoDB lock")]
         IAM["AWS IAM<br/>least privilege per component"]
-        CICD["CI/CD - later phase<br/>GitHub Actions / CodePipeline"]
+        CICD["CI/CD - Phase 5<br/>AWS CodePipeline"]
         TF --- TFSTATE
         CICD -. plan / apply .-> TF
     end
@@ -93,13 +99,14 @@ the git-push → CI/CD → Terraform trigger) or a cross-cutting relationship
 (Terraform provisioning the pipeline, IAM constraining it) rather than a
 data-flow step. Solid edges are the core bronze → silver → gold data flow.
 
-Terraform state backend (S3 + DynamoDB lock, Phase 0.5 → re-created as code
-in Phase 1) underpins all of the above — it's what makes `terraform apply` /
+Terraform state backend (S3 + DynamoDB lock, Phase 0.5 → adopted as code in
+Phase 1) underpins all of the above — it's what makes `terraform apply` /
 `terraform destroy` safe to run repeatedly across every later phase.
 
-**Orchestration engine is not yet decided.** Airflow (on EKS) vs. AWS Step
-Functions is an open trade-off to be settled by ADR when Phase 5 starts (see
-[plan.md, Phase 5](plan.md#phase-5--orchestration)).
+**Orchestration is AWS Step Functions** (Phase 4) — serverless and
+pay-per-transition, with no standing scheduler to host. The trade-off against
+Airflow is still worth recording as an ADR when Phase 4 starts (see
+[plan.md, Phase 4](plan.md#phase-4--orchestration)).
 
 ### Full stack
 
@@ -109,12 +116,14 @@ Functions is an open trade-off to be settled by ADR when Phase 5 starts (see
 | Storage | Amazon S3 | Medallion layout: bronze (raw) → silver (cleaned) → gold (curated) |
 | Storage | Amazon DynamoDB | Terraform state lock table, paired with an S3 state bucket for the backend |
 | Ingestion | Bash + AWS CLI | Scheduled with a systemd timer (Phase 0, by hand) |
-| Ingestion | AWS Lambda | Event-driven ingestion, replaces the bash script (later phase) |
+| Ingestion | AWS Lambda | Event-driven ingestion, replaces the bash script (Phase 2) |
+| Orchestration | AWS Step Functions | Ingest → transform → serve as one state machine (Phase 4) |
 | Transform / compute | Apache Spark on Amazon EKS | Heavy transform layer; spin-up-and-destroy since EKS isn't free-tier |
 | Serving / query | Amazon Athena | Serverless SQL over S3 |
 | Serving / query | dbt | Models for the silver → gold serving layer |
 | Access control | AWS IAM | Least-privilege roles/policies per component |
-| CI/CD | GitHub Actions or AWS CodePipeline | `git push` → plan/apply + deploy (later phase) |
+| CI/CD | AWS CodePipeline | `git push` → plan/apply + deploy (Phase 5) |
+| Observability | Amazon CloudWatch | Dashboards, alarms, log insights (Phase 6) |
 | Foundation / tooling | Git + GitHub | Public repo |
 | Foundation / tooling | Markdown ADRs | Decision log in [docs/adr/](adr/) |
 | Foundation / tooling | Makefile | Common Terraform/OpenTofu tasks |

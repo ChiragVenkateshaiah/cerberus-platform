@@ -8,17 +8,25 @@ pointer._
 
 ## Current phase
 
-Phase 1 — IaC foundation (⬜ planned, not yet started) — see
-[Phases.md](Phases.md#phase-1--iac-foundation). Phase 0 — Manual
-foundation is ✅ complete.
+Phase 1 — MVP: end-to-end lakehouse (⬜ planned, not yet started) — see
+[Phases.md](Phases.md#phase-1--mvp-end-to-end-lakehouse--). Phase 0 —
+Foundation is ✅ complete.
+
+**Note:** the roadmap was re-scoped on 2026-08-03 from 9 phases (0–8) to
+8 (0–7). The old "Phase 1 — IaC foundation" no longer exists as a phase;
+Terraform is now cross-cutting and its work is absorbed into Phase 1's
+subtasks. Session history entries before that date use the old numbering.
 
 ## Next up
 
-- 1.1 Terraform state backend module (re-create 0.5 as code)
-- 1.2 S3 medallion module (re-create 0.3 as code; bronze/silver/gold)
-- 1.3 IAM module (least-privilege roles for the modules above)
-- 1.4 ADR: medallion layout
-- 1.5 Verify `terraform apply` builds and `terraform destroy` tears down cleanly
+Phase 1 opens with the two ADRs, since they settle the data model and storage
+layout that every later subtask builds on:
+
+- 1.1 ADR: medallion layout (bronze/silver/gold conventions, partitioning)
+- 1.2 ADR: synthetic payments data model
+- 1.3 Synthetic payments generator landing raw records in bronze
+- 1.4 Terraform: S3 medallion module (bronze/silver/gold)
+- 1.5 Terraform: adopt the hand-built state backend as code
 
 ## Session history
 
@@ -89,13 +97,14 @@ foundation is ✅ complete.
 
 ## Notes / blockers
 
-- Today's Phase 0 completion work (0.2–0.5) and the `/end-day` command
-  update are all uncommitted locally — commit is a separate explicit step
-  you take after reviewing this checkpoint, not something `/end-day` does
-  automatically. New untracked files: `ingestion/scripts/ingest_weather.sh`,
-  `ingestion/systemd/cerberus-ingest.service`,
-  `ingestion/systemd/cerberus-ingest.timer`.
 - Systemd linger is still off for this user — `cerberus-ingest.timer` will
   stop firing once the current login session ends, until you run
   `sudo loginctl enable-linger $(whoami)` yourself (needs an interactive
   password, can't be run from here).
+- The Phase 0 weather ingestion is now legacy. It stays in the repo as the
+  Phase 0 artifact, but synthetic payments supersedes it as the pipeline's
+  data source from Phase 1; the bronze bucket still holds weather objects
+  under `weather/dt=*/`. Decide during Phase 1 whether to leave them as
+  historical or clear them.
+- The local working directory was wiped on 2026-08-03 and restored by
+  cloning `origin/main` at 474296d. AWS resources were never affected.

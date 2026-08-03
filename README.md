@@ -7,9 +7,13 @@ Engineering competence in one repository.
 
 ## Status
 
-🔨 Phase 0 (manual foundation) — in progress.
+✅ Phase 0 (foundation, built by hand) — complete.
+⬜ Phase 1 (MVP: end-to-end lakehouse) — next.
 
-See [docs/plan.md](docs/plan.md) for the full phased roadmap (Phases 0–8).
+See [docs/plan.md](docs/plan.md) for the full phased roadmap (Phases 0–7)
+and [Phases.md](Phases.md) for subtask-level progress.
+
+The platform models **synthetic payments data** from Phase 1 onward.
 
 ## Architecture
 
@@ -26,7 +30,7 @@ flowchart TB
         direction LR
         SAMPLE["Sample data<br/>payments-shaped<br/>(NovaPay-echo)"]
         ING1["Bash + AWS CLI<br/>systemd timer (Phase 0)"]
-        ING2["AWS Lambda<br/>event-driven (later phase)"]
+        ING2["AWS Lambda<br/>event-driven (Phase 2)"]
         BRZ[("S3 Bronze<br/>raw")]
         SPARK["Apache Spark on EKS<br/>spin-up / destroy"]
         SLV[("S3 Silver<br/>cleaned")]
@@ -44,7 +48,7 @@ flowchart TB
         TF["Terraform BUSL 1.1<br/>OpenTofu-swappable via TF_BIN"]
         TFSTATE[("Terraform state<br/>S3 bucket + DynamoDB lock")]
         IAM["AWS IAM<br/>least privilege per component"]
-        CICD["CI/CD - later phase<br/>GitHub Actions / CodePipeline"]
+        CICD["CI/CD - Phase 5<br/>AWS CodePipeline"]
         TF --- TFSTATE
         CICD -. plan / apply .-> TF
     end
