@@ -36,6 +36,12 @@ Close out today's cerberus-platform session by recording progress so
    - Rewrite "Current phase" and "Next up" to reflect reality after
      today's work. "Next up" should be concrete enough that `/start-day`
      can act on it without re-deriving context from the conversation.
+   - **Preserve the reference sections verbatim.** Everything below the `---`
+     separator near the end of checkpoint.md (currently
+     `## Reference — Well-Architected method for ADRs`) is stable reference
+     material, not session state. Never rewrite, summarise, trim, or drop it
+     while updating the sections above it. Add new reference sections there
+     only when the user explicitly asks for one.
 4. Show the user a short summary of what changed in Phases.md,
    checkpoint.md, and (if a phase completed) docs/plan.md before finishing.
 

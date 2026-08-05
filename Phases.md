@@ -12,7 +12,19 @@ the specific "what's next" live in [checkpoint.md](checkpoint.md)._
 
 ⬜ Planned · 🔨 In progress · ✅ Complete
 
-## Phase 0 — Manual foundation ✅
+## Cross-cutting (not phases)
+
+- **IaC in Terraform** — every resource from Phase 1 onward is provisioned as
+  code; each phase writes its own modules. No separate conversion phase.
+- **Architecture** — every phase closes with a Well-Architected pass over its
+  own work plus an ADR. This is a real checkbox in each phase below, not an
+  aspiration: architecture is built by repetition, so it is tracked like any
+  other deliverable.
+- **Cost + tagging** — resources are tagged when created, not retrofitted.
+  Cost is reviewed as part of each phase's Well-Architected pass rather than
+  batched into a cleanup phase.
+
+## Phase 0 — Foundation (built by hand) ✅
 
 - [x] 0.1 Repo scaffold
 - [x] 0.2 AWS account hygiene + billing alarm
@@ -20,69 +32,79 @@ the specific "what's next" live in [checkpoint.md](checkpoint.md)._
 - [x] 0.4 Bash ingestion script on a systemd timer
 - [x] 0.5 Manual Terraform state backend (S3 + DynamoDB lock)
 
-## Phase 1 — IaC foundation ⬜
+_Predates the per-phase Well-Architected pass. Its deliberate shortcut —
+`cerberus-admin` holding `AdministratorAccess` — is repaid by 7.3._
 
-- [ ] 1.1 Terraform state backend module (re-create 0.5 as code)
-- [ ] 1.2 S3 medallion module (re-create 0.3 as code; bronze/silver/gold)
-- [ ] 1.3 IAM module (least-privilege roles for the modules above)
-- [ ] 1.4 ADR: medallion layout
-- [ ] 1.5 Verify `terraform apply` builds and `terraform destroy` tears down cleanly
+## Phase 1 — MVP: end-to-end lakehouse 🎯 ⬜
 
-## Phase 2 — MVP: end-to-end lakehouse 🎯 ⬜
+- [ ] 1.1 ADR: medallion layout (bronze/silver/gold conventions, partitioning)
+- [ ] 1.2 ADR: synthetic payments data model
+- [ ] 1.3 Synthetic payments generator landing raw records in bronze
+- [ ] 1.4 Terraform: S3 medallion module (bronze/silver/gold)
+- [ ] 1.5 Terraform: adopt the hand-built state backend as code
+- [ ] 1.6 Terraform: IAM module (least-privilege roles for the above)
+- [ ] 1.7 Minimal transform promoting bronze → silver → gold
+- [ ] 1.8 Glue Data Catalog schema registration
+- [ ] 1.9 dbt project + gold models
+- [ ] 1.10 Athena demo query against gold
+- [ ] 1.11 Verify `terraform apply` builds and `terraform destroy` tears down cleanly
+- [ ] 1.12 MVP architecture write-up (definition-of-done artifact)
+- [ ] 1.13 Well-Architected pass + ADR
 
-- [ ] 2.1 Minimal transform (SQL/PySpark/dbt) promoting bronze → silver → gold
-- [ ] 2.2 Glue Data Catalog schema registration
-- [ ] 2.3 dbt project + gold models
-- [ ] 2.4 Athena demo query against gold
-- [ ] 2.5 Architecture write-up (MVP definition-of-done artifact)
+## Phase 2 — Event-driven ingestion ⬜
 
-## Phase 3 — Event-driven ingestion ⬜
+- [ ] 2.1 Lambda ingestion function
+- [ ] 2.2 S3 event / EventBridge trigger
+- [ ] 2.3 IAM role for the Lambda
+- [ ] 2.4 ADR: push vs. pull ingestion
+- [ ] 2.5 Retire the Phase 0 systemd timer
+- [ ] 2.6 Well-Architected pass + ADR
 
-- [ ] 3.1 Lambda ingestion function
-- [ ] 3.2 S3 event / EventBridge trigger
-- [ ] 3.3 IAM role for the Lambda
-- [ ] 3.4 ADR: push vs. pull ingestion
-- [ ] 3.5 Retire the Phase 0 systemd timer
+## Phase 3 — Scalable compute ⬜
 
-## Phase 4 — Scalable compute ⬜
+- [ ] 3.1 VPC design for the cluster (subnets, AZs, routing) + ADR
+- [ ] 3.2 EKS cluster module (spin-up/destroy pattern, not standing infra)
+- [ ] 3.3 Multi-AZ node group decision
+- [ ] 3.4 Spark Operator install
+- [ ] 3.5 Spark job manifest against S3
+- [ ] 3.6 Verify writes to silver/gold
+- [ ] 3.7 `terraform destroy` after each run (cost discipline)
+- [ ] 3.8 Well-Architected pass + ADR
 
-- [ ] 4.1 EKS cluster module (spin-up/destroy pattern, not standing infra)
-- [ ] 4.2 Spark Operator install
-- [ ] 4.3 Spark job manifest against S3
-- [ ] 4.4 Verify writes to silver/gold
-- [ ] 4.5 `terraform destroy` after each run (cost discipline)
+## Phase 4 — Orchestration ⬜
 
-## Phase 5 — Orchestration ⬜
+- [ ] 4.1 ADR: Step Functions vs. Airflow
+- [ ] 4.2 State machine definition as code
+- [ ] 4.3 Retries + visibility
+- [ ] 4.4 Full ingest → transform → serve flow as one orchestrated run
+- [ ] 4.5 Well-Architected pass + ADR
 
-- [ ] 5.1 ADR: Airflow vs. Step Functions
-- [ ] 5.2 DAG / state machine definition
-- [ ] 5.3 Retries + visibility
-- [ ] 5.4 Full ingest → transform → serve flow as one orchestrated run
+## Phase 5 — CI/CD ⬜
 
-## Phase 6 — CI/CD & GitOps ⬜
+- [ ] 5.1 `terraform plan` on PR
+- [ ] 5.2 `terraform apply` on merge
+- [ ] 5.3 Pipeline code CI (lint/test)
+- [ ] 5.4 Green build badge on README
+- [ ] 5.5 Well-Architected pass + ADR
 
-- [ ] 6.1 `terraform plan` on PR
-- [ ] 6.2 `terraform apply` on merge
-- [ ] 6.3 Pipeline code CI (lint/test)
-- [ ] 6.4 Optional Argo CD for GitOps
-- [ ] 6.5 Green build badge on README
+## Phase 6 — Observability & data quality ⬜
 
-## Phase 7 — Observability & data quality ⬜
+- [ ] 6.1 CloudWatch dashboards (pipeline health, data freshness)
+- [ ] 6.2 CloudWatch alarms + slow-job alerting
+- [ ] 6.3 dbt tests or Great Expectations suite
+- [ ] 6.4 Lineage
+- [ ] 6.5 SLO write-up
+- [ ] 6.6 Well-Architected pass + ADR
 
-- [ ] 7.1 CloudWatch or Prometheus/Grafana dashboards
-- [ ] 7.2 dbt tests or Great Expectations suite
-- [ ] 7.3 Pipeline health + slow-job alerting
-- [ ] 7.4 Lineage
-- [ ] 7.5 SLO write-up
+## Phase 7 — End-to-end platform validation ⬜
 
-## Phase 8 — Architecture hardening ⬜
-
-- [ ] 8.1 VPC design
-- [ ] 8.2 Least-privilege IAM review
-- [ ] 8.3 Secrets management
-- [ ] 8.4 Multi-AZ
-- [ ] 8.5 Cost optimization + tagging
-- [ ] 8.6 Self-run Well-Architected review write-up
+- [ ] 7.1 Scaled-up synthetic payments workload
+- [ ] 7.2 Full orchestrated run exercising every layer
+- [ ] 7.3 Least-privilege IAM review (repay Phase 0's `AdministratorAccess`)
+- [ ] 7.4 Self-run Well-Architected review across the whole platform
+      (AWS Well-Architected Tool)
+- [ ] 7.5 Cost + security summary
+- [ ] 7.6 End-to-end demo (GIF or short video)
 
 ---
 

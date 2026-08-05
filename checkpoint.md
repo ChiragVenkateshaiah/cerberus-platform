@@ -8,17 +8,25 @@ pointer._
 
 ## Current phase
 
-Phase 1 — IaC foundation (⬜ planned, not yet started) — see
-[Phases.md](Phases.md#phase-1--iac-foundation). Phase 0 — Manual
-foundation is ✅ complete.
+Phase 1 — MVP: end-to-end lakehouse (⬜ planned, not yet started) — see
+[Phases.md](Phases.md#phase-1--mvp-end-to-end-lakehouse--). Phase 0 —
+Foundation is ✅ complete.
+
+**Note:** the roadmap was re-scoped on 2026-08-03 from 9 phases (0–8) to
+8 (0–7). The old "Phase 1 — IaC foundation" no longer exists as a phase;
+Terraform is now cross-cutting and its work is absorbed into Phase 1's
+subtasks. Session history entries before that date use the old numbering.
 
 ## Next up
 
-- 1.1 Terraform state backend module (re-create 0.5 as code)
-- 1.2 S3 medallion module (re-create 0.3 as code; bronze/silver/gold)
-- 1.3 IAM module (least-privilege roles for the modules above)
-- 1.4 ADR: medallion layout
-- 1.5 Verify `terraform apply` builds and `terraform destroy` tears down cleanly
+Phase 1 opens with the two ADRs, since they settle the data model and storage
+layout that every later subtask builds on:
+
+- 1.1 ADR: medallion layout (bronze/silver/gold conventions, partitioning)
+- 1.2 ADR: synthetic payments data model
+- 1.3 Synthetic payments generator landing raw records in bronze
+- 1.4 Terraform: S3 medallion module (bronze/silver/gold)
+- 1.5 Terraform: adopt the hand-built state backend as code
 
 ## Session history
 
@@ -87,15 +95,159 @@ foundation is ✅ complete.
   and going forward the dated history should describe durable content
   rather than transient commit/push status.
 
+### 2026-08-03
+
+_No Phase 1 subtasks started — the session went to roadmap design, recovery,
+and reference capture._
+
+- **Course mapping.** Reviewed the KodeKloud Cloud Engineer learning path
+  against the build and created `docs/courses-map-to-phases.md`: per-phase
+  course mapping, a free architecture track (AWS Well-Architected Foundations
+  on Skill Builder, Well-Architected Labs, Architecture Center), and explicit
+  gaps where no course exists (Step Functions has only a ~12 min module inside
+  SAA; Glue and Athena ~5 min each; Spark, dbt and data quality nothing at
+  all). KodeKloud's Data Engineering Fundamentals course would fit Phase 1
+  best but is unreleased as of today.
+- **Learning philosophy settled:** building Cerberus is the primary learning
+  path; courses are reached for just-in-time during a phase and never gate
+  one. Only Terraform is worth a head start. Recorded as guiding principle #7
+  in plan.md.
+- **Roadmap re-scoped** from 9 phases (0–8) to 8 (0–7) — commit 67e5479.
+  Phase 1 is now the MVP lakehouse; the old "IaC foundation" phase is gone,
+  with Terraform cross-cutting instead. Data domain confirmed as **synthetic
+  payments from Phase 1 onward** (the README's diagram had always said
+  "payments-shaped"; Phase 0's weather feed was only ever a mechanism proof).
+  MVP boundary moved to the close of Phase 1. Data quality joined observability
+  in Phase 6. plan.md gained an "Existing infrastructure" inventory of the six
+  live hand-built AWS resources. Numbering reconciled across plan.md,
+  Phases.md, checkpoint.md, README.md, architecture.md and the courses doc.
+- **Architecture hardening distributed** rather than restored as a Phase 8 —
+  commit a526fe0. Reviewed against the actual stack, its subtasks were mostly
+  duplicated, misplaced or empty: VPC design and multi-AZ moved to Phase 3
+  (EKS is the only component that needs them), the least-privilege IAM review
+  became 7.3, cost/tagging became continuous, secrets management was dropped
+  (no secret exists in this stack), and the review write-up already existed as
+  Phase 7. Each phase now closes with a tracked "Well-Architected pass + ADR"
+  subtask — seven enforced touchpoints instead of one end-loaded phase.
+- **Repo destroyed and restored.** The local working directory was
+  intentionally wiped to restart the project; on realising Phase 0's work was
+  worth keeping, it was restored by cloning `origin/main` at 474296d and
+  merging in place so the uncommitted courses doc survived. AWS resources were
+  never touched and were verified intact.
+- **Well-Architected reference captured** in this file below the `---`, with
+  `/start-day` set to render it in full whenever ADR work is next, and
+  `/end-day` instructed to preserve it verbatim.
+
 ## Notes / blockers
 
-- Today's Phase 0 completion work (0.2–0.5) and the `/end-day` command
-  update are all uncommitted locally — commit is a separate explicit step
-  you take after reviewing this checkpoint, not something `/end-day` does
-  automatically. New untracked files: `ingestion/scripts/ingest_weather.sh`,
-  `ingestion/systemd/cerberus-ingest.service`,
-  `ingestion/systemd/cerberus-ingest.timer`.
+- **`cerberus-ingest.timer` state is unverified.** It was disabled and its
+  symlinks removed while the repo was missing (it had been failing hourly with
+  `203/EXEC`), then re-linked and re-enabled after the restore — but the
+  confirming status check was interrupted, so whether it is actually running
+  is unknown. Check with
+  `systemctl --user list-timers cerberus-ingest.timer` before trusting it.
+  Low stakes either way: it feeds the legacy weather pipeline, and Phase 2
+  retires it.
 - Systemd linger is still off for this user — `cerberus-ingest.timer` will
   stop firing once the current login session ends, until you run
   `sudo loginctl enable-linger $(whoami)` yourself (needs an interactive
   password, can't be run from here).
+- The Phase 0 weather ingestion is now legacy. It stays in the repo as the
+  Phase 0 artifact, but synthetic payments supersedes it as the pipeline's
+  data source from Phase 1; the bronze bucket still holds weather objects
+  under `weather/dt=*/`. Decide during Phase 1 whether to leave them as
+  historical or clear them.
+- Bronze still holds the legacy weather objects under `weather/dt=*/`.
+  Decide during Phase 1 whether to leave them as historical or clear them.
+
+---
+
+## Reference — Well-Architected method for ADRs
+
+_Stable reference material, **not** session state. `/end-day` must preserve
+this section verbatim when rewriting the checkpoint; `/start-day` renders it
+in full whenever ADR work appears in "Next up". Captured 2026-08-03._
+
+### 1. Using the Framework to design an ADR
+
+The method is simple: **treat the six pillars as a question generator, not a
+checklist.** Hold each pillar up against the decision and ask "what does this
+pillar have to say here?" Most produce nothing. The two or three that produce
+something sharp are the ADR's real content.
+
+For 1.1 the actual decisions on the table are roughly: one bucket or three?
+what partition scheme? what file format per layer? is bronze immutable? what
+lifecycle/retention?
+
+What each pillar asks of those:
+
+| Pillar | What it asks of the medallion layout |
+|---|---|
+| **Cost Optimization** | The biggest lever in the whole platform. Athena bills per **TB scanned** — so Parquet + compression in silver/gold, and partition pruning, are the difference between cents and dollars per query. Also: lifecycle rules moving aged bronze to IA/Glacier. |
+| **Performance Efficiency** | Partition granularity and the **small-file problem**. The Phase 0 timer wrote one tiny JSON per hour — thousands of small objects wreck Athena and Spark performance. Do you compact? Partition daily or hourly? |
+| **Security** | Do the layers need *different* access? Bronze may hold raw PII-shaped payment records; gold is aggregated and safer to expose. Separate buckets give clean IAM boundaries and a smaller blast radius; prefixes in one bucket give fiddlier policies. |
+| **Reliability** | Is bronze **immutable and append-only**? If yes, silver and gold can always be rebuilt by reprocessing — that single property is what makes the whole pipeline recoverable. Versioning (already on) supports it. |
+| **Operational Excellence** | Predictable naming, so a human debugging a bad partition can find it. Schema evolution: what happens when the payments generator adds a field? |
+| **Sustainability** | Largely falls out of Cost here — less scanned, less compute, less energy. Rarely decisive on its own. |
+
+**The valuable part is the tensions** — that is what makes the ADR worth
+writing rather than obvious:
+
+- **Bronze format:** Reliability says keep raw exactly as received (fidelity,
+  always reprocessable). Cost says convert to Parquet immediately. The
+  conventional resolution — raw in bronze, Parquet from silver on — is a
+  **deliberate trade**, and saying *why* is the ADR.
+- **Partition granularity:** finer partitions help Cost (less scanned) but
+  hurt Performance (more small files). There is no universally right answer;
+  there is a right answer *for your data volume*.
+- **One bucket vs three:** Security prefers three; Operational Excellence
+  mildly prefers one. Bronze already exists as its own bucket, so three is the
+  path of least resistance and the ADR mostly formalises it.
+
+**Where it goes in the Nygard template:** don't bolt on a "Pillars" section —
+that is checkbox theatre and reads as filler. Let the pillar analysis
+*generate* the **Context** (the forces at play) and populate **Consequences**
+(what was given up). Optionally name the driving pillar inline: "chose Parquet
+in silver primarily on cost-optimization grounds, accepting the loss of
+human-readability."
+
+The one place a pillar-by-pillar structure genuinely fits is the per-phase
+**Well-Architected pass** ADRs (1.13, 2.6, …) — those are reviews, so a pillar
+walkthrough is the natural shape.
+
+### 2. The AWS Well-Architected Tool
+
+- **Where:** AWS Console → search "Well-Architected Tool", or Services →
+  Management & Governance. Direct: `console.aws.amazon.com/wellarchitected`.
+  Regional service — use `us-east-1` to match everything else.
+- **Cost:** free. `cerberus-admin` has `AdministratorAccess`, so permissions
+  are already fine.
+- **How it works:** define a *workload* (name, description, environment,
+  regions), then apply one or more *lenses*. The default is the AWS
+  Well-Architected Framework lens. Each pillar becomes a set of questions with
+  best-practice checkboxes; answer honestly, mark what is genuinely not
+  applicable, and it generates an improvement plan flagging **high- and
+  medium-risk items**. Save **milestones** — point-in-time snapshots.
+- **The lens that matters here:** the **Data Analytics Lens**, built for
+  analytics/lakehouse workloads — far more relevant to Cerberus than the
+  generic framework lens, and worth reading even before using the tool.
+
+**Timing.** The Tool is built to review a workload that *exists*. At 1.1 there
+is almost nothing built, so a full review today returns mostly "no" and "not
+applicable" — noise, not signal. Better sequencing:
+
+1. **Now:** read the pillars in the framework docs (free, no login) and the
+   Data Analytics Lens. Use them as the design lens described above.
+2. **Also now, 5 minutes:** create the workload in the Tool and save a
+   **baseline milestone**. Costs nothing, gives a starting point.
+3. **After each phase:** save a new milestone during the Well-Architected
+   pass. The diff between milestones becomes a genuinely strong portfolio
+   artifact — visible evidence the platform got better, not just bigger.
+4. **Phase 7.4:** the full formal review, where the tool earns its keep.
+
+Free reading, no account needed:
+[Well-Architected Framework](https://docs.aws.amazon.com/wellarchitected/latest/framework/welcome.html)
+and the
+[Data Analytics Lens](https://docs.aws.amazon.com/wellarchitected/latest/analytics-lens/analytics-lens.html)
+— both pair well with the free ~1.5h Skill Builder course in
+[docs/courses-map-to-phases.md](docs/courses-map-to-phases.md).

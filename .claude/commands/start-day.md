@@ -20,6 +20,14 @@ where the last `/end-day` left off.
    and the proposed next actions drawn from "Next up." Ask the user to
    confirm or redirect before starting any implementation work — do not
    start a subtask until they've confirmed today's plan.
+5. checkpoint.md ends with a `## Reference — Well-Architected method for ADRs`
+   section. If any item in "Next up" is ADR work (or the user asks for it),
+   render that section **in full and verbatim** — the whole pillar table, the
+   tensions, the Nygard-template guidance, and the Well-Architected Tool
+   notes — after the report in step 4. It is the working method for writing
+   ADRs, so it needs to be on screen before that work starts, not summarised
+   or linked. If no ADR work is upcoming, mention in one line that the
+   reference is there rather than rendering it.
 
 Do not modify checkpoint.md, Phases.md, or docs/plan.md, and do not commit
 or push anything as part of this command — `/start-day` is read-only
