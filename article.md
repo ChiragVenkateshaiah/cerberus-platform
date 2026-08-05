@@ -81,22 +81,38 @@ with what's actually being engineered. The command must confirm any such
 edit with the user before making it — this file is not silently
 self-modifying.
 
-- **Phase 1–2:** Terraform/HCL, S3/IAM resource design, Glue Data Catalog
-  schema registration, SQL/dbt transforms, Athena queries.
-- **Phase 3:** Lambda function code + event source mappings; explain
-  trigger design, not just "a Lambda was added."
-- **Phase 4:** Kubernetes manifests / Spark Operator CRDs; explain resource
-  requests, job configuration, and cost/teardown discipline.
-- **Phase 5:** DAG / state machine definitions; explain retry and
-  failure-handling design.
-- **Phase 6:** CI/CD pipeline YAML; explain the plan/apply gating strategy.
-- **Phase 7:** dashboard/alerting config and data-quality test definitions;
-  explain what SLO or failure mode each one guards against.
-- **Phase 8:** VPC/networking diagrams, IAM policy documents, cost/tagging
-  reports.
+- **Phase 1 (MVP: end-to-end lakehouse):** Terraform HCL (S3 medallion
+  module, state backend, IAM), the synthetic payments generator, the
+  bronze→silver→gold transform, Glue Data Catalog registration, dbt
+  models, Athena queries — this phase alone spans most of the IaC +
+  data-engineering surface, since Terraform is cross-cutting from here on
+  rather than its own phase.
+- **Phase 2 (event-driven ingestion):** Lambda function code + event
+  source mappings; explain trigger design, not just "a Lambda was added."
+- **Phase 3 (scalable compute):** VPC/networking design, Kubernetes
+  manifests / Spark Operator CRDs; explain resource requests, job
+  configuration, multi-AZ trade-offs, and cost/teardown discipline.
+- **Phase 4 (orchestration):** state machine / DAG definitions; explain
+  retry and failure-handling design.
+- **Phase 5 (CI/CD):** CI/CD pipeline YAML; explain the plan/apply gating
+  strategy.
+- **Phase 6 (observability & data quality):** dashboard/alerting config
+  and data-quality test definitions; explain what SLO or failure mode each
+  one guards against.
+- **Phase 7 (end-to-end platform validation):** IAM policy diffs from the
+  least-privilege review, AWS Well-Architected Tool findings, and the
+  cost/security summary; explain what changed and why, not just that a
+  review happened.
+
+Every phase from Phase 1 onward also closes with its own "Well-Architected
+pass + ADR" subtask (see Phases.md) — when one of those lands inside an
+article's window, its ADR is required source material under "Sourcing"
+regardless of which phase it belongs to.
 
 When starting a new phase, review this list and fold its bullet into
-"Required content" before that week's article is drafted.
+"Required content" before that week's article is drafted. Phase numbering
+here follows Phases.md as of the 2026-08-03 re-scope; if the roadmap is
+re-scoped again, update this list to match in the same pass.
 
 ## Sourcing
 
