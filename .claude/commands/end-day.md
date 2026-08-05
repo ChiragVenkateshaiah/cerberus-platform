@@ -42,8 +42,47 @@ Close out today's cerberus-platform session by recording progress so
      material, not session state. Never rewrite, summarise, trim, or drop it
      while updating the sections above it. Add new reference sections there
      only when the user explicitly asks for one.
-4. Show the user a short summary of what changed in Phases.md,
-   checkpoint.md, and (if a phase completed) docs/plan.md before finishing.
+4. Reconcile @README.md against the rest of the project's status files and
+   the repo's actual current layout. README is the entry point a reader
+   hits first, so it must never lag behind what
+   Phases.md/checkpoint.md/docs/plan.md now say, or behind what the
+   filesystem actually contains:
+   - **Find what changed mechanically, don't rely on memory.** Use step 1's
+     `git status` output plus `git log --name-status` (since the commit
+     nearest the last checkpoint entry) to enumerate every path added,
+     renamed, or newly populated this session (including a directory that
+     went from empty/placeholder to holding its first real file). Cross-check
+     each one against README below — this is what catches drift like a new
+     root file or command going unmentioned.
+   - **Status section:** README's phase badges (✅/⬜) and "next" phase
+     must match Phases.md's current phase status after step 2's updates.
+   - **Roadmap phase count and diagram labels:** if docs/plan.md's phase
+     count or numbering changed this session (a re-scope), confirm README's
+     "Phases 0–N" reference matches, and confirm any phase-number labels
+     inside the architecture diagram (e.g. "(Phase 2)" callouts on diagram
+     nodes) match too. Only those labels are in scope — the diagram's
+     topology and styling are not; leave them untouched.
+   - **Documentation list / Repository layout — a full state check, not
+     only a delta check.** Confirm README's "Documentation" section lists
+     every root-level rules/reference file (e.g. article.md) and every file
+     under `docs/` and `.claude/commands/` that a reader would need to find,
+     and confirm the "Repository layout" ASCII tree includes every
+     directory that exists at the depth the tree already shows (it
+     currently shows depth-2 paths like `ingestion/scripts/` — match that
+     granularity). Check this against the repo as it stands today, not only
+     against this session's diff — pre-existing gaps (a file that went
+     undocumented in an earlier session) count too and should be fixed now
+     that they're noticed.
+   - Touch only README's Status, Documentation, and Repository layout
+     sections, plus in-diagram phase-number labels per above, for this
+     reconciliation. Leave the rest of the architecture diagram and prose
+     untouched unless this session's work specifically changed the
+     architecture.
+5. Show the user a short summary of what changed in Phases.md,
+   checkpoint.md, README.md, and (if a phase completed) docs/plan.md before
+   finishing. If step 4 found no drift, say so explicitly ("README checked,
+   no drift found") rather than omitting it — a clean check should look
+   different from a skipped one.
 
 Do not `git add`, `git commit`, or `git push` as part of this command, even
 if a phase completed — committing is a separate, explicit step the user

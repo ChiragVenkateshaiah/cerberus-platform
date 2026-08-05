@@ -109,6 +109,7 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 ---
 
 When every subtask in a phase is checked: mark that phase ✅ Complete here,
-flip its status cell in [docs/plan.md](docs/plan.md)'s roadmap table, and
-record the completion in [checkpoint.md](checkpoint.md) — `/end-day` does
-all three together.
+flip its status cell in [docs/plan.md](docs/plan.md)'s roadmap table,
+record the completion in [checkpoint.md](checkpoint.md), and reconcile
+[README.md](README.md)'s status badges and roadmap references —
+`/end-day` keeps all four in sync together.

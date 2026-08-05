@@ -86,6 +86,7 @@ constraints behind this diagram, see
 │   ├── modules/          # reusable modules (storage, IAM, ...)
 │   └── envs/dev/         # dev environment root module
 ├── ingestion/scripts/    # ingestion scripts (bash, later Lambda)
+├── ingestion/systemd/    # Phase 0 systemd --user service + timer unit
 ├── transform/dbt/        # dbt project: bronze → silver → gold
 └── data/samples/         # small sample datasets for local testing
 ```
@@ -101,6 +102,11 @@ for what's done and what's next. Common tasks are wired up in the
 - [docs/plan.md](docs/plan.md) — the build plan and phased roadmap
 - [docs/architecture.md](docs/architecture.md) — architecture overview
 - [docs/adr/](docs/adr/) — architecture decision records
+- [docs/courses-map-to-phases.md](docs/courses-map-to-phases.md) — which
+  courses (if any) map to each phase, and where no course exists
+- [article.md](article.md) — rules for the weekly engineering write-up,
+  generated via `/write-article`; published articles land in `articles/`
+  once the first one exists
 
 ## License
 
