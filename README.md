@@ -8,7 +8,7 @@ Engineering competence in one repository.
 ## Status
 
 ✅ Phase 0 (foundation, built by hand) — complete.
-⬜ Phase 1 (MVP: end-to-end lakehouse) — next.
+🔨 Phase 1 (MVP: end-to-end lakehouse) — in progress.
 
 See [docs/plan.md](docs/plan.md) for the full phased roadmap (Phases 0–7)
 and [Phases.md](Phases.md) for subtask-level progress.

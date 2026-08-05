@@ -8,7 +8,8 @@ pointer._
 
 ## Current phase
 
-Phase 1 — MVP: end-to-end lakehouse (⬜ planned, not yet started) — see
+Phase 1 — MVP: end-to-end lakehouse (🔨 in progress — ADR 0002 drafted,
+pending review) — see
 [Phases.md](Phases.md#phase-1--mvp-end-to-end-lakehouse--). Phase 0 —
 Foundation is ✅ complete.
 
@@ -19,11 +20,12 @@ subtasks. Session history entries before that date use the old numbering.
 
 ## Next up
 
-Phase 1 opens with the two ADRs, since they settle the data model and storage
-layout that every later subtask builds on:
-
-- 1.1 ADR: medallion layout (bronze/silver/gold conventions, partitioning)
-- 1.2 ADR: synthetic payments data model
+- **Review and finalize `docs/adr/0002-medallion-layout.md`** (currently
+  `Status: Proposed`, uncommitted). Once accepted: flip its Status to
+  Accepted, check off 1.1 in Phases.md, and commit.
+- 1.2 ADR: synthetic payments data model — draft next; it builds directly on
+  0002's decisions (raw JSON in bronze under `payments/dt=.../`, Parquet from
+  silver on).
 - 1.3 Synthetic payments generator landing raw records in bronze
 - 1.4 Terraform: S3 medallion module (bronze/silver/gold)
 - 1.5 Terraform: adopt the hand-built state backend as code
@@ -138,6 +140,63 @@ and reference capture._
   `/start-day` set to render it in full whenever ADR work is next, and
   `/end-day` instructed to preserve it verbatim.
 
+### 2026-08-05
+
+- **Weekly article mechanism added.** Created `article.md` (rules: cadence
+  every Wednesday, required content — engineering narrative of cloud
+  actions, actual code pulled from that week's diff with never-fabricate
+  guardrails, per-block explanation referencing the provider(s) involved,
+  an escalation table mapping future phases to new required content) and
+  `.claude/commands/write-article.md` (the `/write-article` command that
+  executes those rules). Reviewed twice by Opus 5; fixes applied both
+  passes — date-range anchoring off the latest `articles/YYYY-MM-DD.md`
+  filename instead of directory mtime, an objective "shippable work"
+  definition for the skip-week path, required user confirmation before the
+  command edits article.md's own Escalation rules, explicit catch-up-run
+  dating, a concrete `articles/README.md` index schema, and a new "Shape"
+  section (title/length/section-order/voice) that hadn't existed at all.
+- **Pushed into a diverged remote.** The push was rejected: `origin/main`
+  had 3 commits from a 2026-08-03 session not yet pulled locally (a
+  roadmap re-scope from 9 phases to 8, and a full repo restore after an
+  intentional wipe). Merged cleanly, then fixed article.md's Escalation
+  section, which had been drafted against the old phase numbers before the
+  merge — realigned it to the current Phase 1–7 structure (Phase 1 now
+  absorbs what used to be two phases; Phase 7 is validation, not a
+  separate hardening phase).
+- **README drift closed, then automated.** Found README's Documentation
+  list didn't mention the new article.md/write-article.md; fixed it, then
+  (at request) baked a permanent check into `/end-day` itself (new step 4)
+  so this class of drift gets caught at every session close instead of by
+  manual review. Opus 5 review caught the first draft relying on
+  conversation memory rather than git output to detect "what's new," being
+  scoped to root-level files only (missing `docs/`), a contradiction
+  between "check diagram labels" and "leave the diagram untouched," and
+  being delta-only so it could never clear pre-existing gaps — all fixed.
+  Also fixed two gaps the new check would have caught: `ingestion/systemd/`
+  was missing from README's Repository layout tree, and
+  `docs/courses-map-to-phases.md` was missing from its Documentation list.
+  Phases.md's closing note now names README as a fourth file `/end-day`
+  keeps in sync (previously said "all three").
+- **Drafted `docs/adr/0002-medallion-layout.md`** (1.1), using the
+  pillar-as-question-generator method from the reference section below.
+  Decided: three buckets (existing bronze + new silver/gold, same
+  `cerberus-platform-<layer>-<account-id>` naming, bronze adopted via
+  `terraform import` rather than recreated); daily `dt=YYYY-MM-DD`
+  partitioning with payments under their own `payments/` prefix, separate
+  from the legacy `weather/` prefix already in bronze; raw JSON in bronze,
+  Parquet+Snappy from silver onward; bronze immutable/append-only
+  (versioning as backstop, not primary mechanism); a 30-day
+  Standard-IA lifecycle transition on bronze exposed as a Terraform
+  variable. IAM policy specifics were explicitly left to 1.6. Status is
+  `Proposed` — not yet reviewed for acceptance, not committed.
+- Confirmed the ADR strategy going in: draft each Phase 1 ADR using the
+  pillars as a design lens (per the reference section), *not* by running
+  drafts through the AWS Well-Architected Tool — the Tool audits an
+  existing workload's implementation via checkboxes, not documents, and at
+  this point in Phase 1 almost nothing is built yet. The Tool-based review
+  stays deferred to 1.13's Well-Architected pass, after 1.1–1.12 are
+  actually built.
+
 ## Notes / blockers
 
 - **`cerberus-ingest.timer` state is unverified.** It was disabled and its
@@ -155,10 +214,9 @@ and reference capture._
 - The Phase 0 weather ingestion is now legacy. It stays in the repo as the
   Phase 0 artifact, but synthetic payments supersedes it as the pipeline's
   data source from Phase 1; the bronze bucket still holds weather objects
-  under `weather/dt=*/`. Decide during Phase 1 whether to leave them as
+  under `weather/dt=*/` (kept logically separate from the new `payments/`
+  prefix per ADR 0002). Decide during Phase 1 whether to leave them as
   historical or clear them.
-- Bronze still holds the legacy weather objects under `weather/dt=*/`.
-  Decide during Phase 1 whether to leave them as historical or clear them.
 
 ---
 

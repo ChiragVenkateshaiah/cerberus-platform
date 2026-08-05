@@ -35,7 +35,7 @@ the specific "what's next" live in [checkpoint.md](checkpoint.md)._
 _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 `cerberus-admin` holding `AdministratorAccess` — is repaid by 7.3._
 
-## Phase 1 — MVP: end-to-end lakehouse 🎯 ⬜
+## Phase 1 — MVP: end-to-end lakehouse 🎯 🔨
 
 - [ ] 1.1 ADR: medallion layout (bronze/silver/gold conventions, partitioning)
 - [ ] 1.2 ADR: synthetic payments data model
