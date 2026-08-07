@@ -9,7 +9,7 @@ pointer._
 ## Current phase
 
 Phase 1 — MVP: end-to-end lakehouse (🔨 in progress — ADRs 0002 and 0003
-accepted, 1.1/1.2/1.3 checked off) — see
+accepted, 1.1/1.2/1.3/1.4 checked off) — see
 [Phases.md](Phases.md#phase-1--mvp-end-to-end-lakehouse--). Phase 0 —
 Foundation is ✅ complete.
 
@@ -20,11 +20,12 @@ subtasks. Session history entries before that date use the old numbering.
 
 ## Next up
 
-- 1.4 Terraform: S3 medallion module (bronze/silver/gold) — bring the
-  bronze/silver/gold bucket topology from ADR 0002 under Terraform
-  (`terraform import` for the existing bronze bucket, create silver/gold).
-- 1.5 Terraform: adopt the hand-built state backend as code
-- 1.6 Terraform: IAM module (least-privilege roles)
+- 1.5 Terraform: adopt the hand-built state backend as code — bring
+  `cerberus-platform-tfstate-131715059025` (S3) and
+  `cerberus-platform-tfstate-lock` (DynamoDB) themselves under Terraform via
+  `terraform import`, in `terraform/bootstrap/` (currently empty).
+- 1.6 Terraform: IAM module (least-privilege roles for bronze/silver/gold)
+- 1.7 Minimal transform promoting bronze → silver → gold
 
 ## Session history
 
@@ -269,9 +270,50 @@ this entry was missing until the 2026-08-07 gap was caught and backfilled._
   trigger it by hand once 1.4–1.13 are far enough along to need more
   data. Verified both branches of the date check in isolation and the
   run branch through an actual `systemctl --user start`.
+- **Built 1.4, the Terraform S3 medallion module**
+  (`terraform/modules/s3_medallion/`, instantiated from
+  `terraform/envs/dev/`) — three buckets via `for_each` over a locals map
+  (bronze `Phase=0`, silver/gold `Phase=1`, matching when each was
+  actually created), each with versioning, SSE-S3, public access block,
+  and `BucketOwnerEnforced` ownership controls; bronze alone also gets the
+  30-day Standard-IA lifecycle rule from ADR 0002
+  (`bronze_ia_transition_days` variable, default 30). `envs/dev` backend
+  points at the Phase 0 state bucket/lock table by name (using them, not
+  yet managing them as code — that's 1.5). Bronze was adopted via
+  `terraform import` of all 5 of its resources (bucket, versioning,
+  encryption, public-access-block, ownership-controls); the resulting
+  plan was 11 to add / 0 to change / 0 to destroy — confirming the
+  import matched the real bucket exactly, no drift. Applied; verified
+  both new buckets and bronze's lifecycle rule via `aws s3api`, and a
+  follow-up `plan` showed "No changes."
+- **Switched from OpenTofu to Terraform mid-task, at user request** (they
+  want to build Terraform muscle memory specifically, having just taken a
+  beginner course). Installed `terraform` 1.15.8 via HashiCorp's apt repo
+  (the user ran the `sudo` steps themselves in their own terminal — this
+  session can't supply an interactive sudo password). The `.tf` files
+  needed no changes (HCL is identical between the two); the real fallout
+  was in *state*: the bronze imports had been done with `tofu import`
+  first, and OpenTofu defaults to `registry.opentofu.org` as the implicit
+  provider source rather than `registry.terraform.io` — so state had
+  those 5 resources tagged to a different provider than
+  `envs/dev/versions.tf` declares. Fixed by `terraform state rm`-ing all
+  5 (state-only, touches nothing in AWS) and re-running the imports with
+  `terraform import` instead; confirmed via `terraform state pull` that
+  every resource now uniformly references
+  `registry.terraform.io/hashicorp/aws`. Per explicit user decision, the
+  Makefile's `TF_BIN` swappability and the OpenTofu mentions in
+  README/architecture.md/plan.md stay as-is — only the hands-on tool
+  changed, not the project's documented flexibility.
 
 ## Notes / blockers
 
+- **`dynamodb_table` is deprecated in Terraform's S3 backend** (warns on
+  every `init`/`plan`/`apply`; Terraform 1.11+ prefers `use_lockfile` for
+  native S3 locking, no DynamoDB needed). Deliberately not switched — the
+  Phase 0 DynamoDB lock table (`cerberus-platform-tfstate-lock`) already
+  exists and 1.5 is explicitly about adopting it as code, so dropping it
+  now would orphan already-provisioned, already-documented infrastructure.
+  Revisit only if 1.5 decides to retire the DynamoDB table outright.
 - **The payments timer self-retires 2026-08-17.** After that date
   `cerberus-payments.timer` will be auto-disabled (not deleted) by
   `run_payments_scheduled.sh` the next time it fires. To get more data
