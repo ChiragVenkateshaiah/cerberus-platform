@@ -5,4 +5,4 @@ After=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/home/chira/cerberus/ingestion/scripts/ingest_weather.sh
+ExecStart=/home/chira/projects/cerberus/ingestion/scripts/ingest_weather.sh

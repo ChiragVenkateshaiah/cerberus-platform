@@ -85,8 +85,10 @@ constraints behind this diagram, see
 │   ├── bootstrap/        # one-time state backend (S3 + DynamoDB lock)
 │   ├── modules/          # reusable modules (storage, IAM, ...)
 │   └── envs/dev/         # dev environment root module
-├── ingestion/scripts/    # ingestion scripts (bash, later Lambda)
-├── ingestion/systemd/    # Phase 0 systemd --user service + timer unit
+├── ingestion/scripts/    # ingestion scripts: weather (bash, Phase 0),
+│                         #   synthetic payments generator (Python, Phase 1)
+├── ingestion/systemd/    # systemd --user service + timer units, one pair
+│                         #   per ingestion script
 ├── transform/dbt/        # dbt project: bronze → silver → gold
 └── data/samples/         # small sample datasets for local testing
 ```

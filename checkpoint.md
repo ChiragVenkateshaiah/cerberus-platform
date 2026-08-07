@@ -9,7 +9,7 @@ pointer._
 ## Current phase
 
 Phase 1 — MVP: end-to-end lakehouse (🔨 in progress — ADRs 0002 and 0003
-accepted, 1.1/1.2 checked off) — see
+accepted, 1.1/1.2/1.3 checked off) — see
 [Phases.md](Phases.md#phase-1--mvp-end-to-end-lakehouse--). Phase 0 —
 Foundation is ✅ complete.
 
@@ -20,12 +20,11 @@ subtasks. Session history entries before that date use the old numbering.
 
 ## Next up
 
-- 1.3 Synthetic payments generator landing raw records in bronze — the
-  next concrete build step, implementing the entity/event shape ADR 0003
-  just fixed (single denormalized "payment event," append-only, pre-masked
-  payment_method).
-- 1.4 Terraform: S3 medallion module (bronze/silver/gold)
+- 1.4 Terraform: S3 medallion module (bronze/silver/gold) — bring the
+  bronze/silver/gold bucket topology from ADR 0002 under Terraform
+  (`terraform import` for the existing bronze bucket, create silver/gold).
 - 1.5 Terraform: adopt the hand-built state backend as code
+- 1.6 Terraform: IAM module (least-privilege roles)
 
 ## Session history
 
@@ -217,21 +216,50 @@ this entry was missing until the 2026-08-07 gap was caught and backfilled._
   backfilled the 2026-08-06 gap above — that session's `/end-day` never ran,
   so checkpoint.md's "Next up" was a full session stale (still said "draft
   1.2 next" when 1.2 had already been drafted and committed).
+- **Built 1.3, the synthetic payments generator**
+  (`ingestion/scripts/generate_payments.py`, Python + Faker, pinned in the
+  new `ingestion/requirements.txt`, run from a local `.venv`). Implements
+  ADR 0003 directly: a deterministic 15-merchant/75-customer roster (seeded,
+  stable across runs, so joins are meaningful); each transaction lifecycle
+  generated as append-only events (`created` → `authorized` →
+  `settled`/`failed`, plus a small refund chance) with realistic time
+  deltas between steps; events grouped by the UTC day they actually
+  occurred and uploaded as one JSON array per touched `payments/dt=.../`
+  partition — a single run legitimately spans multiple day partitions
+  (e.g. `created` today, `settled` up to 3 days later), which is ADR 0003's
+  example made concrete. `payment_method` is pre-masked at generation
+  (token + last4, never a real-looking PAN); names/emails are
+  realistic-but-fake via Faker, emails pinned to `@example.com` (IANA's
+  reserved documentation domain) regardless of Faker's default. Verified
+  with a manual run (200 transactions → 603 events across 8 partitions,
+  confirmed via `aws s3 ls`) and via systemd (`status=0/SUCCESS`).
+- **Wired a daily `cerberus-payments.timer`** (`OnCalendar=daily`, per
+  explicit request — not hourly like the weather timer, since a daily
+  batch is the right cadence for this generator) mirroring Phase 0's
+  service+timer pattern.
+- **Found and fixed a stale-checkout split.** `cerberus-ingest.timer` was
+  actually still running fine (resolves the old "timer state unverified"
+  blocker below) — but out of `/home/chira/cerberus`, a second local clone
+  pinned at commit `4861440` (2026-08-03), not this session's
+  `/home/chira/projects/cerberus`. Repointed `cerberus-ingest.service`'s
+  `ExecStart` and both new units at `/home/chira/projects/cerberus`,
+  relinked all four `~/.config/systemd/user/` symlinks accordingly, and
+  verified both services with a manual `systemctl --user start`.
+  `/home/chira/cerberus` is now orphaned — nothing points at it anymore;
+  left in place rather than deleted since removing another checkout wasn't
+  asked for.
 
 ## Notes / blockers
 
-- **`cerberus-ingest.timer` state is unverified.** It was disabled and its
-  symlinks removed while the repo was missing (it had been failing hourly with
-  `203/EXEC`), then re-linked and re-enabled after the restore — but the
-  confirming status check was interrupted, so whether it is actually running
-  is unknown. Check with
-  `systemctl --user list-timers cerberus-ingest.timer` before trusting it.
-  Low stakes either way: it feeds the legacy weather pipeline, and Phase 2
-  retires it.
-- Systemd linger is still off for this user — `cerberus-ingest.timer` will
-  stop firing once the current login session ends, until you run
-  `sudo loginctl enable-linger $(whoami)` yourself (needs an interactive
-  password, can't be run from here).
+- **Resolved 2026-08-07:** `cerberus-ingest.timer` turned out to be running
+  fine all along — confirmed via journal — but from the stale
+  `/home/chira/cerberus` checkout rather than this session's. Both timers
+  now point at `/home/chira/projects/cerberus`; see the 2026-08-07 session
+  entry above. `/home/chira/cerberus` is orphaned but not deleted.
+- Systemd linger is still off for this user — both `cerberus-ingest.timer`
+  and the new `cerberus-payments.timer` will stop firing once the current
+  login session ends, until you run `sudo loginctl enable-linger $(whoami)`
+  yourself (needs an interactive password, can't be run from here).
 - The Phase 0 weather ingestion is now legacy. It stays in the repo as the
   Phase 0 artifact, but synthetic payments supersedes it as the pipeline's
   data source from Phase 1; the bronze bucket still holds weather objects
