@@ -85,10 +85,11 @@ constraints behind this diagram, see
 │   ├── bootstrap/        # one-time state backend (S3 + DynamoDB lock)
 │   ├── modules/          # reusable modules (storage, IAM, ...)
 │   └── envs/dev/         # dev environment root module
-├── ingestion/scripts/    # ingestion scripts: weather (bash, Phase 0),
-│                         #   synthetic payments generator (Python, Phase 1)
-├── ingestion/systemd/    # systemd --user service + timer units, one pair
-│                         #   per ingestion script
+├── ingestion/scripts/    # ingestion scripts: synthetic payments generator
+│                         #   (Python, Phase 1); ingest_weather.sh (Phase 0,
+│                         #   unscheduled — retired as the active feed)
+├── ingestion/systemd/    # systemd --user service + timer for the
+│                         #   payments generator (daily)
 ├── transform/dbt/        # dbt project: bronze → silver → gold
 └── data/samples/         # small sample datasets for local testing
 ```

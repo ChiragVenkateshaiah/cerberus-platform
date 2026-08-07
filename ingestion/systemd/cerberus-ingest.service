@@ -1,8 +1,0 @@
-[Unit]
-Description=Cerberus bronze ingestion (weather API pull)
-Wants=network-online.target
-After=network-online.target
-
-[Service]
-Type=oneshot
-ExecStart=/home/chira/projects/cerberus/ingestion/scripts/ingest_weather.sh

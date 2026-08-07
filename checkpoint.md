@@ -248,6 +248,14 @@ this entry was missing until the 2026-08-07 gap was caught and backfilled._
   `/home/chira/cerberus` is now orphaned — nothing points at it anymore;
   left in place rather than deleted since removing another checkout wasn't
   asked for.
+- **Retired weather ingestion at user request**, scoped explicitly to the
+  timer/service, the systemd unit files, and the S3 data. Disabled and
+  unlinked `cerberus-ingest.timer`/`.service`, deleted
+  `ingestion/systemd/cerberus-ingest.{service,timer}` from the repo, and
+  permanently purged all 40 weather objects (every version, not just
+  current) under `weather/dt=*/` in bronze. `ingest_weather.sh` itself,
+  and Phase 0's historical record of building it, were left untouched —
+  out of scope for this cleanup. Payments is now bronze's only live feed.
 
 ## Notes / blockers
 
@@ -256,16 +264,20 @@ this entry was missing until the 2026-08-07 gap was caught and backfilled._
   `/home/chira/cerberus` checkout rather than this session's. Both timers
   now point at `/home/chira/projects/cerberus`; see the 2026-08-07 session
   entry above. `/home/chira/cerberus` is orphaned but not deleted.
-- Systemd linger is still off for this user — both `cerberus-ingest.timer`
-  and the new `cerberus-payments.timer` will stop firing once the current
-  login session ends, until you run `sudo loginctl enable-linger $(whoami)`
-  yourself (needs an interactive password, can't be run from here).
-- The Phase 0 weather ingestion is now legacy. It stays in the repo as the
-  Phase 0 artifact, but synthetic payments supersedes it as the pipeline's
-  data source from Phase 1; the bronze bucket still holds weather objects
-  under `weather/dt=*/` (kept logically separate from the new `payments/`
-  prefix per ADR 0002). Decide during Phase 1 whether to leave them as
-  historical or clear them.
+- Systemd linger is still off for this user — `cerberus-payments.timer`
+  will stop firing once the current login session ends, until you run
+  `sudo loginctl enable-linger $(whoami)` yourself (needs an interactive
+  password, can't be run from here).
+- **Weather ingestion retired 2026-08-07** (user request, scoped
+  explicitly to three things: the timer, the systemd unit files, and the
+  S3 data — nothing else). `cerberus-ingest.timer`/`.service` disabled,
+  unlinked from `~/.config/systemd/user/`, and deleted from
+  `ingestion/systemd/`; all 40 weather objects under `weather/dt=*/` in
+  bronze permanently purged (versioning was on, so this deleted every
+  object version via `s3api delete-objects`, not just current versions —
+  confirmed empty afterward). `ingestion/scripts/ingest_weather.sh` itself
+  was left in place, unscheduled — deleting it wasn't part of the request.
+  Payments is now bronze's only active data source.
 
 ---
 

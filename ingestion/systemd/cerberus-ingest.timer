@@ -1,9 +1,0 @@
-[Unit]
-Description=Run cerberus bronze ingestion hourly
-
-[Timer]
-OnCalendar=hourly
-Persistent=true
-
-[Install]
-WantedBy=timers.target
