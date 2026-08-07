@@ -8,8 +8,8 @@ pointer._
 
 ## Current phase
 
-Phase 1 — MVP: end-to-end lakehouse (🔨 in progress — ADR 0002 drafted,
-pending review) — see
+Phase 1 — MVP: end-to-end lakehouse (🔨 in progress — ADRs 0002 and 0003
+accepted, 1.1/1.2 checked off) — see
 [Phases.md](Phases.md#phase-1--mvp-end-to-end-lakehouse--). Phase 0 —
 Foundation is ✅ complete.
 
@@ -20,13 +20,10 @@ subtasks. Session history entries before that date use the old numbering.
 
 ## Next up
 
-- **Review and finalize `docs/adr/0002-medallion-layout.md`** (currently
-  `Status: Proposed`, uncommitted). Once accepted: flip its Status to
-  Accepted, check off 1.1 in Phases.md, and commit.
-- 1.2 ADR: synthetic payments data model — draft next; it builds directly on
-  0002's decisions (raw JSON in bronze under `payments/dt=.../`, Parquet from
-  silver on).
-- 1.3 Synthetic payments generator landing raw records in bronze
+- 1.3 Synthetic payments generator landing raw records in bronze — the
+  next concrete build step, implementing the entity/event shape ADR 0003
+  just fixed (single denormalized "payment event," append-only, pre-masked
+  payment_method).
 - 1.4 Terraform: S3 medallion module (bronze/silver/gold)
 - 1.5 Terraform: adopt the hand-built state backend as code
 
@@ -187,8 +184,8 @@ and reference capture._
   Parquet+Snappy from silver onward; bronze immutable/append-only
   (versioning as backstop, not primary mechanism); a 30-day
   Standard-IA lifecycle transition on bronze exposed as a Terraform
-  variable. IAM policy specifics were explicitly left to 1.6. Status is
-  `Proposed` — not yet reviewed for acceptance, not committed.
+  variable. IAM policy specifics were explicitly left to 1.6. Status was
+  `Proposed` at the time (committed same day in ea2a04b; accepted 2026-08-07).
 - Confirmed the ADR strategy going in: draft each Phase 1 ADR using the
   pillars as a design lens (per the reference section), *not* by running
   drafts through the AWS Well-Architected Tool — the Tool audits an
@@ -196,6 +193,30 @@ and reference capture._
   this point in Phase 1 almost nothing is built yet. The Tool-based review
   stays deferred to 1.13's Well-Architected pass, after 1.1–1.12 are
   actually built.
+
+### 2026-08-06
+
+_Reconstructed from git history — this session's `/end-day` did not run, so
+this entry was missing until the 2026-08-07 gap was caught and backfilled._
+
+- **Drafted `docs/adr/0003-synthetic-payments-data-model.md`** (1.2),
+  building on 0002's container decisions. Decided: a single denormalized
+  "payment event" entity (merchant/customer embedded inline, not
+  referenced) rather than separate entity prefixes at bronze —
+  normalization deferred to 1.7/1.9; status modeled as append-only events
+  keyed on `(transaction_id, event_timestamp)` rather than in-place
+  updates, to stay consistent with bronze's immutability from 0002;
+  `payment_method`, names, and emails generated pre-masked so no
+  unmasked PII-shaped data ever exists in the pipeline. Status
+  `Proposed`, committed in 348604a.
+
+### 2026-08-07
+
+- **Accepted ADR 0002 and ADR 0003.** User reviewed both; flipped Status to
+  `Accepted` on each, checked off 1.1 and 1.2 in Phases.md. Also caught and
+  backfilled the 2026-08-06 gap above — that session's `/end-day` never ran,
+  so checkpoint.md's "Next up" was a full session stale (still said "draft
+  1.2 next" when 1.2 had already been drafted and committed).
 
 ## Notes / blockers
 
