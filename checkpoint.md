@@ -304,6 +304,13 @@ this entry was missing until the 2026-08-07 gap was caught and backfilled._
   Makefile's `TF_BIN` swappability and the OpenTofu mentions in
   README/architecture.md/plan.md stay as-is — only the hands-on tool
   changed, not the project's documented flexibility.
+- **Wrote `docs/notes/day-01.md`**, a textbook-style learning note covering
+  everything built today — organized by discipline (ADR governance, the
+  payments generator's design, systemd scheduling, S3 fundamentals, a full
+  Terraform code walkthrough, the Terraform-vs-OpenTofu fix), not
+  chronology, with theory explained alongside the actual code and a closing
+  glossary. Written at explicit request as a reference/study artifact,
+  separate from this file's session narrative.
 
 ## Notes / blockers
 
