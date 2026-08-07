@@ -256,8 +256,28 @@ this entry was missing until the 2026-08-07 gap was caught and backfilled._
   current) under `weather/dt=*/` in bronze. `ingest_weather.sh` itself,
   and Phase 0's historical record of building it, were left untouched —
   out of scope for this cleanup. Payments is now bronze's only live feed.
+- **Capped the payments timer to a 10-day window, cost/data-volume
+  control.** Added `ingestion/scripts/run_payments_scheduled.sh`, a
+  wrapper now sitting between `cerberus-payments.service` and
+  `generate_payments.py`: it runs the generator normally through
+  2026-08-16, then on/after 2026-08-17 it disables
+  `cerberus-payments.timer` instead of generating (self-retiring, not
+  self-deleting — the timer/service files and the generator itself all
+  stay on disk and runnable). The retirement date lives in the wrapper,
+  not the generator, so `generate_payments.py` stays a plain,
+  always-available script for manual runs at any time — the plan is to
+  trigger it by hand once 1.4–1.13 are far enough along to need more
+  data. Verified both branches of the date check in isolation and the
+  run branch through an actual `systemctl --user start`.
 
 ## Notes / blockers
+
+- **The payments timer self-retires 2026-08-17.** After that date
+  `cerberus-payments.timer` will be auto-disabled (not deleted) by
+  `run_payments_scheduled.sh` the next time it fires. To get more data
+  after that, run `generate_payments.py` by hand (see above) — don't
+  re-enable the timer without deciding whether the 10-day cap still
+  applies.
 
 - **Resolved 2026-08-07:** `cerberus-ingest.timer` turned out to be running
   fine all along — confirmed via journal — but from the stale

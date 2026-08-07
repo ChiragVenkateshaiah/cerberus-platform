@@ -6,4 +6,4 @@ After=network-online.target
 [Service]
 Type=oneshot
 WorkingDirectory=/home/chira/projects/cerberus
-ExecStart=/home/chira/projects/cerberus/.venv/bin/python /home/chira/projects/cerberus/ingestion/scripts/generate_payments.py
+ExecStart=/home/chira/projects/cerberus/ingestion/scripts/run_payments_scheduled.sh
