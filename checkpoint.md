@@ -9,7 +9,7 @@ pointer._
 ## Current phase
 
 Phase 1 — MVP: end-to-end lakehouse (🔨 in progress — ADRs 0002 and 0003
-accepted, 1.1/1.2/1.3/1.4 checked off) — see
+accepted, 1.1/1.2/1.3/1.4/1.5 checked off) — see
 [Phases.md](Phases.md#phase-1--mvp-end-to-end-lakehouse--). Phase 0 —
 Foundation is ✅ complete.
 
@@ -20,12 +20,9 @@ subtasks. Session history entries before that date use the old numbering.
 
 ## Next up
 
-- 1.5 Terraform: adopt the hand-built state backend as code — bring
-  `cerberus-platform-tfstate-131715059025` (S3) and
-  `cerberus-platform-tfstate-lock` (DynamoDB) themselves under Terraform via
-  `terraform import`, in `terraform/bootstrap/` (currently empty).
 - 1.6 Terraform: IAM module (least-privilege roles for bronze/silver/gold)
 - 1.7 Minimal transform promoting bronze → silver → gold
+- 1.8 Glue Data Catalog schema registration
 
 ## Session history
 
@@ -312,15 +309,42 @@ this entry was missing until the 2026-08-07 gap was caught and backfilled._
   glossary. Written at explicit request as a reference/study artifact,
   separate from this file's session narrative.
 
+### 2026-08-08
+
+- **Built 1.5, adopting the hand-built state backend as code**
+  (`terraform/bootstrap/`, previously empty). Same adoption pattern as
+  1.4: the S3 state bucket (`cerberus-platform-tfstate-131715059025`,
+  5 resources — bucket, versioning, encryption, public-access-block,
+  ownership-controls) and the DynamoDB lock table
+  (`cerberus-platform-tfstate-lock`, on-demand billing, `LockID` hash
+  key) were both inspected via `aws s3api`/`aws dynamodb describe-table`
+  first to match their real config exactly, then imported — 6 resources,
+  0 created. `terraform plan` came back **"No changes"** immediately
+  after import, with no `apply` step needed at all (cleaner than 1.4,
+  where silver/gold still had to be created). This directory deliberately
+  has **no `backend "s3" {}` block** — it's the one directory in this
+  project that can't point its own state at the resources it's
+  describing, so it uses plain local state
+  (`terraform/bootstrap/terraform.tfstate`, gitignored), the standard
+  Terraform bootstrap pattern.
+- **Confirmed the `dynamodb_table` vs `use_lockfile` decision explicitly**
+  (see below) before starting: keep the DynamoDB table as-is, since it's
+  already built and effectively free, and revisit only after the MVP
+  (Phase 1) is done and there's real signal on whether it's worth the
+  extra moving part.
+
 ## Notes / blockers
 
-- **`dynamodb_table` is deprecated in Terraform's S3 backend** (warns on
-  every `init`/`plan`/`apply`; Terraform 1.11+ prefers `use_lockfile` for
-  native S3 locking, no DynamoDB needed). Deliberately not switched — the
-  Phase 0 DynamoDB lock table (`cerberus-platform-tfstate-lock`) already
-  exists and 1.5 is explicitly about adopting it as code, so dropping it
-  now would orphan already-provisioned, already-documented infrastructure.
-  Revisit only if 1.5 decides to retire the DynamoDB table outright.
+- **`dynamodb_table` vs. `use_lockfile`: decided 2026-08-08, keep
+  DynamoDB.** Terraform's S3 backend still accepts `dynamodb_table` but
+  warns it's deprecated in favor of `use_lockfile` (native S3 locking,
+  no second AWS resource needed). Explicit decision: keep the existing
+  `cerberus-platform-tfstate-lock` table rather than migrate — it's
+  already built (Phase 0), already imported as code (1.5), and
+  effectively free on-demand. Revisit after Phase 1 (MVP) is done, with
+  real usage data instead of a guess. Not written up as an ADR — a
+  config-level tooling call, not an architecturally significant decision
+  on ADR 0002/0003's scale.
 - **The payments timer self-retires 2026-08-17.** After that date
   `cerberus-payments.timer` will be auto-disabled (not deleted) by
   `run_payments_scheduled.sh` the next time it fires. To get more data
