@@ -9,7 +9,7 @@ pointer._
 ## Current phase
 
 Phase 1 — MVP: end-to-end lakehouse (🔨 in progress — ADRs 0002 and 0003
-accepted, 1.1/1.2/1.3/1.4/1.5 checked off) — see
+accepted, 1.1/1.2/1.3/1.4/1.5/1.6 checked off) — see
 [Phases.md](Phases.md#phase-1--mvp-end-to-end-lakehouse--). Phase 0 —
 Foundation is ✅ complete.
 
@@ -20,9 +20,12 @@ subtasks. Session history entries before that date use the old numbering.
 
 ## Next up
 
-- 1.6 Terraform: IAM module (least-privilege roles for bronze/silver/gold)
-- 1.7 Minimal transform promoting bronze → silver → gold
+- 1.7 Minimal transform promoting bronze → silver → gold — first real
+  consumer of the `cerberus-transform` role (1.6); this is also where
+  ADR 0003's "resolve latest-event-wins per transaction_id" logic and
+  the JSON→Parquet conversion actually get built.
 - 1.8 Glue Data Catalog schema registration
+- 1.9 dbt project + gold models
 
 ## Session history
 
@@ -332,6 +335,31 @@ this entry was missing until the 2026-08-07 gap was caught and backfilled._
   already built and effectively free, and revisit only after the MVP
   (Phase 1) is done and there's real signal on whether it's worth the
   extra moving part.
+- **Built 1.6, the Terraform IAM module** (`terraform/modules/iam/`,
+  instantiated as `module.iam` from `envs/dev`). Unlike 1.4/1.5, nothing
+  existed to adopt — this was a from-scratch design decision, resolved by
+  asking: build the three roles ADR 0002 forward-pointed to (ingestion,
+  transform, serving) as genuinely assumable IAM roles now, even though no
+  automated compute exists yet to assume them (that's Phase 2's Lambda at
+  the earliest) — or just the bare policy documents, inert until later.
+  Went with real roles: each trusts `cerberus-admin` (the only identity in
+  this account) via `sts:AssumeRole`, with an inline policy scoped
+  per-layer — `cerberus-ingestion` gets `s3:PutObject` on
+  `bronze/payments/*` only; `cerberus-transform` gets read on
+  `bronze/payments/*` plus read+write on `silver`/`gold` (with
+  `s3:ListBucket` correctly scoped via an `s3:prefix` condition on bronze,
+  not the whole bucket); `cerberus-serving` gets read-only `gold` (S3 only
+  for now — Glue/Athena permissions land once 1.8–1.10 actually build
+  those). `terraform plan` came back 6 to add / 0 to change / 0 to
+  destroy, no drift on existing S3 resources. Applied, then **verified the
+  scoping actually works, not just that it was declared**: assumed
+  `cerberus-ingestion` via `aws sts assume-role` and confirmed all four
+  boundaries live — allowed to `PutObject` under `payments/`, denied
+  `PutObject` elsewhere in bronze, denied `ListBucket` entirely, denied
+  reading `gold`. Test object cleaned up afterward. This is a deliberate
+  head start on repaying Phase 0's `AdministratorAccess` shortcut
+  (formally closed out at 7.3) rather than a placeholder — the roles are
+  real and usable today, nothing currently assumes them automatically.
 
 ## Notes / blockers
 

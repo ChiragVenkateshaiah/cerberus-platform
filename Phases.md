@@ -42,7 +42,7 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 - [x] 1.3 Synthetic payments generator landing raw records in bronze
 - [x] 1.4 Terraform: S3 medallion module (bronze/silver/gold)
 - [x] 1.5 Terraform: adopt the hand-built state backend as code
-- [ ] 1.6 Terraform: IAM module (least-privilege roles for the above)
+- [x] 1.6 Terraform: IAM module (least-privilege roles for the above)
 - [ ] 1.7 Minimal transform promoting bronze → silver → gold
 - [ ] 1.8 Glue Data Catalog schema registration
 - [ ] 1.9 dbt project + gold models
