@@ -24,6 +24,11 @@ locals {
       }
     ]
   })
+
+  glue_catalog_arn         = "arn:aws:glue:${var.region}:${var.account_id}:catalog"
+  glue_database_arn        = "arn:aws:glue:${var.region}:${var.account_id}:database/${var.glue_database_name}"
+  glue_partition_table_arn = "arn:aws:glue:${var.region}:${var.account_id}:table/${var.glue_database_name}/${var.glue_partition_table_name}"
+  glue_serving_table_arns  = [for t in var.glue_table_names : "arn:aws:glue:${var.region}:${var.account_id}:table/${var.glue_database_name}/${t}"]
 }
 
 # --- Ingestion: write-only, bronze/payments/* ---------------------------
@@ -96,15 +101,25 @@ resource "aws_iam_role_policy" "transform" {
           var.bucket_arns["silver"],
           var.bucket_arns["gold"],
         ]
+      },
+      {
+        Sid    = "RegisterPaymentsEventsPartitions"
+        Effect = "Allow"
+        Action = ["glue:GetTable", "glue:BatchCreatePartition", "glue:GetPartitions"]
+        Resource = [
+          local.glue_catalog_arn,
+          local.glue_database_arn,
+          local.glue_partition_table_arn,
+        ]
       }
     ]
   })
 }
 
-# --- Serving: read-only, gold/* -----------------------------------------
-# S3-only for now -- Glue/Athena permissions (glue:GetTable, athena:*, the
-# query-results bucket) get added here once 1.8-1.10 actually build those,
-# rather than guessing their shape today.
+# --- Serving: read-only, gold/* -------------------------------------------
+# Athena's own query-execution permissions (the query-results bucket, etc.)
+# land here once 1.10 actually builds that; this is just catalog + gold
+# object read access.
 
 resource "aws_iam_role" "serving" {
   name               = "cerberus-serving"
@@ -129,6 +144,15 @@ resource "aws_iam_role_policy" "serving" {
         Effect   = "Allow"
         Action   = "s3:ListBucket"
         Resource = var.bucket_arns["gold"]
+      },
+      {
+        Sid    = "ReadPaymentsCatalog"
+        Effect = "Allow"
+        Action = ["glue:GetDatabase", "glue:GetTable", "glue:GetTables", "glue:GetPartitions"]
+        Resource = concat(
+          [local.glue_catalog_arn, local.glue_database_arn],
+          local.glue_serving_table_arns,
+        )
       }
     ]
   })

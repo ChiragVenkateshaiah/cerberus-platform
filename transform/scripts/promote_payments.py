@@ -11,6 +11,14 @@ the fact/dimension split to 1.9's dbt models, not this script.
 
 Runs as the cerberus-transform IAM role (1.6), assumed via STS, rather
 than the default cerberus-admin credentials -- its first real use.
+
+Also registers each day partition it writes to silver in the Glue Data
+Catalog (1.8's payments_events table), via the Glue API directly --
+partitions are data, not infrastructure, so Terraform doesn't manage
+them; this script does, since it's the thing that knows which day
+partitions it just wrote. PARQUET_COLUMNS below must stay in sync with
+terraform/modules/glue_catalog/main.tf's column list by hand -- Terraform
+and this script don't share a schema source today.
 """
 import io
 import json
@@ -28,6 +36,29 @@ SILVER_BUCKET = f"cerberus-platform-silver-{ACCOUNT_ID}"
 GOLD_BUCKET = f"cerberus-platform-gold-{ACCOUNT_ID}"
 
 BRONZE_PREFIX = "payments/"
+
+GLUE_DATABASE = "cerberus_platform"
+GLUE_SILVER_TABLE = "payments_events"
+PARQUET_INPUT_FORMAT = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"
+PARQUET_OUTPUT_FORMAT = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
+PARQUET_SERDE = "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
+PARQUET_COLUMNS = [
+    {"Name": "transaction_id", "Type": "string"},
+    {"Name": "event_type", "Type": "string"},
+    {"Name": "event_timestamp", "Type": "timestamp"},
+    {"Name": "amount", "Type": "double"},
+    {"Name": "currency", "Type": "string"},
+    {"Name": "merchant_id", "Type": "string"},
+    {"Name": "merchant_name", "Type": "string"},
+    {"Name": "merchant_category", "Type": "string"},
+    {"Name": "customer_id", "Type": "string"},
+    {"Name": "customer_name", "Type": "string"},
+    {"Name": "customer_email", "Type": "string"},
+    {"Name": "payment_method_type", "Type": "string"},
+    {"Name": "payment_method_brand", "Type": "string"},
+    {"Name": "payment_method_last4", "Type": "string"},
+    {"Name": "payment_method_token", "Type": "string"},
+]
 
 
 def assumed_session():
@@ -100,9 +131,41 @@ def write_parquet(s3, df, bucket, key):
 def write_silver(s3, df):
     df = df.copy()
     df["dt"] = df["event_timestamp"].dt.strftime("%Y-%m-%d")
+    days = sorted(df["dt"].unique())
     for day, day_df in df.groupby("dt"):
         key = f"payments/dt={day}/events.parquet"
         write_parquet(s3, day_df.drop(columns="dt"), SILVER_BUCKET, key)
+    return days
+
+
+def register_partitions(glue, days):
+    partitions = [
+        {
+            "Values": [day],
+            "StorageDescriptor": {
+                "Location": f"s3://{SILVER_BUCKET}/payments/dt={day}/",
+                "InputFormat": PARQUET_INPUT_FORMAT,
+                "OutputFormat": PARQUET_OUTPUT_FORMAT,
+                "SerdeInfo": {"SerializationLibrary": PARQUET_SERDE},
+                "Columns": PARQUET_COLUMNS,
+            },
+        }
+        for day in days
+    ]
+    resp = glue.batch_create_partition(
+        DatabaseName=GLUE_DATABASE,
+        TableName=GLUE_SILVER_TABLE,
+        PartitionInputList=partitions,
+    )
+    errors = resp.get("Errors", [])
+    for err in errors:
+        if err["ErrorDetail"]["ErrorCode"] != "AlreadyExistsException":
+            raise RuntimeError(
+                f"Glue partition registration failed for {err['PartitionValues']}: "
+                f"{err['ErrorDetail']}"
+            )
+    new = len(days) - len(errors)
+    print(f"[transform] registered {new} new Glue partition(s), {len(errors)} already existed")
 
 
 def write_gold(s3, df):
@@ -113,6 +176,7 @@ def write_gold(s3, df):
 def main():
     session = assumed_session()
     s3 = session.client("s3")
+    glue = session.client("glue")
 
     keys = list_bronze_keys(s3)
     print(f"[transform] found {len(keys)} bronze objects under {BRONZE_PREFIX}")
@@ -124,7 +188,8 @@ def main():
     print(f"[transform] read {len(events)} events")
 
     df = flatten(events)
-    write_silver(s3, df)
+    days = write_silver(s3, df)
+    register_partitions(glue, days)
     write_gold(s3, df)
     print(f"[transform] done — {df['transaction_id'].nunique()} distinct transactions")
 

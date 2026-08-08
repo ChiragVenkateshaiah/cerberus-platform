@@ -9,7 +9,7 @@ pointer._
 ## Current phase
 
 Phase 1 — MVP: end-to-end lakehouse (🔨 in progress — ADRs 0002 and 0003
-accepted, 1.1/1.2/1.3/1.4/1.5/1.6/1.7 checked off) — see
+accepted, 1.1/1.2/1.3/1.4/1.5/1.6/1.7/1.8 checked off) — see
 [Phases.md](Phases.md#phase-1--mvp-end-to-end-lakehouse--). Phase 0 —
 Foundation is ✅ complete.
 
@@ -20,14 +20,18 @@ subtasks. Session history entries before that date use the old numbering.
 
 ## Next up
 
-- 1.8 Glue Data Catalog schema registration — register silver's
-  `payments` table (event history, `dt=` partitioned) and gold's
-  `payments_current` table (current-state, unpartitioned) so Athena
-  (1.10) and dbt (1.9) can query them by schema instead of raw S3 paths.
 - 1.9 dbt project + gold models — this is where the fact/dimension split
   (`fct_transactions`, `dim_merchants`, `dim_customers`) actually happens,
-  per ADR 0003; 1.7's gold output is deliberately still denormalized.
-- 1.10 Athena demo query against gold
+  per ADR 0003; 1.7's gold output (`payments_current`, now Glue-cataloged)
+  is deliberately still denormalized. dbt needs an Athena connection to
+  query the catalog — check whether that needs the query-results bucket
+  1.10 was going to set up anyway, or whether dbt can come first against
+  a minimal Athena setup.
+- 1.10 Athena demo query against gold — also where `cerberus-serving`
+  gains its own Athena query-execution permissions (1.6/1.8 only gave it
+  Glue+S3 read).
+- 1.11 Verify `terraform apply` builds and `terraform destroy` tears down
+  cleanly
 
 ## Session history
 
@@ -386,6 +390,31 @@ this entry was missing until the 2026-08-07 gap was caught and backfilled._
   by reading both outputs back with pandas: silver's schema is properly
   typed (`datetime64[ns, UTC]` etc.), and gold's row count matched its
   unique `transaction_id` count exactly, confirming the dedup was correct.
+- **Built 1.8, Glue Data Catalog schema registration**
+  (`terraform/modules/glue_catalog/`: one database `cerberus_platform`,
+  two tables — `payments_events` (silver, `dt=` partitioned) and
+  `payments_current` (gold, unpartitioned), explicit column schema
+  matching the exact Parquet types 1.7 already writes. Decided against a
+  Glue Crawler: the schema is fully known and owned end-to-end, so
+  hand-declaring it in Terraform is more accurate and reviewable than
+  paying to have AWS re-derive something already certain. Partitions are
+  explicitly *not* Terraform-managed — they're data, not infrastructure,
+  and grow every run — so `promote_payments.py` was extended to register
+  each day partition it writes via `glue:BatchCreatePartition` directly
+  (idempotent: re-running reports "0 new, N already existed" rather than
+  erroring), using a `PARQUET_COLUMNS` constant kept in sync with the
+  Terraform module's column list by hand (no shared schema source between
+  HCL and Python today). Also extended the 1.6 IAM roles to close the
+  "S3-only for now" forward pointer: `cerberus-transform` gained scoped
+  Glue permissions (`GetTable`/`BatchCreatePartition`/`GetPartitions`) on
+  `payments_events` only; `cerberus-serving` gained catalog read
+  (`GetDatabase`/`GetTable`/`GetTables`/`GetPartitions`) on both tables.
+  `terraform plan` came back 3 to add / 2 to change (both IAM policies,
+  in-place, no role recreation) / 0 to destroy. Applied, then re-ran the
+  transform to populate all 9 existing partitions, verified via
+  `aws glue get-table`/`get-partitions` that the catalog's schema and
+  partition list are exactly right, and confirmed a second transform run
+  is idempotent (0 new partitions, no errors).
 
 ## Notes / blockers
 
