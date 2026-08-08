@@ -80,10 +80,12 @@ constraints behind this diagram, see
 
 ```
 .
+├── .claude/commands/     # /start-day, /end-day, /write-article,
+│                         #   /note-maker session commands
 ├── docs/                 # plan, architecture notes, ADRs, learning notes
 ├── terraform/
-│   ├── bootstrap/        # one-time state backend (S3 + DynamoDB lock)
-│   ├── modules/          # reusable modules (storage, IAM, ...)
+│   ├── bootstrap/        # state backend as code (S3 + DynamoDB lock)
+│   ├── modules/          # reusable modules (storage, IAM, Glue catalog, ...)
 │   └── envs/dev/         # dev environment root module
 ├── ingestion/scripts/    # ingestion scripts: synthetic payments generator
 │                         #   (Python, Phase 1); ingest_weather.sh (Phase 0,
