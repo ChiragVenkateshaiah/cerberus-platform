@@ -112,13 +112,16 @@ for what's done and what's next. Common tasks are wired up in the
   courses (if any) map to each phase, and where no course exists
 - [docs/notes/](docs/notes/) — day-by-day learning notes: theory explained
   alongside the actual code written that session, for reference/study
-  rather than status tracking (see [checkpoint.md](checkpoint.md) for that)
+  rather than status tracking (see [checkpoint.md](checkpoint.md) for that);
+  generated via `/note-maker`
 - [article.md](article.md) — rules for the weekly engineering write-up,
   generated via `/write-article`; published articles land in `articles/`
   once the first one exists
 - `/start-day` / `/end-day` (`.claude/commands/`) — session commands that
   read and update [checkpoint.md](checkpoint.md) and [Phases.md](Phases.md)
   at the start and close of each work session
+- `/note-maker` (`.claude/commands/note-maker.md`) — generates the
+  `docs/notes/day-NN.md` learning notes above
 
 ## License
 

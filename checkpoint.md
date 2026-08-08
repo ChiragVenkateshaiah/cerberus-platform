@@ -415,6 +415,16 @@ this entry was missing until the 2026-08-07 gap was caught and backfilled._
   `aws glue get-table`/`get-partitions` that the catalog's schema and
   partition list are exactly right, and confirmed a second transform run
   is idempotent (0 new partitions, no errors).
+- **Wrote `docs/notes/day-02.md`** (1.5-1.8: the Terraform bootstrap
+  pattern, IAM roles/trust policies/least privilege, the transform's
+  Parquet/latest-event-wins design, and the Glue Data Catalog), same
+  textbook format as day-01. Also created **`/note-maker`**
+  (`.claude/commands/note-maker.md`) at explicit request — codifies
+  day-01's format as a reusable command (window detection from the
+  previous note's date, discipline-based categorization, theory-then-code
+  structure, never-fabricate grounding in git history, a glossary that
+  doesn't repeat prior notes' terms) so future sessions don't need the
+  format re-derived by hand each time.
 
 ## Notes / blockers
 
