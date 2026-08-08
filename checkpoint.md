@@ -9,7 +9,7 @@ pointer._
 ## Current phase
 
 Phase 1 — MVP: end-to-end lakehouse (🔨 in progress — ADRs 0002 and 0003
-accepted, 1.1/1.2/1.3/1.4/1.5/1.6 checked off) — see
+accepted, 1.1/1.2/1.3/1.4/1.5/1.6/1.7 checked off) — see
 [Phases.md](Phases.md#phase-1--mvp-end-to-end-lakehouse--). Phase 0 —
 Foundation is ✅ complete.
 
@@ -20,12 +20,14 @@ subtasks. Session history entries before that date use the old numbering.
 
 ## Next up
 
-- 1.7 Minimal transform promoting bronze → silver → gold — first real
-  consumer of the `cerberus-transform` role (1.6); this is also where
-  ADR 0003's "resolve latest-event-wins per transaction_id" logic and
-  the JSON→Parquet conversion actually get built.
-- 1.8 Glue Data Catalog schema registration
-- 1.9 dbt project + gold models
+- 1.8 Glue Data Catalog schema registration — register silver's
+  `payments` table (event history, `dt=` partitioned) and gold's
+  `payments_current` table (current-state, unpartitioned) so Athena
+  (1.10) and dbt (1.9) can query them by schema instead of raw S3 paths.
+- 1.9 dbt project + gold models — this is where the fact/dimension split
+  (`fct_transactions`, `dim_merchants`, `dim_customers`) actually happens,
+  per ADR 0003; 1.7's gold output is deliberately still denormalized.
+- 1.10 Athena demo query against gold
 
 ## Session history
 
@@ -360,6 +362,30 @@ this entry was missing until the 2026-08-07 gap was caught and backfilled._
   head start on repaying Phase 0's `AdministratorAccess` shortcut
   (formally closed out at 7.3) rather than a placeholder — the roles are
   real and usable today, nothing currently assumes them automatically.
+- **Built 1.7, the bronze → silver → gold transform**
+  (`transform/scripts/promote_payments.py`, boto3 + pandas + pyarrow, new
+  `transform/requirements.txt`, installed into the shared `.venv`). Unlike
+  1.4-1.6, plan.md's stack line just said "a minimal transform" with no
+  compute specified — resolved by ruling out Spark (Phase 3's addition,
+  not Phase 1's) and going with plain Python. Design settled on: full
+  rebuild every run (reprocesses all of bronze, no watermark/incremental
+  tracking — simplest correct option at this data volume, trivially
+  idempotent); silver gets the complete flattened event history as
+  Parquet+Snappy, one file per day partition at a deterministic key
+  (`payments/dt=.../events.parquet`, overwritten on rebuild — silver is
+  derived and reprocessable, unlike bronze's append-only accumulation);
+  gold gets a current-state table, one row per `transaction_id` via
+  latest-event-wins resolved on `event_timestamp`
+  (`payments_current/current_state.parquet`), still denormalized on
+  purpose — per ADR 0003 the fact/dimension split is 1.9's job, not this
+  script's. First real use of the `cerberus-transform` role from 1.6: the
+  script assumes it via STS rather than running as `cerberus-admin`
+  directly. Ran clean on the first try against all 37 bronze objects
+  (2,451 events) — 9 silver day-partitions written, gold resolved to 805
+  distinct transactions (729 settled / 40 failed / 36 refunded). Verified
+  by reading both outputs back with pandas: silver's schema is properly
+  typed (`datetime64[ns, UTC]` etc.), and gold's row count matched its
+  unique `transaction_id` count exactly, confirming the dedup was correct.
 
 ## Notes / blockers
 

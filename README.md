@@ -90,7 +90,10 @@ constraints behind this diagram, see
 │                         #   unscheduled — retired as the active feed)
 ├── ingestion/systemd/    # systemd --user service + timer for the
 │                         #   payments generator (daily)
-├── transform/dbt/        # dbt project: bronze → silver → gold
+├── transform/scripts/    # bronze → silver → gold transform (Python,
+│                         #   Phase 1): silver = flattened event history,
+│                         #   gold = current-state (still denormalized)
+├── transform/dbt/        # dbt project: gold fact/dimension models (1.9)
 └── data/samples/         # small sample datasets for local testing
 ```
 
