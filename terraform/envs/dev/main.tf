@@ -11,6 +11,12 @@ module "glue_catalog" {
   gold_bucket_name   = module.s3_medallion.bucket_names["gold"]
 }
 
+module "athena" {
+  source = "../../modules/athena"
+
+  account_id = data.aws_caller_identity.current.account_id
+}
+
 module "iam" {
   source = "../../modules/iam"
 
@@ -21,4 +27,7 @@ module "iam" {
   glue_database_name        = module.glue_catalog.database_name
   glue_table_names          = values(module.glue_catalog.table_names)
   glue_partition_table_name = module.glue_catalog.table_names["payments_events"]
+
+  athena_workgroup_name     = module.athena.workgroup_name
+  athena_results_bucket_arn = module.athena.results_bucket_arn
 }

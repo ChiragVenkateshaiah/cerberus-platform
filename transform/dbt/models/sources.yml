@@ -1,0 +1,8 @@
+version: 2
+
+sources:
+  - name: cerberus_platform
+    database: awsdatacatalog
+    schema: cerberus_platform
+    tables:
+      - name: payments_events

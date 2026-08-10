@@ -33,3 +33,13 @@ variable "glue_partition_table_name" {
   description = "The single Glue table (payments_events) that cerberus-transform registers partitions against."
   type        = string
 }
+
+variable "athena_workgroup_name" {
+  description = "Athena workgroup name, used to build its ARN for cerberus-transform's query-execution permissions."
+  type        = string
+}
+
+variable "athena_results_bucket_arn" {
+  description = "Athena query-results bucket ARN, from the athena module."
+  type        = string
+}

@@ -29,6 +29,14 @@ locals {
   glue_database_arn        = "arn:aws:glue:${var.region}:${var.account_id}:database/${var.glue_database_name}"
   glue_partition_table_arn = "arn:aws:glue:${var.region}:${var.account_id}:table/${var.glue_database_name}/${var.glue_partition_table_name}"
   glue_serving_table_arns  = [for t in var.glue_table_names : "arn:aws:glue:${var.region}:${var.account_id}:table/${var.glue_database_name}/${t}"]
+
+  # dbt (1.9) creates and owns these tables -- scoped by name prefix so
+  # cerberus-transform gets DDL rights only over tables it creates, not
+  # payments_events/payments_current (those stay Terraform-owned via 1.8).
+  glue_dbt_fct_table_arn = "arn:aws:glue:${var.region}:${var.account_id}:table/${var.glue_database_name}/fct_*"
+  glue_dbt_dim_table_arn = "arn:aws:glue:${var.region}:${var.account_id}:table/${var.glue_database_name}/dim_*"
+
+  athena_workgroup_arn = "arn:aws:athena:${var.region}:${var.account_id}:workgroup/${var.athena_workgroup_name}"
 }
 
 # --- Ingestion: write-only, bronze/payments/* ---------------------------
@@ -87,7 +95,10 @@ resource "aws_iam_role_policy" "transform" {
       {
         Sid    = "ReadWriteSilverAndGold"
         Effect = "Allow"
-        Action = ["s3:GetObject", "s3:PutObject"]
+        # DeleteObject: dbt-athena clears a table's target location before
+        # every CTAS run (not just full-refresh), same "full rebuild each
+        # run" idempotency 1.7's own transform already relies on.
+        Action = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
         Resource = [
           "${var.bucket_arns["silver"]}/*",
           "${var.bucket_arns["gold"]}/*",
@@ -111,6 +122,46 @@ resource "aws_iam_role_policy" "transform" {
           local.glue_database_arn,
           local.glue_partition_table_arn,
         ]
+      },
+      {
+        Sid    = "ManageDbtGoldTables"
+        Effect = "Allow"
+        Action = [
+          "glue:GetDatabase",
+          "glue:GetDatabases",
+          "glue:GetTable",
+          "glue:GetTables",
+          "glue:CreateTable",
+          "glue:UpdateTable",
+          "glue:DeleteTable",
+          "glue:BatchCreatePartition",
+          "glue:GetPartitions",
+          "glue:BatchDeletePartition",
+        ]
+        Resource = [
+          local.glue_catalog_arn,
+          local.glue_database_arn,
+          local.glue_dbt_fct_table_arn,
+          local.glue_dbt_dim_table_arn,
+        ]
+      },
+      {
+        Sid      = "RunAthenaQueries"
+        Effect   = "Allow"
+        Action   = ["athena:StartQueryExecution", "athena:GetQueryExecution", "athena:GetQueryResults", "athena:StopQueryExecution", "athena:GetWorkGroup"]
+        Resource = local.athena_workgroup_arn
+      },
+      {
+        Sid      = "WriteAthenaResults"
+        Effect   = "Allow"
+        Action   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+        Resource = "${var.athena_results_bucket_arn}/*"
+      },
+      {
+        Sid      = "ListAthenaResults"
+        Effect   = "Allow"
+        Action   = ["s3:ListBucket", "s3:GetBucketLocation"]
+        Resource = var.athena_results_bucket_arn
       }
     ]
   })

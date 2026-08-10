@@ -1,0 +1,16 @@
+name: 'cerberus_platform'
+version: '1.0.0'
+config-version: 2
+
+profile: 'cerberus_platform'
+
+model-paths: ["models"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+# Full rebuild every run, same "simplest correct option at this data
+# volume" call 1.7's Python transform made -- no incremental logic.
+models:
+  cerberus_platform:
+    marts:
+      +materialized: table

@@ -22,3 +22,13 @@ output "glue_table_names" {
   description = "Map of logical name -> Glue table name."
   value       = module.glue_catalog.table_names
 }
+
+output "athena_workgroup_name" {
+  description = "Athena workgroup name."
+  value       = module.athena.workgroup_name
+}
+
+output "athena_results_bucket_name" {
+  description = "Athena query-results bucket name."
+  value       = module.athena.results_bucket_name
+}

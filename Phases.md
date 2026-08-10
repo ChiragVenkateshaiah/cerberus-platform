@@ -45,7 +45,7 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 - [x] 1.6 Terraform: IAM module (least-privilege roles for the above)
 - [x] 1.7 Minimal transform promoting bronze → silver → gold
 - [x] 1.8 Glue Data Catalog schema registration
-- [ ] 1.9 dbt project + gold models
+- [x] 1.9 dbt project + gold models
 - [ ] 1.10 Athena demo query against gold
 - [ ] 1.11 Verify `terraform apply` builds and `terraform destroy` tears down cleanly
 - [ ] 1.12 MVP architecture write-up (definition-of-done artifact)

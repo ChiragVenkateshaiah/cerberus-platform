@@ -1,0 +1,21 @@
+# Committed rather than kept in ~/.dbt/profiles.yml (dbt's usual
+# convention) -- everything here is a non-secret infra identifier
+# (region/workgroup/bucket/profile names), same transparency level as the
+# account ID already hardcoded in transform/scripts/promote_payments.py.
+# Credentials themselves live in the `cerberus-transform` AWS CLI profile
+# (~/.aws/config, role_arn + source_profile chaining), not here.
+cerberus_platform:
+  target: dev
+  outputs:
+    dev:
+      type: athena
+      aws_profile_name: cerberus-transform
+      region_name: us-east-1
+      s3_staging_dir: s3://cerberus-platform-athena-results-131715059025/dbt/
+      s3_data_dir: s3://cerberus-platform-gold-131715059025/
+      s3_data_naming: table
+      work_group: cerberus_platform
+      schema: cerberus_platform
+      database: awsdatacatalog
+      threads: 2
+      num_retries: 3
