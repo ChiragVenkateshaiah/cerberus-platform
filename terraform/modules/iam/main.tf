@@ -168,9 +168,6 @@ resource "aws_iam_role_policy" "transform" {
 }
 
 # --- Serving: read-only, gold/* -------------------------------------------
-# Athena's own query-execution permissions (the query-results bucket, etc.)
-# land here once 1.10 actually builds that; this is just catalog + gold
-# object read access.
 
 resource "aws_iam_role" "serving" {
   name               = "cerberus-serving"
@@ -203,7 +200,32 @@ resource "aws_iam_role_policy" "serving" {
         Resource = concat(
           [local.glue_catalog_arn, local.glue_database_arn],
           local.glue_serving_table_arns,
+          # dbt-created marts (1.9) aren't Terraform-managed, so they're not
+          # in glue_serving_table_arns -- same fct_*/dim_* wildcard scoping
+          # cerberus-transform uses to own them.
+          [local.glue_dbt_fct_table_arn, local.glue_dbt_dim_table_arn],
         )
+      },
+      {
+        Sid      = "RunAthenaQueries"
+        Effect   = "Allow"
+        Action   = ["athena:StartQueryExecution", "athena:GetQueryExecution", "athena:GetQueryResults", "athena:StopQueryExecution", "athena:GetWorkGroup"]
+        Resource = local.athena_workgroup_arn
+      },
+      {
+        # No s3:DeleteObject: serving only ever runs SELECTs, never
+        # CTAS/DDL, so it has no reason to clear an existing location the
+        # way cerberus-transform's dbt runs do.
+        Sid      = "WriteAthenaResults"
+        Effect   = "Allow"
+        Action   = ["s3:GetObject", "s3:PutObject"]
+        Resource = "${var.athena_results_bucket_arn}/*"
+      },
+      {
+        Sid      = "ListAthenaResults"
+        Effect   = "Allow"
+        Action   = ["s3:ListBucket", "s3:GetBucketLocation"]
+        Resource = var.athena_results_bucket_arn
       }
     ]
   })

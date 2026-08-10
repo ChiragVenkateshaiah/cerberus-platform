@@ -96,6 +96,8 @@ constraints behind this diagram, see
 │                         #   Phase 1): silver = flattened event history,
 │                         #   gold = current-state (still denormalized)
 ├── transform/dbt/        # dbt project: gold fact/dimension models (1.9)
+├── serving/queries/      # demo Athena SQL against gold (1.10)
+├── serving/scripts/      # runs the demo query as cerberus-serving
 └── data/samples/         # small sample datasets for local testing
 ```
 
