@@ -63,6 +63,11 @@ resource "aws_s3_bucket_lifecycle_configuration" "results" {
 resource "aws_athena_workgroup" "this" {
   name = "cerberus_platform"
 
+  # Workgroup query-execution history isn't real data (it's re-derivable
+  # from re-running queries), so unlike the S3 buckets there's no reason to
+  # require it be emptied by hand before a destroy.
+  force_destroy = true
+
   # enforce_workgroup_configuration is deliberately false: dbt-athena skips
   # setting a Hive table's external_location in its CREATE TABLE statement
   # whenever the workgroup enforces its own output location (to avoid the
