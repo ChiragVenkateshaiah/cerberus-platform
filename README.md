@@ -8,7 +8,9 @@ Engineering competence in one repository.
 ## Status
 
 ✅ Phase 0 (foundation, built by hand) — complete.
-🔨 Phase 1 (MVP: end-to-end lakehouse) — in progress.
+✅ Phase 1 (MVP: end-to-end lakehouse) — complete. A reviewer can run a
+real Athena query against gold and get a result; `terraform apply` and
+`terraform destroy` were verified live against the whole stack.
 
 See [docs/plan.md](docs/plan.md) for the full phased roadmap (Phases 0–7)
 and [Phases.md](Phases.md) for subtask-level progress.

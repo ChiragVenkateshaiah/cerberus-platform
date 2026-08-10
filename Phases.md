@@ -35,7 +35,7 @@ the specific "what's next" live in [checkpoint.md](checkpoint.md)._
 _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 `cerberus-admin` holding `AdministratorAccess` — is repaid by 7.3._
 
-## Phase 1 — MVP: end-to-end lakehouse 🎯 🔨
+## Phase 1 — MVP: end-to-end lakehouse 🎯 ✅
 
 - [x] 1.1 ADR: medallion layout (bronze/silver/gold conventions, partitioning)
 - [x] 1.2 ADR: synthetic payments data model
@@ -49,7 +49,7 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 - [x] 1.10 Athena demo query against gold
 - [x] 1.11 Verify `terraform apply` builds and `terraform destroy` tears down cleanly
 - [x] 1.12 MVP architecture write-up (definition-of-done artifact)
-- [ ] 1.13 Well-Architected pass + ADR
+- [x] 1.13 Well-Architected pass + ADR
 
 ## Phase 2 — Event-driven ingestion ⬜
 

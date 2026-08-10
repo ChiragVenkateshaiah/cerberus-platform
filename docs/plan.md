@@ -93,7 +93,7 @@ layered on top of a platform that already works.
 | Phase | Theme | Stack introduced | Course alignment | Status |
 |------:|-------|------------------|------------------|--------|
 | 0 | Foundation (built by hand) | Git, AWS CLI, S3, IAM, bash, systemd | DevOps prereq, Linux | ✅ Complete |
-| 1 | **MVP: end-to-end lakehouse** | Terraform, Glue Data Catalog, Athena, dbt | AWS Cloud Practitioner, S3, IAM, Terraform | ⬜ Planned |
+| 1 | **MVP: end-to-end lakehouse** | Terraform, Glue Data Catalog, Athena, dbt | AWS Cloud Practitioner, S3, IAM, Terraform | ✅ Complete |
 | 2 | Event-driven ingestion | Lambda, S3 events / EventBridge | AWS Lambda | ⬜ Planned |
 | 3 | Scalable compute | EKS, Spark Operator | AWS EKS | ⬜ Planned |
 | 4 | Orchestration | AWS Step Functions | _(course gap — AWS workshop)_ | ⬜ Planned |
@@ -116,7 +116,7 @@ layered on top of a platform that already works.
 - **Artifact:** the scaffolded public repo + a working ingestion script.
 - **Live resources:** see [Existing infrastructure](#existing-infrastructure).
 
-### Phase 1 — MVP: end-to-end lakehouse 🎯
+### Phase 1 — MVP: end-to-end lakehouse 🎯 ✅
 - **Goal:** Make synthetic payments data flow end to end and become queryable —
   provisioned entirely as Terraform.
 - **Stack:** Terraform (medallion S3 module, IAM module, state backend as

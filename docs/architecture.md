@@ -1,9 +1,8 @@
 # Architecture
 
-_Status: Phase 0 complete, Phase 1 MVP built and verified (1.1–1.11 done;
-1.12–1.13 close out the phase) — this document tracks the architecture as it
-actually exists today. For the target end-state and phased plan, see
-[plan.md](plan.md)._
+_Status: Phase 0 and Phase 1 (MVP) both complete — this document tracks the
+architecture as it actually exists today. For the target end-state and
+phased plan, see [plan.md](plan.md)._
 
 ## Governing constraints
 
