@@ -85,9 +85,11 @@ constraints behind this diagram, see
 ├── .claude/commands/     # /start-day, /end-day, /write-article,
 │                         #   /note-maker session commands
 ├── docs/                 # plan, architecture notes, ADRs, learning notes
+├── articles/             # weekly engineering articles (see article.md)
 ├── terraform/
 │   ├── bootstrap/        # state backend as code (S3 + DynamoDB lock)
-│   ├── modules/          # reusable modules (storage, IAM, Glue catalog, ...)
+│   ├── modules/          # reusable modules (S3 medallion, IAM, Glue
+│   │                     #   catalog, Athena)
 │   └── envs/dev/         # dev environment root module
 ├── ingestion/scripts/    # ingestion scripts: synthetic payments generator
 │                         #   (Python, Phase 1); ingest_weather.sh (Phase 0,
@@ -121,8 +123,8 @@ for what's done and what's next. Common tasks are wired up in the
   rather than status tracking (see [checkpoint.md](checkpoint.md) for that);
   generated via `/note-maker`
 - [article.md](article.md) — rules for the weekly engineering write-up,
-  generated via `/write-article`; published articles land in `articles/`
-  once the first one exists
+  generated via `/write-article`; published articles live in
+  [articles/](articles/), indexed in `articles/README.md`
 - `/start-day` / `/end-day` (`.claude/commands/`) — session commands that
   read and update [checkpoint.md](checkpoint.md) and [Phases.md](Phases.md)
   at the start and close of each work session

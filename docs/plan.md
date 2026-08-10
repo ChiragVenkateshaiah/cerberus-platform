@@ -38,6 +38,23 @@ build, automate, and operate a data platform.
    learning path; courses concrete concepts encountered while building and
    never gate a phase. See
    [courses-map-to-phases.md](courses-map-to-phases.md).
+8. **Phase work ships via PR, tagged at completion.** Starting Phase 2, each
+   phase's implementation work (the actual code/infra/docs a subtask
+   produces) happens on a branch and merges into `main` via a reviewed PR —
+   one PR per phase by default, split into more if a phase's scope
+   genuinely warrants it. Merges are regular merges, never squashed —
+   history stays intact, not flattened. This is a followed **convention**,
+   not GitHub branch protection: there's no CI check yet for a protection
+   rule to gate on (that arrives in Phase 5's `terraform plan` on PR), so
+   enforcing it in GitHub today would only police ceremony. Routine
+   `/start-day`/`/end-day` checkpoint-only commits (`Phases.md`,
+   `checkpoint.md`, no code) are exempt — they stay direct-to-`main`, as
+   they always have, since there's no code in them to review. Every phase
+   completion also gets an annotated git tag (`vN-<phase-name>`, e.g.
+   `v1-mvp`) as a fixed, portfolio-referenceable milestone — Phases 0 and 1
+   were tagged retroactively (`v0-foundation`, `v1-mvp`) since they predate
+   this principle and already lived as direct-to-`main` history not worth
+   rewriting.
 
 ## The data domain — synthetic payments
 

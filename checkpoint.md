@@ -8,10 +8,11 @@ pointer._
 
 ## Current phase
 
-Phase 1 — MVP: end-to-end lakehouse (🔨 in progress — ADRs 0002 and 0003
-accepted, 1.1/1.2/1.3/1.4/1.5/1.6/1.7/1.8 checked off) — see
-[Phases.md](Phases.md#phase-1--mvp-end-to-end-lakehouse--). Phase 0 —
-Foundation is ✅ complete.
+Phase 1 — MVP: end-to-end lakehouse is **✅ complete** (1.1–1.13 all done,
+verified live — see
+[Phases.md](Phases.md#phase-1--mvp-end-to-end-lakehouse--)). Phase 2 —
+Event-driven ingestion (⬜ planned, not yet started) is next — see
+[Phases.md](Phases.md#phase-2--event-driven-ingestion-).
 
 **Note:** the roadmap was re-scoped on 2026-08-03 from 9 phases (0–8) to
 8 (0–7). The old "Phase 1 — IaC foundation" no longer exists as a phase;
@@ -20,18 +21,35 @@ subtasks. Session history entries before that date use the old numbering.
 
 ## Next up
 
-- 1.9 dbt project + gold models — this is where the fact/dimension split
-  (`fct_transactions`, `dim_merchants`, `dim_customers`) actually happens,
-  per ADR 0003; 1.7's gold output (`payments_current`, now Glue-cataloged)
-  is deliberately still denormalized. dbt needs an Athena connection to
-  query the catalog — check whether that needs the query-results bucket
-  1.10 was going to set up anyway, or whether dbt can come first against
-  a minimal Athena setup.
-- 1.10 Athena demo query against gold — also where `cerberus-serving`
-  gains its own Athena query-execution permissions (1.6/1.8 only gave it
-  Glue+S3 read).
-- 1.11 Verify `terraform apply` builds and `terraform destroy` tears down
-  cleanly
+- **Workflow change starting this phase:** Phase 2's implementation work
+  ships via branch + PR (regular merge, never squashed), per plan.md's new
+  guiding principle 8 — see there for the full rule. Routine
+  `/start-day`/`/end-day` checkpoint-only commits are exempt and stay
+  direct-to-`main`. Not GitHub-enforced (convention only, no branch
+  protection) since there's no CI check yet to gate on.
+- 2.4 ADR: push vs. pull ingestion — do this first, matching the project's
+  established pattern of an ADR before the code it governs (0002 before
+  1.4, 0003 before 1.3). The real decision: an S3 event notification
+  (push, fires the instant an object lands) vs. an EventBridge scheduled
+  rule (pull-shaped, closer to what the systemd timer already does) —
+  and whether "event-driven" here is about replacing the *schedule*
+  mechanism or genuinely reacting to an upstream event, given payments are
+  still synthetically generated, not sourced from a real external system.
+- 2.1 Lambda ingestion function — likely wraps the *same*
+  `generate_payments.py` core (per 1.3/ADR 0003, still a plain, always-
+  available script), with the Lambda replacing
+  `run_payments_scheduled.sh` + the systemd trigger, not the generator
+  itself.
+- 2.2 S3 event / EventBridge trigger — whichever 2.4 decides.
+- 2.3 IAM role for the Lambda — either a new role, or extending
+  `cerberus-ingestion`'s trust policy (currently trusts only
+  `cerberus-admin` via `sts:AssumeRole`) to add the Lambda's execution
+  role as a second trusted principal.
+- 2.5 Retire the Phase 0 systemd timer — `cerberus-payments.timer`
+  specifically, once the Lambda path actually works end to end. Note it
+  still self-retires on its own on 2026-08-17 regardless (see Notes /
+  blockers) if this isn't done before then.
+- 2.6 Well-Architected pass + ADR — closes Phase 2, same pattern as 1.13.
 
 ## Session history
 
@@ -426,18 +444,124 @@ this entry was missing until the 2026-08-07 gap was caught and backfilled._
   doesn't repeat prior notes' terms) so future sessions don't need the
   format re-derived by hand each time.
 
+### 2026-08-10
+
+_Phase 1 finished today — 1.9 through 1.13 all landed in one session, plus
+the first learning note and the first published article._
+
+- **Built 1.9, the dbt project + gold fact/dimension models**
+  (`transform/dbt/`: `dbt_project.yml`, `profiles.yml`, `models/sources.yml`,
+  `models/marts/{dim_merchants,dim_customers,fct_transactions}.sql`).
+  Implements ADR 0003's deferred fact/dimension split: `dim_merchants`/
+  `dim_customers` are plain `SELECT DISTINCT`s off the fixed roster (no
+  latest-wins needed, roster values never change); `fct_transactions`
+  resolves latest-event-wins via a `ROW_NUMBER() OVER (PARTITION BY
+  transaction_id ORDER BY event_timestamp DESC)` window function, emitting
+  `merchant_id`/`customer_id` as foreign keys instead of embedding names
+  inline. Runs as `cerberus-transform`, authenticated via a new named AWS
+  CLI profile (`role_arn` + `source_profile` chaining in `~/.aws/config`)
+  rather than in-code STS, since dbt is a CLI tool this project doesn't
+  control.
+  Pulled 1.10's minimal Athena plumbing forward as a prerequisite —
+  dbt-athena can't run at all without a query-results bucket and a
+  workgroup (`terraform/modules/athena/`). Hit and fixed three real gaps
+  live: missing `s3:GetBucketLocation` and `glue:GetDatabases` (both
+  surfaced by actual `AccessDeniedException`s, not predicted from docs),
+  and a workgroup with `enforce_workgroup_configuration = true` that
+  silently misrouted every dbt table's data into the results bucket
+  instead of gold — dbt-athena omits a table's `external_location` when
+  the workgroup enforces its own output location. Fixed by turning
+  enforcement off (the `bytes_scanned_cutoff_per_query` cost guardrail
+  still applies as a default either way).
+- **Built 1.10, the Athena demo query + `cerberus-serving` permissions**
+  (`serving/queries/demo_query.sql`, `serving/scripts/run_demo_query.sh`).
+  Extended `cerberus-serving` with read-only Athena query execution and
+  Glue read on the new `fct_*`/`dim_*` tables (not Terraform-managed, so
+  absent from its original grant). The demo query joins
+  `fct_transactions`+`dim_merchants` for settled revenue by merchant —
+  deliberately not a trivial count, since it exercises the actual
+  normalization 1.9 did. Verified end to end via a new `cerberus-serving`
+  AWS CLI profile, same role-chaining pattern as `cerberus-transform`.
+- **Built 1.11, live `terraform destroy`/`apply` verification.** Not a
+  dry-run: backed up bronze's raw data locally (the only non-reproducible
+  layer — silver/gold/marts are all derived and reprocessable), emptied
+  all four buckets of every object version, then actually destroyed and
+  rebuilt the full 31-resource stack. The Athena workgroup failed to
+  destroy once (`WorkGroup is not empty` — its query-execution history
+  needs `force_destroy`); fixing it surfaced a real Terraform gotcha —
+  `terraform destroy` uses the resource's last-*applied* state for its
+  delete call, not just the current `.tf` config, so the new
+  `force_destroy = true` had to be applied to state first via
+  `terraform apply -target=` before a destroy would honor it. Confirmed
+  deleting the Glue database cascade-deletes every table inside it,
+  Terraform-managed or not (the dbt tables included). Restored bronze and
+  re-ran the transform + dbt to reconstruct silver/gold/marts — which
+  incidentally caught and fixed a real pre-existing bug: silver/gold
+  hadn't picked up 4 bronze partitions since 2026-08-08, silently stale
+  until this rebuild forced a fresh full-reprocess. The payments timer was
+  stopped for the duration of the test and restarted afterward — no
+  schedule change, still self-retires 2026-08-17.
+- **Built 1.12, rewrote `docs/architecture.md`'s "Current state" section**
+  for the actually-built Phase 1 MVP — it had been stale since Phase 0
+  ("Phase 0 complete, Phase 1 next") despite 1.1–1.11 landing. New
+  build-specific Mermaid diagram (not the aspirational 7-phase one), a
+  stage-by-stage narrative, and a "Verified" section citing the real demo
+  query output and 1.11's results. Resolved the data-layout table's
+  "TBD — see ADR" placeholders per ADR 0002/0003 and expanded Decisions to
+  list ADR 0002/0003 (previously only ADR 0001 was mentioned). The old
+  7-phase diagram was relabeled post-MVP rather than removed.
+- **Built 1.13, the first AWS Well-Architected Tool review**
+  (`docs/adr/0004-phase-1-well-architected-review.md`). Created the
+  `cerberus-platform` workload (Framework lens, `us-east-1`) via the
+  `aws wellarchitected` CLI/API — scripted rather than clicked through the
+  console, which is what made a genuine 57-question review tractable in
+  one sitting. Answered every question honestly against what's actually
+  built: **26 HIGH / 19 MEDIUM / 7 NONE / 5 NOT_APPLICABLE**. Sustainability
+  came back cleanest (0 HIGH); Operational Excellence and Reliability
+  scored hardest, mostly because those pillars assume an organization and
+  standing compute this solo, serverless-only project doesn't have yet.
+  Hit one real gotcha: leaving `--selected-choices` empty on a genuinely
+  "nothing applies yet" question left it `UNANSWERED` rather than
+  "answered, at risk" — fixed by explicitly selecting each question's
+  `"None of these"` choice instead. Saved milestone 1
+  (`phase-1-mvp-complete`) as the baseline every future phase's pass diffs
+  against. ADR 0004 documents it pillar-by-pillar (the shape a *review*
+  ADR takes, vs. 0002/0003's decision-record shape), mapping every real
+  gap to the phase that already owns it rather than treating it as a new
+  backlog.
+- **Phase 1 flipped to ✅ Complete** across `Phases.md`, `docs/plan.md`'s
+  roadmap table (which had drifted — never actually updated off "⬜
+  Planned" this whole time, a pre-existing gap only caught now), and
+  README's status line.
+- **Wrote `docs/notes/day-03.md`** (1.9–1.13: Athena workgroup fundamentals,
+  AWS CLI role-chaining and the empirically-discovered IAM permissions,
+  dbt's source/materialization model and window functions, the
+  `force_destroy` state-vs-config gotcha, the Well-Architected Tool's
+  CLI-driven review), same textbook format as day-01/day-02. Window was
+  effectively just today — 2026-08-09 had no commits.
+- **Published the first article** (`articles/2026-08-10.md`,
+  `articles/README.md` created as its index). No prior article existed, so
+  this was a one-off Phase 1 completion retrospective rather than a strict
+  weekly-cadence run — dated today (Phase 1's actual completion day)
+  rather than the mechanical catch-up date (2026-08-05, the last
+  Wednesday), which would have cut the story off before 1.5–1.13 even
+  happened. Confirmed with the user before deviating from `article.md`'s
+  literal dating rule. Covers the full Phase 1 arc with real code pulled
+  from the actual files.
+
 ## Notes / blockers
 
 - **`dynamodb_table` vs. `use_lockfile`: decided 2026-08-08, keep
-  DynamoDB.** Terraform's S3 backend still accepts `dynamodb_table` but
+  DynamoDB for now — Phase 1 (MVP) is done as of today, so this is now
+  revisitable with real usage data if there's appetite, but hasn't been
+  actioned.** Terraform's S3 backend still accepts `dynamodb_table` but
   warns it's deprecated in favor of `use_lockfile` (native S3 locking,
   no second AWS resource needed). Explicit decision: keep the existing
   `cerberus-platform-tfstate-lock` table rather than migrate — it's
   already built (Phase 0), already imported as code (1.5), and
-  effectively free on-demand. Revisit after Phase 1 (MVP) is done, with
-  real usage data instead of a guess. Not written up as an ADR — a
-  config-level tooling call, not an architecturally significant decision
-  on ADR 0002/0003's scale.
+  effectively free on-demand. Not written up as an ADR — a config-level
+  tooling call, not an architecturally significant decision on ADR
+  0002/0003's scale.
 - **The payments timer self-retires 2026-08-17.** After that date
   `cerberus-payments.timer` will be auto-disabled (not deleted) by
   `run_payments_scheduled.sh` the next time it fires. To get more data
