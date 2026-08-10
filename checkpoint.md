@@ -548,6 +548,19 @@ the first learning note and the first published article._
   happened. Confirmed with the user before deviating from `article.md`'s
   literal dating rule. Covers the full Phase 1 arc with real code pulled
   from the actual files.
+- **Adopted a tagging + PR-per-phase workflow, retroactively tagged
+  Phase 0/1.** Created annotated git tags `v0-foundation` (→ `474296d`,
+  Phase 0's completion commit) and `v1-mvp` (→ `3283781`, Phase 1's), both
+  pushed to origin. Added guiding principle 8 to `docs/plan.md`: starting
+  Phase 2, phase implementation work ships via branch + PR — one per phase
+  by default, more if a phase's scope genuinely warrants it — merged with
+  **regular merges only, never squashed**, per explicit user instruction
+  (full commit history stays intact, not flattened). Convention only, not
+  GitHub branch protection, since there's no CI check yet for a protection
+  rule to gate on (that's Phase 5's `terraform plan` on PR); routine
+  `/start-day`/`/end-day` checkpoint-only commits stay direct-to-`main` as
+  before. Phases 0/1 were tagged rather than retrofitted with PRs, since
+  rewriting already-merged history isn't worth it for a settled record.
 
 ## Notes / blockers
 
