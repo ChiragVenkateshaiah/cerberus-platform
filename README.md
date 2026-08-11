@@ -89,13 +89,16 @@ constraints behind this diagram, see
 ├── terraform/
 │   ├── bootstrap/        # state backend as code (S3 + DynamoDB lock)
 │   ├── modules/          # reusable modules (S3 medallion, IAM, Glue
-│   │                     #   catalog, Athena)
+│   │                     #   catalog, Athena, Lambda ingestion)
 │   └── envs/dev/         # dev environment root module
 ├── ingestion/scripts/    # ingestion scripts: synthetic payments generator
-│                         #   (Python, Phase 1); ingest_weather.sh (Phase 0,
-│                         #   unscheduled — retired as the active feed)
+│                         #   + shared payments_lib.py core (Python, Phase
+│                         #   1); ingest_weather.sh (Phase 0, unscheduled —
+│                         #   retired as the active feed)
 ├── ingestion/systemd/    # systemd --user service + timer for the
 │                         #   payments generator (daily)
+├── ingestion/lambda/     # event-driven ingestion Lambda handler, wraps
+│                         #   payments_lib.py (Phase 2)
 ├── transform/scripts/    # bronze → silver → gold transform (Python,
 │                         #   Phase 1): silver = flattened event history,
 │                         #   gold = current-state (still denormalized)

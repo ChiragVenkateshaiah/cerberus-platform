@@ -51,7 +51,7 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 - [x] 1.12 MVP architecture write-up (definition-of-done artifact)
 - [x] 1.13 Well-Architected pass + ADR
 
-## Phase 2 — Event-driven ingestion ⬜
+## Phase 2 — Event-driven ingestion 🔨
 
 - [x] 2.1 Lambda ingestion function
 - [x] 2.2 S3 event / EventBridge trigger

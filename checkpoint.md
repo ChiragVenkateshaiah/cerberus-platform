@@ -11,7 +11,9 @@ pointer._
 Phase 1 — MVP: end-to-end lakehouse is **✅ complete** (1.1–1.13 all done,
 verified live — see
 [Phases.md](Phases.md#phase-1--mvp-end-to-end-lakehouse--)). Phase 2 —
-Event-driven ingestion (⬜ planned, not yet started) is next — see
+Event-driven ingestion is **🔨 in progress**: 2.1–2.4 done (Lambda
+ingestion function, its EventBridge Scheduler trigger, its IAM role, and
+ADR 0005 all landed and verified live 2026-08-11). 2.5 and 2.6 remain — see
 [Phases.md](Phases.md#phase-2--event-driven-ingestion-).
 
 **Note:** the roadmap was re-scoped on 2026-08-03 from 9 phases (0–8) to
@@ -21,35 +23,38 @@ subtasks. Session history entries before that date use the old numbering.
 
 ## Next up
 
-- **Workflow change starting this phase:** Phase 2's implementation work
-  ships via branch + PR (regular merge, never squashed), per plan.md's new
-  guiding principle 8 — see there for the full rule. Routine
-  `/start-day`/`/end-day` checkpoint-only commits are exempt and stay
-  direct-to-`main`. Not GitHub-enforced (convention only, no branch
-  protection) since there's no CI check yet to gate on.
-- 2.4 ADR: push vs. pull ingestion — do this first, matching the project's
-  established pattern of an ADR before the code it governs (0002 before
-  1.4, 0003 before 1.3). The real decision: an S3 event notification
-  (push, fires the instant an object lands) vs. an EventBridge scheduled
-  rule (pull-shaped, closer to what the systemd timer already does) —
-  and whether "event-driven" here is about replacing the *schedule*
-  mechanism or genuinely reacting to an upstream event, given payments are
-  still synthetically generated, not sourced from a real external system.
-- 2.1 Lambda ingestion function — likely wraps the *same*
-  `generate_payments.py` core (per 1.3/ADR 0003, still a plain, always-
-  available script), with the Lambda replacing
-  `run_payments_scheduled.sh` + the systemd trigger, not the generator
-  itself.
-- 2.2 S3 event / EventBridge trigger — whichever 2.4 decides.
-- 2.3 IAM role for the Lambda — either a new role, or extending
-  `cerberus-ingestion`'s trust policy (currently trusts only
-  `cerberus-admin` via `sts:AssumeRole`) to add the Lambda's execution
-  role as a second trusted principal.
-- 2.5 Retire the Phase 0 systemd timer — `cerberus-payments.timer`
-  specifically, once the Lambda path actually works end to end. Note it
-  still self-retires on its own on 2026-08-17 regardless (see Notes /
-  blockers) if this isn't done before then.
-- 2.6 Well-Architected pass + ADR — closes Phase 2, same pattern as 1.13.
+- **2.5 Retire `cerberus-payments.timer`** — blocked on confirming the
+  EventBridge Scheduler path actually fires *unattended* (everything
+  verified 2026-08-11 was a manual invocation; the schedule's first real
+  unattended fire is tonight, 2026-08-12T00:00 UTC). Check next session,
+  from the local machine (needs the `cerberus-admin` AWS CLI profile —
+  a cloud agent can't do this, see Notes / blockers):
+  ```
+  aws logs tail /aws/lambda/cerberus-ingest-payments \
+    --profile cerberus-admin --region us-east-1 --since 12h
+  aws s3 ls s3://cerberus-platform-bronze-131715059025/payments/dt=2026-08-12/ \
+    --profile cerberus-admin
+  ```
+  Look for a clean invocation and a new object timestamped right after
+  midnight UTC (`run_ts` around `20260812T000...`) with no manual trigger.
+  Only once that's confirmed should `cerberus-payments.timer` actually be
+  disabled/unlinked — mirror weather ingestion's 2026-08-07 retirement
+  shape (disable + unlink + delete the unit files from
+  `ingestion/systemd/`, leave `generate_payments.py`/`payments_lib.py`
+  fully intact, since the Lambda now depends on them too).
+- **2.6 Well-Architected pass + ADR** — closes Phase 2, same pattern as
+  1.13. After 2.5.
+- **Workflow policy needs to actually be rewritten, not just practiced.**
+  2026-08-11 dropped the branch-per-phase/PR-per-phase convention
+  (`docs/plan.md`'s guiding principle 8, added just the day before) in
+  favor of pushing to `main` continuously/daily — but the exact shape was
+  never locked down (still opening a PR and merging same-day, vs. dropping
+  PRs entirely and committing straight to `main` — this session did both,
+  inconsistently: PR #1 for the 2.1–2.4 work, a direct push for the
+  retry-logic fix afterward). `docs/plan.md`'s principle 8 still describes
+  the old convention verbatim and is now stale. Needs an explicit decision
+  next session, then a rewrite of principle 8 to match — don't infer one
+  from this session's inconsistent practice.
 
 ## Session history
 
@@ -562,6 +567,162 @@ the first learning note and the first published article._
   before. Phases 0/1 were tagged rather than retrofitted with PRs, since
   rewriting already-merged history isn't worth it for a settled record.
 
+### 2026-08-11
+
+_Phase 1 review + fixes, ADR 0005 (drafted, reviewed, revised, accepted), 2.1–2.4
+built and verified live, a workflow-policy change mid-flight, and a first look
+at AWS's Agent Toolkit for Claude Code._
+
+- **`/code-review high` against `v0-foundation..v1-mvp`** (the whole of Phase
+  1), at the user's request to sanity-check the MVP before starting Phase 2.
+  10 findings, all verified against the actual files (not taken on trust) —
+  the top 4 were fixed the same session:
+  - **Gold/dbt latest-event-wins had no tiebreak** on equal
+    `event_timestamp`s (`promote_payments.py`'s `sort_values().tail(1)` and
+    `fct_transactions.sql`'s `row_number()`) — `generate_payments.py` clamps
+    every event to `min(ts, now)`, so a settled event and a later refund can
+    land on an identical timestamp. Confirmed **live in production data**:
+    15 transactions were mislabeled `settled` instead of `refunded`. Fixed
+    with a fixed lifecycle-order rank (`created < authorized <
+    settled/failed < refunded`) as the tiebreak in both places; re-ran the
+    transform and dbt and confirmed all 5 sampled mislabeled transactions
+    now correctly resolve to `refunded`.
+  - **`generate_payments.py` ran as the full `cerberus-admin` profile**
+    instead of the least-privilege `cerberus-ingestion` role built for it in
+    1.6. Fixed by adding a role-chained `cerberus-ingestion` CLI profile
+    (same `role_arn`/`source_profile` pattern as `cerberus-transform`/
+    `cerberus-serving`) and switching to it; verified with a real run.
+  - **Upload failures had no retry and could abort the rest of a run** —
+    fixed with a per-partition retry loop (later replaced, see below).
+  - Fixed findings committed in `3bc73d0`. Six lower-severity findings
+    (an unchunked Glue `BatchCreatePartition` call past 100 partitions, no
+    noncurrent-version expiration on silver/gold, two already-known/accepted
+    tradeoffs, two simplification items) were reported but left as tracked,
+    not-yet-actioned findings — not fixed this session.
+- **Drafted, reviewed, revised, and accepted ADR 0005** (`docs/adr/0005-push-vs-pull-ingestion.md`,
+  2.4) on a new branch, `phase-2-event-driven-ingestion` — the first work
+  under the (now-superseded, see below) branch-per-phase convention.
+  Decision: **EventBridge Scheduler**, not an S3 event notification —
+  `generate_payments.py` produces its own data rather than consuming an
+  externally-dropped file, so there's no genuine upstream write for a push
+  trigger to react to; "event-driven" here is about replacing systemd's
+  login-session-dependent scheduling with managed infrastructure, not
+  introducing reactivity that doesn't structurally exist yet.
+  - **An Opus review of the draft ADR found real problems, not style
+    nits**: a fabricated claim that a systemd catch-up bug had already
+    fired (it hadn't — replaced with the actual, verified evidence: the
+    timer skipped 2026-08-09 entirely and ran late on 08-10/08-11); a
+    Decision that named "EventBridge scheduled rule" but argued using
+    EventBridge Scheduler's capabilities (now explicitly committed to
+    Scheduler, with the timezone fixed to UTC to avoid silently shifting
+    which `dt=` partition a run lands in); a Security row claiming a
+    1-vs-2 trust-relationship asymmetry that doesn't hold up (fixed to
+    "roughly neutral"); and a Consequences section that conceded no real
+    cost at all — most notably missing that EventBridge's at-least-once
+    retries against the generator's intentionally unseeded RNG risk
+    appending duplicate, non-reconciled data into append-only bronze.
+  - **Before finalizing, priced out the 2.5 retirement-cap question with
+    real numbers** rather than guessing: running the EventBridge/Lambda
+    path for 10 vs. 30 days, against this project's actual measured data
+    rate (~283 KB / 8 S3 PUTs per daily `count=200` run), costs
+    ~$0.0004 vs. ~$0.0014 total — negligible against the existing
+    $10/month billing alarm. Decided to **keep the 10-day cap anyway, on
+    data-volume/manageability grounds, not cost** — 1.3's original
+    "cost/data-volume control" framing turns out to only ever really have
+    been about the data-volume half. Where that cap's logic lives once the
+    systemd wrapper is retired (in the Lambda's own code vs. an
+    infrastructure-level schedule toggle) is still open — see Next up.
+  - Revised ADR committed (`40dfa6c`), then flipped to `Accepted` and 2.4
+    checked off (`796bcd7`).
+- **Built 2.1–2.3 together** (`caa1bed`) — the Lambda ingestion function,
+  its EventBridge Scheduler trigger, and its IAM role, since they're
+  interdependent and were designed/tested as one unit:
+  - Extracted the roster/event-generation/upload core out of
+    `generate_payments.py` into new `ingestion/scripts/payments_lib.py`,
+    shared between the CLI script (now a thinner wrapper) and the new
+    Lambda handler (`ingestion/lambda/handler.py`) — the two differ only in
+    trigger, auth, and logging, not generation logic.
+  - Lambda handler reads `BRONZE_BUCKET`/`RETIRE_ON_OR_AFTER`/
+    `TRANSACTION_COUNT` from its environment, no-ops past the retirement
+    date rather than trying to disable its own schedule (would need
+    `scheduler:*` permissions the role deliberately doesn't have), and
+    raises on partial failure only to surface it in CloudWatch, not to
+    trigger a retry.
+  - `terraform/modules/iam`: added a 4th role, `cerberus-ingestion-lambda`
+    — same `s3:PutObject` scope as `cerberus-ingestion`, but trusted by
+    `lambda.amazonaws.com` instead of a human principal (the first of the
+    four roles actually assumed by compute, not by hand). Uses the
+    AWS-managed `AWSLambdaBasicExecutionRole` for CloudWatch Logs — the one
+    deliberate exception to this module's inline-only-policy convention,
+    since it's runtime boilerplate, not a project-specific grant.
+  - New `terraform/modules/lambda_ingestion`: the function (Faker packaged
+    as a layer, pip-installed at `terraform apply` time via
+    `null_resource`/`local-exec` — boto3/botocore deliberately excluded
+    from the layer since the Lambda runtime ships both already), and an
+    `aws_scheduler_schedule` — daily, UTC, `MaximumRetryAttempts = 0` (an
+    invocation-level retry would regenerate a different, unseeded dataset
+    and duplicate data into bronze — payments_lib's client-level retry,
+    see below, is the only retry layer).
+  - Applied (9 resources, 0 drift) and **verified live, not just planned**:
+    manually invoked the Lambda and confirmed a real object landed in
+    bronze; confirmed via `iam simulate-principal-policy` that the
+    scheduler's role can actually invoke the function and that the
+    execution role's boundaries match `cerberus-ingestion`'s (allowed on
+    `bronze/payments/*`, denied elsewhere in bronze, denied on gold).
+- **Workflow changed mid-session, at explicit user request**: dropped the
+  one-day-old branch-per-phase/PR-per-phase convention in favor of pushing
+  to `main` continuously — stated reason: daily visible activity reads
+  better to recruiters than work batched into one PR per phase. Opened and
+  merged PR #1 (`phase-2-event-driven-ingestion` → `main`, regular merge,
+  `c30e1f1`) covering 2.1–2.4's work *while Phase 2 was still incomplete* —
+  a deliberate trunk-based-development choice, not an oversight. The exact
+  new shape (still PR-per-push vs. fully direct-to-`main`) was never
+  pinned down, though — see Next up, this needs a real decision and a
+  `docs/plan.md` principle-8 rewrite next session.
+- **Installed AWS's Agent Toolkit for Claude Code** (`aws-core@claude-plugins-official`
+  v1.1.0, user scope) to evaluate it against this project. Findings, not
+  just marketing claims: it's genuinely CDK/CloudFormation-flavored (no
+  `aws-terraform` skill exists at all) — a real gap for a Terraform-first
+  project; `aws-containers` names ECS/Fargate/ECR, not EKS specifically,
+  so Phase 3 coverage is uncertain; ~5,005 tokens are added to every
+  session just for having it installed, always-on, before any skill even
+  fires. Mapped the 20 skills against the actual remaining roadmap and
+  found real matches (`aws-compute` explicitly covers Step Functions —
+  4.1's open ADR; `aws-observability` maps to Phase 6; `aws-iam` to 7.3;
+  `aws-sdk-python-usage` for boto3 pattern-checking) and clear non-matches
+  (`aws-database`, `amazon-bedrock`/`aws-ai-ml`, `aws-secrets-manager` —
+  this project explicitly decided secrets management doesn't apply,
+  `aws-blocks` — confirmed via research to be an unrelated TypeScript
+  full-stack framework).
+  - **Discovered a real mechanical limitation**: a plugin installed
+    mid-session doesn't hot-load into that session's skill registry — the
+    `Skill` tool returned "Unknown skill" for `aws-sdk-python-usage` even
+    though the plugin was correctly installed and enabled on disk. Skills
+    from a freshly-installed plugin only actually become invocable
+    starting the *next* new session.
+  - Worked around it by reading the skill's packaged reference content
+    directly from `~/.claude/plugins/cache/.../aws-sdk-python-usage/` and
+    applying it by hand — genuinely useful anyway: it flagged that
+    `payments_lib.upload_day`'s hand-rolled retry loop retried on *any*
+    `ClientError`, including non-retryable ones (`AccessDenied`,
+    `NoSuchBucket`) that can never succeed no matter how many attempts — a
+    real bug, not style, and costly inside a Lambda with a 60s timeout
+    budget. Fixed by replacing the manual loop with botocore's own
+    `Config(retries={"total_max_attempts": 3, "mode": "standard"})`
+    applied once at client construction — exponential backoff, and only
+    genuinely retryable errors, for free. `upload_day` simplified to a
+    single `try`/`except`. Verified live: reran the CLI generator,
+    redeployed the Lambda (new code hash picked up automatically), and
+    reinvoked it — both still land real objects in bronze. Pushed directly
+    to `main` (`2917bbd`), no PR — see the workflow-policy note above.
+  - Also correctly **declined to create a cloud-scheduled routine** for
+    tomorrow's unattended-fire check (user asked to "check back tomorrow")
+    — a cloud agent has no access to the local `~/.aws/config`
+    `cerberus-admin` profile and no AWS MCP connector is set up, so it
+    would have silently failed. Left as a `checkpoint.md`-tracked
+    follow-up instead (see Next up), consistent with how this project
+    already handles session-to-session continuity.
+
 ## Notes / blockers
 
 - **`dynamodb_table` vs. `use_lockfile`: decided 2026-08-08, keep
@@ -580,7 +741,22 @@ the first learning note and the first published article._
   `run_payments_scheduled.sh` the next time it fires. To get more data
   after that, run `generate_payments.py` by hand (see above) — don't
   re-enable the timer without deciding whether the 10-day cap still
-  applies.
+  applies. **As of 2026-08-11, two mechanisms write to bronze in
+  parallel**: this systemd timer, and the new EventBridge Scheduler →
+  Lambda path (`cerberus-ingest-payments-daily`, also capped to the same
+  2026-08-17 window, kept for data-volume control per that day's decision
+  — see the 2026-08-11 session entry). Both stay live until 2.5 explicitly
+  retires the systemd side.
+- **2.5 is blocked on confirming the EventBridge Scheduler path fires
+  unattended** — everything verified 2026-08-11 was a manual Lambda
+  invocation, not a real scheduled fire. Check next session (needs local
+  `cerberus-admin` AWS CLI access — see the Next up section for the exact
+  commands and what a pass looks like).
+- **`docs/plan.md`'s guiding principle 8 is stale.** It still describes
+  the branch-per-phase/PR-per-phase convention, but 2026-08-11 moved to
+  pushing to `main` continuously at explicit user request — the exact new
+  shape (PR-per-push vs. fully direct-to-`main`) was never pinned down.
+  Needs a decision and a principle-8 rewrite next session — see Next up.
 
 - **Resolved 2026-08-07:** `cerberus-ingest.timer` turned out to be running
   fine all along — confirmed via journal — but from the stale
