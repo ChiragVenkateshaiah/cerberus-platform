@@ -56,7 +56,7 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 - [ ] 2.1 Lambda ingestion function
 - [ ] 2.2 S3 event / EventBridge trigger
 - [ ] 2.3 IAM role for the Lambda
-- [ ] 2.4 ADR: push vs. pull ingestion
+- [x] 2.4 ADR: push vs. pull ingestion
 - [ ] 2.5 Retire the Phase 0 systemd timer
 - [ ] 2.6 Well-Architected pass + ADR
 
