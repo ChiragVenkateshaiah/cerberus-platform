@@ -31,3 +31,10 @@ module "iam" {
   athena_workgroup_name     = module.athena.workgroup_name
   athena_results_bucket_arn = module.athena.results_bucket_arn
 }
+
+module "lambda_ingestion" {
+  source = "../../modules/lambda_ingestion"
+
+  bronze_bucket_name = module.s3_medallion.bucket_names["bronze"]
+  execution_role_arn = module.iam.role_arns["ingestion_lambda"]
+}

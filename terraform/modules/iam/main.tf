@@ -1,12 +1,12 @@
-# Three least-privilege roles per ADR 0002's forward pointer: ingestion
-# (write bronze only), transform (read bronze, write silver/gold), serving
-# (read gold only). Nothing assumes these automatically yet -- Phase 2's
-# Lambda (2.3) and later compute get their own trust policies when they
-# exist; for now they're assumable by hand via `aws sts assume-role`,
-# trusted_principal_arn is cerberus-admin. Each role's permissions are
-# genuinely usable today, ahead of the compute that will eventually hold
-# them -- a deliberate head start on repaying Phase 0's AdministratorAccess
-# shortcut (fully repaid at 7.3), not a placeholder.
+# Three human-assumable, least-privilege roles per ADR 0002's forward
+# pointer: ingestion (write bronze only), transform (read bronze, write
+# silver/gold), serving (read gold only) -- assumable by hand via
+# `aws sts assume-role`, trusted_principal_arn is cerberus-admin. Each
+# role's permissions are genuinely usable today, ahead of the compute that
+# will eventually hold them -- a deliberate head start on repaying Phase 0's
+# AdministratorAccess shortcut (fully repaid at 7.3), not a placeholder.
+# A fourth role, ingestion_lambda, is the first of these actually assumed
+# by compute rather than a human (2.1/2.3, ADR 0005) -- see below.
 #
 # Policies are inline (aws_iam_role_policy), not standalone managed
 # policies -- each one is scoped 1:1 to exactly one role and isn't meant to
@@ -61,6 +61,57 @@ resource "aws_iam_role_policy" "ingestion" {
       }
     ]
   })
+}
+
+# --- Ingestion Lambda: same write-only scope as cerberus-ingestion, but --
+# trusted by lambda.amazonaws.com instead of a human principal (2.1/2.3,
+# ADR 0005). Kept as its own role rather than extending cerberus-ingestion's
+# trust policy: Lambda has no CLI-style profile-chaining equivalent to
+# ~/.aws/config's role_arn/source_profile, so reusing cerberus-ingestion
+# would mean the handler calling sts:AssumeRole explicitly in code for no
+# benefit over a role scoped identically from the start.
+
+resource "aws_iam_role" "ingestion_lambda" {
+  name = "cerberus-ingestion-lambda"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect    = "Allow"
+        Principal = { Service = "lambda.amazonaws.com" }
+        Action    = "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "ingestion_lambda" {
+  name = "cerberus-ingestion-lambda-policy"
+  role = aws_iam_role.ingestion_lambda.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "WritePaymentsToBronze"
+        Effect   = "Allow"
+        Action   = "s3:PutObject"
+        Resource = "${var.bucket_arns["bronze"]}/payments/*"
+      }
+    ]
+  })
+}
+
+# AWS-managed, not inline: this is boilerplate CloudWatch Logs access every
+# Lambda needs (CreateLogGroup/CreateLogStream/PutLogEvents), not a
+# project-specific data-plane grant -- the one deliberate exception to this
+# module's "inline only" convention above, which is about not standing up a
+# redundant aws_iam_policy for a 1:1 grant, not about avoiding AWS's own
+# managed policies for standard runtime plumbing.
+resource "aws_iam_role_policy_attachment" "ingestion_lambda_logs" {
+  role       = aws_iam_role.ingestion_lambda.id
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
 # --- Transform: read bronze/payments/*, read+write silver and gold ------

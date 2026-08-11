@@ -6,6 +6,12 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    # 2.1: zips the ingestion Lambda's code and Faker layer at apply time
+    # (terraform/modules/lambda_ingestion) -- no other module needs it.
+    archive = {
+      source  = "hashicorp/archive"
+      version = "~> 2.4"
+    }
   }
 
   backend "s3" {
