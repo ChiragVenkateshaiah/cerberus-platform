@@ -16,6 +16,7 @@ import json
 import random
 import subprocess
 import tempfile
+import time
 import uuid
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
@@ -24,8 +25,15 @@ from pathlib import Path
 from faker import Faker
 
 BUCKET = "cerberus-platform-bronze-131715059025"
-AWS_PROFILE = "cerberus-admin"
+# Assumes the least-privilege cerberus-ingestion role (1.6), scoped to
+# s3:PutObject on bronze/payments/* only -- chained via role_arn +
+# source_profile in ~/.aws/config, same pattern as cerberus-transform/
+# cerberus-serving. Not the default cerberus-admin credentials.
+AWS_PROFILE = "cerberus-ingestion"
 AWS_REGION = "us-east-1"
+
+UPLOAD_MAX_ATTEMPTS = 3
+UPLOAD_RETRY_DELAY_SECONDS = 5
 
 ROSTER_SEED = 42
 MERCHANT_COUNT = 15
@@ -149,21 +157,36 @@ def partition_by_day(events):
 
 
 def upload(day, day_events, run_ts):
+    """Uploads one day's events, retrying transient failures. Returns True
+    on success, False if every attempt failed -- callers must not let one
+    day's failure stop the rest of the run from being attempted, since a
+    failed day's events can't be regenerated identically (rng is unseeded).
+    """
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
         json.dump(day_events, f)
         tmp_path = f.name
+    s3_key = f"payments/dt={day}/payments_{run_ts}.json"
     try:
-        s3_key = f"payments/dt={day}/payments_{run_ts}.json"
-        subprocess.run(
-            [
-                "aws", "s3", "cp", tmp_path, f"s3://{BUCKET}/{s3_key}",
-                "--profile", AWS_PROFILE,
-                "--region", AWS_REGION,
-                "--content-type", "application/json",
-            ],
-            check=True,
-        )
-        print(f"[{iso(datetime.now(timezone.utc))}] uploaded s3://{BUCKET}/{s3_key} ({len(day_events)} events)")
+        for attempt in range(1, UPLOAD_MAX_ATTEMPTS + 1):
+            try:
+                subprocess.run(
+                    [
+                        "aws", "s3", "cp", tmp_path, f"s3://{BUCKET}/{s3_key}",
+                        "--profile", AWS_PROFILE,
+                        "--region", AWS_REGION,
+                        "--content-type", "application/json",
+                    ],
+                    check=True,
+                )
+                print(f"[{iso(datetime.now(timezone.utc))}] uploaded s3://{BUCKET}/{s3_key} ({len(day_events)} events)")
+                return True
+            except subprocess.CalledProcessError as exc:
+                if attempt < UPLOAD_MAX_ATTEMPTS:
+                    print(f"[{iso(datetime.now(timezone.utc))}] upload attempt {attempt}/{UPLOAD_MAX_ATTEMPTS} for {day} failed ({exc}), retrying in {UPLOAD_RETRY_DELAY_SECONDS}s")
+                    time.sleep(UPLOAD_RETRY_DELAY_SECONDS)
+                else:
+                    print(f"[{iso(datetime.now(timezone.utc))}] upload for {day} failed after {UPLOAD_MAX_ATTEMPTS} attempts ({exc}) -- {len(day_events)} events for this partition were NOT saved")
+        return False
     finally:
         Path(tmp_path).unlink(missing_ok=True)
 
@@ -187,8 +210,13 @@ def main():
     print(f"[{iso(datetime.now(timezone.utc))}] generated {len(events)} events across {args.count} transactions")
 
     by_day = partition_by_day(events)
-    for day in sorted(by_day):
-        upload(day, by_day[day], run_ts)
+    failed_days = [
+        day for day in sorted(by_day) if not upload(day, by_day[day], run_ts)
+    ]
+
+    if failed_days:
+        print(f"[{iso(datetime.now(timezone.utc))}] done with errors — {len(by_day) - len(failed_days)}/{len(by_day)} partition(s) uploaded; failed: {', '.join(failed_days)}")
+        raise SystemExit(1)
 
     print(f"[{iso(datetime.now(timezone.utc))}] done — {len(by_day)} partition(s) touched")
 

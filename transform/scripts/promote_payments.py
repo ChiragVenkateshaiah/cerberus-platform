@@ -60,6 +60,21 @@ PARQUET_COLUMNS = [
     {"Name": "payment_method_token", "Type": "string"},
 ]
 
+# generate_payments.py clamps every event's timestamp to min(ts, now), so a
+# transaction whose settle and refund events both land after "now" gets
+# identical event_timestamp strings for the two -- sorting on timestamp
+# alone is not enough to pick the true latest event. This fixed lifecycle
+# order (created -> authorized -> settled/failed -> refunded) breaks that
+# tie deterministically; settled/failed share a rank since a transaction
+# only ever emits one of the two.
+EVENT_TYPE_RANK = {
+    "created": 0,
+    "authorized": 1,
+    "settled": 2,
+    "failed": 2,
+    "refunded": 3,
+}
+
 
 def assumed_session():
     base = boto3.Session(profile_name=AWS_PROFILE, region_name=REGION)
@@ -169,7 +184,13 @@ def register_partitions(glue, days):
 
 
 def write_gold(s3, df):
-    latest = df.sort_values("event_timestamp").groupby("transaction_id").tail(1)
+    ranked = df.assign(_rank=df["event_type"].map(EVENT_TYPE_RANK))
+    latest = (
+        ranked.sort_values(["event_timestamp", "_rank"])
+        .groupby("transaction_id")
+        .tail(1)
+        .drop(columns="_rank")
+    )
     write_parquet(s3, latest, GOLD_BUCKET, "payments_current/current_state.parquet")
 
 
