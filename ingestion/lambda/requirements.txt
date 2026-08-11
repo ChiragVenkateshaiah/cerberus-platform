@@ -1,0 +1,8 @@
+# Layer dependencies for the ingestion Lambda (terraform/modules/lambda_ingestion).
+# boto3/botocore are deliberately excluded -- the Lambda Python 3.12
+# runtime ships both preinstalled, so packaging them into the layer would
+# only bloat it. Keep this pin in sync with Faker's pin in
+# ../requirements.txt (the CLI script's .venv) by hand -- same
+# no-shared-source tradeoff this project already accepts for
+# transform/scripts/promote_payments.py's PARQUET_COLUMNS.
+Faker==26.0.0

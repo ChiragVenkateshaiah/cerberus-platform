@@ -6,9 +6,23 @@
 with ranked as (
     select
         *,
+        -- event_timestamp alone can tie: generate_payments.py clamps every
+        -- event to min(ts, now), so a settled event and a later refund can
+        -- both land on "now" with identical timestamps. This fixed
+        -- lifecycle order breaks the tie the same way promote_payments.py's
+        -- EVENT_TYPE_RANK does (settled/failed share a rank -- only one
+        -- ever occurs per transaction).
         row_number() over (
             partition by transaction_id
-            order by event_timestamp desc
+            order by
+                event_timestamp desc,
+                case event_type
+                    when 'refunded' then 3
+                    when 'settled' then 2
+                    when 'failed' then 2
+                    when 'authorized' then 1
+                    when 'created' then 0
+                end desc
         ) as rn
     from {{ source('cerberus_platform', 'payments_events') }}
 )

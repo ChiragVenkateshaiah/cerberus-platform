@@ -14,6 +14,10 @@ override.tf.json
 # AWS
 .aws-sam/
 
+# Lambda build artifacts (zipped/pip-installed at `terraform apply` time --
+# see terraform/modules/lambda_ingestion/main.tf)
+terraform/modules/lambda_ingestion/build/
+
 # Python
 __pycache__/
 *.py[cod]
