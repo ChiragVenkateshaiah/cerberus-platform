@@ -24,6 +24,7 @@ import boto3
 
 from payments_lib import (
     DEFAULT_TRANSACTION_COUNT,
+    S3_CLIENT_CONFIG,
     build_roster,
     generate_events,
     iso,
@@ -59,7 +60,7 @@ def main():
     print(f"[{iso(datetime.now(timezone.utc))}] generated {len(events)} events across {args.count} transactions")
 
     session = boto3.Session(profile_name=AWS_PROFILE, region_name=AWS_REGION)
-    s3 = session.client("s3")
+    s3 = session.client("s3", config=S3_CLIENT_CONFIG)
 
     by_day = partition_by_day(events)
     failed_days = [

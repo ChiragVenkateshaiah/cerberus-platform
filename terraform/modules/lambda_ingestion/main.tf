@@ -84,8 +84,9 @@ resource "aws_lambda_function" "ingest_payments" {
 
 # --- EventBridge Scheduler: daily invocation, no invocation-level retry --
 # (ADR 0005: retries here would regenerate a different, unseeded dataset
-# and duplicate data into append-only bronze -- payments_lib.upload_day's
-# per-partition retry is the only retry layer). Scheduler needs its own
+# and duplicate data into append-only bronze -- payments_lib.S3_CLIENT_CONFIG's
+# client-level retry on each partition's put_object is the only retry
+# layer). Scheduler needs its own
 # execution role distinct from the Lambda's -- this is the role Scheduler
 # itself assumes to call lambda:InvokeFunction, not the role the function
 # runs as.

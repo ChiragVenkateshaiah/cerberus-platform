@@ -1,21 +1,22 @@
 """Cerberus 1.3/2.1 — shared synthetic payments generation core.
 
 Pure generation logic (roster, event lifecycle, day-partitioning) plus a
-boto3-based upload-with-retry helper, shared between the CLI script
+boto3-based upload helper, shared between the CLI script
 (generate_payments.py, for manual/systemd-triggered runs) and the Lambda
 handler (../lambda/handler.py, for the EventBridge-scheduled path — 2.1,
 ADR 0005). Kept free of argparse/Lambda specifics so both callers can
 import it unchanged; each caller supplies its own boto3 S3 client, since
 the two run under different credentials (a chained CLI profile vs. a
-Lambda execution role).
+Lambda execution role) -- callers should build that client with
+S3_CLIENT_CONFIG below so retries are handled consistently.
 """
 import json
 import random
-import time
 import uuid
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
+from botocore.config import Config
 from botocore.exceptions import ClientError
 from faker import Faker
 
@@ -39,7 +40,13 @@ REFUND_PROBABILITY = 0.05
 REFUND_DELAY_DAYS = (1, 14)
 
 UPLOAD_MAX_ATTEMPTS = 3
-UPLOAD_RETRY_DELAY_SECONDS = 5
+
+# "standard" mode retries with exponential backoff, and only on genuinely
+# retryable error codes (throttling, transient 5xx, timeouts) -- unlike a
+# hand-rolled retry loop around bare ClientError, it won't waste attempts
+# retrying something like AccessDenied or NoSuchBucket that can never
+# succeed. Applied at the client level (see callers), not per-call.
+S3_CLIENT_CONFIG = Config(retries={"total_max_attempts": UPLOAD_MAX_ATTEMPTS, "mode": "standard"})
 
 
 def build_roster():
@@ -143,29 +150,25 @@ def partition_by_day(events):
     return by_day
 
 
-def upload_day(s3_client, bucket, day, day_events, run_ts,
-                max_attempts=UPLOAD_MAX_ATTEMPTS,
-                retry_delay=UPLOAD_RETRY_DELAY_SECONDS, log=print):
-    """Uploads one day's events via S3 PutObject, retrying transient
-    failures. Returns True on success, False if every attempt failed --
-    callers must not let one day's failure stop the rest of the run from
-    being attempted, since a failed day's events can't be regenerated
-    identically (callers use an unseeded rng for event content).
+def upload_day(s3_client, bucket, day, day_events, run_ts, log=print):
+    """Uploads one day's events via S3 PutObject. Transient failures are
+    retried transparently by the client's own retry config
+    (S3_CLIENT_CONFIG -- the caller must have built s3_client with it) --
+    no manual retry loop here. Returns True on success, False if the
+    upload ultimately failed -- callers must not let one day's failure
+    stop the rest of the run from being attempted, since a failed day's
+    events can't be regenerated identically (callers use an unseeded rng
+    for event content).
     """
     body = json.dumps(day_events).encode("utf-8")
     s3_key = f"payments/dt={day}/payments_{run_ts}.json"
-    for attempt in range(1, max_attempts + 1):
-        try:
-            s3_client.put_object(
-                Bucket=bucket, Key=s3_key, Body=body,
-                ContentType="application/json",
-            )
-            log(f"[{iso(datetime.now(timezone.utc))}] uploaded s3://{bucket}/{s3_key} ({len(day_events)} events)")
-            return True
-        except ClientError as exc:
-            if attempt < max_attempts:
-                log(f"[{iso(datetime.now(timezone.utc))}] upload attempt {attempt}/{max_attempts} for {day} failed ({exc}), retrying in {retry_delay}s")
-                time.sleep(retry_delay)
-            else:
-                log(f"[{iso(datetime.now(timezone.utc))}] upload for {day} failed after {max_attempts} attempts ({exc}) -- {len(day_events)} events for this partition were NOT saved")
-    return False
+    try:
+        s3_client.put_object(
+            Bucket=bucket, Key=s3_key, Body=body,
+            ContentType="application/json",
+        )
+        log(f"[{iso(datetime.now(timezone.utc))}] uploaded s3://{bucket}/{s3_key} ({len(day_events)} events)")
+        return True
+    except ClientError as exc:
+        log(f"[{iso(datetime.now(timezone.utc))}] upload for {day} failed ({exc}) -- {len(day_events)} events for this partition were NOT saved")
+        return False

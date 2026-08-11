@@ -27,8 +27,10 @@ schedule by hand (`terraform/modules/lambda_ingestion`) to fully stop it.
 Retry: the EventBridge schedule is configured with MaximumRetryAttempts=0
 (terraform/modules/lambda_ingestion) -- an invocation-level retry would
 regenerate a different, unseeded dataset and duplicate data into
-append-only bronze (ADR 0005's Consequences). payments_lib.upload_day's
-per-partition retry is the only retry layer.
+append-only bronze (ADR 0005's Consequences). The only retry layer is
+payments_lib.S3_CLIENT_CONFIG's client-level retry (botocore "standard"
+mode: exponential backoff, genuinely-retryable errors only) on each
+partition's put_object call -- not a hand-rolled loop.
 """
 import os
 import random
@@ -38,6 +40,7 @@ import boto3
 
 from payments_lib import (
     DEFAULT_TRANSACTION_COUNT,
+    S3_CLIENT_CONFIG,
     build_roster,
     generate_events,
     iso,
@@ -49,7 +52,7 @@ BUCKET = os.environ["BRONZE_BUCKET"]
 RETIRE_ON_OR_AFTER = os.environ.get("RETIRE_ON_OR_AFTER", "2026-08-17")
 TRANSACTION_COUNT = int(os.environ.get("TRANSACTION_COUNT", DEFAULT_TRANSACTION_COUNT))
 
-_s3 = boto3.client("s3")
+_s3 = boto3.client("s3", config=S3_CLIENT_CONFIG)
 
 
 def handler(event, context):
