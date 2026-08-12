@@ -123,7 +123,7 @@ layered on top of a platform that already works.
 |------:|-------|------------------|------------------|--------|
 | 0 | Foundation (built by hand) | Git, AWS CLI, S3, IAM, bash, systemd | DevOps prereq, Linux | ✅ Complete |
 | 1 | **MVP: end-to-end lakehouse** | Terraform, Glue Data Catalog, Athena, dbt | AWS Cloud Practitioner, S3, IAM, Terraform | ✅ Complete |
-| 2 | Event-driven ingestion | Lambda, S3 events / EventBridge | AWS Lambda | ⬜ Planned |
+| 2 | Event-driven ingestion | Lambda, S3 events / EventBridge | AWS Lambda | ✅ Complete |
 | 3 | Scalable compute | EKS, Spark Operator | AWS EKS | ⬜ Planned |
 | 4 | Orchestration | AWS Step Functions | _(course gap — AWS workshop)_ | ⬜ Planned |
 | 5 | CI/CD | AWS CodePipeline | AWS CodePipeline | ⬜ Planned |
@@ -159,7 +159,7 @@ layered on top of a platform that already works.
   a demo query + ADRs (medallion layout, synthetic data design) + an
   architecture write-up. **This is the first thing worth putting on a resume.**
 
-### Phase 2 — Event-driven ingestion
+### Phase 2 — Event-driven ingestion ✅
 - **Goal:** Replace the scheduled bash pull with event-driven ingestion.
 - **Stack:** Lambda triggered by S3 events / EventBridge.
 - **Done when:** dropping a file (or an upstream event) triggers ingestion
