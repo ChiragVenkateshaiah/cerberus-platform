@@ -1,9 +1,0 @@
-[Unit]
-Description=Cerberus bronze ingestion (synthetic payments generator)
-Wants=network-online.target
-After=network-online.target
-
-[Service]
-Type=oneshot
-WorkingDirectory=/home/chira/projects/cerberus
-ExecStart=/home/chira/projects/cerberus/ingestion/scripts/run_payments_scheduled.sh
