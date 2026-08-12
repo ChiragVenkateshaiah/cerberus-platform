@@ -11,6 +11,9 @@ Engineering competence in one repository.
 ✅ Phase 1 (MVP: end-to-end lakehouse) — complete. A reviewer can run a
 real Athena query against gold and get a result; `terraform apply` and
 `terraform destroy` were verified live against the whole stack.
+✅ Phase 2 (event-driven ingestion) — complete. Ingestion runs on a Lambda
+triggered by EventBridge Scheduler, confirmed firing unattended; the
+Phase 0 systemd timer is retired.
 
 See [docs/plan.md](docs/plan.md) for the full phased roadmap (Phases 0–7)
 and [Phases.md](Phases.md) for subtask-level progress.
@@ -94,9 +97,10 @@ constraints behind this diagram, see
 ├── ingestion/scripts/    # ingestion scripts: synthetic payments generator
 │                         #   + shared payments_lib.py core (Python, Phase
 │                         #   1); ingest_weather.sh (Phase 0, unscheduled —
-│                         #   retired as the active feed)
-├── ingestion/systemd/    # systemd --user service + timer for the
-│                         #   payments generator (daily)
+│                         #   retired as the active feed); run_payments_
+│                         #   scheduled.sh (Phase 0's systemd wrapper,
+│                         #   unscheduled — retired 2.5, Lambda is now the
+│                         #   only active ingestion path)
 ├── ingestion/lambda/     # event-driven ingestion Lambda handler, wraps
 │                         #   payments_lib.py (Phase 2)
 ├── transform/scripts/    # bronze → silver → gold transform (Python,
