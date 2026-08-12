@@ -38,23 +38,35 @@ build, automate, and operate a data platform.
    learning path; courses concrete concepts encountered while building and
    never gate a phase. See
    [courses-map-to-phases.md](courses-map-to-phases.md).
-8. **Phase work ships via PR, tagged at completion.** Starting Phase 2, each
-   phase's implementation work (the actual code/infra/docs a subtask
-   produces) happens on a branch and merges into `main` via a reviewed PR —
-   one PR per phase by default, split into more if a phase's scope
-   genuinely warrants it. Merges are regular merges, never squashed —
-   history stays intact, not flattened. This is a followed **convention**,
-   not GitHub branch protection: there's no CI check yet for a protection
-   rule to gate on (that arrives in Phase 5's `terraform plan` on PR), so
-   enforcing it in GitHub today would only police ceremony. Routine
-   `/start-day`/`/end-day` checkpoint-only commits (`Phases.md`,
-   `checkpoint.md`, no code) are exempt — they stay direct-to-`main`, as
-   they always have, since there's no code in them to review. Every phase
-   completion also gets an annotated git tag (`vN-<phase-name>`, e.g.
-   `v1-mvp`) as a fixed, portfolio-referenceable milestone — Phases 0 and 1
-   were tagged retroactively (`v0-foundation`, `v1-mvp`) since they predate
-   this principle and already lived as direct-to-`main` history not worth
+8. **Work ships via PR-per-push, tagged at phase completion.** Superseded
+   2026-08-12 — the original branch-per-phase/PR-per-phase shape (below)
+   lasted one day before being dropped in favor of visible daily activity;
+   the replacement pins that down properly instead of leaving it inferred
+   from inconsistent practice. Each unit of work — a subtask, a fix, a
+   review finding, not necessarily a whole phase — ships on its own branch
+   and merges into `main` via a PR, same-day rather than batched to the end
+   of a phase. Merges are regular merges, never squashed — history stays
+   intact, not flattened. This is a followed **convention**, not GitHub
+   branch protection: there's no CI check yet for a protection rule to gate
+   on (that arrives in Phase 5's `terraform plan` on PR), so enforcing it in
+   GitHub today would only police ceremony. Routine `/start-day`/`/end-day`
+   checkpoint-only commits (`Phases.md`, `checkpoint.md`, no code) are
+   exempt — they stay direct-to-`main`, as they always have, since there's
+   no code in them to review. Every phase completion also gets an annotated
+   git tag (`vN-<phase-name>`, e.g. `v1-mvp`) as a fixed,
+   portfolio-referenceable milestone — Phases 0 and 1 were tagged
+   retroactively (`v0-foundation`, `v1-mvp`) since they predate this
+   principle and already lived as direct-to-`main` history not worth
    rewriting.
+
+   _Superseded shape (2026-08-10 to 2026-08-11):_ phase implementation work
+   happened on a branch and merged via one PR per phase by default, split
+   into more only if a phase's scope genuinely warranted it. Abandoned after
+   one day (2026-08-11) because batching a whole phase into a single PR
+   read as less active than daily commits — but the replacement wasn't
+   actually written down until now, so 2026-08-11's work shipped
+   inconsistently (one phase-batched PR, one direct-to-`main` push) under a
+   policy that no longer matched practice.
 
 ## The data domain — synthetic payments
 
