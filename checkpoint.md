@@ -8,13 +8,11 @@ pointer._
 
 ## Current phase
 
-Phase 1 — MVP: end-to-end lakehouse is **✅ complete** (1.1–1.13 all done,
-verified live — see
+Phase 1 — MVP: end-to-end lakehouse is **✅ complete** (1.1–1.13, see
 [Phases.md](Phases.md#phase-1--mvp-end-to-end-lakehouse--)). Phase 2 —
-Event-driven ingestion is **🔨 in progress**: 2.1–2.4 done (Lambda
-ingestion function, its EventBridge Scheduler trigger, its IAM role, and
-ADR 0005 all landed and verified live 2026-08-11). 2.5 and 2.6 remain — see
-[Phases.md](Phases.md#phase-2--event-driven-ingestion-).
+Event-driven ingestion is **✅ complete** (2.1–2.6, all verified live — see
+[Phases.md](Phases.md#phase-2--event-driven-ingestion-)). Phase 3 —
+Scalable compute has **not started**.
 
 **Note:** the roadmap was re-scoped on 2026-08-03 from 9 phases (0–8) to
 8 (0–7). The old "Phase 1 — IaC foundation" no longer exists as a phase;
@@ -23,38 +21,22 @@ subtasks. Session history entries before that date use the old numbering.
 
 ## Next up
 
-- **2.5 Retire `cerberus-payments.timer`** — blocked on confirming the
-  EventBridge Scheduler path actually fires *unattended* (everything
-  verified 2026-08-11 was a manual invocation; the schedule's first real
-  unattended fire is tonight, 2026-08-12T00:00 UTC). Check next session,
-  from the local machine (needs the `cerberus-admin` AWS CLI profile —
-  a cloud agent can't do this, see Notes / blockers):
-  ```
-  aws logs tail /aws/lambda/cerberus-ingest-payments \
-    --profile cerberus-admin --region us-east-1 --since 12h
-  aws s3 ls s3://cerberus-platform-bronze-131715059025/payments/dt=2026-08-12/ \
-    --profile cerberus-admin
-  ```
-  Look for a clean invocation and a new object timestamped right after
-  midnight UTC (`run_ts` around `20260812T000...`) with no manual trigger.
-  Only once that's confirmed should `cerberus-payments.timer` actually be
-  disabled/unlinked — mirror weather ingestion's 2026-08-07 retirement
-  shape (disable + unlink + delete the unit files from
-  `ingestion/systemd/`, leave `generate_payments.py`/`payments_lib.py`
-  fully intact, since the Lambda now depends on them too).
-- **2.6 Well-Architected pass + ADR** — closes Phase 2, same pattern as
-  1.13. After 2.5.
-- **Workflow policy needs to actually be rewritten, not just practiced.**
-  2026-08-11 dropped the branch-per-phase/PR-per-phase convention
-  (`docs/plan.md`'s guiding principle 8, added just the day before) in
-  favor of pushing to `main` continuously/daily — but the exact shape was
-  never locked down (still opening a PR and merging same-day, vs. dropping
-  PRs entirely and committing straight to `main` — this session did both,
-  inconsistently: PR #1 for the 2.1–2.4 work, a direct push for the
-  retry-logic fix afterward). `docs/plan.md`'s principle 8 still describes
-  the old convention verbatim and is now stale. Needs an explicit decision
-  next session, then a rewrite of principle 8 to match — don't infer one
-  from this session's inconsistent practice.
+- **3.1 VPC design for the cluster (subnets, AZs, routing) + ADR** — first
+  Phase 3 subtask, and the first ADR-before-code decision this phase needs
+  (same pattern as 0002 before 1.4, 0005 before 2.1). This is the one part
+  of the platform that genuinely needs VPC design — everything built
+  through Phase 2 is serverless (S3, Lambda, Glue, Athena, EventBridge);
+  EKS (3.2) is the first component with real networking surface. 3.3's
+  multi-AZ node-group decision belongs in the same ADR pass per
+  `docs/plan.md`, not a separate one.
+- Then, in order: 3.2 EKS cluster module (spin-up/destroy pattern, not
+  standing infra — cost discipline matters more here than anywhere so far),
+  3.4 Spark Operator install, 3.5 Spark job manifest against S3, 3.6 verify
+  writes to silver/gold, 3.7 `terraform destroy` after each run, 3.8
+  Well-Architected pass + ADR closing the phase. Full list:
+  [Phases.md](Phases.md#phase-3--scalable-compute-).
+- No open blockers carried into Phase 3 — see Notes / blockers below for
+  what's still open generally (none of it gates Phase 3 starting).
 
 ## Session history
 
@@ -723,6 +705,72 @@ at AWS's Agent Toolkit for Claude Code._
     follow-up instead (see Next up), consistent with how this project
     already handles session-to-session continuity.
 
+### 2026-08-12
+
+_Phase 2 closed — 2.5, 2.6, the workflow-policy rewrite, and ADR 0006 all
+landed; day-04 learning notes written._
+
+- **Confirmed the EventBridge Scheduler → Lambda path fires unattended.**
+  Checked `/aws/lambda/cerberus-ingest-payments`'s CloudWatch Logs and the
+  day's S3 partition from the local machine (`cerberus-admin` profile): a
+  clean invocation at `2026-08-12T00:00:09Z`, 8 partitions written, no
+  manual trigger. Also caught systemd's `Persistent=true` firing an
+  unprompted catch-up run at `04:41:09 UTC` the same morning (this
+  session's login restarting the `--user` systemd instance) — live,
+  observed confirmation of the login-session dependency ADR 0005 already
+  cited as motivation for the move.
+- **Retired `cerberus-payments.timer`, completing 2.5.**
+  `systemctl --user disable --now` on the timer, then a second explicit
+  removal of the service's own symlink (`disable` only unregisters the
+  *timer* from `timers.target.wants/`, not the separate `.service` symlink
+  it points at), `daemon-reload`, then deleted both unit files from
+  `ingestion/systemd/` in the repo. `generate_payments.py`,
+  `payments_lib.py`, and `run_payments_scheduled.sh` all left in place,
+  unscheduled — mirrors weather ingestion's 2026-08-07 retirement shape.
+  Bronze now has exactly one ingestion mechanism. (Auto mode's classifier
+  initially blocked the `systemctl` state-change commands outright; the
+  user switched to manual mode to proceed.)
+- **Resolved the workflow-policy decision flagged 2026-08-11: PR-per-push,
+  not PR-per-phase, and not fully direct-to-`main` either.** Every unit of
+  work — a subtask, a fix, a review finding — now ships on its own branch,
+  merged same-day via a regular (non-squash) merge; routine
+  `/start-day`/`/end-day` checkpoint-only commits stay direct-to-`main` as
+  before. Rewrote `docs/plan.md`'s guiding principle 8 to state this
+  explicitly, keeping the one-day-lived branch-per-phase shape inline as a
+  dated, superseded note rather than deleting it (PR #2, `f4e63e5`).
+- **Ran the second Well-Architected Tool pass and wrote ADR 0006, completing
+  2.6 — Phase 2 done.** Diffed milestone 1 (`phase-1-mvp-complete`) against
+  a new milestone 2 (`phase-2-event-driven-ingestion-complete`) rather than
+  re-answering all 57 questions — the diff-based pattern 1.13/ADR 0004
+  explicitly set up for later phases. Three questions re-answered with
+  concrete new evidence: `observability` (the Lambda's CloudWatch
+  application telemetry, used live this session to confirm the unattended
+  fire above), `fault-isolation` (removing the systemd timer's
+  login-session dependency — the 04:41 catch-up fire as live evidence), and
+  `select-service` (ADR 0005's real 10-vs-30-day cost analysis — the one
+  question that actually moved a risk bucket, MEDIUM → NONE). Two IAM
+  questions (`permissions`, `identities`) were considered but left
+  unchanged: the new `cerberus-ingestion-lambda` role is genuine new
+  evidence but fits a choice the Tool already credits, not a new one — noted
+  in the ADR rather than forcing an edit the evidence doesn't support.
+  Flipped Phase 2 to ✅ complete across `Phases.md`, `docs/plan.md`'s
+  roadmap table, and README's status line (PR #3, `7ffd3c9`) — then caught
+  and fixed ADR 0006's own status field, drafted as `Proposed` by mistake
+  (mirroring the decision-ADR pattern of 0002/0003/0005) when review-type
+  ADRs go straight to `Accepted`, per ADR 0004's actual precedent — they
+  document a review already performed, not a decision awaiting buy-in
+  (PR #4, `891a352`).
+- **Wrote `docs/notes/day-04.md`** (ADR 0005's push-vs-pull decision and
+  review arc, Lambda/EventBridge Scheduler fundamentals, human-vs-service-
+  principal IAM trust policies, the `payments_lib.py` extraction plus two
+  real production bug fixes carried over from 2026-08-11 — gold/dbt's
+  tiebreak and the retryable-error `Config` fix — the `lambda_ingestion`
+  Terraform module's `archive_file`/`null_resource` mechanics, retiring the
+  systemd timer, and this session's process changes), same textbook format
+  as day-01 through day-03. Window ran from right after day-03's own
+  cutoff (2026-08-10 morning) through today, to avoid re-covering ground
+  day-03 already wrote up.
+
 ## Notes / blockers
 
 - **`dynamodb_table` vs. `use_lockfile`: decided 2026-08-08, keep
@@ -736,37 +784,30 @@ at AWS's Agent Toolkit for Claude Code._
   effectively free on-demand. Not written up as an ADR — a config-level
   tooling call, not an architecturally significant decision on ADR
   0002/0003's scale.
-- **The payments timer self-retires 2026-08-17.** After that date
-  `cerberus-payments.timer` will be auto-disabled (not deleted) by
-  `run_payments_scheduled.sh` the next time it fires. To get more data
-  after that, run `generate_payments.py` by hand (see above) — don't
-  re-enable the timer without deciding whether the 10-day cap still
-  applies. **As of 2026-08-11, two mechanisms write to bronze in
-  parallel**: this systemd timer, and the new EventBridge Scheduler →
-  Lambda path (`cerberus-ingest-payments-daily`, also capped to the same
-  2026-08-17 window, kept for data-volume control per that day's decision
-  — see the 2026-08-11 session entry). Both stay live until 2.5 explicitly
-  retires the systemd side.
-- **2.5 is blocked on confirming the EventBridge Scheduler path fires
-  unattended** — everything verified 2026-08-11 was a manual Lambda
-  invocation, not a real scheduled fire. Check next session (needs local
-  `cerberus-admin` AWS CLI access — see the Next up section for the exact
-  commands and what a pass looks like).
-- **`docs/plan.md`'s guiding principle 8 is stale.** It still describes
-  the branch-per-phase/PR-per-phase convention, but 2026-08-11 moved to
-  pushing to `main` continuously at explicit user request — the exact new
-  shape (PR-per-push vs. fully direct-to-`main`) was never pinned down.
-  Needs a decision and a principle-8 rewrite next session — see Next up.
+- **Resolved 2026-08-12:** `cerberus-payments.timer` is retired outright
+  (disabled, unlinked, unit files deleted — see this date's session entry),
+  not merely self-retiring on 2026-08-17 as originally planned. The
+  EventBridge Scheduler → Lambda path (`cerberus-ingest-payments-daily`,
+  still capped by `RETIRE_ON_OR_AFTER=2026-08-17` in its own Lambda
+  environment variable) is now bronze's only ingestion mechanism — no more
+  parallel-write duplication to reason about. To get more data after
+  2026-08-17, run `generate_payments.py` by hand or update the Lambda's
+  environment variable; don't re-enable the deleted systemd units.
+- **Resolved 2026-08-12:** the workflow-policy decision (PR-per-push,
+  `docs/plan.md`'s principle 8 rewritten) — see this date's session entry.
 
 - **Resolved 2026-08-07:** `cerberus-ingest.timer` turned out to be running
   fine all along — confirmed via journal — but from the stale
   `/home/chira/cerberus` checkout rather than this session's. Both timers
   now point at `/home/chira/projects/cerberus`; see the 2026-08-07 session
   entry above. `/home/chira/cerberus` is orphaned but not deleted.
-- Systemd linger is still off for this user — `cerberus-payments.timer`
-  will stop firing once the current login session ends, until you run
-  `sudo loginctl enable-linger $(whoami)` yourself (needs an interactive
-  password, can't be run from here).
+- **Systemd linger is still off for this user.** No longer consequential
+  for payments ingestion — `cerberus-payments.timer` is retired outright
+  as of 2026-08-12, and the EventBridge Scheduler path has no login-session
+  dependency to skip against. Still relevant if any future `--user` timer
+  is ever added to this project: it would stop firing once the login
+  session ends, until `sudo loginctl enable-linger $(whoami)` is run
+  (needs an interactive password, can't be run from here).
 - **Weather ingestion retired 2026-08-07** (user request, scoped
   explicitly to three things: the timer, the systemd unit files, and the
   S3 data — nothing else). `cerberus-ingest.timer`/`.service` disabled,
