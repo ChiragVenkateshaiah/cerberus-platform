@@ -827,6 +827,20 @@ early `/end-day`, and this session backfilled it. No implementation work._
 
 ## Notes / blockers
 
+- **AWS Well-Architected Tool tracked state — update this entry at every
+  future phase's Well-Architected pass, per the requirement now in
+  `docs/plan.md`'s Architecture guiding principle and Phases.md's
+  cross-cutting Architecture bullet.** Workload `cerberus-platform`
+  (`58c236e2c7844375965d22349b460084`, Framework lens, `us-east-1`) —
+  verified live via `aws wellarchitected list-workloads`/`list-milestones`
+  on 2026-08-14 (`cerberus-admin` profile). Milestones saved so far:
+  **1** `phase-1-mvp-complete` (2026-08-10), **2**
+  `phase-2-event-driven-ingestion-complete` (2026-08-12). Next one is due at
+  **3.8**, once 3.1–3.7 are actually built — not before: per the Reference
+  section's timing guidance, reviewing a workload before it exists just
+  returns "no"/"not applicable" noise, not signal. When 3.8 lands, save
+  milestone 3 (`phase-3-scalable-compute-complete` or similar) and add it to
+  this list; repeat at 4.5, 5.5, 6.6, and the formal review at 7.4.
 - **AWS Agent Toolkit (`aws-core@claude-plugins-official`, installed
   2026-08-11) is in scope for the rest of the build — see `docs/plan.md`'s
   cross-cutting tracks.** Mapped to remaining phases: `aws-compute` (4.1,

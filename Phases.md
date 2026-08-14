@@ -19,7 +19,12 @@ the specific "what's next" live in [checkpoint.md](checkpoint.md)._
 - **Architecture** — every phase closes with a Well-Architected pass over its
   own work plus an ADR. This is a real checkbox in each phase below, not an
   aspiration: architecture is built by repetition, so it is tracked like any
-  other deliverable.
+  other deliverable. Two parts are required to check a "Well-Architected pass
+  + ADR" subtask off (3.8, 4.5, 5.5, 6.6, 7.4), not just the ADR: also save a
+  new milestone on the `cerberus-platform` AWS Well-Architected Tool workload
+  (`phase-N-<slug>-complete`). See [docs/plan.md](docs/plan.md)'s
+  Architecture guiding principle and [checkpoint.md](checkpoint.md)'s
+  Reference section / Notes for the method and current milestone state.
 - **Cost + tagging** — resources are tagged when created, not retrofitted.
   Cost is reviewed as part of each phase's Well-Architected pass rather than
   batched into a cleanup phase.

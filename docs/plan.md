@@ -94,7 +94,13 @@ These are not phases — they run through every phase.
   built by repetition across phases, not deferred to a hardening phase at the
   end. Hardening concerns land where they belong: VPC design and multi-AZ with
   EKS in Phase 3, the least-privilege IAM review in Phase 7, tagging at
-  creation time throughout.
+  creation time throughout. Each pass has **two required parts, not one**:
+  the ADR, and saving a new milestone on the `cerberus-platform` AWS
+  Well-Architected Tool workload (named `phase-N-<slug>-complete`) — the
+  subtask isn't done until both exist, not just the ADR. checkpoint.md's
+  Reference section has the method (read the pillars as a design lens
+  continuously; the Tool review only after a phase's work actually exists)
+  and the workload's current tracked milestone state.
 - **Cost + tagging.** Resources are tagged when created, never retrofitted.
   Cost is reviewed in each phase's Well-Architected pass rather than batched
   into a cleanup phase.
