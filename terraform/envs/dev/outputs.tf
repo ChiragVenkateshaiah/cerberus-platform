@@ -32,3 +32,13 @@ output "athena_results_bucket_name" {
   description = "Athena query-results bucket name."
   value       = module.athena.results_bucket_name
 }
+
+output "eks_cluster_name" {
+  description = "EKS cluster name."
+  value       = module.eks.cluster_name
+}
+
+output "eks_cluster_endpoint" {
+  description = "EKS API server endpoint."
+  value       = module.eks.cluster_endpoint
+}

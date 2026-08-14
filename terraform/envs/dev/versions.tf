@@ -12,6 +12,13 @@ terraform {
       source  = "hashicorp/archive"
       version = "~> 2.4"
     }
+    # 3.2: fetches the EKS cluster's OIDC issuer certificate thumbprint for
+    # the IAM OIDC provider (terraform/modules/eks) -- no other module
+    # needs it.
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.0"
+    }
   }
 
   backend "s3" {
