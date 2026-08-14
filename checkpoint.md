@@ -12,10 +12,14 @@ Phase 1 — MVP: end-to-end lakehouse is **✅ complete** (1.1–1.13, see
 [Phases.md](Phases.md#phase-1--mvp-end-to-end-lakehouse--)). Phase 2 —
 Event-driven ingestion is **✅ complete** (2.1–2.6, all verified live — see
 [Phases.md](Phases.md#phase-2--event-driven-ingestion-)). Phase 3 —
-Scalable compute is **🔨 in progress**: ADR 0007 (VPC network design,
-3.1) is drafted and merged but still `Status: Proposed` — not yet
-reviewed/revised/accepted, so 3.1 isn't checked off yet. No other Phase 3
-subtask has started.
+Scalable compute is **🔨 in progress**: **3.1 and 3.3 are ✅ complete**
+(ADR 0007 accepted — VPC/subnet layout and the multi-AZ node-group
+decision). **3.2 is written but not yet checked off**: the VPC + EKS
+Terraform modules exist (`terraform/modules/vpc/`, `terraform/modules/eks/`),
+`terraform plan` is verified clean (24 to add, 0 to change, 0 to destroy),
+but nothing has been applied — deliberately, since EKS/NAT both bill on
+apply regardless of load, and apply is deferred until 3.4/3.5 are also
+ready so one apply exercises the whole stack. 3.4–3.8 haven't started.
 
 **Note:** the roadmap was re-scoped on 2026-08-03 from 9 phases (0–8) to
 8 (0–7). The old "Phase 1 — IaC foundation" no longer exists as a phase;
@@ -24,30 +28,27 @@ subtasks. Session history entries before that date use the old numbering.
 
 ## Next up
 
-- **Review, revise, and accept ADR 0007** (`docs/adr/0007-vpc-network-design.md`)
-  — drafted 2026-08-12 (PR #5, `3b72db6`/`ef1226a`), still `Status: Proposed`.
-  Covers all of 3.1 and folds in 3.3's multi-AZ node-group decision, per
-  `docs/plan.md`. Decision on the table: dedicated `10.0.0.0/16` VPC, 2 AZs
-  (`us-east-1a`/`us-east-1b`), one public/private subnet pair per AZ, a
-  single NAT Gateway (not one per AZ — deliberate cost-over-reliability
-  trade for a spin-up/destroy cluster) plus a free S3 Gateway endpoint,
-  public EKS API endpoint (accepted gap, no bastion/VPN in this solo
-  project), and a single EKS-managed node group spanning both private
-  subnets with on-demand (not Spot) instances. Same review pattern as
-  0002/0003/0005: check it against the actual pillar reasoning, look for
-  fabricated/unverified claims, then flip `Status` to `Accepted` and check
-  off 3.1 in Phases.md.
-- Then, in order: 3.2 EKS cluster module (spin-up/destroy pattern, not
-  standing infra — cost discipline matters more here than anywhere so far;
-  ADR 0007 already fixes the subnet layout and node-group shape, so 3.2
-  has nothing left to re-decide), 3.4 Spark Operator install, 3.5 Spark job
-  manifest against S3, 3.6 verify writes to silver/gold (including
-  confirming Spark's S3 traffic actually uses the Gateway endpoint per
-  ADR 0007's Consequences), 3.7 `terraform destroy` after each run, 3.8
-  Well-Architected pass + ADR closing the phase. Full list:
-  [Phases.md](Phases.md#phase-3--scalable-compute-).
-- No open blockers carried into Phase 3 beyond ADR 0007's own pending
-  review — see Notes / blockers below.
+- **3.4 Spark Operator install and 3.5 Spark job manifest against S3** —
+  write both in code next, *before* running `terraform apply` on 3.2's VPC
+  + EKS modules. The plan is one combined live session: apply the VPC/EKS
+  stack, install the Spark Operator, submit the job manifest, verify writes
+  to silver/gold (3.6, including confirming Spark's S3 traffic actually
+  routes through the Gateway endpoint per ADR 0007's Consequences), then
+  `terraform destroy` (3.7) — one apply exercising the whole stack rather
+  than standing up a paid, idle EKS cluster with nothing to run on it.
+  3.2 gets checked off in Phases.md only once that live apply/verify
+  actually happens, not before.
+- Worth a quick check before or during 3.4: whether the AWS Agent
+  Toolkit's `aws-containers` skill (ECS/Fargate/ECR-named, not
+  EKS-specific) gives any useful coverage here — still unconfirmed, see
+  Notes / blockers.
+- **3.8's Well-Architected pass, once 3.1–3.7 land, must also save a new
+  Tool milestone** (`phase-3-scalable-compute-complete` or similar), not
+  just write the ADR — this is now an explicit requirement in
+  `docs/plan.md`/Phases.md, not optional. See Notes / blockers for the
+  workload ID and current milestone list.
+- No open blockers gate starting 3.4/3.5 — see Notes / blockers below for
+  what's still open generally.
 
 ## Session history
 
@@ -804,8 +805,11 @@ landed; day-04 learning notes written._
 
 ### 2026-08-14
 
-_Orientation-only session: `/start-day` surfaced a gap left by 2026-08-12's
-early `/end-day`, and this session backfilled it. No implementation work._
+_Started as orientation-only, then grew into the session that actually
+opened Phase 3's build: ADR 0007 accepted (3.1/3.3 complete), the
+Well-Architected Tool's per-phase-milestone requirement made durable, and
+3.2's VPC + EKS Terraform modules written and plan-verified (not yet
+applied)._
 
 - **Ran `/start-day`**, which cross-checked checkpoint.md/Phases.md against
   `git log` and caught a real mismatch: both files still said Phase 3 "has
@@ -817,13 +821,60 @@ early `/end-day`, and this session backfilled it. No implementation work._
   work actually finished.
 - **Backfilled the 2026-08-12 entry above** with ADR 0007's content rather
   than filing it as a new dated section, since it happened on that date.
-  Flipped Phase 3's status marker in Phases.md from ⬜ to 🔨 (started, not
-  complete — ADR 0007 is drafted but still `Proposed`). Rewrote this file's
-  "Current phase" and "Next up" to point at reviewing/accepting ADR 0007 as
-  the concrete next action, and added README's Status section line for
-  Phase 3 below.
-- No code, infrastructure, or ADR content changed this session — working
-  tree was clean throughout (verified via `git status`/`git diff --stat`).
+  Flipped Phase 3's status marker in Phases.md from ⬜ to 🔨.
+- **Verified the AWS Well-Architected Tool's actual state via the
+  `aws wellarchitected` CLI** rather than trusting checkpoint.md's claims:
+  confirmed the `cerberus-platform` workload and both milestones (1
+  `phase-1-mvp-complete`, 2 `phase-2-event-driven-ingestion-complete`)
+  genuinely exist as described. Read the AWS Well-Architected Framework's
+  six pillar design-principle pages and the Data Analytics Lens live from
+  `docs.aws.amazon.com` — three of the six core pillar pages
+  (Operational Excellence, Security, Sustainability) failed to render body
+  content through the fetch tool and were supplemented from stable public
+  AWS documentation instead, flagged as such rather than blended in
+  silently. Pulled the four Data Analytics Lens design principles most
+  relevant to Phase 3 (DP5 infrastructure access control, DP6 workload
+  resilience, DP8 compute selection, DP11 cost-effective compute/storage by
+  usage pattern) and tied each to ADR 0007's existing reasoning.
+- **Registered a durable requirement, since the review surfaced a real
+  gap**: nothing previously forced a future "Well-Architected pass + ADR"
+  subtask (3.8, 4.5, 5.5, 6.6, 7.4) to actually save a Tool milestone,
+  only to write the ADR — a future session could check the box having done
+  half the work. Fixed in `docs/plan.md`'s Architecture guiding principle
+  and Phases.md's cross-cutting Architecture bullet: both now state the
+  pass has two required parts. checkpoint.md's Notes/blockers gained a
+  tracked-state entry (workload ID, milestones so far, next one due at
+  3.8) so this doesn't need rediscovering via CLI each time. Committed
+  directly to `main` (`1f13564`), consistent with routine
+  session-bookkeeping commits.
+- **Accepted ADR 0007** (user reviewed it independently) — flipped
+  `Status` to `Accepted`, checked off **3.1** and **3.3** together in
+  Phases.md, since the ADR's Decision section resolves both the VPC/subnet
+  layout and the multi-AZ node-group shape. Committed directly to `main`
+  (`ac13085`).
+- **Built 3.2 — VPC + EKS cluster Terraform modules** implementing ADR
+  0007's design exactly: `terraform/modules/vpc/` (dedicated `10.0.0.0/16`
+  VPC, 2 AZs, one public/private subnet pair each, single NAT Gateway in
+  `public-a`, free S3 Gateway endpoint on the private route table) and
+  `terraform/modules/eks/` (cluster + IAM roles, a single managed node
+  group spanning both private subnets per 3.3 — on-demand, fixed size 2 —
+  cluster-admin access for `cerberus-admin` via
+  `bootstrap_cluster_creator_admin_permissions` rather than a hand-built
+  access entry, and an OIDC provider so 3.4/3.5 can give Spark its own
+  IRSA-scoped S3 role instead of overloading the broad node role). Added
+  the `hashicorp/tls` provider (needed for the OIDC thumbprint) to
+  `envs/dev/versions.tf`. `terraform fmt`/`validate` clean;
+  `terraform plan` came back **24 to add, 0 to change, 0 to destroy** —
+  matches the design exactly (15 VPC resources + 9 EKS resources).
+  **Deliberately not applied**: the EKS control plane and NAT Gateway both
+  bill on `apply` regardless of load, and ADR 0007's whole design is
+  spin-up/destroy, so this stops at a verified-clean plan. Apply is
+  deferred until 3.4/3.5 (Spark Operator, job manifest) are also ready, so
+  one `apply` exercises the whole stack instead of leaving a paid idle
+  cluster with nothing running on it — confirmed as the explicit plan with
+  the user before writing any code. **3.2 stays unchecked in Phases.md**
+  until that live apply and verification actually happens. Shipped on
+  branch `eks-cluster-module`, merged via PR #6 (`b284e46`/`d6781f6`).
 
 ## Notes / blockers
 
@@ -847,14 +898,11 @@ early `/end-day`, and this session backfilled it. No implementation work._
   Step Functions), `aws-observability` (Phase 6), `aws-iam` (7.3),
   `aws-sdk-python-usage` (boto3 pattern-checking). Its MCP doc-search/read
   tools are the fallback wherever no packaged skill fits, notably Terraform
-  (no `aws-terraform` skill exists). Open/unconfirmed: whether
+  (no `aws-terraform` skill exists). Still open/unconfirmed: whether
   `aws-containers` (ECS/Fargate/ECR-named, not EKS-specific) actually gives
-  useful coverage for Phase 3 — check when 3.2 (EKS cluster module) starts.
-- **ADR 0007 (VPC network design, 3.1) is drafted and merged but still
-  `Status: Proposed` — review/accept is the next concrete action.** See
-  "Next up" above for what's actually being decided. Once accepted, check
-  off 3.1 in Phases.md and flip the ADR's own status field, same sequence
-  as 0002/0003/0005.
+  useful coverage for Phase 3 — 3.2's Terraform modules (2026-08-14) were
+  written without checking this, so it's still genuinely unresolved, not
+  silently answered. Worth checking before 3.4 (Spark Operator install).
 - **`dynamodb_table` vs. `use_lockfile`: decided 2026-08-08, keep
   DynamoDB for now — Phase 1 (MVP) is done as of today, so this is now
   revisitable with real usage data if there's appetite, but hasn't been
