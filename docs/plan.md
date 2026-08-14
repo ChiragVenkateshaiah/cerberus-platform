@@ -98,6 +98,16 @@ These are not phases — they run through every phase.
 - **Cost + tagging.** Resources are tagged when created, never retrofitted.
   Cost is reviewed in each phase's Well-Architected pass rather than batched
   into a cleanup phase.
+- **AWS Agent Toolkit** (`aws-core@claude-plugins-official`, installed
+  2026-08-11, user scope) is in scope for the rest of the build. Two
+  capabilities: its MCP doc-search/read tools, always available and the
+  fallback for anything no packaged skill covers — notably Terraform, since
+  no `aws-terraform` skill exists at all — and its 20 packaged skills, used
+  where they map to a remaining phase: `aws-compute` (4.1, Step Functions),
+  `aws-observability` (Phase 6), `aws-iam` (7.3), `aws-sdk-python-usage`
+  (boto3 pattern-checking, already caught one real bug in Phase 2).
+  `aws-containers` is named for ECS/Fargate/ECR, not EKS specifically, so
+  its actual usefulness for Phase 3 is unconfirmed — worth checking at 3.2.
 
 ## The MVP — Milestone 1
 

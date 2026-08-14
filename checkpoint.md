@@ -827,6 +827,15 @@ early `/end-day`, and this session backfilled it. No implementation work._
 
 ## Notes / blockers
 
+- **AWS Agent Toolkit (`aws-core@claude-plugins-official`, installed
+  2026-08-11) is in scope for the rest of the build — see `docs/plan.md`'s
+  cross-cutting tracks.** Mapped to remaining phases: `aws-compute` (4.1,
+  Step Functions), `aws-observability` (Phase 6), `aws-iam` (7.3),
+  `aws-sdk-python-usage` (boto3 pattern-checking). Its MCP doc-search/read
+  tools are the fallback wherever no packaged skill fits, notably Terraform
+  (no `aws-terraform` skill exists). Open/unconfirmed: whether
+  `aws-containers` (ECS/Fargate/ECR-named, not EKS-specific) actually gives
+  useful coverage for Phase 3 — check when 3.2 (EKS cluster module) starts.
 - **ADR 0007 (VPC network design, 3.1) is drafted and merged but still
   `Status: Proposed` — review/accept is the next concrete action.** See
   "Next up" above for what's actually being decided. Once accepted, check
