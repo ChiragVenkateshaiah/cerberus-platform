@@ -38,3 +38,13 @@ module "lambda_ingestion" {
   bronze_bucket_name = module.s3_medallion.bucket_names["bronze"]
   execution_role_arn = module.iam.role_arns["ingestion_lambda"]
 }
+
+module "vpc" {
+  source = "../../modules/vpc"
+}
+
+module "eks" {
+  source = "../../modules/eks"
+
+  private_subnet_ids = module.vpc.private_subnet_ids
+}
