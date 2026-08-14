@@ -14,6 +14,8 @@ real Athena query against gold and get a result; `terraform apply` and
 ✅ Phase 2 (event-driven ingestion) — complete. Ingestion runs on a Lambda
 triggered by EventBridge Scheduler, confirmed firing unattended; the
 Phase 0 systemd timer is retired.
+🔨 Phase 3 (scalable compute) — in progress. ADR 0007 (VPC network design
+for Spark-on-EKS) is drafted, pending review and acceptance.
 
 See [docs/plan.md](docs/plan.md) for the full phased roadmap (Phases 0–7)
 and [Phases.md](Phases.md) for subtask-level progress.

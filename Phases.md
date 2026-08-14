@@ -60,7 +60,7 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 - [x] 2.5 Retire the Phase 0 systemd timer
 - [x] 2.6 Well-Architected pass + ADR
 
-## Phase 3 — Scalable compute ⬜
+## Phase 3 — Scalable compute 🔨
 
 - [ ] 3.1 VPC design for the cluster (subnets, AZs, routing) + ADR
 - [ ] 3.2 EKS cluster module (spin-up/destroy pattern, not standing infra)

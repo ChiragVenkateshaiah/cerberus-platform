@@ -12,7 +12,10 @@ Phase 1 — MVP: end-to-end lakehouse is **✅ complete** (1.1–1.13, see
 [Phases.md](Phases.md#phase-1--mvp-end-to-end-lakehouse--)). Phase 2 —
 Event-driven ingestion is **✅ complete** (2.1–2.6, all verified live — see
 [Phases.md](Phases.md#phase-2--event-driven-ingestion-)). Phase 3 —
-Scalable compute has **not started**.
+Scalable compute is **🔨 in progress**: ADR 0007 (VPC network design,
+3.1) is drafted and merged but still `Status: Proposed` — not yet
+reviewed/revised/accepted, so 3.1 isn't checked off yet. No other Phase 3
+subtask has started.
 
 **Note:** the roadmap was re-scoped on 2026-08-03 from 9 phases (0–8) to
 8 (0–7). The old "Phase 1 — IaC foundation" no longer exists as a phase;
@@ -21,22 +24,30 @@ subtasks. Session history entries before that date use the old numbering.
 
 ## Next up
 
-- **3.1 VPC design for the cluster (subnets, AZs, routing) + ADR** — first
-  Phase 3 subtask, and the first ADR-before-code decision this phase needs
-  (same pattern as 0002 before 1.4, 0005 before 2.1). This is the one part
-  of the platform that genuinely needs VPC design — everything built
-  through Phase 2 is serverless (S3, Lambda, Glue, Athena, EventBridge);
-  EKS (3.2) is the first component with real networking surface. 3.3's
-  multi-AZ node-group decision belongs in the same ADR pass per
-  `docs/plan.md`, not a separate one.
+- **Review, revise, and accept ADR 0007** (`docs/adr/0007-vpc-network-design.md`)
+  — drafted 2026-08-12 (PR #5, `3b72db6`/`ef1226a`), still `Status: Proposed`.
+  Covers all of 3.1 and folds in 3.3's multi-AZ node-group decision, per
+  `docs/plan.md`. Decision on the table: dedicated `10.0.0.0/16` VPC, 2 AZs
+  (`us-east-1a`/`us-east-1b`), one public/private subnet pair per AZ, a
+  single NAT Gateway (not one per AZ — deliberate cost-over-reliability
+  trade for a spin-up/destroy cluster) plus a free S3 Gateway endpoint,
+  public EKS API endpoint (accepted gap, no bastion/VPN in this solo
+  project), and a single EKS-managed node group spanning both private
+  subnets with on-demand (not Spot) instances. Same review pattern as
+  0002/0003/0005: check it against the actual pillar reasoning, look for
+  fabricated/unverified claims, then flip `Status` to `Accepted` and check
+  off 3.1 in Phases.md.
 - Then, in order: 3.2 EKS cluster module (spin-up/destroy pattern, not
-  standing infra — cost discipline matters more here than anywhere so far),
-  3.4 Spark Operator install, 3.5 Spark job manifest against S3, 3.6 verify
-  writes to silver/gold, 3.7 `terraform destroy` after each run, 3.8
+  standing infra — cost discipline matters more here than anywhere so far;
+  ADR 0007 already fixes the subnet layout and node-group shape, so 3.2
+  has nothing left to re-decide), 3.4 Spark Operator install, 3.5 Spark job
+  manifest against S3, 3.6 verify writes to silver/gold (including
+  confirming Spark's S3 traffic actually uses the Gateway endpoint per
+  ADR 0007's Consequences), 3.7 `terraform destroy` after each run, 3.8
   Well-Architected pass + ADR closing the phase. Full list:
   [Phases.md](Phases.md#phase-3--scalable-compute-).
-- No open blockers carried into Phase 3 — see Notes / blockers below for
-  what's still open generally (none of it gates Phase 3 starting).
+- No open blockers carried into Phase 3 beyond ADR 0007's own pending
+  review — see Notes / blockers below.
 
 ## Session history
 
@@ -770,9 +781,57 @@ landed; day-04 learning notes written._
   as day-01 through day-03. Window ran from right after day-03's own
   cutoff (2026-08-10 morning) through today, to avoid re-covering ground
   day-03 already wrote up.
+- **Drafted ADR 0007** (`docs/adr/0007-vpc-network-design.md`, opens Phase
+  3/3.1), later the same day — after this date's own `/end-day` had already
+  run and recorded the entry above, which is why this bullet was missing
+  until the 2026-08-14 session caught and backfilled it (see that entry).
+  Working through the Well-Architected pillars for a VPC/EKS network:
+  dedicated `10.0.0.0/16` VPC (distinct from the account's default
+  `172.31.0.0/16`), two AZs (`us-east-1a`/`us-east-1b`) with one
+  public/private subnet pair each, private subnets sized `/20` for VPC CNI
+  per-pod IP headroom, a single NAT Gateway rather than one per AZ (Cost
+  over Reliability, deliberately — this VPC is spun up and destroyed per
+  job, so an idle-time AZ-level NAT outage isn't the failure mode that
+  matters), a free S3 Gateway VPC endpoint taking Spark's bronze/silver/gold
+  traffic off NAT's billed path, and a public EKS API endpoint (accepted
+  gap, same shape as Phase 0's `AdministratorAccess` shortcut — no
+  bastion/VPN in a solo project). Folded in 3.3 per `docs/plan.md`: a single
+  EKS-managed node group spanning both private subnets (not one per AZ),
+  on-demand instances rather than Spot. Committed on branch
+  `adr-0007-vpc-network-design` (`3b72db6`) and merged via PR #5
+  (`ef1226a`). Status left `Proposed` — not yet reviewed/accepted, so 3.1
+  stays unchecked in Phases.md.
+
+### 2026-08-14
+
+_Orientation-only session: `/start-day` surfaced a gap left by 2026-08-12's
+early `/end-day`, and this session backfilled it. No implementation work._
+
+- **Ran `/start-day`**, which cross-checked checkpoint.md/Phases.md against
+  `git log` and caught a real mismatch: both files still said Phase 3 "has
+  not started," but ADR 0007 had already been drafted and merged on
+  2026-08-12 (PR #5) — after that day's own `/end-day` commit
+  (`f711a0c`, 11:40 UTC), so the ADR work (`3b72db6`/`ef1226a`, 11:46–17:17
+  UTC the same day) was never recorded. Same shape as the 2026-08-06 gap
+  caught on 2026-08-07: a session's `/end-day` ran before the session's
+  work actually finished.
+- **Backfilled the 2026-08-12 entry above** with ADR 0007's content rather
+  than filing it as a new dated section, since it happened on that date.
+  Flipped Phase 3's status marker in Phases.md from ⬜ to 🔨 (started, not
+  complete — ADR 0007 is drafted but still `Proposed`). Rewrote this file's
+  "Current phase" and "Next up" to point at reviewing/accepting ADR 0007 as
+  the concrete next action, and added README's Status section line for
+  Phase 3 below.
+- No code, infrastructure, or ADR content changed this session — working
+  tree was clean throughout (verified via `git status`/`git diff --stat`).
 
 ## Notes / blockers
 
+- **ADR 0007 (VPC network design, 3.1) is drafted and merged but still
+  `Status: Proposed` — review/accept is the next concrete action.** See
+  "Next up" above for what's actually being decided. Once accepted, check
+  off 3.1 in Phases.md and flip the ADR's own status field, same sequence
+  as 0002/0003/0005.
 - **`dynamodb_table` vs. `use_lockfile`: decided 2026-08-08, keep
   DynamoDB for now — Phase 1 (MVP) is done as of today, so this is now
   revisitable with real usage data if there's appetite, but hasn't been
