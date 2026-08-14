@@ -67,9 +67,9 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 
 ## Phase 3 — Scalable compute 🔨
 
-- [ ] 3.1 VPC design for the cluster (subnets, AZs, routing) + ADR
+- [x] 3.1 VPC design for the cluster (subnets, AZs, routing) + ADR
 - [ ] 3.2 EKS cluster module (spin-up/destroy pattern, not standing infra)
-- [ ] 3.3 Multi-AZ node group decision
+- [x] 3.3 Multi-AZ node group decision
 - [ ] 3.4 Spark Operator install
 - [ ] 3.5 Spark job manifest against S3
 - [ ] 3.6 Verify writes to silver/gold
