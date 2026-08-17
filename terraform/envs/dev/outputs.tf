@@ -47,3 +47,13 @@ output "spark_jobs_namespace" {
   description = "Kubernetes namespace the Spark Operator watches for SparkApplication resources -- where 3.5's job belongs."
   value       = module.spark_operator.jobs_namespace
 }
+
+output "spark_service_account" {
+  description = "Service account 3.5's SparkApplication manifest should reference (spec.driver/executor.serviceAccount)."
+  value       = module.spark_job.service_account_name
+}
+
+output "spark_role_arn" {
+  description = "cerberus-spark IAM role ARN, for reference/verification."
+  value       = module.iam.role_arns["spark"]
+}

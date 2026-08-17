@@ -1,0 +1,53 @@
+# Cerberus 3.5 -- submitted manually via submit_job.sh, not Terraform-managed
+# (see terraform/modules/spark_job/main.tf's header for why: this represents
+# a job *run*, not standing infrastructure).
+#
+# image/sparkVersion: apache/spark:3.5.3 is the last version confirmed to
+# exist as of this repo's training-data cutoff, not independently verified
+# live against Docker Hub's current tags -- same flagged-not-fabricated
+# treatment already given to the eks module's kubernetes_version and the
+# spark_operator module's chart_version. Confirm/bump this against
+# https://hub.docker.com/r/apache/spark/tags before running 3.6, and keep
+# hadoop-aws's version below paired to whatever Hadoop client that image tag
+# actually bundles -- a mismatch here is a classic, hard-to-debug
+# ClassNotFoundException at runtime, not a startup-time config error.
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: cerberus-promote-payments
+  namespace: spark-jobs
+spec:
+  type: Python
+  pythonVersion: "3"
+  mode: cluster
+  image: "apache/spark:3.5.3"
+  imagePullPolicy: IfNotPresent
+  sparkVersion: "3.5.3"
+  # Uploaded here by submit_job.sh, not baked into the image -- silver is
+  # the bucket this job already writes its actual output to and cerberus-spark
+  # already has read/write there, so no new bucket or IAM grant is needed
+  # just to host one script. The leading underscore keeps it out of the
+  # payments/dt=.../ partitions Athena/Glue actually scan.
+  mainApplicationFile: "s3a://cerberus-platform-silver-131715059025/_spark_jobs/promote_payments_spark.py"
+  restartPolicy:
+    type: Never
+  deps:
+    # aws-java-sdk-bundle is pulled in transitively by hadoop-aws's own POM
+    # at the matching version -- not pinned separately here to avoid hand-
+    # picking a pair that doesn't actually match.
+    packages:
+      - org.apache.hadoop:hadoop-aws:3.3.4
+  sparkConf:
+    spark.hadoop.fs.s3a.aws.credentials.provider: "com.amazonaws.auth.WebIdentityTokenCredentialsProvider"
+  driver:
+    cores: 1
+    memory: "1g"
+    serviceAccount: cerberus-spark
+    labels:
+      version: "3.5.3"
+  executor:
+    cores: 1
+    instances: 1
+    memory: "1g"
+    labels:
+      version: "3.5.3"

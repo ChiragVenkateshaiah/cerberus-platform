@@ -30,6 +30,9 @@ module "iam" {
 
   athena_workgroup_name     = module.athena.workgroup_name
   athena_results_bucket_arn = module.athena.results_bucket_arn
+
+  eks_oidc_provider_arn = module.eks.oidc_provider_arn
+  eks_oidc_issuer_url   = module.eks.oidc_issuer_url
 }
 
 module "lambda_ingestion" {
@@ -56,4 +59,11 @@ module "spark_operator" {
   # operator's controller/webhook pods aren't scheduled before any node
   # exists to run them on.
   depends_on = [module.eks]
+}
+
+module "spark_job" {
+  source = "../../modules/spark_job"
+
+  namespace = module.spark_operator.jobs_namespace
+  role_arn  = module.iam.role_arns["spark"]
 }
