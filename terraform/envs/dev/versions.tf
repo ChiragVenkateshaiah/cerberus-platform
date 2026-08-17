@@ -19,6 +19,18 @@ terraform {
       source  = "hashicorp/tls"
       version = "~> 4.0"
     }
+    # 3.4: talks to the EKS cluster's API server -- kubernetes for the
+    # spark-operator/spark-jobs namespaces, helm for the operator's chart
+    # install (terraform/modules/spark_operator). Both authenticate via
+    # data.aws_eks_cluster_auth below.
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.31"
+    }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 2.14"
+    }
   }
 
   backend "s3" {

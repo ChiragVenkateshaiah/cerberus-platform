@@ -42,3 +42,8 @@ output "eks_cluster_endpoint" {
   description = "EKS API server endpoint."
   value       = module.eks.cluster_endpoint
 }
+
+output "spark_jobs_namespace" {
+  description = "Kubernetes namespace the Spark Operator watches for SparkApplication resources -- where 3.5's job belongs."
+  value       = module.spark_operator.jobs_namespace
+}
