@@ -6,7 +6,12 @@
 # will eventually hold them -- a deliberate head start on repaying Phase 0's
 # AdministratorAccess shortcut (fully repaid at 7.3), not a placeholder.
 # A fourth role, ingestion_lambda, is the first of these actually assumed
-# by compute rather than a human (2.1/2.3, ADR 0005) -- see below.
+# by compute rather than a human (2.1/2.3, ADR 0005) -- see below. A fifth,
+# spark (3.5), is the first assumed via IRSA (OIDC federation from an EKS
+# service account) rather than either sts:AssumeRole or a service
+# principal -- Spark's driver/executor pods get temporary credentials
+# through the OIDC provider 3.2's eks module set up, scoped to exactly one
+# namespaced service account, not the cluster's whole node role.
 #
 # Policies are inline (aws_iam_role_policy), not standalone managed
 # policies -- each one is scoped 1:1 to exactly one role and isn't meant to
@@ -37,6 +42,10 @@ locals {
   glue_dbt_dim_table_arn = "arn:aws:glue:${var.region}:${var.account_id}:table/${var.glue_database_name}/dim_*"
 
   athena_workgroup_arn = "arn:aws:athena:${var.region}:${var.account_id}:workgroup/${var.athena_workgroup_name}"
+
+  # OIDC issuer URL without its https:// scheme -- how it appears as the
+  # Condition key prefix in an IRSA trust policy.
+  oidc_issuer_host = replace(var.eks_oidc_issuer_url, "https://", "")
 }
 
 # --- Ingestion: write-only, bronze/payments/* ---------------------------
@@ -213,6 +222,73 @@ resource "aws_iam_role_policy" "transform" {
         Effect   = "Allow"
         Action   = ["s3:ListBucket", "s3:GetBucketLocation"]
         Resource = var.athena_results_bucket_arn
+      }
+    ]
+  })
+}
+
+# --- Spark (3.5): read bronze/payments/*, write silver only -- S3 only, no
+# Glue. Narrower than cerberus-transform in two ways: this job replaces only
+# the bronze -> silver step (flatten/parse), not the gold rollup, so it has
+# no reason to touch gold; and it doesn't register silver's new partitions
+# with Glue itself (the off-the-shelf Spark image has no boto3), so it needs
+# no Glue permissions at all -- transform/spark/submit_job.sh does that step
+# afterward via cerberus-transform's existing Glue/Athena grant instead.
+
+resource "aws_iam_role" "spark" {
+  name = "cerberus-spark"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect    = "Allow"
+        Principal = { Federated = var.eks_oidc_provider_arn }
+        Action    = "sts:AssumeRoleWithWebIdentity"
+        Condition = {
+          StringEquals = {
+            "${local.oidc_issuer_host}:sub" = "system:serviceaccount:${var.spark_service_account}"
+            "${local.oidc_issuer_host}:aud" = "sts.amazonaws.com"
+          }
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "spark" {
+  name = "cerberus-spark-policy"
+  role = aws_iam_role.spark.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "ReadBronzePayments"
+        Effect   = "Allow"
+        Action   = "s3:GetObject"
+        Resource = "${var.bucket_arns["bronze"]}/payments/*"
+      },
+      {
+        Sid      = "ListBronzePaymentsPrefixOnly"
+        Effect   = "Allow"
+        Action   = "s3:ListBucket"
+        Resource = var.bucket_arns["bronze"]
+        Condition = {
+          StringLike = { "s3:prefix" = ["payments/*"] }
+        }
+      },
+      {
+        Sid      = "WriteSilver"
+        Effect   = "Allow"
+        Action   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+        Resource = "${var.bucket_arns["silver"]}/*"
+      },
+      {
+        Sid      = "ListSilver"
+        Effect   = "Allow"
+        Action   = "s3:ListBucket"
+        Resource = var.bucket_arns["silver"]
       }
     ]
   })
