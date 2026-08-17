@@ -48,3 +48,12 @@ module "eks" {
 
   private_subnet_ids = module.vpc.private_subnet_ids
 }
+
+module "spark_operator" {
+  source = "../../modules/spark_operator"
+
+  # Waits for the whole eks module -- cluster and node group both -- so the
+  # operator's controller/webhook pods aren't scheduled before any node
+  # exists to run them on.
+  depends_on = [module.eks]
+}
