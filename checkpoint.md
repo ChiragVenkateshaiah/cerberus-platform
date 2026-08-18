@@ -1103,6 +1103,16 @@ complete; only 3.8 remains to close Phase 3._
   this pillar-by-pillar, matching ADR 0004/0006's review-ADR shape.
   **Phase 3 flipped to ✅ Complete** across `Phases.md`, `docs/plan.md`'s
   roadmap table, and README's status line.
+- **Shipped on branch `phase-3-well-architected-review`, merged into `main`
+  via PR #9** (`f2156c5`/`7ddee36`) — covers both this entry's live pass
+  (`a4cb040`) and ADR 0008 (`f2156c5`) as one PR, since they closed the same
+  phase in one continuous session. Independently re-verified post-merge,
+  not just trusted from the commit messages: milestone 3
+  (`phase-3-scalable-compute-complete`) genuinely exists via
+  `aws wellarchitected list-milestones`, silver genuinely holds the Spark
+  job's multi-part `.snappy.parquet` output, and live AWS confirms zero
+  VPCs/EKS clusters/NAT Gateways/instances remain — the destroy really was
+  clean, not just reported as clean.
 
 ## Notes / blockers
 
