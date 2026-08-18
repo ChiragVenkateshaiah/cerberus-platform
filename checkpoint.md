@@ -12,14 +12,12 @@ Phase 1 — MVP: end-to-end lakehouse is **✅ complete** (1.1–1.13, see
 [Phases.md](Phases.md#phase-1--mvp-end-to-end-lakehouse--)). Phase 2 —
 Event-driven ingestion is **✅ complete** (2.1–2.6, all verified live — see
 [Phases.md](Phases.md#phase-2--event-driven-ingestion-)). Phase 3 —
-Scalable compute is **🔨 in progress**: **3.1 and 3.3 are ✅ complete**
-(ADR 0007 accepted — VPC/subnet layout and the multi-AZ node-group
-decision). **3.2 is written but not yet checked off**: the VPC + EKS
-Terraform modules exist (`terraform/modules/vpc/`, `terraform/modules/eks/`),
-`terraform plan` is verified clean (24 to add, 0 to change, 0 to destroy),
-but nothing has been applied — deliberately, since EKS/NAT both bill on
-apply regardless of load, and apply is deferred until 3.4/3.5 are also
-ready so one apply exercises the whole stack. 3.4–3.8 haven't started.
+Scalable compute is **🔨 in progress**: **3.1–3.7 are all ✅ complete**
+(ADR 0007 accepted; the VPC, EKS, Spark Operator, and Spark job Terraform
+modules were applied live end-to-end on 2026-08-18 — cluster up, job run
+on real EKS, silver/Glue verified, full stack destroyed cleanly). **Only
+3.8 (Well-Architected pass + ADR + Tool milestone) remains** to close the
+phase.
 
 **Note:** the roadmap was re-scoped on 2026-08-03 from 9 phases (0–8) to
 8 (0–7). The old "Phase 1 — IaC foundation" no longer exists as a phase;
@@ -28,27 +26,21 @@ subtasks. Session history entries before that date use the old numbering.
 
 ## Next up
 
-- **3.4 Spark Operator install and 3.5 Spark job manifest against S3** —
-  write both in code next, *before* running `terraform apply` on 3.2's VPC
-  + EKS modules. The plan is one combined live session: apply the VPC/EKS
-  stack, install the Spark Operator, submit the job manifest, verify writes
-  to silver/gold (3.6, including confirming Spark's S3 traffic actually
-  routes through the Gateway endpoint per ADR 0007's Consequences), then
-  `terraform destroy` (3.7) — one apply exercising the whole stack rather
-  than standing up a paid, idle EKS cluster with nothing to run on it.
-  3.2 gets checked off in Phases.md only once that live apply/verify
-  actually happens, not before.
-- Worth a quick check before or during 3.4: whether the AWS Agent
-  Toolkit's `aws-containers` skill (ECS/Fargate/ECR-named, not
-  EKS-specific) gives any useful coverage here — still unconfirmed, see
-  Notes / blockers.
-- **3.8's Well-Architected pass, once 3.1–3.7 land, must also save a new
-  Tool milestone** (`phase-3-scalable-compute-complete` or similar), not
-  just write the ADR — this is now an explicit requirement in
-  `docs/plan.md`/Phases.md, not optional. See Notes / blockers for the
-  workload ID and current milestone list.
-- No open blockers gate starting 3.4/3.5 — see Notes / blockers below for
-  what's still open generally.
+- **3.8 — Phase 3's Well-Architected pass + ADR, plus a new Tool
+  milestone.** This is the only thing left to close Phase 3. Write the ADR
+  using the pillar-as-question-generator method (see the Reference section
+  below — render it in full before starting, per `/start-day`'s own rule),
+  covering what 3.1–3.7 actually built and verified live: the VPC/EKS
+  spin-up-destroy pattern, the Free-Tier instance-type constraint hit and
+  worked around, the Spark-on-K8s RBAC/Ivy fixes, the near-miss full
+  `terraform destroy` and the `-target`-scoping fix, and the NAT/node-
+  readiness destroy-order gotcha (all in the 2026-08-18 session entry
+  below). Then save Tool milestone 3, `phase-3-scalable-compute-complete`
+  — see Notes / blockers for the workload ID and current milestone list.
+  Two required parts, not just the ADR (per the durable requirement from
+  2026-08-14's session).
+- No open blockers gate 3.8 — see Notes / blockers below for what's still
+  open generally (none of it blocks starting the Well-Architected pass).
 
 ## Session history
 
@@ -876,8 +868,224 @@ applied)._
   until that live apply and verification actually happens. Shipped on
   branch `eks-cluster-module`, merged via PR #6 (`b284e46`/`d6781f6`).
 
+### 2026-08-17
+
+_3.4 and 3.5 built, both plan-only like 3.2 — Phase 3's whole compute
+stack is now written and plan-verified, nothing applied yet._
+
+- **Built 3.4 — the Spark Operator Helm install**
+  (`terraform/modules/spark_operator/`). Installs `kubeflow/spark-operator`
+  (the actively maintained successor to the archived
+  `GoogleCloudPlatform/spark-on-k8s-operator`) into its own `spark-operator`
+  namespace, configured via `spark.jobNamespaces` to watch a separate
+  `spark-jobs` namespace rather than the chart's own default of `default`.
+  No chart version pinned — checked three different live sources for the
+  current version and got inconsistent/unreliable answers, so left unset
+  (Helm installs latest) rather than hardcode a guess, same treatment
+  already given to the eks module's `kubernetes_version`. Wired
+  `kubernetes`/`helm` providers into `envs/dev`, authenticated via
+  `data.aws_eks_cluster_auth` against the not-yet-created cluster's
+  outputs — confirmed live that `terraform plan` resolves cleanly even
+  though the provider config depends on resources that don't exist yet (a
+  known real-world Terraform+EKS+Helm rough edge that turned out not to
+  bite here). `depends_on = [module.eks]` on the module so the operator's
+  pods aren't scheduled before a node exists. `terraform plan`: 27 to add,
+  0 to change, 0 to destroy. Shipped on branch `spark-operator-install`,
+  merged via PR #7 (`c19720f`/`e6203f5`).
+- **Built 3.5 — the Spark job manifest against S3.** Scope confirmed with
+  the user before writing code: the job replaces only 1.7's bronze→silver
+  flatten/parse step, writing to the exact same silver location and
+  15-column schema `promote_payments.py` already produces; gold's
+  latest-event-wins rollup and dbt's marts stay Python/dbt, untouched by
+  which tool wrote silver. Container-image strategy also confirmed first:
+  off-the-shelf `apache/spark` image + script fetched from S3 at submit
+  time, no custom build/ECR repo.
+  - `transform/spark/promote_payments_spark.py`: PySpark rewrite of that
+    one step. Explicit bronze schema (not inferred), `multiLine` JSON
+    read (bronze files are JSON arrays, not one-object-per-line),
+    `mode("overwrite")` + `partitionBy("dt")` matching 1.7's own
+    full-rebuild-every-run semantics. Deliberately does **not** register
+    Glue partitions itself — the off-the-shelf image has no boto3 —
+    `submit_job.sh` runs `MSCK REPAIR TABLE` afterward instead, reusing
+    `cerberus-transform`'s existing Glue/Athena grant. On reflection this
+    isn't a workaround, it's the standard Glue/Athena mechanism for "new
+    partition directories appeared in S3."
+  - `terraform/modules/iam`: a 5th role, `cerberus-spark` — the first in
+    this project assumed via IRSA (OIDC federation from an EKS service
+    account) rather than `sts:AssumeRole` or a service principal, scoped
+    via `sts:AssumeRoleWithWebIdentity`'s `sub`/`aud` conditions to
+    exactly `system:serviceaccount:spark-jobs:cerberus-spark`. S3 only —
+    read `bronze/payments/*`, read+write `silver/*` — no Glue permissions
+    at all, since it doesn't need any.
+  - `terraform/modules/spark_job`: just the Kubernetes service account
+    carrying the `eks.amazonaws.com/role-arn` annotation. The
+    SparkApplication CR itself
+    (`transform/spark/spark-application.yaml`) is a plain, manually-applied
+    manifest, not Terraform-managed — submitting a job run is a workload
+    action, not infrastructure provisioning, the same distinction this
+    project already draws between Terraform-managed IAM roles and the
+    plain scripts that assume them.
+  - `transform/spark/submit_job.sh`: uploads the script to
+    `silver/_spark_jobs/`, points `kubectl` at the cluster, applies the
+    manifest, polls for completion, then runs the `MSCK REPAIR TABLE`
+    step — three separate least-privilege credentials throughout
+    (`cerberus-transform` for the S3/Athena steps, `cerberus-admin` for
+    `kubectl`, `cerberus-spark` for the job itself).
+  - `terraform plan`: 30 to add, 0 to change, 0 to destroy.
+  - **Version uncertainty flagged, not fabricated, then explicitly
+    deferred.** `spark-application.yaml`'s `apache/spark` image tag and
+    its paired `hadoop-aws` version couldn't be verified live — a Docker
+    Hub tags-API fetch came back three years stale even with explicit
+    `ordering=-last_updated`, the second unreliable result for this exact
+    question this session. Presented the user two options (verify by hand
+    now, or defer to 3.6 since the version only matters at actual apply
+    time); **user chose to defer**. Also caught mid-discussion that the
+    boto3/MSCK-REPAIR split isn't actually a residual gap — it's a
+    resolved design decision, not a stopgap, corrected after initially
+    describing it as an open risk.
+  - Caught and fixed a branch-hygiene mistake before pushing: kept
+    committing 3.5's work on the already-merged `spark-operator-install`
+    branch instead of cutting a fresh one off updated `main`. Fixed by
+    resetting that branch back to its merged tip and cherry-picking the
+    3.5 commit onto a new `spark-job-manifest` branch — verified
+    `terraform plan` still came back identical (30/0/0) after the
+    cherry-pick before pushing. Shipped via PR #8 (`756365d`/`a308490`).
+  - **3.2, 3.4, and 3.5 all stay unchecked in Phases.md** — same
+    discipline as 3.2 alone previously: written and plan-verified isn't
+    the same as applied and verified live.
+
+### 2026-08-18
+
+_The live apply → install → submit → verify → destroy pass (3.6/3.7) —
+Phase 3's full compute stack ran for real on EKS, three real bugs found and
+fixed live, a near-miss full-stack `terraform destroy` caught and avoided,
+and a real destroy-order gotcha discovered and worked around. 3.2–3.7 all
+complete; only 3.8 remains to close Phase 3._
+
+- **Verified `spark-application.yaml`'s image/hadoop-aws versions live**,
+  clearing the deferred blocker from 2026-08-17. Docker Hub's tags API
+  silently ignores its own `ordering=-last_updated` param on this endpoint
+  — paging to the *last* page (not trusting page 1 under the requested
+  ordering) surfaced real current data: `apache/spark:3.5.9` (pushed
+  2026-07-24) is the latest patch on the already-targeted 3.5.x line
+  (`4.2.0` also exists but is a major-version jump with unverified
+  Spark-Operator/API compatibility — user chose to stay on 3.5.x). Read
+  Spark v3.5.9's own `pom.xml` to confirm `hadoop-aws:3.3.4` was already
+  the correct pairing, not a guess. Bumped the manifest's image, sparkVersion,
+  and driver/executor labels; the header comment now records the
+  verification instead of flagging it as open.
+- **Ran the live `terraform apply` against the full 30-resource Phase 3
+  stack.** First attempt failed: the EKS node group's `m5.large` launch
+  was rejected — this AWS account (18 days old) is still under AWS's
+  new-account Free-Tier-only EC2 restriction
+  (`InvalidParameterCombination`), not an EC2 quota issue (32 vCPU quota,
+  healthy). Switched `terraform/modules/eks`'s `node_instance_types`
+  default to `m7i-flex.large` (Free-Tier-eligible, same 2 vCPU/8 GiB spec
+  as `m5.large`) — re-planned (5 to add: the replacement node group plus
+  the Spark Operator/namespace resources that never got attempted; 1 to
+  destroy: the failed node group) and applied clean. Full stack came up:
+  VPC, EKS with 2 healthy nodes, Spark Operator's controller/webhook pods
+  running, `cerberus-spark` service account correctly IRSA-annotated.
+- **Submitted the job via `submit_job.sh` (3.5) — hit and fixed two real
+  bugs before it ran clean:**
+  - First submission failed in ~7 seconds, before any driver pod existed:
+    the Spark Operator's controller resolves `deps.packages` (the
+    `hadoop-aws` Maven coordinate) locally via Ivy *inside its own pod*,
+    and that pod's `$HOME` is `/nonexistent` (a hardened non-root
+    container), so Ivy's default `$HOME/.ivy2` cache write failed
+    outright. Fixed by adding `spark.jars.ivy: "/tmp/.ivy2"` to the
+    manifest's `sparkConf` — not a version/config mismatch, a submit-time
+    container-hardening interaction.
+  - Second attempt got a driver pod running, but it crashed:
+    `cerberus-spark`'s IRSA role only ever had **S3** permissions (from
+    1.6/3.5's IAM design) — the Spark-on-Kubernetes scheduler backend
+    running inside the driver also needs **Kubernetes RBAC** to `GET` its
+    own pod and create/watch/delete executor pods directly against the
+    K8s API, which it had zero grant for at all. Added a `kubernetes_role`
+    + `kubernetes_role_binding` to `terraform/modules/spark_job` (pods,
+    services, configmaps, persistentvolumeclaims — matching the upstream
+    Spark-on-Kubernetes docs' reference RBAC) — applied (2 to add), then
+    found `deletecollection` was still missing as a separate verb from
+    `delete` (post-job configmap/PVC cleanup uses label-selector bulk
+    delete), fixed in two more small applies. Final rerun: `submit_job.sh`
+    exit 0, zero errors/exceptions anywhere in the driver log.
+- **Completed 3.6's verification, both parts:**
+  - **Data:** silver has 61 real Parquet objects across every `dt=`
+    partition (885 KB), 17 Glue partitions registered via the script's
+    `MSCK REPAIR TABLE` step, and Athena queries `payments_events`
+    successfully (8,723 rows) — the full data path works end-to-end, not
+    just "the job exited 0."
+  - **S3-via-Gateway-endpoint claim (ADR 0007):** confirmed definitively
+    via the private route table itself, not inferred from traffic volume
+    — it has a specific route for the S3 prefix list (`pl-63a5400a`) to
+    the VPC endpoint, which AWS always prefers over the `0.0.0.0/0` NAT
+    route for S3-destined traffic (more specific route wins,
+    deterministically). NAT Gateway did show traffic during the run, but
+    that's fully explained by non-S3 traffic with no endpoint coverage —
+    pulling `apache/spark:3.5.9` from Docker Hub and EKS system images
+    from ECR.
+- **3.7's `terraform destroy` — caught a near-miss, then a real dependency-
+  graph bug, then a real destroy-order gotcha, before it actually
+  finished clean:**
+  - The first `terraform plan -destroy` (no `-target`) came back **72 to
+    destroy** — the entire root module, including bronze/silver/gold, the
+    Glue catalog, and the Lambda ingestion function. Caught before
+    applying anything. Correct scope is `-target=module.spark_job
+    -target=module.spark_operator -target=module.eks -target=module.vpc`.
+  - That scoped plan still pulled in Phase 2's
+    `module.lambda_ingestion.aws_lambda_function.ingest_payments` (35 to
+    destroy) — traced to a real Terraform dependency-graph artifact:
+    `module.iam`'s `role_arns` output is a single map literal built from
+    all 5 roles, so *any* consumer reading one key creates a graph edge to
+    the whole expression, which depends on all 5 underlying role
+    resources — including `spark`, which is genuinely downstream of the
+    EKS OIDC provider. Fixed at the root: added a standalone
+    `ingestion_lambda_role_arn` output to `terraform/modules/iam` and
+    switched `lambda_ingestion`'s module call to read it instead of
+    `role_arns["ingestion_lambda"]` — verified zero resource impact (`No
+    changes`) before relying on it. One further gotcha: the fix didn't
+    take effect until an actual `apply` ran — Terraform's stored
+    `depends_on` metadata per resource is only refreshed on `apply`, not
+    read-only `plan`, so a no-diff `terraform apply` was needed to
+    propagate the graph change into state. Re-planned clean at 32 to
+    destroy (exactly Phase 3's own resources, correctly including
+    `iam.aws_iam_role.spark`).
+  - The apply itself stalled ~5 minutes into destroying the
+    `spark-operator` namespace (`context deadline exceeded`): both nodes
+    had gone `NotReady`, because this cluster's public-only EKS API
+    endpoint (ADR 0007) means nodes reach the control plane via NAT, and
+    Terraform had already destroyed the NAT Gateway in parallel with the
+    Kubernetes cleanup — so kubelet could never confirm pod termination
+    back to the API server. Force-deleted the two stuck pods
+    (`--grace-period=0 --force`), which cleared the namespace immediately;
+    re-planned and applied the remaining 12 resources (EKS cluster, node
+    group, OIDC provider, EKS IAM roles, VPC, private subnets) clean.
+    Documented as an expected recurring gotcha for this design in Notes /
+    blockers, not a one-off bug.
+  - **Verified the teardown was both complete and correctly scoped**,
+    independently of Terraform's own state: `terraform state list` shows
+    zero Phase 3 resources remaining; AWS CLI confirms no EKS clusters, no
+    `cerberus-platform` VPC, no NAT gateways, `cerberus-spark` role gone —
+    and separately, that bronze/silver/gold (61 silver objects intact),
+    the Glue catalog (5 tables), and `cerberus-ingest-payments`
+    (Lambda `Active`, EventBridge schedule `ENABLED`) were all completely
+    undisturbed.
+- **3.2, 3.4, 3.5, 3.6, and 3.7 all checked off in Phases.md** — the first
+  time any of Phase 3's compute subtasks have been marked complete, since
+  all of it is now genuinely applied and verified live, not just planned.
+  Only 3.8 (Well-Architected pass + ADR + Tool milestone) remains to close
+  the phase.
+
 ## Notes / blockers
 
+- **Resolved 2026-08-18:** `spark-application.yaml`'s `apache/spark` image
+  tag and `hadoop-aws` pairing were verified live against Docker Hub before
+  the live pass — see the 2026-08-18 session entry. `3.5.9` (latest patch
+  on the already-targeted 3.5.x line) confirmed via paging Docker Hub's
+  tags API to its last page (the `ordering` param is silently ignored on
+  that endpoint, which is what made earlier lookups look stale);
+  `hadoop-aws:3.3.4` confirmed correct by reading Spark v3.5.9's own
+  `pom.xml`.
 - **AWS Well-Architected Tool tracked state — update this entry at every
   future phase's Well-Architected pass, per the requirement now in
   `docs/plan.md`'s Architecture guiding principle and Phases.md's
@@ -886,23 +1094,52 @@ applied)._
   verified live via `aws wellarchitected list-workloads`/`list-milestones`
   on 2026-08-14 (`cerberus-admin` profile). Milestones saved so far:
   **1** `phase-1-mvp-complete` (2026-08-10), **2**
-  `phase-2-event-driven-ingestion-complete` (2026-08-12). Next one is due at
-  **3.8**, once 3.1–3.7 are actually built — not before: per the Reference
-  section's timing guidance, reviewing a workload before it exists just
-  returns "no"/"not applicable" noise, not signal. When 3.8 lands, save
-  milestone 3 (`phase-3-scalable-compute-complete` or similar) and add it to
-  this list; repeat at 4.5, 5.5, 6.6, and the formal review at 7.4.
+  `phase-2-event-driven-ingestion-complete` (2026-08-12). **3.1–3.7 are now
+  all built and verified live, so milestone 3 is due at 3.8** — save it as
+  `phase-3-scalable-compute-complete` and add it to this list; repeat at
+  4.5, 5.5, 6.6, and the formal review at 7.4.
 - **AWS Agent Toolkit (`aws-core@claude-plugins-official`, installed
   2026-08-11) is in scope for the rest of the build — see `docs/plan.md`'s
   cross-cutting tracks.** Mapped to remaining phases: `aws-compute` (4.1,
   Step Functions), `aws-observability` (Phase 6), `aws-iam` (7.3),
   `aws-sdk-python-usage` (boto3 pattern-checking). Its MCP doc-search/read
   tools are the fallback wherever no packaged skill fits, notably Terraform
-  (no `aws-terraform` skill exists). Still open/unconfirmed: whether
-  `aws-containers` (ECS/Fargate/ECR-named, not EKS-specific) actually gives
-  useful coverage for Phase 3 — 3.2's Terraform modules (2026-08-14) were
-  written without checking this, so it's still genuinely unresolved, not
-  silently answered. Worth checking before 3.4 (Spark Operator install).
+  (no `aws-terraform` skill exists). `aws-containers` (ECS/Fargate/ECR-named,
+  not EKS-specific) was never checked across any of Phase 3's five
+  Terraform-module subtasks (3.2, 3.4, 3.5, and the live pass in 3.6/3.7) —
+  treating this as settled rather than still-open: it evidently doesn't
+  matter for this stack, so it's not worth spending time on for Phase 3.
+  Revisit only if a future phase's own skill mapping calls for it.
+- **Live-pass gotchas worth knowing before any future EKS spin-up/destroy
+  cycle (Phase 3 re-runs, or later phases that provision compute) — see
+  the 2026-08-18 session entry for full detail:**
+  - This AWS account can hit AWS's new-account Free-Tier-only EC2 launch
+    restriction (`InvalidParameterCombination` on node launch). The `eks`
+    module's `node_instance_types` default is now `m7i-flex.large`
+    (Free-Tier-eligible, same 2 vCPU/8 GiB spec as the original
+    `m5.large`) specifically to route around this — check whether the
+    restriction has lifted before assuming a different instance type is
+    safe to use.
+  - **This cluster's public-only EKS API endpoint (ADR 0007) means worker
+    nodes reach the control plane over the internet via NAT.** If
+    `terraform destroy` tears down the NAT Gateway before Kubernetes-
+    managed resources (namespaces, pods) finish deleting, nodes go
+    `NotReady` and pods can get stuck `Terminating` forever, stalling the
+    destroy (`context deadline exceeded`). Fix: `kubectl delete pod
+    --grace-period=0 --force` on whatever's stuck, then re-run
+    `terraform destroy` for the remainder — the AWS-side resources (node
+    group, cluster, VPC) don't depend on pod-termination confirmation the
+    same way. This will very likely recur on every future destroy of this
+    stack; it's an inherent consequence of the public-endpoint design, not
+    a one-off fluke.
+  - **Never run a bare `terraform destroy` (or `plan -destroy`) against
+    `envs/dev` without `-target`.** It targets the *entire* root module,
+    including bronze/silver/gold, the Glue catalog, and the Lambda
+    ingestion function — none of which are part of Phase 3's spin-up/
+    destroy design. Scope to `-target=module.spark_job
+    -target=module.spark_operator -target=module.eks -target=module.vpc`
+    (this also correctly pulls in `module.iam.aws_iam_role.spark`, which
+    is genuinely downstream of the EKS OIDC provider and should go too).
 - **`dynamodb_table` vs. `use_lockfile`: decided 2026-08-08, keep
   DynamoDB for now — Phase 1 (MVP) is done as of today, so this is now
   revisitable with real usage data if there's appetite, but hasn't been

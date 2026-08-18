@@ -22,9 +22,9 @@ variable "private_subnet_ids" {
 # demand curve to autoscale against.
 
 variable "node_instance_types" {
-  description = "Worker node instance type(s). m5.large: enough headroom for a small Spark driver/executor's JVM heap over EKS's own system pod overhead, without over-provisioning a cluster that's torn down within the hour."
+  description = "Worker node instance type(s). m7i-flex.large: same 2 vCPU / 8 GiB spec originally chosen via m5.large (enough headroom for a small Spark driver/executor's JVM heap over EKS's own system pod overhead, without over-provisioning a cluster that's torn down within the hour) -- switched 2026-08-18 because this account is still under AWS's new-account Free-Tier-only EC2 launch restriction (18 days old at the time; m5.large isn't Free-Tier-eligible, m7i-flex.large is) confirmed live via the node group's actual CREATE_FAILED AsgInstanceLaunchFailures error, not guessed ahead of time."
   type        = list(string)
-  default     = ["m5.large"]
+  default     = ["m7i-flex.large"]
 }
 
 variable "node_desired_size" {

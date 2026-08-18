@@ -68,12 +68,12 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 ## Phase 3 — Scalable compute 🔨
 
 - [x] 3.1 VPC design for the cluster (subnets, AZs, routing) + ADR
-- [ ] 3.2 EKS cluster module (spin-up/destroy pattern, not standing infra)
+- [x] 3.2 EKS cluster module (spin-up/destroy pattern, not standing infra)
 - [x] 3.3 Multi-AZ node group decision
-- [ ] 3.4 Spark Operator install
-- [ ] 3.5 Spark job manifest against S3
-- [ ] 3.6 Verify writes to silver/gold
-- [ ] 3.7 `terraform destroy` after each run (cost discipline)
+- [x] 3.4 Spark Operator install
+- [x] 3.5 Spark job manifest against S3
+- [x] 3.6 Verify writes to silver/gold
+- [x] 3.7 `terraform destroy` after each run (cost discipline)
 - [ ] 3.8 Well-Architected pass + ADR
 
 ## Phase 4 — Orchestration ⬜

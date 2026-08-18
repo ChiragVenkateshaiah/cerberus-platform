@@ -15,8 +15,10 @@ real Athena query against gold and get a result; `terraform apply` and
 triggered by EventBridge Scheduler, confirmed firing unattended; the
 Phase 0 systemd timer is retired.
 🔨 Phase 3 (scalable compute) — in progress. ADR 0007 (VPC network design
-for Spark-on-EKS) is accepted; the VPC + EKS Terraform modules are written
-and plan-verified, not yet applied.
+for Spark-on-EKS) is accepted; the full stack (VPC, EKS, Spark Operator,
+Spark job) was applied live, a real Spark job ran on EKS and wrote
+verified output to silver, and the stack was destroyed cleanly. Only the
+closing Well-Architected pass remains.
 
 See [docs/plan.md](docs/plan.md) for the full phased roadmap (Phases 0–7)
 and [Phases.md](Phases.md) for subtask-level progress.
@@ -95,7 +97,8 @@ constraints behind this diagram, see
 ├── terraform/
 │   ├── bootstrap/        # state backend as code (S3 + DynamoDB lock)
 │   ├── modules/          # reusable modules (S3 medallion, IAM, Glue
-│   │                     #   catalog, Athena, Lambda ingestion, VPC, EKS)
+│   │                     #   catalog, Athena, Lambda ingestion, VPC, EKS,
+│   │                     #   Spark Operator, Spark job service account)
 │   └── envs/dev/         # dev environment root module
 ├── ingestion/scripts/    # ingestion scripts: synthetic payments generator
 │                         #   + shared payments_lib.py core (Python, Phase
@@ -110,6 +113,10 @@ constraints behind this diagram, see
 │                         #   Phase 1): silver = flattened event history,
 │                         #   gold = current-state (still denormalized)
 ├── transform/dbt/        # dbt project: gold fact/dimension models (1.9)
+├── transform/spark/      # PySpark bronze -> silver job (3.5), run on the
+│                         #   EKS cluster via the Spark Operator (3.4);
+│                         #   spark-application.yaml + submit_job.sh (not
+│                         #   Terraform-managed -- see its own header)
 ├── serving/queries/      # demo Athena SQL against gold (1.10)
 ├── serving/scripts/      # runs the demo query as cerberus-serving
 └── data/samples/         # small sample datasets for local testing

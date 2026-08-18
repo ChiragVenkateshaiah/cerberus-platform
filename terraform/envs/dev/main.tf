@@ -39,7 +39,7 @@ module "lambda_ingestion" {
   source = "../../modules/lambda_ingestion"
 
   bronze_bucket_name = module.s3_medallion.bucket_names["bronze"]
-  execution_role_arn = module.iam.role_arns["ingestion_lambda"]
+  execution_role_arn = module.iam.ingestion_lambda_role_arn
 }
 
 module "vpc" {

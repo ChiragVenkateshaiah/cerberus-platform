@@ -2,14 +2,13 @@
 # (see terraform/modules/spark_job/main.tf's header for why: this represents
 # a job *run*, not standing infrastructure).
 #
-# image/sparkVersion: apache/spark:3.5.3 is the last version confirmed to
-# exist as of this repo's training-data cutoff, not independently verified
-# live against Docker Hub's current tags -- same flagged-not-fabricated
-# treatment already given to the eks module's kubernetes_version and the
-# spark_operator module's chart_version. Confirm/bump this against
-# https://hub.docker.com/r/apache/spark/tags before running 3.6, and keep
-# hadoop-aws's version below paired to whatever Hadoop client that image tag
-# actually bundles -- a mismatch here is a classic, hard-to-debug
+# image/sparkVersion: apache/spark:3.5.9 verified live against Docker Hub's
+# tags API on 2026-08-18 (paging to the last page -- the API's `ordering`
+# param is silently ignored on this endpoint, which is what made earlier
+# lookups look stale). 3.5.9 is the latest patch on the 3.5.x line this
+# manifest already targeted. hadoop-aws's version below is paired by reading
+# v3.5.9's own pom.xml (<hadoop.version>3.3.4</hadoop.version>) rather than
+# guessed -- a mismatch here is a classic, hard-to-debug
 # ClassNotFoundException at runtime, not a startup-time config error.
 apiVersion: sparkoperator.k8s.io/v1beta2
 kind: SparkApplication
@@ -20,9 +19,9 @@ spec:
   type: Python
   pythonVersion: "3"
   mode: cluster
-  image: "apache/spark:3.5.3"
+  image: "apache/spark:3.5.9"
   imagePullPolicy: IfNotPresent
-  sparkVersion: "3.5.3"
+  sparkVersion: "3.5.9"
   # Uploaded here by submit_job.sh, not baked into the image -- silver is
   # the bucket this job already writes its actual output to and cerberus-spark
   # already has read/write there, so no new bucket or IAM grant is needed
@@ -39,15 +38,23 @@ spec:
       - org.apache.hadoop:hadoop-aws:3.3.4
   sparkConf:
     spark.hadoop.fs.s3a.aws.credentials.provider: "com.amazonaws.auth.WebIdentityTokenCredentialsProvider"
+    # The Spark Operator's controller resolves `deps.packages` locally via
+    # Ivy *inside its own pod* before ever creating a driver -- and that
+    # pod's $HOME is /nonexistent (a hardened non-root container), so Ivy's
+    # default $HOME/.ivy2 cache path fails outright. Point it at /tmp
+    # instead, which is writable in any container. Discovered live: the
+    # first submission attempt failed with a FileNotFoundException under
+    # /nonexistent/.ivy2.5.2/cache before a driver pod was ever scheduled.
+    spark.jars.ivy: "/tmp/.ivy2"
   driver:
     cores: 1
     memory: "1g"
     serviceAccount: cerberus-spark
     labels:
-      version: "3.5.3"
+      version: "3.5.9"
   executor:
     cores: 1
     instances: 1
     memory: "1g"
     labels:
-      version: "3.5.3"
+      version: "3.5.9"
