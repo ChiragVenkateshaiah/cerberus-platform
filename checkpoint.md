@@ -12,12 +12,13 @@ Phase 1 — MVP: end-to-end lakehouse is **✅ complete** (1.1–1.13, see
 [Phases.md](Phases.md#phase-1--mvp-end-to-end-lakehouse--)). Phase 2 —
 Event-driven ingestion is **✅ complete** (2.1–2.6, all verified live — see
 [Phases.md](Phases.md#phase-2--event-driven-ingestion-)). Phase 3 —
-Scalable compute is **🔨 in progress**: **3.1–3.7 are all ✅ complete**
-(ADR 0007 accepted; the VPC, EKS, Spark Operator, and Spark job Terraform
-modules were applied live end-to-end on 2026-08-18 — cluster up, job run
-on real EKS, silver/Glue verified, full stack destroyed cleanly). **Only
-3.8 (Well-Architected pass + ADR + Tool milestone) remains** to close the
-phase.
+Scalable compute is **✅ complete** (3.1–3.8, see
+[Phases.md](Phases.md#phase-3--scalable-compute-)): ADR 0007's VPC/EKS
+design was applied live end-to-end on 2026-08-18 — cluster up, a real
+Spark job run on EKS, silver/Glue verified, full stack destroyed cleanly —
+and ADR 0008 closes the phase's Well-Architected pass (milestone 3,
+`phase-3-scalable-compute-complete`). **Phase 4 — Orchestration hasn't
+started.**
 
 **Note:** the roadmap was re-scoped on 2026-08-03 from 9 phases (0–8) to
 8 (0–7). The old "Phase 1 — IaC foundation" no longer exists as a phase;
@@ -26,21 +27,23 @@ subtasks. Session history entries before that date use the old numbering.
 
 ## Next up
 
-- **3.8 — Phase 3's Well-Architected pass + ADR, plus a new Tool
-  milestone.** This is the only thing left to close Phase 3. Write the ADR
-  using the pillar-as-question-generator method (see the Reference section
-  below — render it in full before starting, per `/start-day`'s own rule),
-  covering what 3.1–3.7 actually built and verified live: the VPC/EKS
-  spin-up-destroy pattern, the Free-Tier instance-type constraint hit and
-  worked around, the Spark-on-K8s RBAC/Ivy fixes, the near-miss full
-  `terraform destroy` and the `-target`-scoping fix, and the NAT/node-
-  readiness destroy-order gotcha (all in the 2026-08-18 session entry
-  below). Then save Tool milestone 3, `phase-3-scalable-compute-complete`
-  — see Notes / blockers for the workload ID and current milestone list.
-  Two required parts, not just the ADR (per the durable requirement from
-  2026-08-14's session).
-- No open blockers gate 3.8 — see Notes / blockers below for what's still
-  open generally (none of it blocks starting the Well-Architected pass).
+- **4.1 — ADR: Step Functions vs. Airflow.** Opens Phase 4 (Orchestration).
+  Use the pillar-as-question-generator method (Reference section below —
+  render it in full before starting, per `/start-day`'s own rule). The
+  real decisions on the table: does this project need a second
+  orchestration tool at all, given EventBridge Scheduler already handles
+  2.1's trigger and `submit_job.sh`'s own polling loop already sequences
+  3.5/3.6's steps — or does 4.4's "full ingest → transform → serve flow as
+  one orchestrated run" need something that can express dependencies
+  across Lambda, Spark-on-EKS, dbt, and Athena as a single observable
+  graph, which neither of those ad hoc mechanisms can do today. AWS Step
+  Functions has the stronger course-alignment case per
+  `docs/courses-map-to-phases.md`; Airflow would be the first
+  non-serverless standing service in this stack (contrasts with every
+  other Phase 1–3 compute choice, which is either serverless or
+  spin-up/destroy) — that tension is itself worth naming in the ADR.
+- No open blockers gate 4.1 — see Notes / blockers below for what's still
+  open generally (none of it blocks starting Phase 4).
 
 ## Session history
 
@@ -1075,6 +1078,31 @@ complete; only 3.8 remains to close Phase 3._
   all of it is now genuinely applied and verified live, not just planned.
   Only 3.8 (Well-Architected pass + ADR + Tool milestone) remains to close
   the phase.
+- **Ran 3.8, closing Phase 3.** Diffed milestone 2
+  (`phase-2-event-driven-ingestion-complete`) against a new milestone 3
+  (`phase-3-scalable-compute-complete`), same pattern as ADR 0004/0006.
+  Three questions re-answered with concrete new evidence, all from this
+  session's actual live pass, not re-labeled old evidence:
+  `fault-isolation` (Reliability) fully resolved, HIGH → NONE — the EKS
+  node group's live-confirmed multi-AZ placement (two `Ready` nodes on
+  different subnets/AZs) is the compute layer's first genuine multi-AZ
+  deployment; `ready-to-support` (Operational Excellence) gained "use
+  playbooks" — the Ivy-cache, RBAC, and NAT/destroy-order fixes are
+  genuine investigate-diagnose-fix playbooks, not routine runbooks, now
+  written up reusably in this file's Notes / blockers; `manage-service-limits`
+  (Reliability) moved off "None of these" — the Free-Tier EC2 restriction
+  was investigated and durably documented, honest partial credit for a
+  reactive discovery, not proactive quota management. Two items
+  considered and explicitly not forced: `identities` (Security) — IRSA is
+  a genuinely new mechanism but the Tool's matching checkbox is scoped to
+  workforce identity, not workload identity; `sus_hardware`
+  (Sustainability) — `m7i-flex.large` is more efficient than `m5.large`,
+  but the switch was driven by the Free-Tier constraint, not an
+  energy-efficiency evaluation. Overall: HIGH 26→25, NONE 8→9. Wrote
+  `docs/adr/0008-phase-3-well-architected-review.md` documenting all of
+  this pillar-by-pillar, matching ADR 0004/0006's review-ADR shape.
+  **Phase 3 flipped to ✅ Complete** across `Phases.md`, `docs/plan.md`'s
+  roadmap table, and README's status line.
 
 ## Notes / blockers
 
@@ -1094,10 +1122,10 @@ complete; only 3.8 remains to close Phase 3._
   verified live via `aws wellarchitected list-workloads`/`list-milestones`
   on 2026-08-14 (`cerberus-admin` profile). Milestones saved so far:
   **1** `phase-1-mvp-complete` (2026-08-10), **2**
-  `phase-2-event-driven-ingestion-complete` (2026-08-12). **3.1–3.7 are now
-  all built and verified live, so milestone 3 is due at 3.8** — save it as
-  `phase-3-scalable-compute-complete` and add it to this list; repeat at
-  4.5, 5.5, 6.6, and the formal review at 7.4.
+  `phase-2-event-driven-ingestion-complete` (2026-08-12), **3**
+  `phase-3-scalable-compute-complete` (2026-08-18, see ADR 0008). Next one
+  is due at **4.5**, once Phase 4 (Orchestration) is built — not before;
+  repeat at 5.5, 6.6, and the formal review at 7.4.
 - **AWS Agent Toolkit (`aws-core@claude-plugins-official`, installed
   2026-08-11) is in scope for the rest of the build — see `docs/plan.md`'s
   cross-cutting tracks.** Mapped to remaining phases: `aws-compute` (4.1,

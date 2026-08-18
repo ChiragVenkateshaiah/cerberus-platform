@@ -140,7 +140,7 @@ layered on top of a platform that already works.
 | 0 | Foundation (built by hand) | Git, AWS CLI, S3, IAM, bash, systemd | DevOps prereq, Linux | ✅ Complete |
 | 1 | **MVP: end-to-end lakehouse** | Terraform, Glue Data Catalog, Athena, dbt | AWS Cloud Practitioner, S3, IAM, Terraform | ✅ Complete |
 | 2 | Event-driven ingestion | Lambda, S3 events / EventBridge | AWS Lambda | ✅ Complete |
-| 3 | Scalable compute | EKS, Spark Operator | AWS EKS | ⬜ Planned |
+| 3 | Scalable compute | EKS, Spark Operator | AWS EKS | ✅ Complete |
 | 4 | Orchestration | AWS Step Functions | _(course gap — AWS workshop)_ | ⬜ Planned |
 | 5 | CI/CD | AWS CodePipeline | AWS CodePipeline | ⬜ Planned |
 | 6 | Observability & data quality | CloudWatch, dbt tests | AWS CloudWatch | ⬜ Planned |
