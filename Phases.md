@@ -79,7 +79,7 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 ## Phase 4 — Orchestration ⬜
 
 - [x] 4.1 ADR: Step Functions vs. Airflow
-- [ ] 4.2 State machine definition as code
+- [x] 4.2 State machine definition as code
 - [ ] 4.3 Retries + visibility
 - [ ] 4.4 Full ingest → transform → serve flow as one orchestrated run
 - [ ] 4.5 Well-Architected pass + ADR

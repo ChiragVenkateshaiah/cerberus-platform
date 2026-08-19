@@ -59,3 +59,16 @@ variable "spark_service_account" {
   type        = string
   default     = "spark-jobs:cerberus-spark"
 }
+
+# 4.2: built from a literal name, not module.eks.cluster_name -- taking
+# the eks module's output here would make this module depend on eks,
+# while eks's own access entry (for orchestration_transform's role,
+# defined below) needs this module's role ARN, which would create a
+# module dependency cycle. The default matches the eks module's own
+# cluster_name default; the root module passes both from one shared
+# local so they can't drift independently.
+variable "eks_cluster_name" {
+  description = "EKS cluster name, used only to build its ARN for cerberus-orchestration-transform's eks:DescribeCluster grant."
+  type        = string
+  default     = "cerberus-platform-eks"
+}

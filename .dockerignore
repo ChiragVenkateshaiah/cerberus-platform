@@ -1,0 +1,19 @@
+# Build context for orchestration/runner/Dockerfile is the repo root (see
+# that file's header) -- without this, COPY transform/dbt/ pulls in
+# whatever gitignored local dbt artifacts happen to sit in the working
+# tree at build time (target/, dbt_packages/, logs/, .user.yml), making
+# the image non-reproducible and letting stale partial-parse state leak
+# into the containerized dbt run. Mirrors transform/dbt's own entries in
+# .gitignore exactly -- keep the two in sync if either changes.
+transform/dbt/target/
+transform/dbt/dbt_packages/
+transform/dbt/logs/
+transform/dbt/.user.yml
+
+# Not needed inside the image and large/irrelevant to the build either way.
+.git/
+.venv/
+**/__pycache__/
+terraform/
+docs/
+articles/
