@@ -83,3 +83,15 @@ variable "gold_bucket_arn" {
   description = "Gold bucket ARN (s3_medallion module) -- the state machine role's read grant for the serving query."
   type        = string
 }
+
+variable "schedule_expression" {
+  description = "EventBridge Scheduler cron/rate expression for the daily orchestrated run -- moved here from lambda_ingestion (4.3), same default it used."
+  type        = string
+  default     = "cron(0 0 * * ? *)" # daily at 00:00 UTC
+}
+
+variable "schedule_timezone" {
+  description = "Schedule timezone -- fixed to UTC per ADR 0005 (events are partitioned by UTC event day), same as lambda_ingestion's schedule before this moved here."
+  type        = string
+  default     = "UTC"
+}

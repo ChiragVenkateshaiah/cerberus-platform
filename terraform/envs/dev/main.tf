@@ -111,6 +111,24 @@ module "orchestration_runner" {
   athena_workgroup_name = module.athena.workgroup_name
 }
 
+# 4.3: EventBridge Scheduler retargeted from invoking the ingestion Lambda
+# directly to starting the orchestration state machine instead (ADR 0009
+# left this open for this subtask). `moved`, not destroy+recreate --
+# these are the currently-live Phase 2 scheduler resources (Phase 3/4
+# aren't applied yet), and a formal move avoids a real, if brief, gap in
+# the daily trigger. Declared here rather than inside either module: a
+# cross-module move has to reference both full module paths, which only
+# a common ancestor (this root module) can do.
+moved {
+  from = module.lambda_ingestion.aws_iam_role.scheduler
+  to   = module.step_functions.aws_iam_role.scheduler
+}
+
+moved {
+  from = module.lambda_ingestion.aws_scheduler_schedule.daily
+  to   = module.step_functions.aws_scheduler_schedule.daily
+}
+
 module "step_functions" {
   source = "../../modules/step_functions"
 

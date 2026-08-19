@@ -1,11 +1,18 @@
-# 2.1/2.2 -- the ingestion Lambda and its EventBridge Scheduler trigger
-# (ADR 0005: pull-shaped, not S3-event-triggered -- generate_payments.py
-# produces its own data, there's no upstream write to react to). Replaces
-# cerberus-payments.timer + run_payments_scheduled.sh's trigger role (2.5
-# retires that timer once this is verified end to end). The generation
-# logic itself lives in ingestion/scripts/payments_lib.py, shared with the
-# CLI script (generate_payments.py) for manual runs -- see
+# 2.1/2.2 -- the ingestion Lambda (ADR 0005: pull-shaped, not
+# S3-event-triggered -- generate_payments.py produces its own data,
+# there's no upstream write to react to). The generation logic itself
+# lives in ingestion/scripts/payments_lib.py, shared with the CLI script
+# (generate_payments.py) for manual runs -- see
 # ingestion/lambda/handler.py's docstring for the full picture.
+#
+# This module no longer owns the schedule that triggers it -- 4.3 moved
+# aws_scheduler_schedule.daily and its own execution role to
+# terraform/modules/step_functions (via `moved` blocks in
+# terraform/envs/dev/main.tf), retargeted to start the orchestration state
+# machine instead of invoking this Lambda directly, per ADR 0009. This
+# Lambda is still directly invocable by hand (as before 2.1) and is what
+# the state machine's own InvokeIngestion step calls -- it just isn't
+# independently scheduled anymore.
 
 # --- Function code: handler.py + payments_lib.py, flattened into one zip
 # so they import as siblings, same as they will when the Lambda unzips
@@ -78,72 +85,6 @@ resource "aws_lambda_function" "ingest_payments" {
       BRONZE_BUCKET      = var.bronze_bucket_name
       RETIRE_ON_OR_AFTER = var.retire_on_or_after
       TRANSACTION_COUNT  = tostring(var.transaction_count)
-    }
-  }
-}
-
-# --- EventBridge Scheduler: daily invocation, no invocation-level retry --
-# (ADR 0005: retries here would regenerate a different, unseeded dataset
-# and duplicate data into append-only bronze -- payments_lib.S3_CLIENT_CONFIG's
-# client-level retry on each partition's put_object is the only retry
-# layer). Scheduler needs its own
-# execution role distinct from the Lambda's -- this is the role Scheduler
-# itself assumes to call lambda:InvokeFunction, not the role the function
-# runs as.
-
-resource "aws_iam_role" "scheduler" {
-  name = "cerberus-ingest-payments-scheduler"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect    = "Allow"
-        Principal = { Service = "scheduler.amazonaws.com" }
-        Action    = "sts:AssumeRole"
-      }
-    ]
-  })
-}
-
-resource "aws_iam_role_policy" "scheduler_invoke" {
-  name = "invoke-ingest-payments"
-  role = aws_iam_role.scheduler.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect   = "Allow"
-        Action   = "lambda:InvokeFunction"
-        Resource = aws_lambda_function.ingest_payments.arn
-      }
-    ]
-  })
-}
-
-resource "aws_scheduler_schedule" "daily" {
-  name       = "cerberus-ingest-payments-daily"
-  group_name = "default"
-
-  # UTC, fixed explicitly rather than left to default: generate_payments.py
-  # (and this handler) partition events by UTC event day, so an
-  # unconsidered timezone choice here would silently shift which dt=
-  # partition a run lands in relative to today's systemd timer
-  # (OnCalendar=daily, local time) -- ADR 0005.
-  schedule_expression          = var.schedule_expression
-  schedule_expression_timezone = var.schedule_timezone
-
-  flexible_time_window {
-    mode = "OFF"
-  }
-
-  target {
-    arn      = aws_lambda_function.ingest_payments.arn
-    role_arn = aws_iam_role.scheduler.arn
-
-    retry_policy {
-      maximum_retry_attempts = 0
     }
   }
 }
