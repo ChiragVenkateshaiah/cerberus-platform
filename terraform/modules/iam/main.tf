@@ -46,6 +46,8 @@ locals {
   # OIDC issuer URL without its https:// scheme -- how it appears as the
   # Condition key prefix in an IRSA trust policy.
   oidc_issuer_host = replace(var.eks_oidc_issuer_url, "https://", "")
+
+  eks_cluster_arn = "arn:aws:eks:${var.region}:${var.account_id}:cluster/${var.eks_cluster_name}"
 }
 
 # --- Ingestion: write-only, bronze/payments/* ---------------------------
@@ -289,6 +291,217 @@ resource "aws_iam_role_policy" "spark" {
         Effect   = "Allow"
         Action   = "s3:ListBucket"
         Resource = var.bucket_arns["silver"]
+      }
+    ]
+  })
+}
+
+# --- Orchestration (4.2): three roles for the ECS Fargate tasks and the --
+# state machine itself. Two carry their full inline policy here, matching
+# every other role in this module; the third (orchestration_state_machine)
+# gets its trust policy here but its inline policy in
+# terraform/modules/step_functions -- see that module's main.tf header for
+# why (breaking a module dependency cycle on the ECS task-definition ARNs
+# it needs, which don't exist until after this module's task roles do).
+
+# cerberus-orchestration-transform: what submit_job.sh (3.5/3.6) already
+# does by hand -- upload the Spark script, run MSCK REPAIR TABLE -- plus
+# eks:DescribeCluster for the in-container `aws eks update-kubeconfig`
+# step. Deliberately narrower than cerberus-transform: no bronze/gold
+# access, since this task never touches either.
+
+resource "aws_iam_role" "orchestration_transform" {
+  name = "cerberus-orchestration-transform"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect    = "Allow"
+        Principal = { Service = "ecs-tasks.amazonaws.com" }
+        Action    = "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "orchestration_transform" {
+  name = "cerberus-orchestration-transform-policy"
+  role = aws_iam_role.orchestration_transform.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "UploadSparkScriptToSilver"
+        Effect   = "Allow"
+        Action   = "s3:PutObject"
+        Resource = "${var.bucket_arns["silver"]}/_spark_jobs/*"
+      },
+      {
+        Sid    = "RegisterPaymentsEventsPartitions"
+        Effect = "Allow"
+        Action = ["glue:GetTable", "glue:BatchCreatePartition", "glue:GetPartitions"]
+        Resource = [
+          local.glue_catalog_arn,
+          local.glue_database_arn,
+          local.glue_partition_table_arn,
+        ]
+      },
+      {
+        Sid      = "RunAthenaQueries"
+        Effect   = "Allow"
+        Action   = ["athena:StartQueryExecution", "athena:GetQueryExecution", "athena:GetQueryResults", "athena:StopQueryExecution", "athena:GetWorkGroup"]
+        Resource = local.athena_workgroup_arn
+      },
+      {
+        Sid      = "WriteAthenaResults"
+        Effect   = "Allow"
+        Action   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+        Resource = "${var.athena_results_bucket_arn}/*"
+      },
+      {
+        Sid      = "ListAthenaResults"
+        Effect   = "Allow"
+        Action   = ["s3:ListBucket", "s3:GetBucketLocation"]
+        Resource = var.athena_results_bucket_arn
+      },
+      {
+        Sid      = "DescribeClusterForKubeconfig"
+        Effect   = "Allow"
+        Action   = "eks:DescribeCluster"
+        Resource = local.eks_cluster_arn
+      }
+    ]
+  })
+}
+
+# cerberus-orchestration-dbt: the Athena/Glue/S3 subset of
+# cerberus-transform's policy that covers dbt's actual DDL surface -- no
+# bronze/silver access, no partition registration; dbt only ever touches
+# gold.
+
+resource "aws_iam_role" "orchestration_dbt" {
+  name = "cerberus-orchestration-dbt"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect    = "Allow"
+        Principal = { Service = "ecs-tasks.amazonaws.com" }
+        Action    = "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "orchestration_dbt" {
+  name = "cerberus-orchestration-dbt-policy"
+  role = aws_iam_role.orchestration_dbt.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "ManageDbtGoldTables"
+        Effect = "Allow"
+        Action = [
+          "glue:GetDatabase",
+          "glue:GetDatabases",
+          "glue:GetTable",
+          "glue:GetTables",
+          "glue:CreateTable",
+          "glue:UpdateTable",
+          "glue:DeleteTable",
+          "glue:BatchCreatePartition",
+          "glue:GetPartitions",
+          "glue:BatchDeletePartition",
+        ]
+        Resource = [
+          local.glue_catalog_arn,
+          local.glue_database_arn,
+          local.glue_dbt_fct_table_arn,
+          local.glue_dbt_dim_table_arn,
+        ]
+      },
+      {
+        Sid      = "RunAthenaQueries"
+        Effect   = "Allow"
+        Action   = ["athena:StartQueryExecution", "athena:GetQueryExecution", "athena:GetQueryResults", "athena:StopQueryExecution", "athena:GetWorkGroup"]
+        Resource = local.athena_workgroup_arn
+      },
+      {
+        Sid      = "ReadWriteGold"
+        Effect   = "Allow"
+        Action   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+        Resource = "${var.bucket_arns["gold"]}/*"
+      },
+      {
+        Sid      = "ListGold"
+        Effect   = "Allow"
+        Action   = "s3:ListBucket"
+        Resource = var.bucket_arns["gold"]
+      },
+      {
+        Sid      = "WriteAthenaResults"
+        Effect   = "Allow"
+        Action   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+        Resource = "${var.athena_results_bucket_arn}/*"
+      },
+      {
+        Sid      = "ListAthenaResults"
+        Effect   = "Allow"
+        Action   = ["s3:ListBucket", "s3:GetBucketLocation"]
+        Resource = var.athena_results_bucket_arn
+      }
+    ]
+  })
+}
+
+# cerberus-orchestration-ecs-execution: shared by both task definitions
+# above, distinct from either task's own role -- ECS's own two-role model
+# (task role = what the app code inside the container can call; execution
+# role = what the ECS agent uses to pull the image and deliver logs
+# before the app code even starts). AWS-managed, not inline -- the same
+# "runtime boilerplate" exception this module already makes for
+# ingestion_lambda's AWSLambdaBasicExecutionRole.
+
+resource "aws_iam_role" "orchestration_ecs_execution" {
+  name = "cerberus-orchestration-ecs-execution"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect    = "Allow"
+        Principal = { Service = "ecs-tasks.amazonaws.com" }
+        Action    = "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "orchestration_ecs_execution" {
+  role       = aws_iam_role.orchestration_ecs_execution.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+# cerberus-orchestration-state-machine: trust policy only. Its inline
+# policy is attached in terraform/modules/step_functions (see that
+# module's header) -- it needs ARNs (the ECS task definitions) that don't
+# exist until after this module's own roles do.
+
+resource "aws_iam_role" "orchestration_state_machine" {
+  name = "cerberus-orchestration-state-machine"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect    = "Allow"
+        Principal = { Service = "states.amazonaws.com" }
+        Action    = "sts:AssumeRole"
       }
     ]
   })

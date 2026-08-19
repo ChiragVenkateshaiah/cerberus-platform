@@ -129,3 +129,14 @@ resource "aws_iam_openid_connect_provider" "eks" {
 
   tags = { Phase = "3" }
 }
+
+# NB (4.2): the access entry for cerberus-orchestration-transform's IAM
+# role deliberately does NOT live here, even though this module owns
+# every other cluster-level access concern. This module's own
+# oidc_provider_arn/oidc_issuer_url outputs feed module.iam's cerberus-spark
+# trust policy -- iam already depends on eks. An access entry here would
+# need module.iam's orchestration_transform role ARN, making eks depend on
+# iam right back -- a real module cycle, not a hypothetical one. It lives
+# in terraform/modules/spark_job instead, alongside the RBAC
+# role/binding that grants that same principal's actual permissions --
+# spark_job already depends on both modules with no reverse edge.

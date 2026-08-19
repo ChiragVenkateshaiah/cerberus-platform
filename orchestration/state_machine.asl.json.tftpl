@@ -1,0 +1,136 @@
+{
+  "Comment": "Cerberus 4.2 -- full ingest -> transform -> dbt -> serve orchestration (ADR 0009). Retry/Catch policies here are a deliberate baseline, not final tuning -- 4.3 (Retries + visibility) owns that. TimeoutSeconds on every state IS load-bearing now, not deferred to 4.3: it's the outer safety net against an ECS task hanging past its own internal poll-loop bound (see entrypoint_transform.sh's SPARK_POLL_MAX_ATTEMPTS/REPAIR_POLL_MAX_ATTEMPTS) or a native integration never returning.",
+  "StartAt": "InvokeIngestion",
+  "States": {
+    "InvokeIngestion": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${ingestion_lambda_arn}"
+      },
+      "ResultPath": "$.ingestion",
+      "TimeoutSeconds": 120,
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException", "Lambda.TooManyRequestsException"],
+          "IntervalSeconds": 30,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "PipelineFailed"
+        }
+      ],
+      "Next": "RunTransform"
+    },
+    "RunTransform": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::ecs:runTask.sync2",
+      "Parameters": {
+        "LaunchType": "FARGATE",
+        "Cluster": "${ecs_cluster_arn}",
+        "TaskDefinition": "${transform_task_definition_arn}",
+        "NetworkConfiguration": {
+          "AwsvpcConfiguration": {
+            "Subnets": ${subnet_ids_json},
+            "SecurityGroups": ["${security_group_id}"],
+            "AssignPublicIp": "DISABLED"
+          }
+        }
+      },
+      "ResultPath": "$.transform",
+      "TimeoutSeconds": 2100,
+      "Retry": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "IntervalSeconds": 30,
+          "MaxAttempts": 1,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "PipelineFailed"
+        }
+      ],
+      "Next": "RunDbt"
+    },
+    "RunDbt": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::ecs:runTask.sync2",
+      "Parameters": {
+        "LaunchType": "FARGATE",
+        "Cluster": "${ecs_cluster_arn}",
+        "TaskDefinition": "${dbt_task_definition_arn}",
+        "NetworkConfiguration": {
+          "AwsvpcConfiguration": {
+            "Subnets": ${subnet_ids_json},
+            "SecurityGroups": ["${security_group_id}"],
+            "AssignPublicIp": "DISABLED"
+          }
+        }
+      },
+      "ResultPath": "$.dbt",
+      "TimeoutSeconds": 900,
+      "Retry": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "IntervalSeconds": 30,
+          "MaxAttempts": 1,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "PipelineFailed"
+        }
+      ],
+      "Next": "RunServingQuery"
+    },
+    "RunServingQuery": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::athena:startQueryExecution.sync",
+      "Parameters": {
+        "QueryString": ${demo_query_json},
+        "QueryExecutionContext": {
+          "Database": "${athena_database}"
+        },
+        "WorkGroup": "${athena_workgroup}"
+      },
+      "ResultPath": "$.servingQuery",
+      "TimeoutSeconds": 300,
+      "Retry": [
+        {
+          "ErrorEquals": ["Athena.AmazonAthenaException"],
+          "IntervalSeconds": 15,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "PipelineFailed"
+        }
+      ],
+      "Next": "PipelineSucceeded"
+    },
+    "PipelineSucceeded": {
+      "Type": "Succeed"
+    },
+    "PipelineFailed": {
+      "Type": "Fail",
+      "Error": "CerberusPipelineFailed",
+      "Cause": "One or more pipeline steps failed - see the failed state's ResultPath ($.error) in this execution's history for details."
+    }
+  }
+}
