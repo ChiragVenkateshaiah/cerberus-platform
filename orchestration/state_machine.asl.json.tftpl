@@ -1,5 +1,5 @@
 {
-  "Comment": "Cerberus 4.2 -- full ingest -> transform -> dbt -> serve orchestration (ADR 0009). Retry/Catch policies here are a deliberate baseline, not final tuning -- 4.3 (Retries + visibility) owns that. TimeoutSeconds on every state IS load-bearing now, not deferred to 4.3: it's the outer safety net against an ECS task hanging past its own internal poll-loop bound (see entrypoint_transform.sh's SPARK_POLL_MAX_ATTEMPTS/REPAIR_POLL_MAX_ATTEMPTS) or a native integration never returning.",
+  "Comment": "Cerberus 4.2/4.3 -- full ingest -> transform -> dbt -> serve orchestration (ADR 0009). Each state's own Comment explains its Retry policy's reasoning -- InvokeIngestion deliberately has none (ADR 0005: retrying would regenerate and duplicate unseeded data), RunTransform/RunDbt retry twice (both are idempotent end to end). TimeoutSeconds on every state is the outer safety net against an ECS task hanging past its own internal poll-loop bound (see entrypoint_transform.sh's SPARK_POLL_MAX_ATTEMPTS/REPAIR_POLL_MAX_ATTEMPTS) or a native integration never returning. Execution-level visibility (CloudWatch Logs, X-Ray) is configured on the aws_sfn_state_machine resource itself, not in this definition.",
   "StartAt": "InvokeIngestion",
   "States": {
     "InvokeIngestion": {
@@ -10,14 +10,7 @@
       },
       "ResultPath": "$.ingestion",
       "TimeoutSeconds": 120,
-      "Retry": [
-        {
-          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException", "Lambda.TooManyRequestsException"],
-          "IntervalSeconds": 30,
-          "MaxAttempts": 2,
-          "BackoffRate": 2.0
-        }
-      ],
+      "Comment": "Deliberately no Retry block (4.3). A retry here re-invokes the Lambda from scratch, re-running its intentionally unseeded generator (payments_lib.py) and appending a different dataset into append-only bronze -- exactly the risk ADR 0005 eliminated by setting the EventBridge Scheduler target's own maximum_retry_attempts to 0. A Step Functions-level retry would reintroduce it one layer up. Genuine failures still route to PipelineFailed via Catch below.",
       "Catch": [
         {
           "ErrorEquals": ["States.ALL"],
@@ -44,11 +37,12 @@
       },
       "ResultPath": "$.transform",
       "TimeoutSeconds": 2100,
+      "Comment": "MaxAttempts 2 (4.3): safe to retry the whole task, not just tolerated -- entrypoint_transform.sh deletes any prior SparkApplication before resubmitting, silver's day-partition Parquet files are overwritten deterministically on rebuild (1.7), and MSCK REPAIR TABLE is idempotent. A retry cleanly redoes the step, not a partial/duplicated one.",
       "Retry": [
         {
           "ErrorEquals": ["States.ALL"],
           "IntervalSeconds": 30,
-          "MaxAttempts": 1,
+          "MaxAttempts": 2,
           "BackoffRate": 2.0
         }
       ],
@@ -78,11 +72,12 @@
       },
       "ResultPath": "$.dbt",
       "TimeoutSeconds": 900,
+      "Comment": "MaxAttempts 2 (4.3): dbt's own +materialized: table config (1.9) does a full rebuild every run, same idempotency property RunTransform's comment above describes -- a retry is a clean redo, not a partial/duplicated one.",
       "Retry": [
         {
           "ErrorEquals": ["States.ALL"],
           "IntervalSeconds": 30,
-          "MaxAttempts": 1,
+          "MaxAttempts": 2,
           "BackoffRate": 2.0
         }
       ],

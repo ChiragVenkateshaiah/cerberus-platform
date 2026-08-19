@@ -8,18 +8,6 @@ variable "execution_role_arn" {
   type        = string
 }
 
-variable "schedule_expression" {
-  description = "EventBridge Scheduler cron/rate expression for the daily run."
-  type        = string
-  default     = "cron(0 0 * * ? *)" # daily at 00:00, in schedule_timezone -- matches cerberus-payments.timer's OnCalendar=daily
-}
-
-variable "schedule_timezone" {
-  description = "Schedule timezone -- fixed to UTC per ADR 0005, since events are partitioned by UTC event day."
-  type        = string
-  default     = "UTC"
-}
-
 variable "retire_on_or_after" {
   description = "Date (YYYY-MM-DD, UTC) on/after which the Lambda no-ops instead of generating. Same window ingestion/scripts/run_payments_scheduled.sh already started -- kept in sync with that script's RETIRE_ON_OR_AFTER by hand (decided 2026-08-11: keep the cap for data-volume control, not cost -- ADR 0005)."
   type        = string

@@ -13,6 +13,16 @@
 # itself needs iam's task-role ARNs -- attaching the policy here, to a
 # role iam still creates the trust policy for (role_arns["orchestration_state_machine"]),
 # is what avoids the resulting module dependency cycle.
+#
+# 4.3 adds two things beyond 4.2's baseline: execution-level visibility
+# (CloudWatch Logs + X-Ray on the state machine itself) and the
+# EventBridge Scheduler trigger, moved here from lambda_ingestion (see the
+# bottom of this file) now that there's a state machine for it to start
+# instead of invoking the Lambda directly -- the item ADR 0009 explicitly
+# left open for this subtask. The scheduler's own execution role is
+# self-contained in this module, not centralized in terraform/modules/iam
+# -- mirroring the exact pattern lambda_ingestion's own scheduler role
+# already used before this move.
 
 locals {
   glue_catalog_arn  = "arn:aws:glue:${var.region}:${var.account_id}:catalog"
@@ -110,9 +120,52 @@ resource "aws_iam_role_policy" "state_machine" {
         Effect   = "Allow"
         Action   = ["s3:ListBucket", "s3:GetBucketLocation"]
         Resource = var.athena_results_bucket_arn
+      },
+      {
+        # AWS's own documented requirement for Step Functions' CloudWatch
+        # Logs execution logging (4.3) -- none of these actions support
+        # resource-level scoping narrower than "*" (confirmed against
+        # AWS's own example policy for this feature), unlike everything
+        # else in this policy.
+        Sid    = "DeliverExecutionLogs"
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogDelivery",
+          "logs:GetLogDelivery",
+          "logs:UpdateLogDelivery",
+          "logs:DeleteLogDelivery",
+          "logs:ListLogDeliveries",
+          "logs:PutResourcePolicy",
+          "logs:DescribeResourcePolicies",
+          "logs:DescribeLogGroups",
+        ]
+        Resource = "*"
+      },
+      {
+        # Same "*"-only constraint as above, AWS's own documented
+        # requirement for X-Ray tracing (4.3).
+        Sid    = "WriteTraceSegments"
+        Effect = "Allow"
+        Action = [
+          "xray:PutTraceSegments",
+          "xray:PutTelemetryRecords",
+          "xray:GetSamplingRules",
+          "xray:GetSamplingTargets",
+        ]
+        Resource = "*"
       }
     ]
   })
+}
+
+# 4.3: execution-level visibility. /aws/vendedlogs/states/ is AWS's own
+# naming convention for Step Functions log groups -- using it is what
+# lets AWS's default resource policy for log delivery apply without
+# hand-writing a custom one. 14-day retention matches orchestration_runner's
+# two ECS log groups.
+resource "aws_cloudwatch_log_group" "state_machine" {
+  name              = "/aws/vendedlogs/states/cerberus-platform-orchestration"
+  retention_in_days = 14
 }
 
 resource "aws_sfn_state_machine" "orchestration" {
@@ -136,5 +189,103 @@ resource "aws_sfn_state_machine" "orchestration" {
     demo_query_json               = jsonencode(local.demo_query)
   })
 
+  # 4.3: ALL + execution data -- every state transition's full input/output
+  # lands in CloudWatch Logs, not just errors. Worth the (small, at this
+  # execution volume) extra log cost for a portfolio project where a
+  # reviewer being able to see exactly what a run did matters more than
+  # trimming log verbosity.
+  logging_configuration {
+    log_destination        = "${aws_cloudwatch_log_group.state_machine.arn}:*"
+    include_execution_data = true
+    level                  = "ALL"
+  }
+
+  # 4.3: X-Ray -- one trace per execution spanning the Lambda invoke, both
+  # ECS tasks, and the Athena query, so a slow run's actual bottleneck
+  # (not just which state failed) is visible without cross-referencing
+  # four different services' own logs by hand.
+  tracing_configuration {
+    enabled = true
+  }
+
   depends_on = [aws_iam_role_policy.state_machine]
+}
+
+# --- EventBridge Scheduler trigger (4.3) ------------------------------
+# Moved here from lambda_ingestion (see terraform/envs/dev/main.tf's
+# `moved` blocks) now that there's a state machine to start instead of
+# invoking the Lambda directly -- retargeting this was explicitly left to
+# 4.3 by ADR 0009. Same daily-UTC shape as before; only the target and
+# this role's permission changed.
+
+resource "aws_iam_role" "scheduler" {
+  # Name deliberately unchanged from before this moved here (was
+  # "cerberus-ingest-payments-scheduler" in lambda_ingestion) -- IAM role
+  # names are immutable (ForceNew), so renaming it here would force a
+  # replace despite the `moved` block in envs/dev/main.tf, defeating the
+  # point of using one. Only the inline policy below actually changes.
+  name = "cerberus-ingest-payments-scheduler"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect    = "Allow"
+        Principal = { Service = "scheduler.amazonaws.com" }
+        Action    = "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "scheduler_start_execution" {
+  name = "start-orchestration-execution"
+  role = aws_iam_role.scheduler.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = "states:StartExecution"
+        Resource = aws_sfn_state_machine.orchestration.arn
+      }
+    ]
+  })
+}
+
+resource "aws_scheduler_schedule" "daily" {
+  # Name also deliberately unchanged, same reasoning as the role above --
+  # aws_scheduler_schedule's name is ForceNew too.
+  name       = "cerberus-ingest-payments-daily"
+  group_name = "default"
+
+  # UTC, fixed explicitly -- same reasoning as the schedule this replaced
+  # (ADR 0005): the pipeline's data is partitioned by UTC event day.
+  schedule_expression          = var.schedule_expression
+  schedule_expression_timezone = var.schedule_timezone
+
+  flexible_time_window {
+    mode = "OFF"
+  }
+
+  target {
+    # Universal target: starts an execution of the state machine rather
+    # than invoking a specific service API's dedicated integration.
+    arn      = "arn:aws:scheduler:::aws-sdk:states:startExecution"
+    role_arn = aws_iam_role.scheduler.arn
+
+    input = jsonencode({
+      StateMachineArn = aws_sfn_state_machine.orchestration.arn
+    })
+
+    # Stays 0, carrying ADR 0005's exact reasoning forward one level: a
+    # scheduler retry here means starting a *new execution*, which
+    # re-invokes the ingestion Lambda from scratch and regenerates a
+    # different, unseeded dataset -- same duplicate-data risk ADR 0005
+    # eliminated at the direct-Lambda-invoke layer, just one hop removed.
+    retry_policy {
+      maximum_retry_attempts = 0
+    }
+  }
 }
