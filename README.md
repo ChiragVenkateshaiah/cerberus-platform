@@ -18,12 +18,11 @@ Phase 0 systemd timer is retired.
 Spark-on-EKS) is accepted; the full stack (VPC, EKS, Spark Operator, Spark
 job) was applied live, a real Spark job ran on EKS and wrote verified
 output to silver, and the stack was destroyed cleanly.
-🔨 Phase 4 (orchestration) — in progress. ADR 0009 chose AWS Step
-Functions over Airflow; a state machine (Lambda → Spark-on-EKS/dbt via ECS
-Fargate → Athena) orchestrates the full ingest → transform → serve flow,
-tuned for retries and execution visibility, retargeted from EventBridge
-Scheduler, and verified with a real live execution end to end. Only the
-Well-Architected pass + ADR (4.5) remains to close the phase.
+✅ Phase 4 (orchestration) — complete. ADR 0009 chose AWS Step Functions
+over Airflow; a state machine (Lambda → Spark-on-EKS/dbt via ECS Fargate →
+Athena) orchestrates the full ingest → transform → serve flow, tuned for
+retries and execution visibility, retargeted from EventBridge Scheduler,
+and verified with a real live execution end to end.
 
 See [docs/plan.md](docs/plan.md) for the full phased roadmap (Phases 0–7)
 and [Phases.md](Phases.md) for subtask-level progress.
