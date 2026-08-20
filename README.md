@@ -180,6 +180,9 @@ git config pull.rebase true
   at the start and close of each work session
 - `/note-maker` (`.claude/commands/note-maker.md`) — generates the
   `docs/notes/day-NN.md` learning notes above
+- `/git-cleaner` (`.claude/commands/git-cleaner.md`) — the two-machine
+  sync ritual run at the start of any session; see "Working across
+  machines" above
 
 ## License
 

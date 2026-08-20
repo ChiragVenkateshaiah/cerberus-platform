@@ -17,15 +17,18 @@ Scalable compute is **✅ complete** (3.1–3.8, see
 design was applied live end-to-end on 2026-08-18 — cluster up, a real
 Spark job run on EKS, silver/Glue verified, full stack destroyed cleanly —
 and ADR 0008 closes the phase's Well-Architected pass (milestone 3,
-`phase-3-scalable-compute-complete`). **Phase 4 — Orchestration is 🔨 in
-progress** (4.1–4.4 done, see
+`phase-3-scalable-compute-complete`). **Phase 4 — Orchestration is now
+✅ complete** (4.1–4.5, see
 [Phases.md](Phases.md#phase-4--orchestration-)): ADR 0009 chose Step
 Functions over Airflow; the state machine (Lambda → ECS Fargate
 transform/dbt tasks → Athena) is built, tuned for retries/visibility, and
 was applied and executed live on 2026-08-20 — a real Spark job ran on EKS
 through the full orchestrated pipeline and the demo query returned real
-data. Only **4.5 — Well-Architected pass + ADR** remains to close the
-phase.
+data. ADR 0010 closes the phase's Well-Architected pass (milestone 4,
+`phase-4-orchestration-complete`) — three questions gained genuine new
+evidence (per-state ASL timeouts, idempotency-aware retries, X-Ray
+distributed tracing) without moving a risk bucket, recorded honestly
+rather than padded. **Phase 5 — CI/CD has not started.**
 
 **Note:** the roadmap was re-scoped on 2026-08-03 from 9 phases (0–8) to
 8 (0–7). The old "Phase 1 — IaC foundation" no longer exists as a phase;
@@ -34,30 +37,19 @@ subtasks. Session history entries before that date use the old numbering.
 
 ## Next up
 
-- **4.5 — Well-Architected pass + ADR, closing Phase 4.** Same
-  established pattern as ADR 0004/0006/0008: diff the previous milestone
-  (`phase-3-scalable-compute-complete`, milestone 3) against a new
-  milestone 4 (`phase-4-orchestration-complete`) via the
-  `aws wellarchitected` CLI, re-answering only the questions with genuine
-  new evidence from this phase rather than re-doing all 57. Real material
-  to draw on: Reliability (per-state Retry/Catch tuned to each step's
-  actual idempotency, not a blanket policy — see the 2026-08-20 entry
-  below), Operational Excellence (CloudWatch Logs + X-Ray execution
-  visibility on the state machine itself, ADR 0005's duplicate-data
-  reasoning carried forward correctly into the new retry design), Cost
-  Optimization (ADR 0009's central bet — Fargate/ECR/Step Functions
-  genuinely cost nothing sitting idle — confirmed true in practice by
-  2026-08-20's scoped destroy leaving them standing while EKS/NAT came
-  down), and Security (six real IAM/config bugs found only by actually
-  running the pipeline live, not by `plan`/`validate` — a concrete
-  example of why this phase's own live-verification subtask (4.4) matters
-  for Well-Architected review quality, not just as a checkbox). Write
-  `docs/adr/0010-phase-4-well-architected-review.md`. Once done: flip
-  Phase 4 to ✅ Complete across Phases.md/docs/plan.md/README (same
-  four-file sync `/end-day` already does for a phase completion).
-- No open blockers gate 4.5 — see Notes / blockers below for what's still
-  open generally (none of it blocks starting Phase 5 either, once 4.5 is
-  done).
+- **5.1 — `terraform plan` on PR.** First subtask of Phase 5 (CI/CD).
+  Phases.md's subtask breakdown for Phase 5 (5.1–5.5) is a first-pass
+  sketch, not yet refined against real CI tooling choices — the first
+  real decision is what runs the plan (GitHub Actions is the natural
+  default given the repo already lives on GitHub, but this hasn't been
+  confirmed with the user) and how it authenticates to AWS (this project
+  has never used anything but the local `cerberus-admin` CLI profile —
+  OIDC federation vs. a dedicated CI IAM user/role is an open question
+  worth an ADR, given 7.3's existing least-privilege-repayment framing).
+  No ADR exists yet for Phase 5's tooling choice — likely 5.1's first
+  real step, before any workflow YAML is written.
+- No open blockers gate 5.1 — see Notes / blockers below for what's still
+  open generally.
 
 ## Session history
 
@@ -1130,14 +1122,16 @@ complete; only 3.8 remains to close Phase 3._
 
 ### 2026-08-20
 
-_Phase 4 opened and driven to 4.1–4.4 complete in one continuous session
-(started 2026-08-19, ran past midnight): ADR 0009 (Step Functions vs.
-Airflow), the state machine built and tuned, then a long, genuinely hard
-live-verification pass — two separate partial-apply crashes' worth of
-orphaned AWS resources cleaned up, six real bugs found and fixed live, a
-full orchestrated execution actually succeeded end to end, and a scoped
-destroy that surfaced and fixed a real Terraform dependency-graph bug
-along the way. Only 4.5 remains to close the phase._
+_Phase 4 opened and driven all the way to ✅ complete across two sessions
+today: 4.1–4.4 landed first (started 2026-08-19, ran past midnight) — ADR
+0009 (Step Functions vs. Airflow), the state machine built and tuned, then
+a long, genuinely hard live-verification pass — two separate partial-apply
+crashes' worth of orphaned AWS resources cleaned up, six real bugs found
+and fixed live, a full orchestrated execution actually succeeded end to
+end, and a scoped destroy that surfaced and fixed a real Terraform
+dependency-graph bug along the way. A separate same-day session (different
+machine — see below) added cross-machine sync tooling. A third same-day
+session then closed 4.5 (ADR 0010, milestone 4), completing Phase 4._
 
 - **4.1 — ADR 0009: AWS Step Functions over Airflow.** Deciding pillar was
   cost/standing-infrastructure: Airflow (MWAA or self-hosted) would be the
@@ -1263,6 +1257,55 @@ along the way. Only 4.5 remains to close the phase._
   flipped ⬜→🔨 (same precedent as Phase 3's 2026-08-14 flip), and
   `docs/plan.md`'s roadmap row updated to "🔨 In progress" to match — not
   yet ✅, since 4.5 remains.
+- **Cross-machine sync tooling added, from a separate same-day session on
+  the other machine** (commits authored between this session's own work,
+  never previously recorded here — same gap shape as the 2026-08-06 and
+  2026-08-12 entries above, caught and backfilled now): `.gitattributes`
+  (`* text=auto eol=lf`, normalizing line endings between the workstation
+  and the WSL2 laptop this project now runs on); `.gitignore` gained
+  `get-docker.sh` (the Docker Engine install script 4.4's environment
+  blocker required, local-only, not project source); and a new
+  `/git-cleaner` command (`.claude/commands/git-cleaner.md`) — the
+  two-machine sync ritual: checks both `cerberus` and `tessera` repos for
+  uncommitted changes, rebases from origin, prunes stale remote-tracking
+  branches, and reminds about `terraform init` if providers are missing
+  (gitignored, don't travel between machines). README gained a new
+  "Working across machines" section documenting the two-machine workflow,
+  the `pull.rebase = true` config, and the push-before-switching golden
+  rule. A follow-up fix corrected the command's own hardcoded repo path
+  (`cerberus-platform` → `cerberus`, matching this machine's actual clone
+  directory name).
+- **Ran 4.5, closing Phase 4.** Diffed milestone 3
+  (`phase-3-scalable-compute-complete`) against a new milestone 4
+  (`phase-4-orchestration-complete`), same pattern as ADR 0004/0006/0008.
+  Three questions re-answered with concrete new evidence from this
+  phase's actual live pass: `mitigate-interaction-failure` (Reliability)
+  gained "Set client timeouts" — every ASL Task state carries an explicit
+  `TimeoutSeconds` tuned to its own downstream's real behavior (120s
+  Lambda invoke, 2100s Spark-on-EKS transform, 900s dbt, 300s Athena
+  query); `monitor-aws-resources` (Reliability) and `observability`
+  (Operational Excellence) both gained tracing-related choices from the
+  same underlying evidence — 4.3's X-Ray instrumentation on the state
+  machine, the orchestration layer's first real distributed trace across
+  Lambda → ECS Fargate → ECS Fargate → Athena. **None of the three moved
+  a risk bucket** — overall workload risk counts are unchanged from
+  milestone 3 (25 HIGH / 18 MEDIUM / 9 NONE / 5 N/A) — recorded honestly
+  in ADR 0010 rather than glossed over, same discipline as ADR 0008's
+  `ready-to-support`/`manage-service-limits` partial credit. Considered
+  but not forced: Cost Optimization's `select-service`/
+  `manage-demand-resources` (ADR 0009's zero-idle-cost bet, confirmed by
+  4.4's scoped destroy leaving the orchestration layer standing, but
+  already fully credited from Phase 1–3's own service decisions);
+  Security's `permissions` (the two live-discovered IAM grant gaps
+  reinforce already-selected "reduce permissions continuously," no new
+  checkbox); Operational Excellence's `event-response` (the six live-pass
+  bugs were fixed ad hoc, not through a formal incident process — stayed
+  honestly at "None of these"). Wrote
+  `docs/adr/0010-phase-4-well-architected-review.md`. **Phase 4 flipped
+  to ✅ Complete** across `Phases.md`, `docs/plan.md`'s roadmap table, and
+  `README.md`'s status section. Shipped on branch
+  `phase-4-well-architected-review`, merged via PR #15 (regular merge,
+  not squash, per the established workflow).
 
 ## Notes / blockers
 
@@ -1283,9 +1326,10 @@ along the way. Only 4.5 remains to close the phase._
   on 2026-08-14 (`cerberus-admin` profile). Milestones saved so far:
   **1** `phase-1-mvp-complete` (2026-08-10), **2**
   `phase-2-event-driven-ingestion-complete` (2026-08-12), **3**
-  `phase-3-scalable-compute-complete` (2026-08-18, see ADR 0008). Next one
-  is due at **4.5**, once Phase 4 (Orchestration) is built — not before;
-  repeat at 5.5, 6.6, and the formal review at 7.4.
+  `phase-3-scalable-compute-complete` (2026-08-18, see ADR 0008), **4**
+  `phase-4-orchestration-complete` (2026-08-20, see ADR 0010). Next one
+  is due at **5.5**, once Phase 5 (CI/CD) is built — not before; repeat
+  at 6.6, and the formal review at 7.4.
 - **AWS Agent Toolkit (`aws-core@claude-plugins-official`, installed
   2026-08-11) is in scope for the rest of the build — see `docs/plan.md`'s
   cross-cutting tracks.** Mapped to remaining phases: `aws-compute` (4.1,
