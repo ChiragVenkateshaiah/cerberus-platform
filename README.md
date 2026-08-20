@@ -141,6 +141,27 @@ This project is being built incrementally; see [docs/plan.md](docs/plan.md)
 for what's done and what's next. Common tasks are wired up in the
 [Makefile](Makefile).
 
+### Working across machines
+
+This project runs on two machines (workstation + WSL2 laptop) synced through
+GitHub. Both are configured with `pull.rebase = true` so `git pull` rebases
+cleanly instead of creating a merge commit.
+
+**First ritual on any machine — run `/git-cleaner` in Claude Code.** It checks
+both repos (`cerberus-platform` and `tessera`) for uncommitted changes, fetches
+and rebases from origin, prunes stale remote-tracking branches, and warns if
+`terraform init` needs re-running (providers are gitignored and don't travel
+between machines).
+
+**Golden rule:** push before switching machines. A clean push means the other
+machine can always fast-forward without conflicts.
+
+On a fresh clone, set the rebase pull strategy once per repo:
+
+```bash
+git config pull.rebase true
+```
+
 ## Documentation
 
 - [docs/plan.md](docs/plan.md) — the build plan and phased roadmap
