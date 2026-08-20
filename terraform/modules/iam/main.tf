@@ -339,9 +339,43 @@ resource "aws_iam_role_policy" "orchestration_transform" {
         Resource = "${var.bucket_arns["silver"]}/_spark_jobs/*"
       },
       {
+        # Added 2026-08-20 after a second real, live MSCK REPAIR TABLE
+        # failure (generic Hive DDLTask error, no AccessDenied this time)
+        # -- once the glue:GetDatabase gap below was fixed, MSCK REPAIR
+        # got far enough to actually try scanning the table's S3 data
+        # location to discover partitions, which this role had never been
+        # granted at all: UploadSparkScriptToSilver above is write-only,
+        # scoped to _spark_jobs/*, not payments/*. cerberus-transform (the
+        # role this one's policy shape was copied from) has this
+        # incidentally via its own ReadWriteSilverAndGold/ListSilverAndGold
+        # statements; this role needs it explicitly.
+        Sid      = "ReadSilverPaymentsForRepair"
+        Effect   = "Allow"
+        Action   = "s3:GetObject"
+        Resource = "${var.bucket_arns["silver"]}/payments/*"
+      },
+      {
+        Sid      = "ListSilverPaymentsPrefixOnly"
+        Effect   = "Allow"
+        Action   = "s3:ListBucket"
+        Resource = var.bucket_arns["silver"]
+        Condition = {
+          StringLike = { "s3:prefix" = ["payments/*"] }
+        }
+      },
+      {
+        # glue:GetDatabase added 2026-08-20 after a real, live
+        # MSCK REPAIR TABLE AccessDeniedException -- Athena resolves the
+        # database before the table when running that statement, and
+        # cerberus-transform (the human-assumed role this containerized
+        # task's policy shape was copied from) only avoids needing this
+        # explicitly because its separate ManageDbtGoldTables statement
+        # happens to grant glue:GetDatabase on the same catalog/database
+        # resources too. This role has no dbt-table statement to
+        # piggyback on, so it needs the grant here directly.
         Sid    = "RegisterPaymentsEventsPartitions"
         Effect = "Allow"
-        Action = ["glue:GetTable", "glue:BatchCreatePartition", "glue:GetPartitions"]
+        Action = ["glue:GetDatabase", "glue:GetTable", "glue:BatchCreatePartition", "glue:GetPartitions"]
         Resource = [
           local.glue_catalog_arn,
           local.glue_database_arn,
@@ -426,6 +460,19 @@ resource "aws_iam_role_policy" "orchestration_dbt" {
         ]
       },
       {
+        # Added 2026-08-20 after a real, live dbt TABLE_NOT_FOUND error --
+        # dim_merchants/dim_customers/fct_transactions all SELECT FROM
+        # payments_events as a dbt *source* (models/sources.yml), not
+        # something this role creates, so the ManageDbtGoldTables
+        # statement above (scoped to fct_*/dim_* only) never covered it.
+        # Read-only, no Create/Update/Delete/BatchCreatePartition -- dbt
+        # never modifies this table, only queries it.
+        Sid      = "ReadPaymentsEventsSource"
+        Effect   = "Allow"
+        Action   = ["glue:GetTable", "glue:GetPartitions"]
+        Resource = local.glue_partition_table_arn
+      },
+      {
         Sid      = "RunAthenaQueries"
         Effect   = "Allow"
         Action   = ["athena:StartQueryExecution", "athena:GetQueryExecution", "athena:GetQueryResults", "athena:StopQueryExecution", "athena:GetWorkGroup"]
@@ -442,6 +489,27 @@ resource "aws_iam_role_policy" "orchestration_dbt" {
         Effect   = "Allow"
         Action   = "s3:ListBucket"
         Resource = var.bucket_arns["gold"]
+      },
+      {
+        # Same reasoning as ReadPaymentsEventsSource above, one layer
+        # down: Athena needs to actually read the underlying Parquet data
+        # this role's queries scan, not just resolve Glue metadata -- the
+        # same two-layer (catalog + data) permission split
+        # cerberus-orchestration-transform's MSCK REPAIR fix already hit
+        # earlier tonight.
+        Sid      = "ReadSilverPaymentsSource"
+        Effect   = "Allow"
+        Action   = "s3:GetObject"
+        Resource = "${var.bucket_arns["silver"]}/payments/*"
+      },
+      {
+        Sid      = "ListSilverPaymentsPrefixOnly"
+        Effect   = "Allow"
+        Action   = "s3:ListBucket"
+        Resource = var.bucket_arns["silver"]
+        Condition = {
+          StringLike = { "s3:prefix" = ["payments/*"] }
+        }
       },
       {
         Sid      = "WriteAthenaResults"
