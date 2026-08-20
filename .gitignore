@@ -47,5 +47,8 @@ Thumbs.db
 .idea/
 *.swp
 
+# Local install scripts (not project source)
+get-docker.sh
+
 # Logs
 *.log
