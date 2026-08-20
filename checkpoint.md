@@ -17,8 +17,15 @@ Scalable compute is **✅ complete** (3.1–3.8, see
 design was applied live end-to-end on 2026-08-18 — cluster up, a real
 Spark job run on EKS, silver/Glue verified, full stack destroyed cleanly —
 and ADR 0008 closes the phase's Well-Architected pass (milestone 3,
-`phase-3-scalable-compute-complete`). **Phase 4 — Orchestration hasn't
-started.**
+`phase-3-scalable-compute-complete`). **Phase 4 — Orchestration is 🔨 in
+progress** (4.1–4.4 done, see
+[Phases.md](Phases.md#phase-4--orchestration-)): ADR 0009 chose Step
+Functions over Airflow; the state machine (Lambda → ECS Fargate
+transform/dbt tasks → Athena) is built, tuned for retries/visibility, and
+was applied and executed live on 2026-08-20 — a real Spark job ran on EKS
+through the full orchestrated pipeline and the demo query returned real
+data. Only **4.5 — Well-Architected pass + ADR** remains to close the
+phase.
 
 **Note:** the roadmap was re-scoped on 2026-08-03 from 9 phases (0–8) to
 8 (0–7). The old "Phase 1 — IaC foundation" no longer exists as a phase;
@@ -27,23 +34,30 @@ subtasks. Session history entries before that date use the old numbering.
 
 ## Next up
 
-- **4.1 — ADR: Step Functions vs. Airflow.** Opens Phase 4 (Orchestration).
-  Use the pillar-as-question-generator method (Reference section below —
-  render it in full before starting, per `/start-day`'s own rule). The
-  real decisions on the table: does this project need a second
-  orchestration tool at all, given EventBridge Scheduler already handles
-  2.1's trigger and `submit_job.sh`'s own polling loop already sequences
-  3.5/3.6's steps — or does 4.4's "full ingest → transform → serve flow as
-  one orchestrated run" need something that can express dependencies
-  across Lambda, Spark-on-EKS, dbt, and Athena as a single observable
-  graph, which neither of those ad hoc mechanisms can do today. AWS Step
-  Functions has the stronger course-alignment case per
-  `docs/courses-map-to-phases.md`; Airflow would be the first
-  non-serverless standing service in this stack (contrasts with every
-  other Phase 1–3 compute choice, which is either serverless or
-  spin-up/destroy) — that tension is itself worth naming in the ADR.
-- No open blockers gate 4.1 — see Notes / blockers below for what's still
-  open generally (none of it blocks starting Phase 4).
+- **4.5 — Well-Architected pass + ADR, closing Phase 4.** Same
+  established pattern as ADR 0004/0006/0008: diff the previous milestone
+  (`phase-3-scalable-compute-complete`, milestone 3) against a new
+  milestone 4 (`phase-4-orchestration-complete`) via the
+  `aws wellarchitected` CLI, re-answering only the questions with genuine
+  new evidence from this phase rather than re-doing all 57. Real material
+  to draw on: Reliability (per-state Retry/Catch tuned to each step's
+  actual idempotency, not a blanket policy — see the 2026-08-20 entry
+  below), Operational Excellence (CloudWatch Logs + X-Ray execution
+  visibility on the state machine itself, ADR 0005's duplicate-data
+  reasoning carried forward correctly into the new retry design), Cost
+  Optimization (ADR 0009's central bet — Fargate/ECR/Step Functions
+  genuinely cost nothing sitting idle — confirmed true in practice by
+  2026-08-20's scoped destroy leaving them standing while EKS/NAT came
+  down), and Security (six real IAM/config bugs found only by actually
+  running the pipeline live, not by `plan`/`validate` — a concrete
+  example of why this phase's own live-verification subtask (4.4) matters
+  for Well-Architected review quality, not just as a checkbox). Write
+  `docs/adr/0010-phase-4-well-architected-review.md`. Once done: flip
+  Phase 4 to ✅ Complete across Phases.md/docs/plan.md/README (same
+  four-file sync `/end-day` already does for a phase completion).
+- No open blockers gate 4.5 — see Notes / blockers below for what's still
+  open generally (none of it blocks starting Phase 5 either, once 4.5 is
+  done).
 
 ## Session history
 
@@ -1114,6 +1128,142 @@ complete; only 3.8 remains to close Phase 3._
   VPCs/EKS clusters/NAT Gateways/instances remain — the destroy really was
   clean, not just reported as clean.
 
+### 2026-08-20
+
+_Phase 4 opened and driven to 4.1–4.4 complete in one continuous session
+(started 2026-08-19, ran past midnight): ADR 0009 (Step Functions vs.
+Airflow), the state machine built and tuned, then a long, genuinely hard
+live-verification pass — two separate partial-apply crashes' worth of
+orphaned AWS resources cleaned up, six real bugs found and fixed live, a
+full orchestrated execution actually succeeded end to end, and a scoped
+destroy that surfaced and fixed a real Terraform dependency-graph bug
+along the way. Only 4.5 remains to close the phase._
+
+- **4.1 — ADR 0009: AWS Step Functions over Airflow.** Deciding pillar was
+  cost/standing-infrastructure: Airflow (MWAA or self-hosted) would be the
+  first non-serverless standing service in this stack, breaking the
+  serverless/spin-up-destroy pattern held since Phase 1; Step Functions +
+  ECS Fargate keeps that pattern intact since neither has idle cost.
+  Conceded up front that Step Functions has no native Spark-on-EKS
+  integration, so 4.2 would need to wrap `submit_job.sh`'s logic in a
+  container. Merged via PR #10 (`818e80c`).
+- **4.2 — state machine definition as code (plan-only).** New
+  `orchestration/runner/` container image (Dockerfile, `entrypoint_transform.sh`
+  adapted from `submit_job.sh`, `entrypoint_dbt.sh`) and the ASL definition
+  (`orchestration/state_machine.asl.json.tftpl`): `InvokeIngestion` (native
+  Lambda integration) → `RunTransform`/`RunDbt` (ECS Fargate via
+  `ecs:runTask.sync`) → `RunServingQuery` (native Athena integration, no
+  container needed). New `orchestration_runner` and `step_functions`
+  Terraform modules; four new least-privilege IAM roles. A `code-review
+  high` pass on the container files caught and fixed five real issues
+  before anything ran live: unbounded poll loops, a `curl` missing `-f`,
+  gitignored dbt build artifacts leaking into the image (new
+  `.dockerignore`), an unpinned AWS CLI version, and a hand-duplicated dbt
+  profile (now derived via `sed` from the committed original instead of
+  hand-synced). Verified via `terraform validate`/`plan` only — no live
+  apply this session, deliberately (see Scope boundary in the PR). Merged
+  via PR #11 (`2e6b7a1`).
+- **4.3 — retries + visibility.** Re-reading 4.2's baseline while tuning it
+  surfaced a real bug, not just tuning debt: `InvokeIngestion`'s Retry
+  block reintroduced the exact duplicate-unseeded-data risk ADR 0005
+  eliminated at the EventBridge Scheduler layer — removed. `RunTransform`/
+  `RunDbt` retries raised 1→2 attempts instead, since both are fully
+  idempotent end to end (documented per-state in the ASL). Added
+  CloudWatch Logs (`ALL`, full execution data) + X-Ray tracing to the
+  state machine. Retargeted EventBridge Scheduler from invoking the
+  ingestion Lambda directly to starting the state machine instead (ADR
+  0009's item left open for this subtask) — moved via `moved` blocks, not
+  destroyed/recreated, preserving the live Phase 2 schedule's identity;
+  its `retry_policy` stays at 0 attempts, carrying ADR 0005's reasoning
+  forward one level (a scheduler retry now means starting a new execution,
+  same regenerate-and-duplicate risk). Merged via PR #12 (`8b3b21a`).
+- **4.4 — the live pass.** By far the longest and most consequential
+  subtask this phase — `terraform apply` against the full stack for the
+  first time, exercising code that had only ever been plan-validated.
+  - **Environment blocker first:** this sandbox (and, initially, the
+    user's own terminal) had no docker, needed for the runner image's
+    `docker build`/`push` step. Resolved by the user installing Docker
+    Engine directly (`get-docker.sh`) and adding themselves to the
+    `docker` group — needed a full WSL2 restart (`wsl --shutdown`) before
+    group membership actually took effect, `newgrp docker` alone wasn't
+    enough. Once unblocked, `!`-prefixed commands (running in the user's
+    real terminal, not this session's own sandbox) became the mechanism
+    for everything requiring docker.
+  - **First `terraform apply` attempt got killed mid-run** (hit a harness
+    timeout while waiting on user confirmation, since `-input=false`
+    without `-auto-approve` doesn't behave as "refuse silently" in this
+    version) — left a stale DynamoDB state lock and, worse, several
+    resources created for real in AWS with **no state written for them at
+    all** (state persistence didn't reach that point before the kill).
+    Cleared the stale lock via `terraform force-unlock -force`, then spent
+    real effort reconciling: a genuinely orphaned duplicate VPC (with its
+    own NAT Gateway, IGW, route table — all deleted by hand, in dependency
+    order), EKS's own cluster/node IAM roles, and the four new
+    orchestration IAM roles + ECR repo + 3 CloudWatch log groups, all
+    hand-verified against AWS and deleted before a clean re-apply was
+    possible.
+  - **Six real bugs found and fixed live, none catchable by `plan`/`validate`:**
+    1. `aws_security_group.runner`'s description had an apostrophe
+       ("runner's Fargate tasks") — AWS's SG description charset excludes
+       it.
+    2. The runner image's `local-exec` provisioner used `set -o pipefail`,
+       unsupported by `/bin/sh` (dash) — added an explicit
+       `interpreter = ["/bin/bash", "-c"]`.
+    3. The ASL used `arn:aws:states:::ecs:runTask.sync2` — not a real AWS
+       resource ARN. Correct: `arn:aws:states:::ecs:runTask.sync`, no
+       version suffix (verified against AWS's own docs after guessing
+       wrong twice, including a `.sync:2` attempt).
+    4. The retargeted EventBridge Scheduler used
+       `aws-sdk:states:startExecution` as its universal-target service
+       name — AWS's actual abbreviation is `sfn`, not `states`.
+    5. `cerberus-orchestration-transform` was missing `glue:GetDatabase`
+       (needed by `MSCK REPAIR TABLE` to resolve the database before the
+       table) and silver bucket read/list entirely — `cerberus-transform`,
+       the role this one's policy shape was copied from, only avoided both
+       gaps because its own broader statements happened to cover the same
+       resources incidentally.
+    6. `cerberus-orchestration-dbt` never got read access to
+       `payments_events`, the dbt *source* table its models `SELECT FROM`
+       — its policy only covered the `fct_*`/`dim_*` tables it creates.
+  - **A real state machine execution succeeded end to end** after all six
+    fixes: `InvokeIngestion` → `RunTransform` (an actual Spark job
+    completing on EKS, not a mock) → `RunDbt` → `RunServingQuery`, all
+    `SUCCEEDED`. Re-ran `serving/scripts/run_demo_query.sh` directly and
+    got real settled-revenue-by-merchant data back — the MVP's original
+    "one Athena query against gold" criterion, now proven through the
+    fully automated pipeline rather than the manual path.
+  - **Committed the fixes** (PR #13, `ec98d87`) and checked off 4.4.
+  - **The scoped destroy surfaced a seventh bug**, a real one, not a
+    live-environment fluke: `module.iam`'s `role_arns` output is a single
+    map expression, so any consumer reading even one key gets a graph
+    edge to *all 9* roles — the exact same class of bug
+    `ingestion_lambda_role_arn`'s standalone output was already built to
+    fix during 3.7, reproduced here because 4.2 didn't check for the
+    precedent. `terraform destroy -target=module.iam.aws_iam_role.spark`
+    pulled in `orchestration_runner`'s task definitions and the entire
+    `step_functions` state machine as false dependents. Fixed with four
+    more standalone role-ARN outputs (PR #14, `89200ae`) — confirmed via
+    `terraform state pull` that the *stored* dependency metadata on
+    already-applied resources doesn't update from a config edit alone; a
+    no-op `terraform apply` was needed to recompute and rewrite it before
+    the fix actually took effect on a destroy plan.
+  - **Final destroy, correctly scoped**: EKS (cluster, node group, OIDC
+    provider), the Spark stack, and the NAT Gateway + EIP — 26 resources,
+    verified gone via real AWS API calls (`describe-cluster`
+    `ResourceNotFoundException`, `describe-nat-gateways` empty). Left
+    standing, deliberately: the VPC itself, subnets, IGW, public route
+    table (all free), and the entire orchestration layer — ECR, ECS task
+    definitions, the state machine, the scheduler — proving ADR 0009's
+    central bet true in practice, not just in theory. Hit the same
+    NAT/pod-termination destroy-order gotcha 3.7 already documented
+    (`spark-operator` namespace stuck `Terminating`, `context deadline
+    exceeded`) — same fix worked (`kubectl delete pod --grace-period=0
+    --force`, then re-run destroy for the remainder).
+- **4.1–4.4 all checked off in Phases.md**; Phase 4's own heading marker
+  flipped ⬜→🔨 (same precedent as Phase 3's 2026-08-14 flip), and
+  `docs/plan.md`'s roadmap row updated to "🔨 In progress" to match — not
+  yet ✅, since 4.5 remains.
+
 ## Notes / blockers
 
 - **Resolved 2026-08-18:** `spark-application.yaml`'s `apache/spark` image
@@ -1173,11 +1323,34 @@ complete; only 3.8 remains to close Phase 3._
   - **Never run a bare `terraform destroy` (or `plan -destroy`) against
     `envs/dev` without `-target`.** It targets the *entire* root module,
     including bronze/silver/gold, the Glue catalog, and the Lambda
-    ingestion function — none of which are part of Phase 3's spin-up/
-    destroy design. Scope to `-target=module.spark_job
-    -target=module.spark_operator -target=module.eks -target=module.vpc`
-    (this also correctly pulls in `module.iam.aws_iam_role.spark`, which
-    is genuinely downstream of the EKS OIDC provider and should go too).
+    ingestion function — none of which are part of the spin-up/destroy
+    design.
+  - **Updated 2026-08-20, supersedes the target list below from 3.7:**
+    since Phase 4 added `orchestration_runner`/`step_functions` (ECS,
+    ECR, the state machine — all genuinely free sitting idle, meant to
+    stay standing across EKS spin-up/destroy cycles), the destroy target
+    list has to be narrower than "the whole `module.vpc`." Destroying
+    `module.vpc.aws_vpc.this` itself cascades to
+    `orchestration_runner.aws_security_group.runner` (real dependency,
+    `vpc_id`) and from there to the *entire* state machine (its ASL
+    definition embeds the security group ID). **Correct scope, leaving
+    the orchestration layer standing:** `-target=module.spark_job
+    -target=module.spark_operator -target=module.eks
+    -target=module.iam.aws_iam_role.spark -target=module.vpc.aws_nat_gateway.this
+    -target=module.vpc.aws_eip.nat` — the VPC/subnets/IGW/public route
+    table stay up (all free); only EKS, the Spark stack, and the NAT
+    Gateway (the two genuinely billed pieces) come down. This pulls in
+    the private route table and the free S3 gateway endpoint as
+    necessary dependents of the NAT Gateway going away — expected, not a
+    problem (both cost nothing, both get recreated on the next spin-up).
+  - **A `role_arns[...]` map-index reference from *any* new module can
+    silently re-widen this scope** — see the 2026-08-20 entry's false-
+    dependency bug: reading any single key off `module.iam`'s `role_arns`
+    output creates a graph edge to all 9 underlying roles. Before adding a
+    new consumer of a role ARN, check whether a standalone output already
+    exists for it (`terraform/modules/iam/outputs.tf`); add one if not,
+    the same way `ingestion_lambda_role_arn` and the four
+    `orchestration_*_role_arn` outputs already do.
 - **`dynamodb_table` vs. `use_lockfile`: decided 2026-08-08, keep
   DynamoDB for now — Phase 1 (MVP) is done as of today, so this is now
   revisitable with real usage data if there's appetite, but hasn't been

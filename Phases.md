@@ -76,7 +76,7 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 - [x] 3.7 `terraform destroy` after each run (cost discipline)
 - [x] 3.8 Well-Architected pass + ADR
 
-## Phase 4 — Orchestration ⬜
+## Phase 4 — Orchestration 🔨
 
 - [x] 4.1 ADR: Step Functions vs. Airflow
 - [x] 4.2 State machine definition as code

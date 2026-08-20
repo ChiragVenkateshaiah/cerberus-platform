@@ -18,6 +18,12 @@ Phase 0 systemd timer is retired.
 Spark-on-EKS) is accepted; the full stack (VPC, EKS, Spark Operator, Spark
 job) was applied live, a real Spark job ran on EKS and wrote verified
 output to silver, and the stack was destroyed cleanly.
+🔨 Phase 4 (orchestration) — in progress. ADR 0009 chose AWS Step
+Functions over Airflow; a state machine (Lambda → Spark-on-EKS/dbt via ECS
+Fargate → Athena) orchestrates the full ingest → transform → serve flow,
+tuned for retries and execution visibility, retargeted from EventBridge
+Scheduler, and verified with a real live execution end to end. Only the
+Well-Architected pass + ADR (4.5) remains to close the phase.
 
 See [docs/plan.md](docs/plan.md) for the full phased roadmap (Phases 0–7)
 and [Phases.md](Phases.md) for subtask-level progress.
@@ -97,7 +103,9 @@ constraints behind this diagram, see
 │   ├── bootstrap/        # state backend as code (S3 + DynamoDB lock)
 │   ├── modules/          # reusable modules (S3 medallion, IAM, Glue
 │   │                     #   catalog, Athena, Lambda ingestion, VPC, EKS,
-│   │                     #   Spark Operator, Spark job service account)
+│   │                     #   Spark Operator, Spark job service account,
+│   │                     #   orchestration runner (ECR/Fargate), Step
+│   │                     #   Functions)
 │   └── envs/dev/         # dev environment root module
 ├── ingestion/scripts/    # ingestion scripts: synthetic payments generator
 │                         #   + shared payments_lib.py core (Python, Phase
@@ -116,6 +124,12 @@ constraints behind this diagram, see
 │                         #   EKS cluster via the Spark Operator (3.4);
 │                         #   spark-application.yaml + submit_job.sh (not
 │                         #   Terraform-managed -- see its own header)
+├── orchestration/        # state_machine.asl.json.tftpl -- the orchestration
+│                         #   state machine's ASL definition (4.2/4.3),
+│                         #   templated by terraform/modules/step_functions
+├── orchestration/runner/ # container image the state machine's ECS Fargate
+│                         #   transform/dbt steps run: Dockerfile,
+│                         #   entrypoint scripts, shared lib.sh (4.2)
 ├── serving/queries/      # demo Athena SQL against gold (1.10)
 ├── serving/scripts/      # runs the demo query as cerberus-serving
 └── data/samples/         # small sample datasets for local testing
