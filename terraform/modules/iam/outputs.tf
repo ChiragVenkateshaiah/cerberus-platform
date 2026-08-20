@@ -23,6 +23,11 @@ output "orchestration_state_machine_role_name" {
   value       = aws_iam_role.orchestration_state_machine.name
 }
 
+output "orchestration_state_machine_role_arn" {
+  description = "cerberus-orchestration-state-machine IAM role ARN, standalone -- same false-dependent risk as the other orchestration_* standalone outputs below."
+  value       = aws_iam_role.orchestration_state_machine.arn
+}
+
 # Standalone, not read from role_arns -- discovered live during 3.7's
 # destroy planning: a single consumer reading one key out of that map
 # still creates a graph edge to the *entire* map expression, which depends
@@ -36,4 +41,28 @@ output "orchestration_state_machine_role_name" {
 output "ingestion_lambda_role_arn" {
   description = "cerberus-ingestion-lambda IAM role ARN, standalone."
   value       = aws_iam_role.ingestion_lambda.arn
+}
+
+# Standalone, same reasoning as ingestion_lambda_role_arn above -- found
+# live 2026-08-20 while planning 4.4's scoped destroy: orchestration_runner
+# and step_functions both read individual keys out of role_arns, which
+# created a graph edge to the *entire* map (all 9 roles), including spark.
+# A `terraform destroy -target=module.iam.aws_iam_role.spark` pulled in
+# orchestration_runner's task definitions and step_functions' whole state
+# machine as false dependents -- resources with no real relationship to
+# spark's role at all. These three break that edge for exactly the roles
+# those two modules actually consume.
+output "orchestration_transform_role_arn" {
+  description = "cerberus-orchestration-transform IAM role ARN, standalone."
+  value       = aws_iam_role.orchestration_transform.arn
+}
+
+output "orchestration_dbt_role_arn" {
+  description = "cerberus-orchestration-dbt IAM role ARN, standalone."
+  value       = aws_iam_role.orchestration_dbt.arn
+}
+
+output "orchestration_ecs_execution_role_arn" {
+  description = "cerberus-orchestration-ecs-execution IAM role ARN, standalone."
+  value       = aws_iam_role.orchestration_ecs_execution.arn
 }

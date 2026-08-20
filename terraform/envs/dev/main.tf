@@ -101,9 +101,15 @@ module "orchestration_runner" {
   vpc_id             = module.vpc.vpc_id
   private_subnet_ids = module.vpc.private_subnet_ids
 
-  transform_task_role_arn = module.iam.role_arns["orchestration_transform"]
-  dbt_task_role_arn       = module.iam.role_arns["orchestration_dbt"]
-  task_execution_role_arn = module.iam.role_arns["orchestration_ecs_execution"]
+  # Standalone outputs, not role_arns["..."] -- found live 2026-08-20
+  # while planning 4.4's scoped destroy: indexing role_arns creates a
+  # graph edge to the *entire* map (all 9 roles), so a destroy targeting
+  # just cerberus-spark's role pulled these task definitions in as false
+  # dependents. Same fix ingestion_lambda_role_arn already established
+  # for the same class of problem during 3.7.
+  transform_task_role_arn = module.iam.orchestration_transform_role_arn
+  dbt_task_role_arn       = module.iam.orchestration_dbt_role_arn
+  task_execution_role_arn = module.iam.orchestration_ecs_execution_role_arn
 
   silver_bucket_name    = module.s3_medallion.bucket_names["silver"]
   cluster_name          = local.eks_cluster_name
@@ -134,16 +140,18 @@ module "step_functions" {
 
   account_id = data.aws_caller_identity.current.account_id
 
-  state_machine_role_arn  = module.iam.role_arns["orchestration_state_machine"]
+  # Standalone outputs throughout -- same false-dependent reasoning as
+  # module.orchestration_runner's block above.
+  state_machine_role_arn  = module.iam.orchestration_state_machine_role_arn
   state_machine_role_name = module.iam.orchestration_state_machine_role_name
 
   ingestion_lambda_arn          = module.lambda_ingestion.function_arn
   ecs_cluster_arn               = module.orchestration_runner.cluster_arn
   transform_task_definition_arn = module.orchestration_runner.transform_task_definition_arn
   dbt_task_definition_arn       = module.orchestration_runner.dbt_task_definition_arn
-  transform_task_role_arn       = module.iam.role_arns["orchestration_transform"]
-  dbt_task_role_arn             = module.iam.role_arns["orchestration_dbt"]
-  task_execution_role_arn       = module.iam.role_arns["orchestration_ecs_execution"]
+  transform_task_role_arn       = module.iam.orchestration_transform_role_arn
+  dbt_task_role_arn             = module.iam.orchestration_dbt_role_arn
+  task_execution_role_arn       = module.iam.orchestration_ecs_execution_role_arn
 
   private_subnet_ids = module.vpc.private_subnet_ids
   security_group_id  = module.orchestration_runner.security_group_id
