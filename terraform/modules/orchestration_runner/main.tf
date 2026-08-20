@@ -6,7 +6,7 @@
 # task defs, not one with a runtime Overrides.command, so each keeps its
 # own IAM task role and CloudWatch log group without the state machine
 # having to inject anything at invoke time. No aws_ecs_service anywhere
-# here -- the state machine's ecs:runTask.sync2 integration runs each task
+# here -- the state machine's ecs:runTask.sync integration runs each task
 # directly, standalone, the same "workload action, not standing
 # infrastructure" distinction spark_job's own header draws for
 # SparkApplication submissions.
@@ -51,7 +51,16 @@ resource "null_resource" "build_and_push" {
   }
 
   provisioner "local-exec" {
-    command = <<-EOT
+    # local-exec defaults to /bin/sh, which on this system is dash --
+    # dash doesn't support `set -o pipefail` (bash-only), and the first
+    # line of this command needs it (aws ecr get-login-password | docker
+    # login -- without pipefail, a failure in get-login-password wouldn't
+    # necessarily fail the pipeline, since sh takes the last command's
+    # exit code). Confirmed live 2026-08-19/20: /bin/sh: set: Illegal
+    # option -o pipefail. Explicit interpreter, not a rewrite avoiding
+    # pipefail, since the safety property is worth keeping.
+    interpreter = ["/bin/bash", "-c"]
+    command     = <<-EOT
       set -euo pipefail
       aws ecr get-login-password --region ${var.region} --profile cerberus-admin \
         | docker login --username AWS --password-stdin ${aws_ecr_repository.runner.repository_url}
@@ -82,8 +91,12 @@ resource "aws_cloudwatch_log_group" "dbt" {
 }
 
 resource "aws_security_group" "runner" {
-  name        = "cerberus-orchestration-runner"
-  description = "Egress-only SG for the orchestration runner's Fargate tasks -- nothing calls these tasks, they only call out (ECR, S3, Athena, the EKS API, CloudWatch Logs) through the existing single NAT Gateway (ADR 0007)."
+  name = "cerberus-orchestration-runner"
+  # No apostrophe in this description -- confirmed live 2026-08-19 that
+  # AWS's allowed character set for EC2 security group descriptions
+  # (a-zA-Z0-9. _-:/()#,@[]+=&;{}!$*) excludes it; "runner's" here caused
+  # a real InvalidParameterValue apply failure.
+  description = "Egress-only SG for the orchestration runner Fargate tasks -- nothing calls these tasks, they only call out (ECR, S3, Athena, the EKS API, CloudWatch Logs) through the existing single NAT Gateway (ADR 0007)."
   vpc_id      = var.vpc_id
 
   egress {

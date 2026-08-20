@@ -22,7 +22,7 @@
     },
     "RunTransform": {
       "Type": "Task",
-      "Resource": "arn:aws:states:::ecs:runTask.sync2",
+      "Resource": "arn:aws:states:::ecs:runTask.sync",
       "Parameters": {
         "LaunchType": "FARGATE",
         "Cluster": "${ecs_cluster_arn}",
@@ -57,7 +57,7 @@
     },
     "RunDbt": {
       "Type": "Task",
-      "Resource": "arn:aws:states:::ecs:runTask.sync2",
+      "Resource": "arn:aws:states:::ecs:runTask.sync",
       "Parameters": {
         "LaunchType": "FARGATE",
         "Cluster": "${ecs_cluster_arn}",

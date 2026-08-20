@@ -1,7 +1,7 @@
 # 4.2 -- the orchestrated ingest -> transform -> dbt -> serve state machine
 # (ADR 0009). InvokeIngestion re-invokes the existing 2.1 Lambda directly;
 # RunTransform/RunDbt drive the orchestration_runner module's two Fargate
-# tasks via the native ecs:runTask.sync2 integration; RunServingQuery runs
+# tasks via the native ecs:runTask.sync integration; RunServingQuery runs
 # serving/queries/demo_query.sql (1.10) via the native
 # athena:startQueryExecution.sync integration -- no container needed for
 # that step, Step Functions talks to Athena directly.
@@ -70,7 +70,7 @@ resource "aws_iam_role_policy" "state_machine" {
         ]
       },
       {
-        # AWS's own documented requirement for the ecs:runTask.sync2
+        # AWS's own documented requirement for the ecs:runTask.sync
         # integration: Step Functions creates/manages a rule named
         # "StepFunctionsGetEventsForECSTaskRule" to hear the task's
         # completion event -- this just grants the state machine's role
@@ -272,7 +272,11 @@ resource "aws_scheduler_schedule" "daily" {
   target {
     # Universal target: starts an execution of the state machine rather
     # than invoking a specific service API's dedicated integration.
-    arn      = "arn:aws:scheduler:::aws-sdk:states:startExecution"
+    # Service name is "sfn", not "states" -- confirmed live 2026-08-20
+    # against AWS's own EventBridge Scheduler docs after "states" failed
+    # with "The api startExecution is not valid for the service
+    # aws-sdk:states."
+    arn      = "arn:aws:scheduler:::aws-sdk:sfn:startExecution"
     role_arn = aws_iam_role.scheduler.arn
 
     input = jsonencode({
