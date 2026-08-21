@@ -129,6 +129,21 @@ granularity (`spark_job` already split out of `spark_operator`):
   what additionally separates "any PR in this repo can plan" from "only a
   push to main can apply."
 
+**The two role ARNs are stored differently in GitHub, not identically**:
+`cerberus-ci-plan`'s ARN is a repo *Variable* (plaintext, visible in logs
+and settings); `cerberus-ci-apply`'s is a *Secret* (redacted). An ARN
+reveals only an AWS account ID and a role name -- not a credential; the
+OIDC-signed token, mintable only by GitHub and only for a matching
+repo/ref, is what actually gates access, so neither classification changes
+what's protected. The split exists because GitHub does not expose Secrets
+to a fork's `pull_request` run at all -- if `cerberus-ci-plan`'s ARN were a
+Secret, the one check that has to work for forks (the whole reason it's a
+separate, broadly-trusted, read-only role) would silently break for every
+external contributor. `cerberus-ci-apply` never runs for a fork (`push` to
+`main` is unreachable from one), so its Secret classification costs
+nothing and buys not putting the account ID in plaintext where it doesn't
+need to be.
+
 **Two workflows** (`.github/workflows/terraform-plan.yml`,
 `terraform-apply.yml`), both scoped to `terraform/modules/**` and
 `terraform/envs/dev-standing/**` only -- a docs-only or article PR never

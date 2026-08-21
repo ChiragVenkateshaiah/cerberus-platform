@@ -11,6 +11,16 @@ name: terraform plan (dev-standing)
 # will accept, regardless of what its own workflow file requests. Read-only
 # AWS permissions either way: this job cannot mutate anything even if that
 # trust boundary were somehow bypassed.
+#
+# Its ARN is a repo Variable, not a Secret, deliberately: GitHub does not
+# expose Secrets to a fork's pull_request run at all (an anti-exfiltration
+# protection), which would silently break this exact check -- the one PR
+# workflow that has to work for forks, since a fork's PR is what the
+# read-only trust boundary above exists to make safe in the first place.
+# An ARN reveals only the account ID and role name, not a credential --
+# the OIDC-signed token, which only GitHub can mint and only for this repo,
+# is what actually gates access, unaffected by whether the ARN itself is
+# public.
 on:
   pull_request:
     paths:

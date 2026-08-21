@@ -9,6 +9,11 @@ name: terraform apply (dev-standing)
 # repo:<owner>/<repo>:ref:refs/heads/main -- a token minted for a PR run,
 # or for any other branch, is rejected before this job could ever assume
 # write credentials, independent of this file's own `on:` trigger.
+#
+# Its ARN is a Secret, not a Variable, unlike the plan role's -- this job
+# never runs for a fork (push to main is unreachable from a fork), so
+# Secrets' fork-PR redaction has no functional cost here, only the benefit
+# of not putting the account ID in plaintext logs/settings.
 on:
   push:
     branches: [main]
@@ -32,7 +37,7 @@ jobs:
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ vars.AWS_CI_APPLY_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_CI_APPLY_ROLE_ARN }}
           aws-region: us-east-1
 
       - uses: hashicorp/setup-terraform@v3
