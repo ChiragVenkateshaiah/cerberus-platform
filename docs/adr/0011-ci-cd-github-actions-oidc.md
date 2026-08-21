@@ -122,11 +122,19 @@ granularity (`spark_job` already split out of `spark_operator`):
   `cerberus-orchestration-*`, never `cerberus-admin`, never the
   compute-side `cerberus-spark`, and never its own `cerberus-ci-*` roles --
   no path to self-escalation.
-- The GitHub OIDC token's `sub` claim always names the *base* repository a
-  workflow ran in, never a fork's, so the repo-slug match alone already
-  excludes fork-originated tokens from ever satisfying either trust
-  policy; the `ref:refs/heads/main` condition on `cerberus-ci-apply` is
-  what additionally separates "any PR in this repo can plan" from "only a
+- Matched on the token's dedicated `repository`/`ref` claims, not `sub`
+  substring patterns -- live testing (2026-08-21) found this account's
+  GitHub org embeds immutable numeric IDs into `sub`
+  (`repo:OWNER@12345/REPO@67890:pull_request`, not the plain
+  `repo:OWNER/REPO:...` shape most docs show), which broke a
+  `StringLike` condition on `sub` outright, confirmed via CloudTrail's
+  actual rejected `AssumeRoleWithWebIdentity` calls. `repository`/`ref`
+  are separate top-level claims immune to whatever shape `sub` takes.
+  Both always name the *base* repository/ref a workflow ran in, never a
+  fork's, so matching them doesn't by itself exclude fork-originated
+  tokens (a fork's PR run is still executed against the base repo's
+  context) -- the `ref = refs/heads/main` condition on `cerberus-ci-apply`
+  is what actually separates "any PR in this repo can plan" from "only a
   push to main can apply."
 
 **The two role ARNs are stored differently in GitHub, not identically**:

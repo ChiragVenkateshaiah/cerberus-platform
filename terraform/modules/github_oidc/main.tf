@@ -17,11 +17,30 @@
 #     ref is main, which for this repo only happens on a direct push/merge
 #     to main (something only a repo collaborator can do). This role alone
 #     carries create/update/delete permissions.
-# The GitHub OIDC token's `sub` claim always names the *base* repository a
-# workflow ran in (`repo:OWNER/REPO:...`), never a fork's -- so scoping the
-# trust condition to this repo's slug is sufficient on its own to exclude
-# fork-originated tokens; the ref restriction on top of that is what
-# separates "any PR can plan" from "only main can apply."
+# The real scoping is done on the token's dedicated `repository`/`ref`
+# claims, not `sub` substring patterns -- discovered live (2026-08-21) that
+# this account's GitHub org embeds immutable numeric IDs into `sub`
+# (`repo:OWNER@12345/REPO@67890:pull_request`, not the plain
+# `repo:OWNER/REPO:...` AWS's own docs still show), which broke a
+# StringLike("repo:${slug}:*") condition outright -- confirmed via
+# CloudTrail's actual rejected AssumeRoleWithWebIdentity events, not
+# inferred from docs. `repository`/`ref` are separate top-level claims
+# GitHub's token always includes, immune to whatever format `sub` happens
+# to use. Both always name the *base* repository/ref a workflow ran in --
+# never a fork's -- so matching them doesn't by itself exclude
+# fork-originated tokens (a fork's PR run is still executed against the
+# base repo's context); the `ref` restriction on cerberus-ci-apply is what
+# actually separates "any PR in this repo can plan" from "only a push to
+# main can apply."
+#
+# A loose `sub` StringLike is also required -- not for scoping, AWS's own
+# IAM API rejects any GitHub-OIDC trust policy that doesn't evaluate `sub`
+# or `job_workflow_ref` at all, regardless of what other conditions are
+# present (MalformedPolicyDocument, discovered live on the first apply
+# attempt after the fix above). `repo:${github_owner}*` satisfies that
+# requirement without doing any of the real access control -- `repository`
+# and (for apply) `ref` are the conditions that actually matter, combined
+# with AND semantics against this same Condition block.
 
 data "tls_certificate" "github_actions" {
   url = "https://token.actions.githubusercontent.com"
@@ -49,10 +68,11 @@ resource "aws_iam_role" "ci_plan" {
         Action    = "sts:AssumeRoleWithWebIdentity"
         Condition = {
           StringEquals = {
-            "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
+            "token.actions.githubusercontent.com:aud"        = "sts.amazonaws.com"
+            "token.actions.githubusercontent.com:repository" = local.repo_slug
           }
           StringLike = {
-            "token.actions.githubusercontent.com:sub" = "repo:${local.repo_slug}:*"
+            "token.actions.githubusercontent.com:sub" = "repo:${var.github_owner}*"
           }
         }
       }
@@ -72,8 +92,12 @@ resource "aws_iam_role" "ci_apply" {
         Action    = "sts:AssumeRoleWithWebIdentity"
         Condition = {
           StringEquals = {
-            "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
-            "token.actions.githubusercontent.com:sub" = "repo:${local.repo_slug}:ref:refs/heads/main"
+            "token.actions.githubusercontent.com:aud"        = "sts.amazonaws.com"
+            "token.actions.githubusercontent.com:repository" = local.repo_slug
+            "token.actions.githubusercontent.com:ref"        = "refs/heads/main"
+          }
+          StringLike = {
+            "token.actions.githubusercontent.com:sub" = "repo:${var.github_owner}*"
           }
         }
       }
@@ -195,9 +219,9 @@ resource "aws_iam_role_policy" "ci_apply" {
         ]
       },
       {
-        Sid      = "ManageGlueCatalog"
-        Effect   = "Allow"
-        Action   = "glue:*"
+        Sid    = "ManageGlueCatalog"
+        Effect = "Allow"
+        Action = "glue:*"
         Resource = [
           "arn:aws:glue:${var.region}:${var.account_id}:catalog",
           "arn:aws:glue:${var.region}:${var.account_id}:database/cerberus_platform",
