@@ -5,10 +5,10 @@ name: terraform apply (dev-standing)
 # commits this project's workflow already allows straight to main).
 #
 # cerberus-ci-apply's trust policy (terraform/modules/github_oidc) only
-# matches an OIDC token whose `sub` claim is exactly
-# repo:<owner>/<repo>:ref:refs/heads/main -- a token minted for a PR run,
-# or for any other branch, is rejected before this job could ever assume
-# write credentials, independent of this file's own `on:` trigger.
+# matches a token whose `repository`/`ref` claims are exactly this repo and
+# refs/heads/main -- a token minted for a PR run, or for any other branch,
+# is rejected before this job could ever assume write credentials,
+# independent of this file's own `on:` trigger.
 #
 # Its ARN is a Secret, not a Variable, unlike the plan role's -- this job
 # never runs for a fork (push to main is unreachable from a fork), so
@@ -41,6 +41,20 @@ jobs:
           aws-region: us-east-1
 
       - uses: hashicorp/setup-terraform@v3
+
+      # Same reasoning as terraform-plan.yml -- module.lambda_ingestion's
+      # archive_file data source needs a real build/layer/python directory
+      # on disk, which is gitignored and doesn't survive a fresh checkout.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build ingestion Lambda's Faker layer
+        working-directory: .
+        run: |
+          pip install -r ingestion/lambda/requirements.txt \
+            -t terraform/modules/lambda_ingestion/build/layer/python \
+            --no-cache-dir --quiet
 
       - name: terraform init
         run: terraform init

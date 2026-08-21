@@ -109,6 +109,23 @@ resource "aws_iam_role" "ci_apply" {
 # manages, plus the Terraform state bucket/lock table (plan still reads
 # state and takes/releases the DynamoDB lock even though it writes nothing
 # to AWS resources themselves).
+#
+# Read access itself is AWS's managed ReadOnlyAccess, not a hand-enumerated
+# action list -- discovered live (2026-08-21) that a hand-picked list is
+# genuinely impractical here: a single aws_s3_bucket resource's refresh
+# alone calls a dozen-plus distinct Get* actions (GetAccelerateConfiguration
+# was the one that broke first), and the same is true of IAM/Glue/ECS
+# resources. Attaching the managed policy is the third deliberate exception
+# to this project's inline-only-policy convention (alongside
+# AWSLambdaBasicExecutionRole and AmazonECSTaskExecutionRolePolicy in
+# terraform/modules/iam) -- broad, standard, AWS-defined *read* capability,
+# not a project-specific data-plane grant, and it contains zero
+# write/create/delete actions, so the property that actually matters (this
+# role can never mutate anything) holds structurally, not by convention.
+resource "aws_iam_role_policy_attachment" "ci_plan_read_only" {
+  role       = aws_iam_role.ci_plan.name
+  policy_arn = "arn:aws:iam::aws:policy/ReadOnlyAccess"
+}
 
 resource "aws_iam_role_policy" "ci_plan" {
   name = "cerberus-ci-plan-policy"
@@ -118,6 +135,10 @@ resource "aws_iam_role_policy" "ci_plan" {
     Version = "2012-10-17"
     Statement = [
       {
+        # ReadOnlyAccess already covers s3:GetObject/ListBucket broadly;
+        # kept explicit anyway for self-documentation, matching this
+        # project's preference for stating intent rather than relying on a
+        # managed policy's coverage implicitly.
         Sid    = "ReadTerraformState"
         Effect = "Allow"
         Action = ["s3:GetObject", "s3:ListBucket"]
@@ -127,32 +148,14 @@ resource "aws_iam_role_policy" "ci_plan" {
         ]
       },
       {
+        # Not covered by ReadOnlyAccess -- acquiring/releasing the
+        # DynamoDB lock during `terraform plan` needs Put/Delete on the
+        # lock item, which are write actions ReadOnlyAccess deliberately
+        # excludes even though no real infrastructure is being mutated.
         Sid      = "StateLock"
         Effect   = "Allow"
         Action   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem"]
         Resource = var.tfstate_lock_table_arn
-      },
-      {
-        Sid    = "ReadOnlyPlatform"
-        Effect = "Allow"
-        Action = [
-          "s3:GetBucket*", "s3:GetObject", "s3:GetLifecycleConfiguration", "s3:GetEncryptionConfiguration",
-          "s3:ListBucket", "s3:ListAllMyBuckets", "s3:GetAccountPublicAccessBlock", "s3:GetBucketPublicAccessBlock",
-          "iam:GetRole", "iam:GetRolePolicy", "iam:ListRolePolicies", "iam:ListAttachedRolePolicies", "iam:ListInstanceProfilesForRole",
-          "glue:GetDatabase*", "glue:GetTable*", "glue:GetPartition*",
-          "athena:GetWorkGroup", "athena:ListWorkGroups",
-          "lambda:GetFunction*", "lambda:ListVersionsByFunction", "lambda:GetLayerVersion",
-          "ecs:Describe*", "ecs:List*",
-          "ecr:Describe*", "ecr:GetRepositoryPolicy", "ecr:ListTagsForResource",
-          "states:Describe*", "states:List*",
-          "scheduler:Get*", "scheduler:List*",
-          "events:Describe*", "events:List*",
-          "logs:Describe*", "logs:ListTagsForResource", "logs:GetLogGroupFields",
-          "ec2:Describe*",
-          "xray:Get*",
-          "sts:GetCallerIdentity",
-        ]
-        Resource = "*"
       }
     ]
   })
@@ -285,6 +288,29 @@ resource "aws_iam_role_policy" "ci_apply" {
           "sts:GetCallerIdentity",
         ]
         Resource = "*"
+      },
+      {
+        # Read-only, deliberately -- module.github_oidc's own resources
+        # (the OIDC provider and both CI roles) live in this same state, so
+        # a whole-root `terraform apply` has to be able to refresh them
+        # even though this role never modifies them. No Put*/Update*/
+        # Create*/Delete* action appears here: this role cannot rewrite its
+        # own trust policy, cerberus-ci-plan's, or the OIDC provider's --
+        # any real change to module.github_oidc requires a human running
+        # `terraform apply` as cerberus-admin, the same self-escalation
+        # guard ManageStandingIamRoles's resource scoping already holds
+        # every other role in this project to.
+        Sid    = "ReadOwnCiIdentity"
+        Effect = "Allow"
+        Action = [
+          "iam:GetRole", "iam:GetRolePolicy", "iam:ListRolePolicies", "iam:ListAttachedRolePolicies", "iam:ListRoleTags",
+          "iam:GetOpenIDConnectProvider", "iam:ListOpenIDConnectProviderTags",
+        ]
+        Resource = [
+          aws_iam_role.ci_plan.arn,
+          aws_iam_role.ci_apply.arn,
+          aws_iam_openid_connect_provider.github_actions.arn,
+        ]
       }
     ]
   })
