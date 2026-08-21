@@ -1,8 +1,9 @@
 .DEFAULT_GOAL := help
 
-# Override with `make dev-plan TF_BIN=tofu` to use OpenTofu instead of Terraform.
+# Override with `make standing-plan TF_BIN=tofu` to use OpenTofu instead of Terraform.
 TF_BIN ?= terraform
-TF_DEV_DIR := terraform/envs/dev
+TF_STANDING_DIR := terraform/envs/dev-standing
+TF_COMPUTE_DIR := terraform/envs/dev-compute
 TF_BOOTSTRAP_DIR := terraform/bootstrap
 
 .PHONY: help
@@ -19,18 +20,31 @@ bootstrap-plan: ## terraform plan the state-backend bootstrap
 bootstrap-apply: ## terraform apply the state-backend bootstrap
 	cd $(TF_BOOTSTRAP_DIR) && $(TF_BIN) apply
 
-.PHONY: dev-init dev-plan dev-apply dev-destroy
-dev-init: ## terraform init the dev environment
-	cd $(TF_DEV_DIR) && $(TF_BIN) init
+.PHONY: standing-init standing-plan standing-apply standing-destroy
+standing-init: ## terraform init the CI-managed standing environment (S3/IAM/Glue/Athena/Lambda/orchestration)
+	cd $(TF_STANDING_DIR) && $(TF_BIN) init
 
-dev-plan: ## terraform plan the dev environment
-	cd $(TF_DEV_DIR) && $(TF_BIN) plan
+standing-plan: ## terraform plan the standing environment -- same plan GitHub Actions runs on PR
+	cd $(TF_STANDING_DIR) && $(TF_BIN) plan
 
-dev-apply: ## terraform apply the dev environment
-	cd $(TF_DEV_DIR) && $(TF_BIN) apply
+standing-apply: ## terraform apply the standing environment -- same apply GitHub Actions runs on merge to main
+	cd $(TF_STANDING_DIR) && $(TF_BIN) apply
 
-dev-destroy: ## terraform destroy the dev environment
-	cd $(TF_DEV_DIR) && $(TF_BIN) destroy
+standing-destroy: ## terraform destroy the standing environment (rarely needed -- this is the always-on layer)
+	cd $(TF_STANDING_DIR) && $(TF_BIN) destroy
+
+.PHONY: compute-init compute-plan compute-apply compute-destroy
+compute-init: ## terraform init the human-run compute environment (VPC NAT/EIP, EKS, Spark)
+	cd $(TF_COMPUTE_DIR) && $(TF_BIN) init
+
+compute-plan: ## terraform plan the compute environment -- spin up for a Spark exercise
+	cd $(TF_COMPUTE_DIR) && $(TF_BIN) plan
+
+compute-apply: ## terraform apply the compute environment -- spin up for a Spark exercise
+	cd $(TF_COMPUTE_DIR) && $(TF_BIN) apply
+
+compute-destroy: ## terraform destroy the compute environment -- tear down after a Spark exercise (cost discipline)
+	cd $(TF_COMPUTE_DIR) && $(TF_BIN) destroy
 
 .PHONY: fmt
 fmt: ## terraform fmt across the whole terraform/ tree

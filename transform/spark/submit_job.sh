@@ -17,9 +17,10 @@ set -euo pipefail
 # assumed via IRSA, never as either of the above.
 #
 # Prerequisites this script does NOT do for you: `terraform apply` against
-# envs/dev (this stack must actually exist first), and confirming
-# spark-application.yaml's image/hadoop-aws versions are current (see that
-# file's header).
+# envs/dev-standing (once) and envs/dev-compute (this stack must actually
+# exist first -- ADR 0011 split the old single envs/dev root in two), and
+# confirming spark-application.yaml's image/hadoop-aws versions are current
+# (see that file's header).
 
 CLUSTER_NAME="cerberus-platform-eks"
 AWS_REGION="us-east-1"

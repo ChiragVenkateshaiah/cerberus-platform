@@ -95,17 +95,24 @@ constraints behind this diagram, see
 ```
 .
 ├── .claude/commands/     # /start-day, /end-day, /write-article,
-│                         #   /note-maker session commands
+│                         #   /note-maker, /git-cleaner session commands
+├── .github/workflows/    # terraform plan on PR, apply on merge (5.1/5.2),
+│                         #   both against envs/dev-standing only
 ├── docs/                 # plan, architecture notes, ADRs, learning notes
 ├── articles/             # weekly engineering articles (see article.md)
 ├── terraform/
 │   ├── bootstrap/        # state backend as code (S3 + DynamoDB lock)
-│   ├── modules/          # reusable modules (S3 medallion, IAM, Glue
-│   │                     #   catalog, Athena, Lambda ingestion, VPC, EKS,
-│   │                     #   Spark Operator, Spark job service account,
-│   │                     #   orchestration runner (ECR/Fargate), Step
-│   │                     #   Functions)
-│   └── envs/dev/         # dev environment root module
+│   ├── modules/          # reusable modules (S3 medallion, IAM, IAM spark,
+│   │                     #   Glue catalog, Athena, Lambda ingestion, VPC,
+│   │                     #   VPC NAT, EKS, Spark Operator, Spark job
+│   │                     #   service account, orchestration runner
+│   │                     #   (ECR/Fargate), Step Functions, GitHub OIDC)
+│   ├── envs/dev-standing/  # CI-managed root (5.1): S3/IAM/Glue/Athena/
+│   │                     #   Lambda/orchestration/GitHub OIDC -- no idle
+│   │                     #   cost, planned on every PR, applied on merge
+│   └── envs/dev-compute/  # human-run root, spin-up/destroy per exercise:
+│                         #   VPC NAT/EIP, EKS, Spark -- never touched by
+│                         #   CI (ADR 0011)
 ├── ingestion/scripts/    # ingestion scripts: synthetic payments generator
 │                         #   + shared payments_lib.py core (Python, Phase
 │                         #   1); ingest_weather.sh (Phase 0, unscheduled —

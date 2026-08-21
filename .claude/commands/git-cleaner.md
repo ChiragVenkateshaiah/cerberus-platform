@@ -19,6 +19,7 @@ After both repos print a plain summary:
 - All clean and up to date → "Ready to work."
 - Any issues → list exactly what needs attention.
 
-Cerberus only: if `terraform/envs/dev/.terraform/` or
-`terraform/bootstrap/.terraform/` is missing, append a reminder to run
-`terraform init` in that stack before any plan or apply.
+Cerberus only: if `terraform/envs/dev-standing/.terraform/`,
+`terraform/envs/dev-compute/.terraform/`, or `terraform/bootstrap/.terraform/`
+is missing, append a reminder to run `terraform init` in that stack before
+any plan or apply.
