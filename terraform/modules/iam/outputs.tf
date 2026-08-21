@@ -1,11 +1,10 @@
 output "role_arns" {
-  description = "Map of role name -> ARN (ingestion/transform/serving/ingestion_lambda/spark/orchestration_transform/orchestration_dbt/orchestration_ecs_execution/orchestration_state_machine)."
+  description = "Map of role name -> ARN (ingestion/transform/serving/ingestion_lambda/orchestration_transform/orchestration_dbt/orchestration_ecs_execution/orchestration_state_machine). cerberus-spark moved to iam_spark by ADR 0011 -- not in this map."
   value = {
     ingestion                   = aws_iam_role.ingestion.arn
     transform                   = aws_iam_role.transform.arn
     serving                     = aws_iam_role.serving.arn
     ingestion_lambda            = aws_iam_role.ingestion_lambda.arn
-    spark                       = aws_iam_role.spark.arn
     orchestration_transform     = aws_iam_role.orchestration_transform.arn
     orchestration_dbt           = aws_iam_role.orchestration_dbt.arn
     orchestration_ecs_execution = aws_iam_role.orchestration_ecs_execution.arn

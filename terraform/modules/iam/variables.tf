@@ -44,22 +44,6 @@ variable "athena_results_bucket_arn" {
   type        = string
 }
 
-variable "eks_oidc_provider_arn" {
-  description = "IAM OIDC provider ARN from the eks module, for the Spark job's IRSA-federated role."
-  type        = string
-}
-
-variable "eks_oidc_issuer_url" {
-  description = "EKS cluster's OIDC issuer URL from the eks module (with https:// scheme), used to scope the IRSA trust policy's sub/aud conditions."
-  type        = string
-}
-
-variable "spark_service_account" {
-  description = "Kubernetes service account (namespace:name) allowed to assume cerberus-spark via IRSA."
-  type        = string
-  default     = "spark-jobs:cerberus-spark"
-}
-
 # 4.2: built from a literal name, not module.eks.cluster_name -- taking
 # the eks module's output here would make this module depend on eks,
 # while eks's own access entry (for orchestration_transform's role,

@@ -1,0 +1,112 @@
+name: terraform plan (dev-standing)
+
+# ADR 0011 (5.1). Runs against every PR touching the standing modules/root
+# -- never envs/dev-compute or its modules (vpc_nat/eks/iam_spark/
+# spark_operator/spark_job), which stay entirely outside CI's reach.
+#
+# id-token: write is what lets this job request an OIDC token at all; the
+# actual AWS permissions come from cerberus-ci-plan's trust policy
+# (terraform/modules/github_oidc), which only matches tokens whose `sub`
+# claim names this exact repo -- a fork's PR cannot mint a token this role
+# will accept, regardless of what its own workflow file requests. Read-only
+# AWS permissions either way: this job cannot mutate anything even if that
+# trust boundary were somehow bypassed.
+#
+# Its ARN is a repo Variable, not a Secret, deliberately: GitHub does not
+# expose Secrets to a fork's pull_request run at all (an anti-exfiltration
+# protection), which would silently break this exact check -- the one PR
+# workflow that has to work for forks, since a fork's PR is what the
+# read-only trust boundary above exists to make safe in the first place.
+# An ARN reveals only the account ID and role name, not a credential --
+# the OIDC-signed token, which only GitHub can mint and only for this repo,
+# is what actually gates access, unaffected by whether the ARN itself is
+# public.
+on:
+  pull_request:
+    paths:
+      - "terraform/modules/**"
+      - "terraform/envs/dev-standing/**"
+      - ".github/workflows/terraform-plan.yml"
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write # for the plan-output PR comment below; no-ops for fork PRs (read-only default token)
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform/envs/dev-standing
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_CI_PLAN_ROLE_ARN }}
+          aws-region: us-east-1
+
+      # No terraform_version pinned -- this project has been burned before
+      # (2026-08-17) by guessing version numbers instead of verifying them;
+      # setup-terraform resolves latest stable itself rather than a guess
+      # going stale in this file.
+      - uses: hashicorp/setup-terraform@v3
+
+      # module.lambda_ingestion's archive_file data source needs a real,
+      # already-populated build/layer/python directory on disk -- it's
+      # gitignored (machine-local build output, per terraform/modules/
+      # lambda_ingestion/main.tf's header), so a fresh checkout (this
+      # runner, same as any new machine -- discovered live 2026-08-21 on a
+      # second dev machine) has none. Runs before `terraform init` for the
+      # same reason it had to run by hand there first.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build ingestion Lambda's Faker layer
+        working-directory: .
+        run: |
+          pip install -r ingestion/lambda/requirements.txt \
+            -t terraform/modules/lambda_ingestion/build/layer/python \
+            --no-cache-dir --quiet
+
+      - name: terraform fmt check
+        run: terraform fmt -check -recursive ../../
+
+      - name: terraform init
+        run: terraform init
+
+      - name: terraform validate
+        run: terraform validate
+
+      # set -o pipefail is required here -- without it, `terraform plan`'s
+      # own exit code is masked by `tee`'s (which is almost always 0), so a
+      # real plan failure would still report this step (and thus the whole
+      # job) as successful. Found live 2026-08-21: a real Terraform error
+      # was silently swallowed this exact way on the first attempt at this
+      # workflow, reported as a green run with a "Planning failed" comment
+      # nobody would necessarily notice.
+      - name: terraform plan
+        id: plan
+        run: |
+          set -o pipefail
+          terraform plan -no-color -input=false | tee plan_output.txt
+        continue-on-error: true
+
+      - name: Post plan output as a PR comment
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          {
+            echo "### terraform plan (dev-standing)"
+            echo '```'
+            cat plan_output.txt
+            echo '```'
+          } > pr_comment.md
+          gh pr comment "${{ github.event.pull_request.number }}" --body-file pr_comment.md
+
+      - name: Fail if plan failed
+        if: steps.plan.outcome == 'failure'
+        run: exit 1

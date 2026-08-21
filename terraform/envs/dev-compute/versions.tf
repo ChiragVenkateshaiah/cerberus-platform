@@ -6,12 +6,6 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
-    # 2.1: zips the ingestion Lambda's code and Faker layer at apply time
-    # (terraform/modules/lambda_ingestion) -- no other module needs it.
-    archive = {
-      source  = "hashicorp/archive"
-      version = "~> 2.4"
-    }
     # 3.2: fetches the EKS cluster's OIDC issuer certificate thumbprint for
     # the IAM OIDC provider (terraform/modules/eks) -- no other module
     # needs it.
@@ -22,7 +16,7 @@ terraform {
     # 3.4: talks to the EKS cluster's API server -- kubernetes for the
     # spark-operator/spark-jobs namespaces, helm for the operator's chart
     # install (terraform/modules/spark_operator). Both authenticate via
-    # data.aws_eks_cluster_auth below.
+    # data.aws_eks_cluster_auth in provider.tf.
     kubernetes = {
       source  = "hashicorp/kubernetes"
       version = "~> 2.31"
@@ -33,12 +27,15 @@ terraform {
     }
   }
 
+  # No `profile` -- this root is human-run only (never CI, per ADR 0011),
+  # but kept consistent with envs/dev-standing's env-var-based auth anyway
+  # rather than reintroducing a hardcoded identity. Export
+  # AWS_PROFILE=cerberus-admin before running terraform here.
   backend "s3" {
     bucket         = "cerberus-platform-tfstate-131715059025"
-    key            = "envs/dev/terraform.tfstate"
+    key            = "envs/dev-compute/terraform.tfstate"
     region         = "us-east-1"
     dynamodb_table = "cerberus-platform-tfstate-lock"
     encrypt        = true
-    profile        = "cerberus-admin"
   }
 }

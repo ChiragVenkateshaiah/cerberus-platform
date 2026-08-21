@@ -5,6 +5,16 @@
 # toward Cost: a single NAT Gateway instead of one per AZ, and a public EKS
 # API endpoint instead of a bastion/VPN this solo project has no other use
 # for. Both are accepted gaps, documented in the ADR, not discovered later.
+#
+# ADR 0011 (5.1): this module holds only the free, always-standing pieces
+# (VPC, subnets, IGW, route tables, the S3 gateway endpoint) -- it lives in
+# envs/dev-standing, CI-managed. The NAT Gateway + EIP are the one genuinely
+# billed piece and are lifecycle-coupled to EKS, not to this module's own
+# resources -- they moved to terraform/modules/vpc_nat, applied only from
+# envs/dev-compute, human-run per exercise. The private route table here
+# declares no inline NAT route for exactly that reason: vpc_nat attaches it
+# as a standalone aws_route resource once NAT actually exists, and removes
+# it on teardown, without this module ever needing to know NAT exists.
 
 locals {
   public_subnets = {
@@ -92,42 +102,14 @@ resource "aws_subnet" "private" {
   }
 }
 
-# Single NAT Gateway, provisioned in public-a only -- the Cost-over-
-# Reliability trade ADR 0007 names explicitly: a NAT failure is retriable
-# (terraform destroy + re-apply rebuilds the whole stack from code) since
-# this VPC only exists for the duration of one Spark job, not as always-on
-# infrastructure that needs to survive an outage while idle.
-
-resource "aws_eip" "nat" {
-  domain = "vpc"
-
-  tags = {
-    Name  = "cerberus-platform-nat-eip"
-    Phase = "3"
-  }
-
-  depends_on = [aws_internet_gateway.this]
-}
-
-resource "aws_nat_gateway" "this" {
-  allocation_id = aws_eip.nat.id
-  subnet_id     = aws_subnet.public["a"].id
-
-  tags = {
-    Name  = "cerberus-platform-nat"
-    Phase = "3"
-  }
-
-  depends_on = [aws_internet_gateway.this]
-}
+# NAT Gateway + EIP live in terraform/modules/vpc_nat (envs/dev-compute) --
+# see this file's header note (ADR 0011). This route table intentionally
+# declares no inline `route` block for the NAT path; vpc_nat attaches it as
+# a standalone aws_route resource against private_route_table_id below once
+# NAT actually exists, and destroys it again on teardown.
 
 resource "aws_route_table" "private" {
   vpc_id = aws_vpc.this.id
-
-  route {
-    cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.this.id
-  }
 
   tags = {
     Name  = "cerberus-platform-private-rt"
