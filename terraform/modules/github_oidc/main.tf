@@ -188,16 +188,20 @@ resource "aws_iam_role_policy" "ci_apply" {
         Resource = var.tfstate_lock_table_arn
       },
       {
+        # Includes the Athena results bucket alongside bronze/silver/gold --
+        # a separate bucket the athena module owns, missing entirely from
+        # the first live apply attempt (2026-08-21): its ownership controls
+        # and lifecycle config refresh both 403'd.
         Sid      = "ManageMedallionBuckets"
         Effect   = "Allow"
         Action   = "s3:*"
-        Resource = [for arn in var.bucket_arns : arn]
+        Resource = concat([for arn in var.bucket_arns : arn], [var.athena_results_bucket_arn])
       },
       {
         Sid      = "ManageMedallionBucketContents"
         Effect   = "Allow"
         Action   = "s3:*"
-        Resource = [for arn in var.bucket_arns : "${arn}/*"]
+        Resource = concat([for arn in var.bucket_arns : "${arn}/*"], ["${var.athena_results_bucket_arn}/*"])
       },
       {
         # Name-prefix-scoped: this role can only ever touch roles/policies
@@ -219,6 +223,11 @@ resource "aws_iam_role_policy" "ci_apply" {
           "arn:aws:iam::${var.account_id}:role/cerberus-transform",
           "arn:aws:iam::${var.account_id}:role/cerberus-serving",
           "arn:aws:iam::${var.account_id}:role/cerberus-orchestration-*",
+          # EventBridge Scheduler's own execution role (module.step_functions
+          # .aws_iam_role.scheduler) -- doesn't match any of the patterns
+          # above, missed originally (iam:GetRole 403'd on the first live
+          # apply).
+          "arn:aws:iam::${var.account_id}:role/cerberus-ingest-payments-scheduler",
         ]
       },
       {
@@ -232,16 +241,26 @@ resource "aws_iam_role_policy" "ci_apply" {
         ]
       },
       {
+        # The workgroup's real name is `cerberus_platform` (underscore) --
+        # `aws_athena_workgroup.this.name` in terraform/modules/athena. The
+        # original hyphenated pattern here never matched it, which is why
+        # the first live apply 403'd on athena:GetWorkGroup.
         Sid      = "ManageAthena"
         Effect   = "Allow"
         Action   = "athena:*"
-        Resource = "arn:aws:athena:${var.region}:${var.account_id}:workgroup/cerberus-platform*"
+        Resource = "arn:aws:athena:${var.region}:${var.account_id}:workgroup/cerberus_platform"
       },
       {
-        Sid      = "ManageIngestionLambda"
-        Effect   = "Allow"
-        Action   = "lambda:*"
-        Resource = "arn:aws:lambda:${var.region}:${var.account_id}:function:cerberus-ingest-*"
+        Sid    = "ManageIngestionLambda"
+        Effect = "Allow"
+        Action = "lambda:*"
+        Resource = [
+          "arn:aws:lambda:${var.region}:${var.account_id}:function:cerberus-ingest-*",
+          # The Faker layer 1.3's Lambda depends on -- a separate ARN
+          # namespace from the function itself, missed originally
+          # (lambda:GetLayerVersion 403'd on the first live apply).
+          "arn:aws:lambda:${var.region}:${var.account_id}:layer:cerberus-ingestion-*",
+        ]
       },
       {
         Sid      = "ManageOrchestrationEcs"
@@ -268,10 +287,62 @@ resource "aws_iam_role_policy" "ci_apply" {
         Resource = "arn:aws:scheduler:${var.region}:${var.account_id}:schedule/*/cerberus-*"
       },
       {
-        Sid      = "ManageLogGroups"
-        Effect   = "Allow"
-        Action   = "logs:*"
-        Resource = "arn:aws:logs:${var.region}:${var.account_id}:log-group:/cerberus/*"
+        # Missing entirely from the first live apply -- ec2:DescribeVpcs
+        # 403'd immediately, the first resource module.vpc's refresh
+        # touches. envs/dev-standing's trimmed vpc module (VPC, subnets,
+        # IGW, route tables, the S3 gateway endpoint -- no NAT/EIP, those
+        # live in dev-compute's vpc_nat) needs EC2 access this project
+        # never granted anywhere before, since every prior EKS/VPC apply
+        # (Phase 3/4) ran as cerberus-admin by hand, never through a scoped
+        # CI role.
+        #
+        # Split into two statements, not one blanket ec2:* on "*": the
+        # mutating actions (Create/Delete/Modify/Attach/Associate) DO
+        # support EC2's resource-type ARN format, so they're scoped to
+        # exactly the 5 resource types this module creates -- the same
+        # name-prefix-scoping discipline as IAM/Glue/Lambda above, just
+        # expressed as a resource *type* wildcard since EC2 IDs aren't
+        # predictable before creation. The Describe* actions in the second
+        # statement structurally cannot be scoped this way -- EC2's action
+        # matrix requires Resource "*" for them regardless of policy
+        # design, which is why they're pulled into a statement of their
+        # own instead of forcing a single Resource shape on both groups.
+        Sid    = "ManageVpcCore"
+        Effect = "Allow"
+        Action = "ec2:*"
+        Resource = [
+          "arn:aws:ec2:${var.region}:${var.account_id}:vpc/*",
+          "arn:aws:ec2:${var.region}:${var.account_id}:subnet/*",
+          "arn:aws:ec2:${var.region}:${var.account_id}:route-table/*",
+          "arn:aws:ec2:${var.region}:${var.account_id}:internet-gateway/*",
+          "arn:aws:ec2:${var.region}:${var.account_id}:vpc-endpoint/*",
+        ]
+      },
+      {
+        Sid    = "DescribeVpcCore"
+        Effect = "Allow"
+        Action = [
+          "ec2:DescribeVpcs", "ec2:DescribeSubnets", "ec2:DescribeRouteTables",
+          "ec2:DescribeInternetGateways", "ec2:DescribeVpcEndpoints", "ec2:DescribeTags",
+        ]
+        Resource = "*"
+      },
+      {
+        # `/cerberus/*` never matched any real log group this project
+        # creates -- orchestration_runner's two ECS task log groups live
+        # under `/ecs/cerberus-orchestration-*` and step_functions' own
+        # under `/aws/vendedlogs/states/cerberus-platform-orchestration*`,
+        # AWS-conventional prefixes, not a project-chosen one. The original
+        # pattern was a guess that was never verified against the actual
+        # resources (logs:ListTagsForResource 403'd on all three on the
+        # first live apply).
+        Sid    = "ManageLogGroups"
+        Effect = "Allow"
+        Action = "logs:*"
+        Resource = [
+          "arn:aws:logs:${var.region}:${var.account_id}:log-group:/ecs/cerberus-orchestration-*",
+          "arn:aws:logs:${var.region}:${var.account_id}:log-group:/aws/vendedlogs/states/cerberus-platform-orchestration*",
+        ]
       },
       {
         # ECR repos, task definitions, and CloudWatch Logs resource
