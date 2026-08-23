@@ -35,3 +35,8 @@ variable "bucket_arns" {
   description = "Map of layer -> bucket ARN (bronze/silver/gold), from the s3_medallion module -- cerberus-ci-apply gets full S3 access scoped to exactly these buckets."
   type        = map(string)
 }
+
+variable "athena_results_bucket_arn" {
+  description = "Athena query-results bucket ARN, from the athena module -- a separate bucket from bucket_arns' bronze/silver/gold, also managed by envs/dev-standing so cerberus-ci-apply needs access to it too."
+  type        = string
+}

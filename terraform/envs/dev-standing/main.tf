@@ -110,7 +110,8 @@ module "github_oidc" {
 
   account_id = data.aws_caller_identity.current.account_id
 
-  tfstate_bucket_arn     = "arn:aws:s3:::cerberus-platform-tfstate-131715059025"
-  tfstate_lock_table_arn = "arn:aws:dynamodb:us-east-1:${data.aws_caller_identity.current.account_id}:table/cerberus-platform-tfstate-lock"
-  bucket_arns            = module.s3_medallion.bucket_arns
+  tfstate_bucket_arn        = "arn:aws:s3:::cerberus-platform-tfstate-131715059025"
+  tfstate_lock_table_arn    = "arn:aws:dynamodb:us-east-1:${data.aws_caller_identity.current.account_id}:table/cerberus-platform-tfstate-lock"
+  bucket_arns               = module.s3_medallion.bucket_arns
+  athena_results_bucket_arn = module.athena.results_bucket_arn
 }
