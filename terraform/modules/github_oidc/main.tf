@@ -319,11 +319,21 @@ resource "aws_iam_role_policy" "ci_apply" {
         ]
       },
       {
+        # DescribeSecurityGroups and DescribePrefixLists added after a
+        # second live apply attempt (2026-08-23) got past the first six
+        # gaps cleanly and 403'd on these two instead --
+        # orchestration_runner's security group and the S3 gateway
+        # endpoint's AWS-managed prefix list, neither reachable by any of
+        # the resource-type-scoped actions above (security groups and
+        # prefix lists aren't among ManageVpcCore's 5 resource types, and
+        # like the other Describe* actions here, EC2 requires Resource "*"
+        # for both regardless).
         Sid    = "DescribeVpcCore"
         Effect = "Allow"
         Action = [
           "ec2:DescribeVpcs", "ec2:DescribeSubnets", "ec2:DescribeRouteTables",
           "ec2:DescribeInternetGateways", "ec2:DescribeVpcEndpoints", "ec2:DescribeTags",
+          "ec2:DescribeSecurityGroups", "ec2:DescribePrefixLists",
         ]
         Resource = "*"
       },
