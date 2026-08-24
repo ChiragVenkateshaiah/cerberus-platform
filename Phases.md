@@ -84,13 +84,13 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 - [x] 4.4 Full ingest → transform → serve flow as one orchestrated run
 - [x] 4.5 Well-Architected pass + ADR
 
-## Phase 5 — CI/CD 🔨
+## Phase 5 — CI/CD ✅
 
 - [x] 5.1 `terraform plan` on PR
 - [x] 5.2 `terraform apply` on merge
 - [x] 5.3 Pipeline code CI (lint/test)
 - [x] 5.4 Green build badge on README
-- [ ] 5.5 Well-Architected pass + ADR
+- [x] 5.5 Well-Architected pass + ADR
 
 ## Phase 6 — Observability & data quality ⬜
 

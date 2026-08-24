@@ -27,13 +27,15 @@ over Airflow; a state machine (Lambda → Spark-on-EKS/dbt via ECS Fargate →
 Athena) orchestrates the full ingest → transform → serve flow, tuned for
 retries and execution visibility, retargeted from EventBridge Scheduler,
 and verified with a real live execution end to end.
-🔨 Phase 5 (CI/CD) — in progress. ADR 0011 chose GitHub Actions + OIDC
+✅ Phase 5 (CI/CD) — complete. ADR 0011 chose GitHub Actions + OIDC
 federation over AWS CodePipeline and split `envs/dev` into `dev-standing`
-(CI-managed, no idle cost) and `dev-compute` (human-run only); 5.1/5.2 are
-done — `terraform plan` runs on every PR and `terraform apply` runs on
+(CI-managed, no idle cost) and `dev-compute` (human-run only);
+`terraform plan` runs on every PR and `terraform apply` runs unattended on
 merge to `main`, both verified live against real AWS, including closing 9
-real IAM permission gaps discovered across three live-apply attempts.
-5.3–5.5 (pipeline code CI, README badge, Well-Architected pass) remain.
+real IAM permission gaps discovered across three live-apply attempts. A
+`code-ci.yml` workflow lints Python (ruff) and validates the dbt project
+(`dbt parse` + sqlfluff) on every PR; ADR 0012 closes the phase's
+Well-Architected pass (milestone 5, `phase-5-cicd-complete`).
 
 See [docs/plan.md](docs/plan.md) for the full phased roadmap (Phases 0–7)
 and [Phases.md](Phases.md) for subtask-level progress.
