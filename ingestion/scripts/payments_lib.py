@@ -10,11 +10,12 @@ the two run under different credentials (a chained CLI profile vs. a
 Lambda execution role) -- callers should build that client with
 S3_CLIENT_CONFIG below so retries are handled consistently.
 """
+
 import json
 import random
 import uuid
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from botocore.config import Config
 from botocore.exceptions import ClientError
@@ -26,8 +27,14 @@ CUSTOMER_COUNT = 75
 DEFAULT_TRANSACTION_COUNT = 200
 
 MERCHANT_CATEGORIES = [
-    "retail", "grocery", "travel", "electronics", "dining",
-    "subscription", "fuel", "utilities",
+    "retail",
+    "grocery",
+    "travel",
+    "electronics",
+    "dining",
+    "subscription",
+    "fuel",
+    "utilities",
 ]
 CARD_BRANDS = ["visa", "mastercard", "amex"]
 CURRENCIES = ["USD", "USD", "USD", "EUR", "GBP"]
@@ -66,18 +73,18 @@ def build_roster():
     customers = []
     for i in range(1, CUSTOMER_COUNT + 1):
         first, last = fake.first_name(), fake.last_name()
-        customers.append({
-            "customer_id": f"cus_{i:04d}",
-            "name": f"{first} {last}",
-            "email": f"{first.lower()}.{last.lower()}{i:04d}@example.com",
-        })
+        customers.append(
+            {
+                "customer_id": f"cus_{i:04d}",
+                "name": f"{first} {last}",
+                "email": f"{first.lower()}.{last.lower()}{i:04d}@example.com",
+            }
+        )
     return merchants, customers
 
 
 def make_payment_method(rng):
-    method_type = rng.choices(
-        ["card", "bank_transfer", "wallet"], weights=[70, 20, 10]
-    )[0]
+    method_type = rng.choices(["card", "bank_transfer", "wallet"], weights=[70, 20, 10])[0]
     token = f"tok_{uuid.uuid4().hex[:16]}"
     if method_type == "card":
         return {
@@ -103,11 +110,18 @@ def generate_events(count, merchants, customers, rng, now):
         currency = rng.choice(CURRENCIES)
         transaction_id = f"txn_{uuid.uuid4().hex}"
 
-        created_ts = now - timedelta(
-            seconds=rng.randint(0, CREATED_WINDOW_DAYS * 86400)
-        )
+        created_ts = now - timedelta(seconds=rng.randint(0, CREATED_WINDOW_DAYS * 86400))
 
-        def event(event_type, ts):
+        def event(
+            event_type,
+            ts,
+            transaction_id=transaction_id,
+            amount=amount,
+            currency=currency,
+            merchant=merchant,
+            customer=customer,
+            payment_method=payment_method,
+        ):
             return {
                 "transaction_id": transaction_id,
                 "event_type": event_type,
@@ -121,9 +135,7 @@ def generate_events(count, merchants, customers, rng, now):
 
         events.append(event("created", created_ts))
 
-        auth_ts = created_ts + timedelta(
-            seconds=rng.randint(*AUTH_DELAY_SECONDS)
-        )
+        auth_ts = created_ts + timedelta(seconds=rng.randint(*AUTH_DELAY_SECONDS))
         auth_ts = min(auth_ts, now)
         events.append(event("authorized", auth_ts))
 
@@ -164,11 +176,18 @@ def upload_day(s3_client, bucket, day, day_events, run_ts, log=print):
     s3_key = f"payments/dt={day}/payments_{run_ts}.json"
     try:
         s3_client.put_object(
-            Bucket=bucket, Key=s3_key, Body=body,
+            Bucket=bucket,
+            Key=s3_key,
+            Body=body,
             ContentType="application/json",
         )
-        log(f"[{iso(datetime.now(timezone.utc))}] uploaded s3://{bucket}/{s3_key} ({len(day_events)} events)")
+        ts = iso(datetime.now(UTC))
+        log(f"[{ts}] uploaded s3://{bucket}/{s3_key} ({len(day_events)} events)")
         return True
     except ClientError as exc:
-        log(f"[{iso(datetime.now(timezone.utc))}] upload for {day} failed ({exc}) -- {len(day_events)} events for this partition were NOT saved")
+        ts = iso(datetime.now(UTC))
+        log(
+            f"[{ts}] upload for {day} failed ({exc}) -- "
+            f"{len(day_events)} events for this partition were NOT saved"
+        )
         return False

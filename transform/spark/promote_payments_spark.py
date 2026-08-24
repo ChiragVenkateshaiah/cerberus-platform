@@ -28,6 +28,7 @@ The 15-column output schema mirrors 1.7's PARQUET_COLUMNS constant -- kept
 in sync by hand, same caveat 1.7 already documents (no shared schema source
 between this script, promote_payments.py, and terraform/modules/glue_catalog).
 """
+
 import sys
 
 from pyspark.sql import SparkSession
@@ -45,29 +46,46 @@ SILVER_PREFIX = "payments/"
 # payment_method objects, per ADR 0003. Declared explicitly (not inferred)
 # so a partially-written or empty bronze file can't silently produce a
 # differently-shaped DataFrame across runs.
-BRONZE_EVENT_SCHEMA = StructType([
-    StructField("transaction_id", StringType()),
-    StructField("event_type", StringType()),
-    StructField("event_timestamp", StringType()),
-    StructField("amount", DoubleType()),
-    StructField("currency", StringType()),
-    StructField("merchant", StructType([
-        StructField("merchant_id", StringType()),
-        StructField("name", StringType()),
-        StructField("category", StringType()),
-    ])),
-    StructField("customer", StructType([
-        StructField("customer_id", StringType()),
-        StructField("name", StringType()),
-        StructField("email", StringType()),
-    ])),
-    StructField("payment_method", StructType([
-        StructField("type", StringType()),
-        StructField("brand", StringType()),
-        StructField("last4", StringType()),
-        StructField("token", StringType()),
-    ])),
-])
+BRONZE_EVENT_SCHEMA = StructType(
+    [
+        StructField("transaction_id", StringType()),
+        StructField("event_type", StringType()),
+        StructField("event_timestamp", StringType()),
+        StructField("amount", DoubleType()),
+        StructField("currency", StringType()),
+        StructField(
+            "merchant",
+            StructType(
+                [
+                    StructField("merchant_id", StringType()),
+                    StructField("name", StringType()),
+                    StructField("category", StringType()),
+                ]
+            ),
+        ),
+        StructField(
+            "customer",
+            StructType(
+                [
+                    StructField("customer_id", StringType()),
+                    StructField("name", StringType()),
+                    StructField("email", StringType()),
+                ]
+            ),
+        ),
+        StructField(
+            "payment_method",
+            StructType(
+                [
+                    StructField("type", StringType()),
+                    StructField("brand", StringType()),
+                    StructField("last4", StringType()),
+                    StructField("token", StringType()),
+                ]
+            ),
+        ),
+    ]
+)
 
 
 def read_bronze(spark):
@@ -109,19 +127,15 @@ def write_silver(df):
     # reprocess all of bronze on every run, not just new partitions.
     path = f"s3a://{SILVER_BUCKET}/{SILVER_PREFIX}"
     days = [row["dt"] for row in df.select("dt").distinct().collect()]
-    (
-        df.write.mode("overwrite")
-        .partitionBy("dt")
-        .option("compression", "snappy")
-        .parquet(path)
-    )
+    (df.write.mode("overwrite").partitionBy("dt").option("compression", "snappy").parquet(path))
     return sorted(days)
 
 
 def main():
+    credentials_provider = "com.amazonaws.auth.WebIdentityTokenCredentialsProvider"
     spark = (
         SparkSession.builder.appName("cerberus-promote-payments")
-        .config("spark.hadoop.fs.s3a.aws.credentials.provider", "com.amazonaws.auth.WebIdentityTokenCredentialsProvider")
+        .config("spark.hadoop.fs.s3a.aws.credentials.provider", credentials_provider)
         .getOrCreate()
     )
 
@@ -136,7 +150,9 @@ def main():
     flat = flatten(raw)
     days = write_silver(flat)
     print(f"[spark-transform] done — wrote {len(days)} day partition(s) to silver: {days}")
-    print("[spark-transform] run submit_job.sh's MSCK REPAIR TABLE step next to register them in Glue")
+    print(
+        "[spark-transform] run submit_job.sh's MSCK REPAIR TABLE step next to register them in Glue"
+    )
 
     spark.stop()
 

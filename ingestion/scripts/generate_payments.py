@@ -16,12 +16,12 @@ same core the Lambda handler (../lambda/handler.py, 2.1/ADR 0005) uses for
 the EventBridge-scheduled path. This script stays a plain, always-runnable
 entry point for manual runs, per ADR 0003/checkpoint history.
 """
+
 import argparse
 import random
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import boto3
-
 from payments_lib import (
     DEFAULT_TRANSACTION_COUNT,
     S3_CLIENT_CONFIG,
@@ -44,12 +44,14 @@ AWS_REGION = "us-east-1"
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--count", type=int, default=DEFAULT_TRANSACTION_COUNT,
+        "--count",
+        type=int,
+        default=DEFAULT_TRANSACTION_COUNT,
         help="number of transaction lifecycles to generate this run",
     )
     args = parser.parse_args()
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     run_ts = now.strftime("%Y%m%dT%H%M%SZ")
     print(f"[{iso(now)}] starting payments generation run ({args.count} transactions)")
 
@@ -57,7 +59,8 @@ def main():
     rng = random.Random()  # unseeded: event content varies run to run
 
     events = generate_events(args.count, merchants, customers, rng, now)
-    print(f"[{iso(datetime.now(timezone.utc))}] generated {len(events)} events across {args.count} transactions")
+    ts = iso(datetime.now(UTC))
+    print(f"[{ts}] generated {len(events)} events across {args.count} transactions")
 
     session = boto3.Session(profile_name=AWS_PROFILE, region_name=AWS_REGION)
     s3 = session.client("s3", config=S3_CLIENT_CONFIG)
@@ -68,10 +71,15 @@ def main():
     ]
 
     if failed_days:
-        print(f"[{iso(datetime.now(timezone.utc))}] done with errors — {len(by_day) - len(failed_days)}/{len(by_day)} partition(s) uploaded; failed: {', '.join(failed_days)}")
+        uploaded = len(by_day) - len(failed_days)
+        msg = (
+            f"done with errors — {uploaded}/{len(by_day)} partition(s) uploaded; "
+            f"failed: {', '.join(failed_days)}"
+        )
+        print(f"[{iso(datetime.now(UTC))}] {msg}")
         raise SystemExit(1)
 
-    print(f"[{iso(datetime.now(timezone.utc))}] done — {len(by_day)} partition(s) touched")
+    print(f"[{iso(datetime.now(UTC))}] done — {len(by_day)} partition(s) touched")
 
 
 if __name__ == "__main__":

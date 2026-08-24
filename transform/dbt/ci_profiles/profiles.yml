@@ -1,0 +1,21 @@
+# CI-only dbt profile -- deliberately never resolves to a real AWS profile
+# or credentials, since CI only ever runs `dbt parse` (structural
+# validation, no warehouse connection) and sqlfluff's dbt templater (which
+# needs a parseable project, not a live connection). Real runs still use
+# the committed ../profiles.yml with the cerberus-transform CLI profile.
+# Values below are placeholders -- they are never used to actually reach
+# AWS.
+cerberus_platform:
+  target: ci
+  outputs:
+    ci:
+      type: athena
+      region_name: us-east-1
+      s3_staging_dir: s3://dummy-bucket/dbt/
+      s3_data_dir: s3://dummy-bucket/
+      s3_data_naming: table
+      work_group: cerberus_platform
+      schema: cerberus_platform
+      database: awsdatacatalog
+      threads: 2
+      num_retries: 0

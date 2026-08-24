@@ -1,0 +1,13 @@
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+# docs/notes/*.md are dated snapshots of code as it looked that day (see
+# /note-maker) -- ruff's Markdown code-block formatting would silently
+# rewrite that historical record, so notes are excluded outright.
+extend-exclude = ["docs/notes"]
+
+[tool.ruff.lint]
+# E/F: pyflakes + pycodestyle errors. I: import sorting (isort). B: bugbear
+# (catches real bug patterns, e.g. late-binding closures over loop
+# variables). UP: pyupgrade (modernize to the target Python version).
+select = ["E", "F", "I", "B", "UP"]
