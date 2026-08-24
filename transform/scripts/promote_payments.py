@@ -20,6 +20,7 @@ partitions it just wrote. PARQUET_COLUMNS below must stay in sync with
 terraform/modules/glue_catalog/main.tf's column list by hand -- Terraform
 and this script don't share a schema source today.
 """
+
 import io
 import json
 
@@ -79,9 +80,9 @@ EVENT_TYPE_RANK = {
 def assumed_session():
     base = boto3.Session(profile_name=AWS_PROFILE, region_name=REGION)
     sts = base.client("sts")
-    creds = sts.assume_role(
-        RoleArn=TRANSFORM_ROLE_ARN, RoleSessionName="promote-payments"
-    )["Credentials"]
+    creds = sts.assume_role(RoleArn=TRANSFORM_ROLE_ARN, RoleSessionName="promote-payments")[
+        "Credentials"
+    ]
     return boto3.Session(
         aws_access_key_id=creds["AccessKeyId"],
         aws_secret_access_key=creds["SecretAccessKey"],
@@ -114,23 +115,25 @@ def flatten(events):
         merchant = e["merchant"]
         customer = e["customer"]
         pm = e["payment_method"]
-        rows.append({
-            "transaction_id": e["transaction_id"],
-            "event_type": e["event_type"],
-            "event_timestamp": e["event_timestamp"],
-            "amount": e["amount"],
-            "currency": e["currency"],
-            "merchant_id": merchant["merchant_id"],
-            "merchant_name": merchant["name"],
-            "merchant_category": merchant["category"],
-            "customer_id": customer["customer_id"],
-            "customer_name": customer["name"],
-            "customer_email": customer["email"],
-            "payment_method_type": pm["type"],
-            "payment_method_brand": pm.get("brand"),
-            "payment_method_last4": pm.get("last4"),
-            "payment_method_token": pm["token"],
-        })
+        rows.append(
+            {
+                "transaction_id": e["transaction_id"],
+                "event_type": e["event_type"],
+                "event_timestamp": e["event_timestamp"],
+                "amount": e["amount"],
+                "currency": e["currency"],
+                "merchant_id": merchant["merchant_id"],
+                "merchant_name": merchant["name"],
+                "merchant_category": merchant["category"],
+                "customer_id": customer["customer_id"],
+                "customer_name": customer["name"],
+                "customer_email": customer["email"],
+                "payment_method_type": pm["type"],
+                "payment_method_brand": pm.get("brand"),
+                "payment_method_last4": pm.get("last4"),
+                "payment_method_token": pm["token"],
+            }
+        )
     df = pd.DataFrame(rows)
     df["event_timestamp"] = pd.to_datetime(df["event_timestamp"], utc=True)
     return df

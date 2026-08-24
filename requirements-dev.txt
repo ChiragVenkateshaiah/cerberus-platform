@@ -1,0 +1,5 @@
+# Dev/CI-only tooling (5.3) -- lint/format/SQL-style checks. Not a runtime
+# dependency of any ingestion/transform script; kept separate from
+# ingestion/requirements.txt and transform/requirements.txt for that reason.
+ruff==0.16.4
+sqlfluff==4.3.0

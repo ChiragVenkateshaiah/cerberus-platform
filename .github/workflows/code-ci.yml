@@ -1,0 +1,71 @@
+name: code CI (lint/dbt validate)
+
+# 5.3. Runs on every PR touching the ingestion/transform Python or the dbt
+# project -- deliberately separate from terraform-plan.yml/terraform-apply.yml,
+# which are path-filtered to terraform/** only and would never trigger for
+# these paths. No AWS access at all: neither job needs it (see dbt-validate
+# below for why `dbt parse` doesn't either), so there's no OIDC role to
+# request and no `id-token: write` permission to grant.
+on:
+  pull_request:
+    paths:
+      - "ingestion/**"
+      - "transform/**"
+      - "pyproject.toml"
+      - "requirements-dev.txt"
+      - ".github/workflows/code-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  python-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ruff
+        run: pip install --quiet -r requirements-dev.txt
+
+      - name: ruff check
+        run: ruff check .
+
+      - name: ruff format --check
+        run: ruff format --check .
+
+  dbt-validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: transform/dbt
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dbt + sqlfluff
+        run: |
+          pip install --quiet -r requirements.txt
+          pip install --quiet -r ../../requirements-dev.txt
+
+      # `dbt parse` only builds the manifest (resolves refs/sources, renders
+      # Jinja) -- it never opens a warehouse connection, so it runs clean
+      # against a profile with no real AWS profile/credentials behind it
+      # (ci_profiles/, committed alongside the real ../profiles.yml).
+      # Confirmed live: sqlfluff's own dbt templater, by contrast, DOES open
+      # a connection (calls sts:GetCallerIdentity to build a relation
+      # cache) even just to lint -- which is why .sqlfluff below uses the
+      # plain `jinja` templater instead, not `dbt`.
+      - name: dbt parse
+        env:
+          DBT_PROFILES_DIR: ci_profiles
+        run: dbt parse --no-partial-parse
+
+      - name: sqlfluff lint
+        run: sqlfluff lint models/

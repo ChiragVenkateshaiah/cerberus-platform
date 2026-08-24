@@ -31,9 +31,12 @@ transform/dbt/target/
 transform/dbt/dbt_packages/
 transform/dbt/logs/
 transform/dbt/.user.yml
+transform/dbt/ci_profiles/.user.yml
 # profiles.yml is intentionally NOT ignored here -- 1.9 commits it since it
 # holds no secrets, only region/workgroup/bucket/profile-name references
 # (credentials live in the cerberus-transform AWS CLI profile instead).
+# Same for ci_profiles/profiles.yml (5.3) -- placeholder values only, never
+# resolves to a real AWS profile or credentials (see its own header).
 
 # Secrets / env
 .env
