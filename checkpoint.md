@@ -28,7 +28,21 @@ data. ADR 0010 closes the phase's Well-Architected pass (milestone 4,
 `phase-4-orchestration-complete`) — three questions gained genuine new
 evidence (per-state ASL timeouts, idempotency-aware retries, X-Ray
 distributed tracing) without moving a risk bucket, recorded honestly
-rather than padded. **Phase 5 — CI/CD has not started.**
+rather than padded. **Phase 5 — CI/CD is 🔨 in progress** (see
+[Phases.md](Phases.md#phase-5--cicd-)): ADR 0011 (**Accepted**) chose
+GitHub Actions + OIDC federation over AWS CodePipeline and split the old
+`envs/dev` root into `envs/dev-standing` (CI-managed, no idle cost) and
+`envs/dev-compute` (human-run only, spin-up/destroy per exercise), adding
+a new `github_oidc` module (two IAM roles: `cerberus-ci-plan` read-only/
+any-PR, `cerberus-ci-apply` write-scoped/`main`-only). **5.1 and 5.2 are
+now ✅ checked off** — `terraform plan` runs on every PR and
+`terraform apply` runs on merge to `main`, both verified live: the first
+real `terraform-apply.yml` run succeeded on 2026-08-24 after closing 9
+total IAM permission gaps discovered across three live-apply attempts, and
+a follow-up `terraform plan` on both roots came back clean (`dev-standing`
+no-op modulo the pre-existing Lambda-layer hash churn, `dev-compute` a
+clean 23-resource fresh-apply plan) — ADR 0011's own stated bar for
+"done," not just "written." 5.3–5.5 remain open.
 
 **Note:** the roadmap was re-scoped on 2026-08-03 from 9 phases (0–8) to
 8 (0–7). The old "Phase 1 — IaC foundation" no longer exists as a phase;
@@ -37,19 +51,21 @@ subtasks. Session history entries before that date use the old numbering.
 
 ## Next up
 
-- **5.1 — `terraform plan` on PR.** First subtask of Phase 5 (CI/CD).
-  Phases.md's subtask breakdown for Phase 5 (5.1–5.5) is a first-pass
-  sketch, not yet refined against real CI tooling choices — the first
-  real decision is what runs the plan (GitHub Actions is the natural
-  default given the repo already lives on GitHub, but this hasn't been
-  confirmed with the user) and how it authenticates to AWS (this project
-  has never used anything but the local `cerberus-admin` CLI profile —
-  OIDC federation vs. a dedicated CI IAM user/role is an open question
-  worth an ADR, given 7.3's existing least-privilege-repayment framing).
-  No ADR exists yet for Phase 5's tooling choice — likely 5.1's first
-  real step, before any workflow YAML is written.
-- No open blockers gate 5.1 — see Notes / blockers below for what's still
-  open generally.
+- **5.3 — Pipeline code CI (lint/test).** Next subtask of Phase 5; 5.1/5.2
+  (the Terraform plan/apply pipeline itself) are done and live-verified as
+  of 2026-08-24. 5.3 is a different surface — the Python ingestion code,
+  the dbt project, and Terraform formatting/validation as their own
+  explicit checks (today `terraform-plan.yml`'s plan step implicitly runs
+  `init`/no `fmt -check` or standalone `validate`). Concretely: pick a
+  linter/formatter for the Python scripts, decide whether dbt gets its own
+  `dbt test`/`dbt build --select state:modified` style CI step, and wire
+  it into a new or extended GitHub Actions workflow — note the existing
+  two workflows are path-filtered to `terraform/modules/**` +
+  `terraform/envs/dev-standing/**` only, so a Python/dbt CI workflow needs
+  its own path filter, not a bolt-on to those.
+- No open blockers gate 5.3 — see Notes / blockers below for the one open
+  cosmetic item (Lambda layer hash churn on every apply), which is noisy
+  but not blocking.
 
 ## Session history
 
@@ -1307,8 +1323,172 @@ session then closed 4.5 (ADR 0010, milestone 4), completing Phase 4._
   `phase-4-well-architected-review`, merged via PR #15 (regular merge,
   not squash, per the established workflow).
 
+### 2026-08-21
+
+_Opened Phase 5 (CI/CD) and landed its foundational decision in one day:
+ADR 0011, the `envs/dev` state split, the live migration, and the OIDC
+trust-policy/CI-bug fixes it immediately surfaced. Merged as PR #16._
+
+- **Wrote ADR 0011 (Proposed at the time — see 2026-08-24 for
+  acceptance).** Two decisions bundled together because designing the
+  second one forced the first:
+  - **Tool choice, GitHub Actions over the inherited AWS CodePipeline
+    line:** investigating "what actually runs `terraform plan` on a PR"
+    surfaced that CodePipeline is a merge/branch-triggered delivery tool,
+    not built around reacting to a GitHub `pull_request` event the way
+    5.1 describes — the same "make the inherited stack line a reasoned
+    decision" pattern as ADR 0005/0009.
+  - **The bigger problem:** `envs/dev` was one root/one state mixing the
+    always-cheap standing resources (S3, IAM, Glue, Athena, the Lambda,
+    the orchestration layer) with the resources ADR 0007/0009 deliberately
+    keep destroyed between exercises (VPC's NAT Gateway, EKS, Spark
+    Operator, `cerberus-spark`). A naive CI `apply` on every merge would
+    recreate the whole EKS/NAT/Spark stack from scratch each time — a
+    portfolio project's commit cadence turned into a standing bill.
+    Resolved by splitting into `envs/dev-standing` (CI-managed) and
+    `envs/dev-compute` (human-run only, per exercise, never CI) — carving
+    `vpc_nat` out of `vpc` and `iam_spark` out of `iam` along the same
+    boundary.
+  - **Two IAM roles, not one, because the repo is public:**
+    `cerberus-ci-plan` (read-only, trusted for any PR including forks —
+    `terraform plan` has to check every PR to be useful) and
+    `cerberus-ci-apply` (write-scoped, name-prefix-limited, trusted only
+    for `ref:refs/heads/main` — a fork's PR can never get write access).
+    `cerberus-ci-plan`'s ARN stored as a repo Variable, `cerberus-ci-apply`'s
+    as a Secret — Secrets aren't exposed to a fork's `pull_request` run, so
+    keeping `ci-plan`'s ARN plaintext is what keeps the one check that has
+    to work for forks actually working.
+- **Live migration, run the same day:** `terraform state mv` moved all 8
+  previously-applied `envs/dev` modules (56 resources) into
+  `envs/dev-standing`'s new state, address-for-address, zero recreation,
+  then applied `github_oidc`'s new resources. `envs/dev-standing` plan came
+  back clean afterward; `envs/dev-compute` planned a clean fresh
+  23-resource spin-up (not applied — that's a real exercise start, left for
+  later). Picked up the private route table, its subnet associations, and
+  the S3 gateway endpoint as newly-permanent — ADR 0007's original `vpc`
+  module coupled them to the NAT Gateway via an inline route, so prior
+  destroy cycles (3.7, 4.4) tore them down alongside NAT even though
+  they're free; the new `vpc`/`vpc_nat` split (a standalone `aws_route`
+  instead of an inline route block) means they now survive a compute
+  teardown. `AWS_CI_PLAN_ROLE_ARN`/`AWS_CI_APPLY_ROLE_ARN` set in GitHub
+  from `dev-standing`'s outputs.
+- **OIDC trust-policy fix**, found via live testing: this GitHub org embeds
+  immutable numeric IDs into the `sub` claim
+  (`repo:OWNER@12345/REPO@67890:pull_request`, not the plain
+  `repo:OWNER/REPO:...` shape most docs assume) — a `StringLike` condition
+  on `sub` never matched, confirmed via CloudTrail's actual rejected
+  `AssumeRoleWithWebIdentity` calls. Fixed by matching the token's
+  dedicated `repository`/`ref` claims instead, which are immune to
+  whatever shape `sub` takes. Separately, AWS IAM rejects any GitHub-OIDC
+  trust policy that doesn't evaluate `sub`/`job_workflow_ref` at all
+  (`MalformedPolicyDocument`) regardless of other conditions — added a
+  loose `sub` condition just to satisfy that.
+- **Three real CI-tooling bugs from the first live plan run:**
+  `terraform plan | tee` masked `terraform`'s real exit code (`tee`'s,
+  almost always 0, wins) — a real plan failure would have silently
+  reported as a green run; added `set -o pipefail`.
+  `module.lambda_ingestion`'s `archive_file` data source needs a real,
+  populated build/layer/python directory that's gitignored and doesn't
+  exist on a fresh checkout (the same problem 2026-08-20's cross-machine
+  sync already hit by hand) — added a setup-python + `pip install` step to
+  both workflows. `cerberus-ci-plan`'s hand-enumerated read-only action
+  list was missing routine AWS-provider refresh permissions.
+- Merged as PR #16.
+
+### 2026-08-22
+
+_The first live `terraform-apply.yml` run — triggered by PR #16's merge —
+failed during refresh with `AccessDenied` on seven distinct AWS API calls,
+confirming ADR 0011's own prediction ("expect real `AccessDenied` fixes
+during the first live apply run")._
+
+- Root-caused each of the 7 gaps: the Athena query-results bucket (outside
+  `bucket_arns`' bronze/silver/gold), the Athena workgroup name (policy
+  pattern used a hyphen, the real workgroup is `cerberus_platform` with an
+  underscore), the Faker Lambda layer's separate ARN namespace, three
+  `logs:ListTagsForResource` calls (the policy's `/cerberus/*` pattern
+  never matched the real log-group prefixes,
+  `/ecs/cerberus-orchestration-*` and
+  `/aws/vendedlogs/states/cerberus-platform-orchestration*`),
+  `iam:GetRole` on the EventBridge Scheduler's own execution role, and no
+  EC2 permissions at all (`ec2:DescribeVpcs` failing first).
+- **Found the live AWS policy had already been hand-patched** for every one
+  of these gaps (state modified 4 minutes after the failed run) — evidently
+  from an earlier local session that debugged this live against AWS but
+  never committed the fix. Rewrote the committed HCL to match what was
+  already proven live rather than guessing a fresh, divergent fix,
+  including its more precisely-scoped two-statement EC2 split
+  (`ManageVpcCore` on resource-type ARNs, `DescribeVpcCore` on `"*"`, since
+  EC2's action matrix structurally requires `"*"` for `Describe*` actions).
+  Verified via `terraform plan`: zero diff against the live policy. Shipped
+  as PR #17 (`b19dd17`), merged the next morning.
+
+### 2026-08-23
+
+_PR #17 landed, and the second live apply run it triggered hit two more EC2
+gaps neither the original policy nor the live-AWS-matched fix had covered —
+closed same day as PR #18._
+
+- `terraform-apply.yml` reran after PR #17's merge, got past all 7 original
+  gaps, then failed on `ec2:DescribeSecurityGroups`
+  (`orchestration_runner`'s security group) and `ec2:DescribePrefixLists`
+  (the S3 gateway endpoint's AWS-managed prefix-list lookup) — neither
+  reachable by `ManageVpcCore`'s resource-type-scoped actions, same
+  `Resource: "*"` requirement as the other `Describe*` actions already in
+  `DescribeVpcCore`. Added both. Shipped and merged as PR #18 (`f7bd953`).
+
+### 2026-08-24
+
+_Closed out 5.1/5.2: broke a structural bootstrap loop blocking the last
+two permissions, got `terraform-apply.yml` to a real green run, verified
+both roots plan clean, and accepted ADR 0011._
+
+- **CI's rerun after PR #18's merge hit the *same* two `Describe*` errors
+  again**, despite the fix being merged — root-caused as a genuine
+  structural bootstrap loop, not a flaky run: `terraform apply` refreshes
+  every resource in state before computing or executing anything, so a
+  refresh failure on the EC2 permissions blocks the apply that would
+  otherwise grant them; separately, `cerberus-ci-apply`'s own policy is
+  deliberately excluded from what `cerberus-ci-apply` itself can ever
+  modify (the self-escalation guard ADR 0011 documents by design), so
+  CI's own apply could never have applied this fix to itself regardless.
+- **Broke the loop with a targeted local apply**: ran
+  `terraform apply -target=module.github_oidc.aws_iam_role_policy.ci_apply`
+  as `cerberus-admin` — a real AWS mutation, but scoped to exactly one IAM
+  policy resource, done with explicit user confirmation first. Reran the
+  same CI workflow (no new commit needed, since the committed HCL already
+  matched) and **`terraform-apply.yml` completed successfully** — the
+  first real end-to-end green run of Phase 5's apply pipeline.
+- **Verified against ADR 0011's own stated completion bar for 5.1/5.2**:
+  `terraform plan` on `dev-standing` came back with only the pre-existing,
+  unrelated Faker Lambda-layer hash churn (see Notes/blockers — the layer
+  is rebuilt via `pip install` at every apply, producing a different
+  `source_code_hash` each time regardless of any real change, so it always
+  shows a 1-add/1-change/1-destroy diff); `dev-compute` came back with a
+  clean 23-resource fresh-apply plan, no errors. No IAM/`github_oidc`
+  drift either way.
+- **ADR 0011 flipped `Proposed` → `Accepted`**; **5.1 and 5.2 checked off**
+  in Phases.md. Phase 5's own heading marker flipped ⬜→🔨 (same precedent
+  as Phase 3/4's partial-completion flips), `docs/plan.md`'s roadmap row
+  updated to "🔨 In progress" to match (its `AWS CodePipeline` stack-label
+  text is now stale per ADR 0011's own tool-choice reversal, but left
+  untouched here — that's a stack-description edit, out of `/end-day`'s
+  scope, not a status marker), and `README.md`'s Status section gained a
+  Phase 5 line.
+
 ## Notes / blockers
 
+- **Open, cosmetic, not blocking (noted 2026-08-24):** the Faker Lambda
+  layer (`module.lambda_ingestion.aws_lambda_layer_version.faker`) is
+  rebuilt via `pip install` at every single `terraform apply` — local or
+  CI — and is not bit-reproducible, so `source_code_hash` differs run to
+  run even with zero real change. Every `dev-standing` apply (including
+  every future CI merge) will therefore always show a 1-add/1-change/
+  1-destroy diff for this one resource. Confirmed pre-existing, unrelated
+  to the 2026-08-22/23 IAM fixes. Worth a real fix eventually (pin the
+  layer's build to something reproducible, or accept-and-document it more
+  formally) but not urgent — it's noise in the plan output, not a
+  functional problem.
 - **Resolved 2026-08-18:** `spark-application.yaml`'s `apache/spark` image
   tag and `hadoop-aws` pairing were verified live against Docker Hub before
   the live pass — see the 2026-08-18 session entry. `3.5.9` (latest patch
