@@ -1,5 +1,9 @@
 # cerberus-platform
 
+[![terraform plan](https://github.com/ChiragVenkateshaiah/cerberus-platform/actions/workflows/terraform-plan.yml/badge.svg)](https://github.com/ChiragVenkateshaiah/cerberus-platform/actions/workflows/terraform-plan.yml)
+[![terraform apply](https://github.com/ChiragVenkateshaiah/cerberus-platform/actions/workflows/terraform-apply.yml/badge.svg)](https://github.com/ChiragVenkateshaiah/cerberus-platform/actions/workflows/terraform-apply.yml)
+[![code CI](https://github.com/ChiragVenkateshaiah/cerberus-platform/actions/workflows/code-ci.yml/badge.svg)](https://github.com/ChiragVenkateshaiah/cerberus-platform/actions/workflows/code-ci.yml)
+
 A portfolio project that builds a working AWS lakehouse end to end — ingestion,
 medallion storage, transformation, a queryable serving layer, orchestration,
 observability, and IaC — demonstrating Data Platform, Platform, and Cloud
