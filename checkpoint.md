@@ -28,21 +28,27 @@ data. ADR 0010 closes the phase's Well-Architected pass (milestone 4,
 `phase-4-orchestration-complete`) — three questions gained genuine new
 evidence (per-state ASL timeouts, idempotency-aware retries, X-Ray
 distributed tracing) without moving a risk bucket, recorded honestly
-rather than padded. **Phase 5 — CI/CD is 🔨 in progress** (see
+rather than padded. **Phase 5 — CI/CD is now ✅ complete** (5.1–5.5, see
 [Phases.md](Phases.md#phase-5--cicd-)): ADR 0011 (**Accepted**) chose
 GitHub Actions + OIDC federation over AWS CodePipeline and split the old
 `envs/dev` root into `envs/dev-standing` (CI-managed, no idle cost) and
 `envs/dev-compute` (human-run only, spin-up/destroy per exercise), adding
 a new `github_oidc` module (two IAM roles: `cerberus-ci-plan` read-only/
-any-PR, `cerberus-ci-apply` write-scoped/`main`-only). **5.1 and 5.2 are
-now ✅ checked off** — `terraform plan` runs on every PR and
-`terraform apply` runs on merge to `main`, both verified live: the first
-real `terraform-apply.yml` run succeeded on 2026-08-24 after closing 9
-total IAM permission gaps discovered across three live-apply attempts, and
-a follow-up `terraform plan` on both roots came back clean (`dev-standing`
-no-op modulo the pre-existing Lambda-layer hash churn, `dev-compute` a
-clean 23-resource fresh-apply plan) — ADR 0011's own stated bar for
-"done," not just "written." 5.3–5.5 remain open.
+any-PR, `cerberus-ci-apply` write-scoped/`main`-only). `terraform plan`
+runs on every PR and `terraform apply` runs unattended on merge to `main`,
+both verified live: the first real `terraform-apply.yml` run succeeded on
+2026-08-24 after closing 9 total IAM permission gaps discovered across
+three live-apply attempts, and a follow-up `terraform plan` on both roots
+came back clean. A new `code-ci.yml` workflow lints Python (ruff) and
+validates the dbt project (`dbt parse` + sqlfluff) on every PR, both
+confirmed green live on PR #20; three build-status badges on the README
+(one per workflow) are confirmed rendering "passing." ADR 0012 closes the
+phase's Well-Architected pass (milestone 5, `phase-5-cicd-complete`) —
+two questions gained a genuinely new selected choice
+(`dev-integ`'s build/deployment management system, `permissions`'s
+third-party sharing via CI's OIDC federation), three more gained real new
+evidence, and overall risk counts held steady at 25 HIGH/18 MEDIUM/9
+NONE/5 N/A, same as milestone 4.
 
 **Note:** the roadmap was re-scoped on 2026-08-03 from 9 phases (0–8) to
 8 (0–7). The old "Phase 1 — IaC foundation" no longer exists as a phase;
@@ -51,21 +57,27 @@ subtasks. Session history entries before that date use the old numbering.
 
 ## Next up
 
-- **5.3 — Pipeline code CI (lint/test).** Next subtask of Phase 5; 5.1/5.2
-  (the Terraform plan/apply pipeline itself) are done and live-verified as
-  of 2026-08-24. 5.3 is a different surface — the Python ingestion code,
-  the dbt project, and Terraform formatting/validation as their own
-  explicit checks (today `terraform-plan.yml`'s plan step implicitly runs
-  `init`/no `fmt -check` or standalone `validate`). Concretely: pick a
-  linter/formatter for the Python scripts, decide whether dbt gets its own
-  `dbt test`/`dbt build --select state:modified` style CI step, and wire
-  it into a new or extended GitHub Actions workflow — note the existing
-  two workflows are path-filtered to `terraform/modules/**` +
-  `terraform/envs/dev-standing/**` only, so a Python/dbt CI workflow needs
-  its own path filter, not a bolt-on to those.
-- No open blockers gate 5.3 — see Notes / blockers below for the one open
+- **6.1 — CloudWatch dashboards (pipeline health, data freshness).** First
+  subtask of Phase 6 (Observability & data quality); Phase 5 is fully
+  closed, nothing left mid-flight from it. Phase 4 already added X-Ray
+  tracing and `ALL`-mode CloudWatch Logs on the state machine (4.3), and
+  Phase 5's `code-ci.yml`/`terraform-*.yml` runs are themselves visible via
+  GitHub's own UI/badges — but there is still no CloudWatch *dashboard*
+  anywhere: no single view of pipeline health (execution success/failure
+  rate, per-state duration) or data freshness (time since bronze's last
+  successful partition write, gold's last successful `dbt run`). Likely
+  needs a new `terraform/modules/observability` (or similar) module,
+  applied through `envs/dev-standing` since dashboards/alarms are
+  always-on, no-idle-cost resources — same reasoning ADR 0011 used to
+  place the orchestration layer there. Phases.md's 6.1–6.6 breakdown is a
+  first-pass sketch (per its own header note), not yet refined against
+  real tooling choices — worth confirming with the user whether "data
+  freshness" means a CloudWatch custom metric emitted by the pipeline
+  itself (e.g. from the Lambda or the Step Functions state machine) or a
+  scheduled canary query against Athena, before building either.
+- No open blockers gate 6.1 — see Notes / blockers below for the one open
   cosmetic item (Lambda layer hash churn on every apply), which is noisy
-  but not blocking.
+  but not blocking, and unrelated to Phase 6.
 
 ## Session history
 
@@ -1439,9 +1451,10 @@ closed same day as PR #18._
 
 ### 2026-08-24
 
-_Closed out 5.1/5.2: broke a structural bootstrap loop blocking the last
-two permissions, got `terraform-apply.yml` to a real green run, verified
-both roots plan clean, and accepted ADR 0011._
+_A long day that closed out the rest of Phase 5 end to end: 5.1/5.2 first
+(the bootstrap-loop fix and live verification below), then 5.3 (pipeline
+code CI), 5.4 (README build badges), and 5.5 (the Well-Architected pass) —
+Phase 5 is now fully ✅ complete._
 
 - **CI's rerun after PR #18's merge hit the *same* two `Describe*` errors
   again**, despite the fix being merged — root-caused as a genuine
@@ -1475,6 +1488,78 @@ both roots plan clean, and accepted ADR 0011._
   untouched here — that's a stack-description edit, out of `/end-day`'s
   scope, not a status marker), and `README.md`'s Status section gained a
   Phase 5 line.
+- **5.3 — pipeline code CI.** New `code-ci.yml` workflow (`ruff check` +
+  `ruff format --check` for Python; `dbt parse` + `sqlfluff lint` for the
+  dbt project), path-filtered to `ingestion/**`/`transform/**`, separate
+  from the two Terraform workflows. Turning Ruff on for the first time
+  surfaced 8 real findings, all fixed: a genuine bugbear (B023)
+  late-binding-closure bug in `payments_lib.generate_events` (a nested
+  `event()` closure captured loop variables by reference, not value —
+  harmless today since it's only ever called synchronously within the same
+  iteration, but fixed properly via default-argument binding rather than a
+  `noqa`), unsorted imports, a stale `datetime.now(timezone.utc)` instead
+  of the 3.11+ `UTC` alias, and several over-100-char log lines. Ran
+  `ruff format` once to normalize the whole tree (`docs/notes/*.md`
+  excluded — those are dated code snapshots via `/note-maker`, not source
+  to reformat). For dbt: confirmed live that `dbt parse` never opens a
+  warehouse connection (runs clean against a committed dummy profile,
+  `transform/dbt/ci_profiles/`, no real AWS profile behind it), but
+  sqlfluff's own `dbt` templater unexpectedly *does* — it calls
+  `sts:GetCallerIdentity` to build a relations cache even just to lint,
+  confirmed by watching it fail with `NoCredentialsError` locally. Switched
+  `.sqlfluff` to the plain `jinja` templater instead (with
+  `apply_dbt_builtins`), which lints the same 3 mart models clean with zero
+  AWS access needed. New root `pyproject.toml` (line-length 100,
+  `E/F/I/B/UP`) and `requirements-dev.txt` (ruff, sqlfluff, pinned).
+  Shipped as PR #20; both `python-lint` and `dbt-validate` ran green on the
+  PR itself, confirmed via `gh pr checks` before checking off 5.3 — same
+  "written and plan-verified isn't done" bar 5.1/5.2 used.
+- **5.4 — green build badge on README.** Three badges, one per workflow
+  (`terraform plan`, `terraform apply`, `code CI`) rather than picking one
+  — there's no single "the build" across a Terraform-plus-lint pipeline.
+  Confirmed live by curling each badge's SVG endpoint directly: all three
+  render `"... - passing"`, including the two PR-only-triggered workflows
+  that never run directly on `main` (a real worry going in — GitHub's
+  badge behavior for non-push-triggered workflows isn't obviously
+  documented — but it resolved correctly). Shipped as PR #21, a doc-only
+  change with no CI to wait on.
+- **5.5 — Well-Architected pass, closing Phase 5.** Wrote
+  `docs/adr/0012-phase-5-well-architected-review.md`, diffing milestone 4
+  against a new milestone 5 (`phase-5-cicd-complete`), same pattern as
+  ADR 0004/0006/0008/0010. Queried the live Tool first (`aws
+  wellarchitected list-answers`/`get-answer`) rather than guessing which
+  questions Phase 5 touched — found `dev-integ`'s own milestone-4 notes
+  had already named the exact gap Phase 5 closes ("No CI/CD build system
+  yet"). Two questions gained a genuinely new selected choice, both
+  applied live via `aws wellarchitected update-answer`: **OE `dev-integ`**
+  — "Use build and deployment management systems" (GitHub Actions is now
+  a real one); **Security `permissions`** — "Share resources securely with
+  a third party" (`cerberus-ci-plan`/`cerberus-ci-apply`, federated to
+  GitHub Actions via OIDC, are the first AWS access this project has ever
+  granted outside the AWS account itself — a third party by the Tool's own
+  framing). Three more questions (`identities`, `mit-deploy-risks`,
+  `tracking-change-management`) gained real, specific new evidence
+  recorded in their notes without a new checkbox — e.g.
+  `tracking-change-management`'s "Deploy changes with automation" was
+  already selected on the strength of Terraform-not-console, but every
+  actual apply through Phase 4 was still a human running `terraform
+  apply` from a terminal; Phase 5 makes that claim strictly true
+  (`terraform-apply.yml` runs it unattended in CI). Deliberately did
+  *not* select `dev-integ`'s "Fully automate integration and deployment"
+  (`envs/dev-compute` stays human-run-only by design) or
+  `mit-deploy-risks`'s "Automate testing and rollback" (rollback is still
+  entirely manual) — same honesty discipline ADR 0010 used declining
+  `event-response`. **Milestone 5 saved live**
+  (`aws wellarchitected create-milestone`, confirmed via
+  `list-milestones`); overall risk counts came back unchanged from
+  milestone 4 (25 HIGH / 18 MEDIUM / 9 NONE / 5 N/A, confirmed via
+  `get-lens-review`) — recorded plainly, including that ADR 0010's own
+  prediction ("Phase 5... opens entirely new ground, more likely to move
+  buckets") did not hold in practice. Shipped as PR #22. **Phase 5 flipped
+  to ✅ Complete** across `Phases.md`, `docs/plan.md`'s roadmap table
+  (status marker only, its stale `AWS CodePipeline` stack text still left
+  as-is per the same out-of-scope reasoning as 5.1/5.2's session entry
+  above), and `README.md`'s Status section.
 
 ## Notes / blockers
 
@@ -1503,13 +1588,14 @@ both roots plan clean, and accepted ADR 0011._
   cross-cutting Architecture bullet.** Workload `cerberus-platform`
   (`58c236e2c7844375965d22349b460084`, Framework lens, `us-east-1`) —
   verified live via `aws wellarchitected list-workloads`/`list-milestones`
-  on 2026-08-14 (`cerberus-admin` profile). Milestones saved so far:
-  **1** `phase-1-mvp-complete` (2026-08-10), **2**
+  most recently on 2026-08-24 (`cerberus-admin` profile). Milestones saved
+  so far: **1** `phase-1-mvp-complete` (2026-08-10), **2**
   `phase-2-event-driven-ingestion-complete` (2026-08-12), **3**
   `phase-3-scalable-compute-complete` (2026-08-18, see ADR 0008), **4**
-  `phase-4-orchestration-complete` (2026-08-20, see ADR 0010). Next one
-  is due at **5.5**, once Phase 5 (CI/CD) is built — not before; repeat
-  at 6.6, and the formal review at 7.4.
+  `phase-4-orchestration-complete` (2026-08-20, see ADR 0010), **5**
+  `phase-5-cicd-complete` (2026-08-24, see ADR 0012). Next one is due at
+  **6.6**, once Phase 6 (Observability & data quality) is built — not
+  before; the formal review is at 7.4.
 - **AWS Agent Toolkit (`aws-core@claude-plugins-official`, installed
   2026-08-11) is in scope for the rest of the build — see `docs/plan.md`'s
   cross-cutting tracks.** Mapped to remaining phases: `aws-compute` (4.1,

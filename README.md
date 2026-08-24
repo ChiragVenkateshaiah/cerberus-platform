@@ -109,8 +109,10 @@ constraints behind this diagram, see
 .
 ├── .claude/commands/     # /start-day, /end-day, /write-article,
 │                         #   /note-maker, /git-cleaner session commands
-├── .github/workflows/    # terraform plan on PR, apply on merge (5.1/5.2),
-│                         #   both against envs/dev-standing only
+├── .github/workflows/    # terraform plan on PR, apply on merge (5.1/5.2,
+│                         #   against envs/dev-standing only), plus
+│                         #   code-ci.yml (5.3): Python lint (ruff) + dbt
+│                         #   validate (dbt parse + sqlfluff)
 ├── docs/                 # plan, architecture notes, ADRs, learning notes
 ├── articles/             # weekly engineering articles (see article.md)
 ├── terraform/
