@@ -17,6 +17,7 @@ override.tf.json
 # Lambda build artifacts (zipped/pip-installed at `terraform apply` time --
 # see terraform/modules/lambda_ingestion/main.tf)
 terraform/modules/lambda_ingestion/build/
+terraform/modules/observability/build/
 
 # Python
 __pycache__/
