@@ -228,6 +228,12 @@ resource "aws_iam_role_policy" "ci_apply" {
           # above, missed originally (iam:GetRole 403'd on the first live
           # apply).
           "arn:aws:iam::${var.account_id}:role/cerberus-ingest-payments-scheduler",
+          # 6.1: the data-freshness probe's own execution role and its
+          # EventBridge Scheduler role (terraform/modules/observability) --
+          # cerberus-freshness-probe and cerberus-freshness-probe-scheduler,
+          # neither matching the patterns above. Covers iam:PassRole too
+          # (Lambda + Scheduler both need the probe roles passed to them).
+          "arn:aws:iam::${var.account_id}:role/cerberus-freshness-probe*",
         ]
       },
       {
@@ -251,7 +257,7 @@ resource "aws_iam_role_policy" "ci_apply" {
         Resource = "arn:aws:athena:${var.region}:${var.account_id}:workgroup/cerberus_platform"
       },
       {
-        Sid    = "ManageIngestionLambda"
+        Sid    = "ManageStandingLambdas"
         Effect = "Allow"
         Action = "lambda:*"
         Resource = [
@@ -260,6 +266,9 @@ resource "aws_iam_role_policy" "ci_apply" {
           # namespace from the function itself, missed originally
           # (lambda:GetLayerVersion 403'd on the first live apply).
           "arn:aws:lambda:${var.region}:${var.account_id}:layer:cerberus-ingestion-*",
+          # 6.1: the data-freshness probe Lambda
+          # (terraform/modules/observability) -- boto3-only, no layer.
+          "arn:aws:lambda:${var.region}:${var.account_id}:function:cerberus-freshness-probe*",
         ]
       },
       {
@@ -285,6 +294,19 @@ resource "aws_iam_role_policy" "ci_apply" {
         Effect   = "Allow"
         Action   = "scheduler:*"
         Resource = "arn:aws:scheduler:${var.region}:${var.account_id}:schedule/*/cerberus-*"
+      },
+      {
+        # 6.1: the pipeline observability dashboard
+        # (terraform/modules/observability). PutDashboard/GetDashboard/
+        # DeleteDashboards support resource-level scoping to the dashboard
+        # ARN -- CloudWatch dashboard ARNs carry an empty region segment
+        # (arn:aws:cloudwatch::ACCOUNT:dashboard/NAME). ListDashboards
+        # isn't needed: the AWS provider reads a dashboard by GetDashboard,
+        # not by listing.
+        Sid      = "ManageObservabilityDashboard"
+        Effect   = "Allow"
+        Action   = ["cloudwatch:PutDashboard", "cloudwatch:GetDashboard", "cloudwatch:DeleteDashboards"]
+        Resource = "arn:aws:cloudwatch::${var.account_id}:dashboard/cerberus-platform-pipeline"
       },
       {
         # Missing entirely from the first live apply -- ec2:DescribeVpcs
@@ -352,6 +374,11 @@ resource "aws_iam_role_policy" "ci_apply" {
         Resource = [
           "arn:aws:logs:${var.region}:${var.account_id}:log-group:/ecs/cerberus-orchestration-*",
           "arn:aws:logs:${var.region}:${var.account_id}:log-group:/aws/vendedlogs/states/cerberus-platform-orchestration*",
+          # 6.1: the freshness probe's explicit aws_cloudwatch_log_group
+          # (terraform/modules/observability). The ingestion Lambda has no
+          # explicit log group, so /aws/lambda/* was never needed here
+          # before.
+          "arn:aws:logs:${var.region}:${var.account_id}:log-group:/aws/lambda/cerberus-freshness-probe*",
         ]
       },
       {

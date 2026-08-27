@@ -31,6 +31,22 @@ locals {
 # Build context is the repo root (../../../..), not this module's
 # directory -- the Dockerfile COPYs transform/dbt/ and transform/spark/
 # alongside orchestration/runner/ itself.
+#
+# CI CANNOT run this. The local-exec below shells out to `docker` and to
+# `aws ecr get-login-password --profile cerberus-admin` -- neither exists
+# on a GitHub-hosted runner, so `terraform apply` via cerberus-ci-apply
+# fails outright whenever a trigger below changes. dev-standing is
+# otherwise CI-applied on merge (ADR 0011), but this one resource is a
+# human-run operation like everything in dev-compute. Workflow when any
+# trigger input changes (the Dockerfile/.dockerignore, an entrypoint or
+# lib.sh, dbt_project.yml/profiles.yml, or a transform/spark/ file --
+# including a pure `ruff format` reformat, which still changes filemd5):
+# run `AWS_PROFILE=cerberus-admin terraform apply` locally FIRST to
+# rebuild+push the image and reconcile this trigger in state, THEN let the
+# CI apply on merge proceed as a clean no-op for this resource. A proper
+# fix (a CI job that builds+pushes on those paths, deleting this
+# null_resource) is deferred -- it expands CI's blast radius to ECR pushes
+# and deserves its own decision, not a bolt-on.
 resource "null_resource" "build_and_push" {
   triggers = {
     dockerfile_hash   = filemd5("${path.module}/../../../orchestration/runner/Dockerfile")
