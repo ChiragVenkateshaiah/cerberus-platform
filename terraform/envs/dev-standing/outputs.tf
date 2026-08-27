@@ -58,6 +58,16 @@ output "private_route_table_id" {
   value       = module.vpc.private_route_table_id
 }
 
+output "pipeline_dashboard_url" {
+  description = "Console URL for the 6.1 pipeline observability dashboard."
+  value       = module.observability.dashboard_url
+}
+
+output "freshness_probe_function_name" {
+  description = "The 6.1 data-freshness probe Lambda's name."
+  value       = module.observability.freshness_probe_function_name
+}
+
 output "ci_plan_role_arn" {
   description = "cerberus-ci-plan IAM role ARN, for GitHub's repo variable/workflow reference."
   value       = module.github_oidc.ci_plan_role_arn

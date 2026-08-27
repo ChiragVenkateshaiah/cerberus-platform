@@ -1,0 +1,131 @@
+{
+  "widgets": [
+    {
+      "type": "text",
+      "x": 0, "y": 0, "width": 24, "height": 2,
+      "properties": {
+        "markdown": "## cerberus-platform pipeline (6.1)\nDaily `ingest -> transform -> dbt -> serve` orchestration. Per-*named*-state latency and a run's actual bottleneck live in [X-Ray](https://${region}.console.aws.amazon.com/xray/home?region=${region}#/service-map) and the [state machine's execution history](https://${region}.console.aws.amazon.com/states/home?region=${region}#/statemachines) -- CloudWatch only publishes the aggregate timings shown below."
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0, "y": 2, "width": 12, "height": 6,
+      "properties": {
+        "title": "Pipeline executions -- last 24h",
+        "view": "singleValue",
+        "region": "${region}",
+        "stat": "Sum",
+        "period": 86400,
+        "metrics": [
+          [ "AWS/States", "ExecutionsSucceeded", "StateMachineArn", "${state_machine_arn}", { "label": "Succeeded" } ],
+          [ "AWS/States", "ExecutionsFailed", "StateMachineArn", "${state_machine_arn}", { "label": "Failed" } ],
+          [ "AWS/States", "ExecutionsTimedOut", "StateMachineArn", "${state_machine_arn}", { "label": "Timed out" } ],
+          [ "AWS/States", "ExecutionsAborted", "StateMachineArn", "${state_machine_arn}", { "label": "Aborted" } ]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12, "y": 2, "width": 12, "height": 6,
+      "properties": {
+        "title": "Pipeline execution duration",
+        "view": "timeSeries",
+        "region": "${region}",
+        "period": 86400,
+        "yAxis": { "left": { "label": "ms", "showUnits": false } },
+        "metrics": [
+          [ "AWS/States", "ExecutionTime", "StateMachineArn", "${state_machine_arn}", { "stat": "Average", "label": "avg" } ],
+          [ "AWS/States", "ExecutionTime", "StateMachineArn", "${state_machine_arn}", { "stat": "p90", "label": "p90" } ],
+          [ "AWS/States", "ExecutionTime", "StateMachineArn", "${state_machine_arn}", { "stat": "Maximum", "label": "max" } ]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0, "y": 8, "width": 12, "height": 6,
+      "properties": {
+        "title": "Data freshness (hours since last write)",
+        "view": "singleValue",
+        "sparkline": true,
+        "region": "${region}",
+        "stat": "Maximum",
+        "period": 3600,
+        "metrics": [
+          [ { "expression": "m1/3600", "label": "Pipeline run age", "id": "e1", "region": "${region}" } ],
+          [ "Cerberus/Pipeline", "FreshnessSeconds", "Signal", "PipelineRun", { "id": "m1", "visible": false } ],
+          [ { "expression": "m2/3600", "label": "Bronze data age", "id": "e2", "region": "${region}" } ],
+          [ "Cerberus/Pipeline", "FreshnessSeconds", "Signal", "BronzeData", { "id": "m2", "visible": false } ],
+          [ { "expression": "m3/3600", "label": "Gold data age", "id": "e3", "region": "${region}" } ],
+          [ "Cerberus/Pipeline", "FreshnessSeconds", "Signal", "GoldData", { "id": "m3", "visible": false } ]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12, "y": 8, "width": 12, "height": 6,
+      "properties": {
+        "title": "Ingestion Lambda -- last 24h",
+        "view": "timeSeries",
+        "region": "${region}",
+        "period": 86400,
+        "metrics": [
+          [ "AWS/Lambda", "Invocations", "FunctionName", "${ingestion_lambda_name}", { "stat": "Sum", "label": "Invocations" } ],
+          [ "AWS/Lambda", "Errors", "FunctionName", "${ingestion_lambda_name}", { "stat": "Sum", "label": "Errors" } ],
+          [ "AWS/Lambda", "Duration", "FunctionName", "${ingestion_lambda_name}", { "stat": "Maximum", "label": "Duration (max, ms)", "yAxis": "right" } ]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0, "y": 14, "width": 12, "height": 6,
+      "properties": {
+        "title": "Step integration timing (avg)",
+        "view": "timeSeries",
+        "region": "${region}",
+        "period": 3600,
+        "yAxis": { "left": { "label": "ms", "showUnits": false } },
+        "metrics": [
+          [ "AWS/States", "LambdaFunctionRunTime", "StateMachineArn", "${state_machine_arn}", { "stat": "Average", "label": "Lambda run time" } ],
+          [ "AWS/States", "ServiceIntegrationRunTime", "StateMachineArn", "${state_machine_arn}", { "stat": "Average", "label": "Service integration run time" } ],
+          [ "AWS/States", "ActivityRunTime", "StateMachineArn", "${state_machine_arn}", { "stat": "Average", "label": "Activity run time" } ]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12, "y": 14, "width": 12, "height": 6,
+      "properties": {
+        "title": "Serving query -- Athena workgroup",
+        "view": "timeSeries",
+        "region": "${region}",
+        "period": 86400,
+        "metrics": [
+          [ "AWS/Athena", "EngineExecutionTime", "WorkGroup", "${athena_workgroup}", { "stat": "Average", "label": "Engine execution time (ms)" } ],
+          [ "AWS/Athena", "TotalExecutionTime", "WorkGroup", "${athena_workgroup}", { "stat": "Average", "label": "Total execution time (ms)" } ],
+          [ "AWS/Athena", "ProcessedBytes", "WorkGroup", "${athena_workgroup}", { "stat": "Average", "label": "Processed bytes", "yAxis": "right" } ]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0, "y": 20, "width": 12, "height": 6,
+      "properties": {
+        "title": "Freshness probe health",
+        "view": "timeSeries",
+        "region": "${region}",
+        "period": 3600,
+        "metrics": [
+          [ "AWS/Lambda", "Invocations", "FunctionName", "${probe_name}", { "stat": "Sum", "label": "Probe invocations" } ],
+          [ "AWS/Lambda", "Errors", "FunctionName", "${probe_name}", { "stat": "Sum", "label": "Probe errors" } ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "x": 12, "y": 20, "width": 12, "height": 6,
+      "properties": {
+        "markdown": "### Freshness signals\n- **Pipeline run age** -- since the state machine last reached `SUCCEEDED`. The daily EventBridge run should keep this under ~25h.\n- **Bronze data age** -- since the newest `payments/` object. The scheduled generator self-retired 2026-08-17 (ADR 0005), so this grows until `generate_payments.py` is run by hand -- expected.\n- **Gold data age** -- since the newest object in the gold bucket (dbt marts + the 1.7 current-state table).\n\nPublished hourly by the `${probe_name}` Lambda to `Cerberus/Pipeline -> FreshnessSeconds`."
+      }
+    }
+  ]
+}

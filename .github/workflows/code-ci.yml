@@ -11,6 +11,7 @@ on:
     paths:
       - "ingestion/**"
       - "transform/**"
+      - "observability/**"
       - "pyproject.toml"
       - "requirements-dev.txt"
       - ".github/workflows/code-ci.yml"

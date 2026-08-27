@@ -105,6 +105,19 @@ module "step_functions" {
   gold_bucket_arn           = module.s3_medallion.bucket_arns["gold"]
 }
 
+module "observability" {
+  source = "../../modules/observability"
+
+  state_machine_arn     = module.step_functions.state_machine_arn
+  ingestion_lambda_name = module.lambda_ingestion.function_name
+  athena_workgroup_name = module.athena.workgroup_name
+
+  bronze_bucket_name = module.s3_medallion.bucket_names["bronze"]
+  bronze_bucket_arn  = module.s3_medallion.bucket_arns["bronze"]
+  gold_bucket_name   = module.s3_medallion.bucket_names["gold"]
+  gold_bucket_arn    = module.s3_medallion.bucket_arns["gold"]
+}
+
 module "github_oidc" {
   source = "../../modules/github_oidc"
 
