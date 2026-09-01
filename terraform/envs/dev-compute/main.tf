@@ -7,6 +7,21 @@
 #
 # See provider.tf's terraform_remote_state.standing for the one-directional
 # read of envs/dev-standing's outputs this root depends on.
+#
+# --- Compute-exercise runbook (ADR 0011, amended 2026-09-01) ----------
+# The daily orchestration schedule in dev-standing is DISABLED by default
+# because RunTransform needs the EKS cluster this root creates. To run a
+# real end-to-end exercise:
+#
+#   1. In dev-standing, set `pipeline_active = true` (variables.tf) and
+#      merge it -- CI applies it, flipping the schedule to ENABLED. (Or
+#      `make standing-apply` locally with the committed change.)
+#   2. `make compute-apply`  -- brings up NAT/EKS/Spark here.
+#   3. Run the pipeline (scheduled, or start an execution by hand).
+#   4. `make compute-destroy` -- tears this back down.
+#   5. In dev-standing, set `pipeline_active = false` and merge -- schedule
+#      back to DISABLED. Do this even if step 4 slipped: a live schedule
+#      with no cluster just fails RunTransform daily.
 
 locals {
   orchestration_transform_k8s_group = "cerberus-orchestration-transform"

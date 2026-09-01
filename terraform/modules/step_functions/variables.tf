@@ -95,3 +95,21 @@ variable "schedule_timezone" {
   type        = string
   default     = "UTC"
 }
+
+variable "pipeline_active" {
+  description = <<-EOT
+    Whether the orchestrated pipeline is expected to be live right now.
+    Defaults false: the daily schedule below is created DISABLED, because
+    the pipeline's RunTransform step submits a Spark job to the
+    envs/dev-compute EKS cluster, which is torn down between compute
+    exercises by design (ADR 0007/0011). An ENABLED schedule while
+    dev-compute is down fires a run that structurally cannot succeed --
+    it fails at RunTransform every day, burning Fargate task starts and
+    accruing failed executions. Flip to true as the first step of a
+    compute exercise (before applying dev-compute), back to false at
+    teardown. See docs/adr/0011 (amended 2026-09-01) and dev-compute's
+    module header for the runbook.
+  EOT
+  type        = bool
+  default     = false
+}

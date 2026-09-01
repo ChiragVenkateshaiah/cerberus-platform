@@ -215,3 +215,55 @@ get a PR-check workflow GitHub Actions already does natively.
   explicitly out of scope here -- ADR 0007/0009's whole premise is that a
   human decides when an exercise happens, and nothing about Phase 5's goal
   requires automating that decision away.
+
+## Amendment (2026-09-01): the pipeline-activity switch
+
+Phase 6.1's freshness probe surfaced a consequence of the split this ADR
+didn't name: the state split put `step_functions`
+(`aws_scheduler_schedule.daily`, the platform's only schedule since 4.3
+folded ingestion's trigger into `InvokeIngestion`'s parent) in
+`dev-standing`, but the state machine's `RunTransform` step submits a Spark
+job to the `dev-compute` EKS cluster. With `dev-compute` torn down between
+exercises -- the *normal* state -- an always-ENABLED schedule fires a daily
+run that fails at `RunTransform` every time: 3 Fargate task starts and a
+failed execution per day, silently, since 2026-08-21 (the probe measured
+`PipelineRun` freshness at ~7.5 days on its first run). The schedule and
+its EKS dependency have opposite default lifecycles, and nothing bridged
+them.
+
+**Decision:** a single `pipeline_active` boolean, committed in
+`dev-standing/variables.tf` (default `false`), threaded to the
+`step_functions` module, where it sets
+`aws_scheduler_schedule.daily`'s `state` to `ENABLED` / `DISABLED` (an
+in-place update, no recreate). Phase 6.2's pipeline-health and freshness
+alarms will hang off the same variable, so "is the pipeline expected to be
+live right now?" is one switch, not a fact each alarm re-derives. Flipping
+it brackets a compute exercise; the runbook lives in
+`dev-compute/main.tf`'s header and the `Makefile`'s `standing-*` /
+`compute-*` target pair.
+
+**Why a committed default and not a local `-var` override:** CI applies
+`dev-standing` on every terraform-touching merge with no `-var` flags
+(`terraform-apply.yml`), so a local override would be reverted to `false`
+by the next merge -- silently, mid-exercise. The committed value is the
+same "make the boundary structural, not a convention a future session has
+to remember" reasoning the state split itself rests on. The cost is a
+small visible PR at each end of an exercise; exercises are infrequent and
+the project already ships work as one-change PRs.
+
+**Alternatives rejected:** (a) leave the schedule ENABLED and make 6.2's
+alarms tolerant of the daily-failure state -- rejected, that makes the
+alarms blind exactly when `dev-compute` is down, i.e. most of the time,
+which is most of Phase 6's point gone. (b) Decouple `RunTransform` from
+EKS (a Fargate pandas path for the scheduled run, Spark reserved for
+manual exercises) -- rejected, it erodes Phase 3's Spark-on-EKS showcase
+to work around a scheduling problem, and with no NAT/EKS standing a
+Fargate-only transform path needs its own plumbing built.
+
+**Consequence:** `dev-standing`'s state is no longer purely "always-on
+resources in their steady state" -- one resource in it now has a mode that
+a human toggles per exercise, the first such in that root. Conceded
+rather than hidden: the switch is one well-commented variable with a
+documented runbook, which is a smaller cost than a monitoring layer that
+cries wolf every day or a daily stream of failed executions nobody is
+meant to look at.
