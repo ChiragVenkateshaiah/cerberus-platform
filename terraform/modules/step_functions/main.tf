@@ -260,6 +260,14 @@ resource "aws_scheduler_schedule" "daily" {
   name       = "cerberus-ingest-payments-daily"
   group_name = "default"
 
+  # ADR 0011 (amended 2026-09-01): DISABLED unless a compute exercise is
+  # active. The whole pipeline -- ingestion included, since 4.3 folded the
+  # only schedule into InvokeIngestion's parent -- is dormant by design
+  # while envs/dev-compute (EKS) is torn down, which is the normal state.
+  # An ENABLED schedule then just fails RunTransform daily. `state` is an
+  # in-place update, no destroy/recreate.
+  state = var.pipeline_active ? "ENABLED" : "DISABLED"
+
   # UTC, fixed explicitly -- same reasoning as the schedule this replaced
   # (ADR 0005): the pipeline's data is partitioned by UTC event day.
   schedule_expression          = var.schedule_expression

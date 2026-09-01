@@ -103,6 +103,10 @@ module "step_functions" {
   athena_database_name      = module.glue_catalog.database_name
   athena_results_bucket_arn = module.athena.results_bucket_arn
   gold_bucket_arn           = module.s3_medallion.bucket_arns["gold"]
+
+  # ADR 0011 (amended 2026-09-01): DISABLED unless a compute exercise is
+  # active -- see variables.tf.
+  pipeline_active = var.pipeline_active
 }
 
 module "observability" {
