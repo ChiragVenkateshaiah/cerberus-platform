@@ -16,8 +16,11 @@ Engineering competence in one repository.
 real Athena query against gold and get a result; `terraform apply` and
 `terraform destroy` were verified live against the whole stack.
 ✅ Phase 2 (event-driven ingestion) — complete. Ingestion runs on a Lambda
-triggered by EventBridge Scheduler, confirmed firing unattended; the
-Phase 0 systemd timer is retired.
+(driven by the Phase 4 state machine) instead of the retired Phase 0
+systemd timer, verified firing unattended. Its schedule is gated behind a
+`pipeline_active` switch (ADR 0011, amended) — enabled only during a
+compute exercise, since the full pipeline needs the spin-up/destroy EKS
+layer to complete.
 ✅ Phase 3 (scalable compute) — complete. ADR 0007 (VPC network design for
 Spark-on-EKS) is accepted; the full stack (VPC, EKS, Spark Operator, Spark
 job) was applied live, a real Spark job ran on EKS and wrote verified
@@ -41,7 +44,10 @@ Well-Architected pass (milestone 5, `phase-5-cicd-complete`).
 (`cerberus-platform-pipeline`) over the pipeline's Step Functions / Lambda
 / Athena metrics, plus an hourly "freshness probe" Lambda publishing
 `Cerberus/Pipeline` custom metrics for how stale each layer's data and the
-last successful pipeline run are.
+last successful pipeline run are. On its first run the probe caught a
+week-long silent failure of the daily scheduled run — its transform step
+depends on the torn-down EKS layer — now resolved by the `pipeline_active`
+gate above (ADR 0011 amendment).
 
 See [docs/plan.md](docs/plan.md) for the full phased roadmap (Phases 0–7)
 and [Phases.md](Phases.md) for subtask-level progress.

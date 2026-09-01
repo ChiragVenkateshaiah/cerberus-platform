@@ -70,6 +70,17 @@ verified: dashboard renders, probe returns
 `{"PipelineRun": ~7.5d, "BronzeData": ~11.7d, "GoldData": ~7.5d}`, all
 three metrics publishing.
 
+The probe's first run surfaced a real pre-existing failure — the daily
+scheduled pipeline had been red since 2026-08-21 because `RunTransform`
+needs the `dev-compute` EKS cluster, torn down between exercises.
+**Resolved 2026-09-01 (ADR 0011 amendment):** a committed `pipeline_active`
+bool in `envs/dev-standing` (default `false`) now gates
+`aws_scheduler_schedule.daily`'s `state` — `DISABLED` unless a compute
+exercise is active, which is the normal state (the whole pipeline,
+ingestion included, is dormant while `dev-compute` is down). Applied via
+CI, schedule confirmed `DISABLED` live. 6.2's alarms will hang off the
+same switch.
+
 **Note:** the roadmap was re-scoped on 2026-08-03 from 9 phases (0–8) to
 8 (0–7). The old "Phase 1 — IaC foundation" no longer exists as a phase;
 Terraform is now cross-cutting and its work is absorbed into Phase 1's
@@ -86,28 +97,24 @@ subtasks. Session history entries before that date use the old numbering.
   `ExecutionsFailed` / `ExecutionTime` (slow-job), ingestion Lambda
   `Errors`, and `FreshnessSeconds` thresholds per `Signal`. Same
   `terraform/modules/observability` module, still in `envs/dev-standing`.
-  **Design the freshness/failure alarms around the finding below** — a
-  naïve "alarm if any execution failed in 24h" or "alarm if `PipelineRun`
-  freshness > 25h" would fire every single day right now.
-- **Finding to resolve first (surfaced by 6.1's probe): the daily
-  orchestrated pipeline has failed 7/7 since 2026-08-21** (last `SUCCEEDED`
-  execution 2026-08-20, the Phase 4 demo). Cause: the `RunTransform` state
-  submits a Spark job to the EKS cluster, which lives in `envs/dev-compute`
-  and is torn down between compute exercises by design — so every
-  EventBridge-scheduled run since Phase 4 fails at that step. This is a
-  real ADR-0011-shaped tension (`dev-standing`'s always-on schedule fires a
-  pipeline that structurally can't succeed without `dev-compute` standing).
-  Decide before/within 6.2: disable `aws_scheduler_schedule.daily` when
-  compute is down (and document a "spin up dev-compute, then re-enable"
-  runbook), make 6.2's alarms tolerate the expected-failure state, or
-  rethink whether the transform step should hard-depend on EKS. Not yet
-  actioned.
-- **`build_and_push` CI landmine (pre-existing, now documented, not fully
-  fixed) — see Notes / blockers.** Reconciled locally this session; the
+  **Gate the pipeline-health / freshness alarms on the new
+  `var.pipeline_active`** (thread it from `envs/dev-standing` into
+  `module.observability`, the same way `step_functions` already receives
+  it): create those alarms only when `pipeline_active = true`, so a normal
+  down period (schedule DISABLED, every signal legitimately stale) doesn't
+  page. The freshness-probe self-health alarm (observer broken) stays
+  unconditional. ADR 0011's 2026-09-01 amendment already commits to this
+  "one switch" design.
+- **`build_and_push` CI landmine (pre-existing, documented, not fully
+  fixed) — see Notes / blockers.** Reconciled locally 2026-08-27; the
   proper fix (a CI build/push job, deleting the `null_resource`) is a
-  deferred decision, tracked below.
+  deferred decision, tracked below. Not triggered by this session's
+  changes (no `orchestration_runner` trigger path touched).
 - The Faker Lambda-layer hash churn (Notes / blockers) is still noisy on
   every apply, still not blocking, still unrelated to Phase 6.
+- **Minor doc follow-up, not blocking:** README's Phase 2 status line was
+  softened this session (the ingestion schedule is no longer always-on);
+  no other drift outstanding.
 
 ## Session history
 
@@ -1695,6 +1702,55 @@ pre-existing failure — the daily pipeline has been red for a week._
   `docs/plan.md`'s roadmap row flipped ⬜ Planned → 🔨 In progress (status
   marker only), same partial-completion precedent as Phases 3/4/5.
 
+### 2026-09-01
+
+_Recovered the stranded 6.1 `/end-day` writeup, then resolved the
+pipeline-failure finding it had left open. No new subtask; Phase 6 stays
+at 6.1 done, 6.2 next._
+
+- **Recovered the 2026-08-27 `/end-day` bookkeeping** (commit `84fd999`).
+  That session shipped all of 6.1 via PRs #23/#24 but never committed the
+  four sync files — `checkpoint.md`'s 2026-08-27 entry + Next-up rewrite,
+  Phase 6 → 🔨 in `Phases.md` and `docs/plan.md`, README's Phase 6
+  paragraph — which had been sitting uncommitted in the working tree. The
+  implementation was already on `main`; only the narrative was stranded.
+- **Resolved the pipeline-failure finding (Option A + ADR 0011
+  amendment).** PR #25 (`b1e37ad`). Decision confirmed with the user:
+  - New **`pipeline_active`** bool, committed in
+    `terraform/envs/dev-standing/variables.tf` (default `false`), threaded
+    to `module.step_functions`, where it sets
+    `aws_scheduler_schedule.daily`'s `state` to `ENABLED` / `DISABLED` (an
+    in-place update, no destroy/recreate).
+  - Default-off is the honest default: since 4.3 folded the platform's
+    only schedule into the state machine's parent, the *whole* pipeline —
+    ingestion included — is dormant by design while `dev-compute` (EKS) is
+    torn down, which is the normal state. An always-ENABLED schedule then
+    just failed `RunTransform` daily (7+ failed executions, 3 Fargate task
+    starts each, since 2026-08-21).
+  - Committed default rather than a local `-var` override: CI applies
+    `dev-standing` on every terraform-touching merge with no `-var` flags,
+    so an override would be silently reverted mid-exercise. Flipping it is
+    a small visible PR bracketing a compute exercise — runbook added to
+    `terraform/envs/dev-compute/main.tf`'s header, keyed to the `Makefile`
+    `standing-*` / `compute-*` targets.
+  - **ADR 0011 gained an "Amendment (2026-09-01)" section**: the decision,
+    why a committed default, and the two rejected alternatives — (b) leave
+    the schedule on and make 6.2's alarms tolerant (rejected: blinds the
+    alarms whenever compute is down, i.e. most of the time), and (c)
+    decouple `RunTransform` from EKS (rejected: erodes Phase 3's
+    Spark-on-EKS showcase to work around a scheduling problem).
+  - Verified live: CI `terraform-apply.yml` run on the merge showed
+    `aws_scheduler_schedule.daily: state = "ENABLED" -> "DISABLED"` in-place,
+    `Apply complete! 1 added, 2 changed, 1 destroyed` (the add/destroy is
+    the known Faker-layer churn), and
+    `aws scheduler get-schedule --name cerberus-ingest-payments-daily`
+    returns `"State": "DISABLED"`.
+- **Softened README's Phase 2 status line** — it claimed ingestion "runs
+  on a Lambda triggered by EventBridge Scheduler, confirmed firing
+  unattended," which stopped being the steady state once the schedule went
+  DISABLED-by-default. Now describes the Lambda + the `pipeline_active`
+  gate.
+
 ## Notes / blockers
 
 - **Open, deferred, not blocking (noted 2026-08-27):**
@@ -1714,16 +1770,16 @@ pre-existing failure — the daily pipeline has been red for a week._
   local runbook — that builds+pushes the runner image on those paths,
   deleting this `null_resource`.** It expands CI's blast radius to ECR
   pushes, so it wasn't bolted onto Phase 6.
-- **Open, operational, not blocking (noted 2026-08-27):** the daily
-  EventBridge-scheduled orchestration run
-  (`aws_scheduler_schedule.daily`, `step_functions` module) has failed
-  every day since 2026-08-21 — `RunTransform` submits a Spark job to the
-  EKS cluster, which `dev-compute` tears down between compute exercises by
-  design. 6.1's freshness probe made this visible (`PipelineRun` freshness
-  ~7.5 days on first run). Decide before/within 6.2: disable the schedule
-  while compute is down (plus a "spin up `dev-compute`, then re-enable"
-  runbook), have 6.2's alarms tolerate the expected-failure state, or
-  reconsider the transform step's hard EKS dependency. Not yet actioned.
+- **Resolved 2026-09-01 (was: open operational, noted 2026-08-27):** the
+  daily EventBridge-scheduled orchestration run
+  (`aws_scheduler_schedule.daily`, `step_functions` module) failed every
+  day from 2026-08-21 because `RunTransform` needs the `dev-compute` EKS
+  cluster, torn down between exercises. Fixed by the `pipeline_active`
+  switch (ADR 0011 amendment, PR #25) — the schedule is now `DISABLED`
+  unless a compute exercise is active. Schedule confirmed `DISABLED` live
+  after the CI apply. Follow-through for 6.2: its pipeline-health /
+  freshness alarms must be gated on the same `pipeline_active` var so a
+  normal down period doesn't page (see Next up).
 - **Open, cosmetic, not blocking (noted 2026-08-24):** the Faker Lambda
   layer (`module.lambda_ingestion.aws_lambda_layer_version.faker`) is
   rebuilt via `pip install` at every single `terraform apply` — local or
