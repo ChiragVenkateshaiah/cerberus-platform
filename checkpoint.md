@@ -50,6 +50,26 @@ third-party sharing via CI's OIDC federation), three more gained real new
 evidence, and overall risk counts held steady at 25 HIGH/18 MEDIUM/9
 NONE/5 N/A, same as milestone 4.
 
+**Phase 6 — Observability & data quality is now 🔨 in progress** (6.1 of
+6.1–6.6 done, see [Phases.md](Phases.md#phase-6--observability--data-quality-)).
+**6.1 — CloudWatch dashboards** is complete and live: a new
+`terraform/modules/observability` (instantiated from `envs/dev-standing`,
+per ADR 0011's no-idle-cost placement) provides one CloudWatch dashboard
+`cerberus-platform-pipeline` over metrics AWS already publishes (Step
+Functions execution outcomes/duration, the ingestion Lambda, per-
+integration timing, the Athena serving query, probe health) plus an hourly
+EventBridge Scheduler-triggered "freshness probe" Lambda
+(`cerberus-freshness-probe`, `observability/freshness_probe/handler.py`,
+boto3-only) publishing `Cerberus/Pipeline` → `FreshnessSeconds{Signal}`
+custom metrics for `PipelineRun` (age of the last `SUCCEEDED` state-machine
+execution), `BronzeData`, and `GoldData` (newest-object age). Chosen over a
+pipeline-emitted metric because CloudWatch has no native "time since last
+write" metric and dashboard metric math has no `now()` — a "seconds stale"
+number needs an external observer on its own clock. Applied live and
+verified: dashboard renders, probe returns
+`{"PipelineRun": ~7.5d, "BronzeData": ~11.7d, "GoldData": ~7.5d}`, all
+three metrics publishing.
+
 **Note:** the roadmap was re-scoped on 2026-08-03 from 9 phases (0–8) to
 8 (0–7). The old "Phase 1 — IaC foundation" no longer exists as a phase;
 Terraform is now cross-cutting and its work is absorbed into Phase 1's
@@ -57,27 +77,37 @@ subtasks. Session history entries before that date use the old numbering.
 
 ## Next up
 
-- **6.1 — CloudWatch dashboards (pipeline health, data freshness).** First
-  subtask of Phase 6 (Observability & data quality); Phase 5 is fully
-  closed, nothing left mid-flight from it. Phase 4 already added X-Ray
-  tracing and `ALL`-mode CloudWatch Logs on the state machine (4.3), and
-  Phase 5's `code-ci.yml`/`terraform-*.yml` runs are themselves visible via
-  GitHub's own UI/badges — but there is still no CloudWatch *dashboard*
-  anywhere: no single view of pipeline health (execution success/failure
-  rate, per-state duration) or data freshness (time since bronze's last
-  successful partition write, gold's last successful `dbt run`). Likely
-  needs a new `terraform/modules/observability` (or similar) module,
-  applied through `envs/dev-standing` since dashboards/alarms are
-  always-on, no-idle-cost resources — same reasoning ADR 0011 used to
-  place the orchestration layer there. Phases.md's 6.1–6.6 breakdown is a
-  first-pass sketch (per its own header note), not yet refined against
-  real tooling choices — worth confirming with the user whether "data
-  freshness" means a CloudWatch custom metric emitted by the pipeline
-  itself (e.g. from the Lambda or the Step Functions state machine) or a
-  scheduled canary query against Athena, before building either.
-- No open blockers gate 6.1 — see Notes / blockers below for the one open
-  cosmetic item (Lambda layer hash churn on every apply), which is noisy
-  but not blocking, and unrelated to Phase 6.
+- **6.2 — CloudWatch alarms + slow-job alerting.** 6.1's building blocks
+  are in place: `Cerberus/Pipeline` → `FreshnessSeconds{Signal}` metrics
+  (hourly, from the freshness probe), plus the standard `AWS/States` /
+  `AWS/Lambda` / `AWS/Athena` metrics the dashboard already reads. 6.2
+  hangs alarms off these — likely an SNS topic (reuse or mirror
+  `cerberus-billing-alerts`) and alarms for: state-machine
+  `ExecutionsFailed` / `ExecutionTime` (slow-job), ingestion Lambda
+  `Errors`, and `FreshnessSeconds` thresholds per `Signal`. Same
+  `terraform/modules/observability` module, still in `envs/dev-standing`.
+  **Design the freshness/failure alarms around the finding below** — a
+  naïve "alarm if any execution failed in 24h" or "alarm if `PipelineRun`
+  freshness > 25h" would fire every single day right now.
+- **Finding to resolve first (surfaced by 6.1's probe): the daily
+  orchestrated pipeline has failed 7/7 since 2026-08-21** (last `SUCCEEDED`
+  execution 2026-08-20, the Phase 4 demo). Cause: the `RunTransform` state
+  submits a Spark job to the EKS cluster, which lives in `envs/dev-compute`
+  and is torn down between compute exercises by design — so every
+  EventBridge-scheduled run since Phase 4 fails at that step. This is a
+  real ADR-0011-shaped tension (`dev-standing`'s always-on schedule fires a
+  pipeline that structurally can't succeed without `dev-compute` standing).
+  Decide before/within 6.2: disable `aws_scheduler_schedule.daily` when
+  compute is down (and document a "spin up dev-compute, then re-enable"
+  runbook), make 6.2's alarms tolerate the expected-failure state, or
+  rethink whether the transform step should hard-depend on EKS. Not yet
+  actioned.
+- **`build_and_push` CI landmine (pre-existing, now documented, not fully
+  fixed) — see Notes / blockers.** Reconciled locally this session; the
+  proper fix (a CI build/push job, deleting the `null_resource`) is a
+  deferred decision, tracked below.
+- The Faker Lambda-layer hash churn (Notes / blockers) is still noisy on
+  every apply, still not blocking, still unrelated to Phase 6.
 
 ## Session history
 
@@ -1561,8 +1591,139 @@ Phase 5 is now fully ✅ complete._
   as-is per the same out-of-scope reasoning as 5.1/5.2's session entry
   above), and `README.md`'s Status section.
 
+### 2026-08-27
+
+_Built and shipped 6.1 (CloudWatch dashboards + data-freshness probe),
+opening Phase 6. Two PRs: #23 (the module) and #24 (a CI-permissions fix
+its failed apply forced). The probe immediately surfaced a real
+pre-existing failure — the daily pipeline has been red for a week._
+
+- **Design decision, made with the user before building:** for the
+  "data freshness" half of 6.1, use a **scheduled probe Lambda**, not a
+  pipeline-emitted metric. Reason: CloudWatch has no native "time since
+  last write" metric and CloudWatch dashboard metric math has no `now()`,
+  so a "seconds stale" number can't be derived from the pipeline's own
+  emitted metrics — it needs an external observer on its own clock. The
+  probe also keeps working when the pipeline stops running (the failure
+  mode that matters most), and 6.2's alarms get a real metric to
+  threshold.
+- **Built `terraform/modules/observability`** (instantiated from
+  `envs/dev-standing`, per ADR 0011's no-idle-cost placement — same
+  reasoning as the orchestration layer):
+  - `aws_cloudwatch_dashboard "cerberus-platform-pipeline"` — 9 widgets
+    over metrics AWS already publishes (no new emitters for this part):
+    Step Functions execution outcomes (24h singleValue) + `ExecutionTime`
+    avg/p90/max, per-integration timing (`LambdaFunctionRunTime` /
+    `ServiceIntegrationRunTime` / `ActivityRunTime` — a text widget points
+    at X-Ray / execution history for true per-named-state latency, which
+    CloudWatch doesn't expose), the ingestion Lambda, the Athena serving
+    query by workgroup, probe health, and a freshness widget (metric math
+    `mN/3600` → hours). One dashboard stays within CloudWatch's always-free
+    3-dashboard tier.
+  - `observability/freshness_probe/handler.py` (new top-level
+    `observability/` dir, mirroring `orchestration/`) — an hourly
+    EventBridge Scheduler Lambda, boto3-only so **no dependency layer**
+    (plain `archive_file` over one committed file, no `null_resource`/pip
+    step, unlike `lambda_ingestion`). Publishes `Cerberus/Pipeline` →
+    `FreshnessSeconds` with a `Signal` dimension: `PipelineRun`
+    (`states:list_executions` filtered `SUCCEEDED`, `maxResults=1` — age of
+    `stopDate`), `BronzeData` and `GoldData` (newest-object `LastModified`
+    via paginated `list_objects_v2`). Missing signals logged + skipped, not
+    emitted as zero.
+  - Self-contained probe execution role (`cerberus-freshness-probe`:
+    `states:ListExecutions` on the state machine ARN, `s3:ListBucket` on
+    bronze/gold, `cloudwatch:PutMetricData` scoped by a
+    `cloudwatch:namespace` condition) and scheduler role — the same
+    self-contained pattern `step_functions` uses for its own scheduler
+    role, kept out of the central `iam` module because the policy is 1:1
+    with this one Lambda and coupled to the state machine ARN this module
+    already receives.
+  - `retry_policy.maximum_retry_attempts = 2` on the probe schedule
+    (unlike ingestion's 0 — the probe is a pure idempotent read +
+    PutMetricData, so a retry just refreshes the same datapoints).
+- **PR #23 merged, then its `terraform-apply.yml` run failed** — two
+  distinct problems, cleanly separable:
+  - **A (mine): `cerberus-ci-apply` had no permissions for the new
+    resources.** Fixed in `terraform/modules/github_oidc` (PR #24): four
+    grants, same name-prefix scoping as the rest of the policy —
+    `ManageStandingIamRoles` + `role/cerberus-freshness-probe*` (covers
+    `iam:PassRole`), `ManageIngestionLambda` renamed `ManageStandingLambdas`
+    + `function:cerberus-freshness-probe*`, `ManageLogGroups` +
+    `log-group:/aws/lambda/cerberus-freshness-probe*` (the ingestion
+    Lambda has no explicit log group, so `/aws/lambda/*` was never needed
+    here before), and a new `ManageObservabilityDashboard`
+    (`cloudwatch:PutDashboard`/`GetDashboard`/`DeleteDashboards`). Like the
+    Phase 5 IAM fixes, this had to be applied locally as `cerberus-admin` —
+    `cerberus-ci-apply` can't modify its own policy (the self-escalation
+    guard).
+  - **B (pre-existing, not mine):
+    `module.orchestration_runner.null_resource.build_and_push` cannot run
+    in CI** — its `local-exec` shells out to `docker` and
+    `aws … --profile cerberus-admin`, neither present on a GitHub runner.
+    Dormant until `9ce67a0` (2026-08-24, PR #20) ran `ruff format` over
+    `transform/spark/promote_payments_spark.py` — a cosmetic reformat that
+    still moved `filemd5` — and no terraform-touching PR merged between
+    then and #23 to apply it, so PR #23 was simply the first apply to trip
+    it. **Decision (with the user): option (a) — reconcile now, track the
+    proper fix separately.** Documented the local-apply-first workflow in
+    `orchestration_runner/main.tf`'s header; a real fix (a CI build/push
+    job, deleting the `null_resource`) is deferred as its own decision —
+    see below.
+- **Recovery, applied locally as `cerberus-admin`** (`terraform apply
+  -auto-approve` on `dev-standing` — the non-`-auto-approve` run stalled
+  at the interactive prompt because the harness backgrounds long commands
+  and their stdin gets EOF, cancelling the apply): `Apply complete!
+  11 added, 2 changed, 2 destroyed` — `module.observability` created, the
+  `github_oidc` policy updated, `build_and_push` rebuilt+pushed (3m32s),
+  plus the usual Faker-layer churn. Verified live: dashboard renders;
+  `aws lambda invoke cerberus-freshness-probe` →
+  `{"reported": {"PipelineRun": 649651, "BronzeData": 1009994,
+  "GoldData": 649745}, "missing": []}`; all three metrics visible via
+  `aws cloudwatch list-metrics --namespace Cerberus/Pipeline`.
+- **PR #24 merged; its `terraform-apply.yml` run was green** — the only
+  change was the known Faker-layer churn (`build_and_push` was *not*
+  replaced — the local apply reconciled its trigger hash and CI computed
+  the same one). `main`'s apply badge is green again.
+- **Finding the probe caught on its first run:** the daily orchestrated
+  pipeline has failed 7/7 since 2026-08-21 (last `SUCCEEDED` 2026-08-20).
+  `RunTransform` needs the EKS cluster, which is torn down between compute
+  exercises — so the EventBridge-scheduled daily run has been failing at
+  that step ever since the Phase 4 demo. Recorded under Next up + below;
+  to be resolved before/within 6.2 (a daily-failing pipeline breaks naïve
+  alarm thresholds).
+- **6.1 checked off** in Phases.md; Phase 6's heading flipped ⬜→🔨 and
+  `docs/plan.md`'s roadmap row flipped ⬜ Planned → 🔨 In progress (status
+  marker only), same partial-completion precedent as Phases 3/4/5.
+
 ## Notes / blockers
 
+- **Open, deferred, not blocking (noted 2026-08-27):**
+  `module.orchestration_runner.null_resource.build_and_push` runs a
+  `local-exec` (`docker build`/`docker push`,
+  `aws ecr get-login-password --profile cerberus-admin`) that **cannot
+  execute on a GitHub Actions runner** — so any `terraform-apply.yml` run
+  fails whenever one of its `triggers` (`transform/spark/*`,
+  `transform/dbt/{dbt_project,profiles}.yml`, the Dockerfile,
+  `.dockerignore`, the runner entrypoints/`lib.sh`) changes without a
+  local `AWS_PROFILE=cerberus-admin terraform apply` first to rebuild+push
+  the image and reconcile the trigger in state. `orchestration_runner`'s
+  own module header now documents this workflow. `dev-standing` is
+  otherwise CI-applied on merge (ADR 0011); this one resource is a
+  human-run operation like everything in `dev-compute`. **Proper fix
+  (deferred, its own decision): a CI job — or a small `dev-compute`-style
+  local runbook — that builds+pushes the runner image on those paths,
+  deleting this `null_resource`.** It expands CI's blast radius to ECR
+  pushes, so it wasn't bolted onto Phase 6.
+- **Open, operational, not blocking (noted 2026-08-27):** the daily
+  EventBridge-scheduled orchestration run
+  (`aws_scheduler_schedule.daily`, `step_functions` module) has failed
+  every day since 2026-08-21 — `RunTransform` submits a Spark job to the
+  EKS cluster, which `dev-compute` tears down between compute exercises by
+  design. 6.1's freshness probe made this visible (`PipelineRun` freshness
+  ~7.5 days on first run). Decide before/within 6.2: disable the schedule
+  while compute is down (plus a "spin up `dev-compute`, then re-enable"
+  runbook), have 6.2's alarms tolerate the expected-failure state, or
+  reconsider the transform step's hard EKS dependency. Not yet actioned.
 - **Open, cosmetic, not blocking (noted 2026-08-24):** the Faker Lambda
   layer (`module.lambda_ingestion.aws_lambda_layer_version.faker`) is
   rebuilt via `pip install` at every single `terraform apply` — local or

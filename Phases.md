@@ -92,9 +92,9 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 - [x] 5.4 Green build badge on README
 - [x] 5.5 Well-Architected pass + ADR
 
-## Phase 6 — Observability & data quality ⬜
+## Phase 6 — Observability & data quality 🔨
 
-- [ ] 6.1 CloudWatch dashboards (pipeline health, data freshness)
+- [x] 6.1 CloudWatch dashboards (pipeline health, data freshness)
 - [ ] 6.2 CloudWatch alarms + slow-job alerting
 - [ ] 6.3 dbt tests or Great Expectations suite
 - [ ] 6.4 Lineage

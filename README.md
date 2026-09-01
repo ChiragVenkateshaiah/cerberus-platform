@@ -36,6 +36,12 @@ real IAM permission gaps discovered across three live-apply attempts. A
 `code-ci.yml` workflow lints Python (ruff) and validates the dbt project
 (`dbt parse` + sqlfluff) on every PR; ADR 0012 closes the phase's
 Well-Architected pass (milestone 5, `phase-5-cicd-complete`).
+🔨 Phase 6 (observability & data quality) — in progress. 6.1 is done: a
+`terraform/modules/observability` module adds a CloudWatch dashboard
+(`cerberus-platform-pipeline`) over the pipeline's Step Functions / Lambda
+/ Athena metrics, plus an hourly "freshness probe" Lambda publishing
+`Cerberus/Pipeline` custom metrics for how stale each layer's data and the
+last successful pipeline run are.
 
 See [docs/plan.md](docs/plan.md) for the full phased roadmap (Phases 0–7)
 and [Phases.md](Phases.md) for subtask-level progress.
