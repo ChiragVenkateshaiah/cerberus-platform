@@ -39,14 +39,14 @@ locals {
 # otherwise CI-applied on merge (ADR 0011), but this one resource is a
 # human-run operation like everything in dev-compute. Workflow when any
 # trigger input changes (the Dockerfile/.dockerignore, an entrypoint or
-# lib.sh, dbt_project.yml/profiles.yml, or a transform/spark/ file --
-# including a pure `ruff format` reformat, which still changes filemd5):
-# run `AWS_PROFILE=cerberus-admin terraform apply` locally FIRST to
-# rebuild+push the image and reconcile this trigger in state, THEN let the
-# CI apply on merge proceed as a clean no-op for this resource. A proper
-# fix (a CI job that builds+pushes on those paths, deleting this
-# null_resource) is deferred -- it expands CI's blast radius to ECR pushes
-# and deserves its own decision, not a bolt-on.
+# lib.sh, dbt_project.yml/profiles.yml, a models/ or macros/ file, or a
+# transform/spark/ file -- including a pure `ruff format` reformat, which
+# still changes filemd5): run `AWS_PROFILE=cerberus-admin terraform apply`
+# locally FIRST to rebuild+push the image and reconcile this trigger in
+# state, THEN let the CI apply on merge proceed as a clean no-op for this
+# resource. A proper fix (a CI job that builds+pushes on those paths,
+# deleting this null_resource) is deferred -- it expands CI's blast radius
+# to ECR pushes and deserves its own decision, not a bolt-on.
 resource "null_resource" "build_and_push" {
   triggers = {
     dockerfile_hash   = filemd5("${path.module}/../../../orchestration/runner/Dockerfile")
@@ -60,6 +60,23 @@ resource "null_resource" "build_and_push" {
       filemd5("${path.module}/../../../transform/dbt/dbt_project.yml"),
       filemd5("${path.module}/../../../transform/dbt/profiles.yml"),
     ])
+    # 6.3: the Dockerfile COPYs the whole transform/dbt/ directory into the
+    # image (see its own header), but until now only the two root config
+    # files above were ever hashed -- a model/schema/macro-only change
+    # (like this subtask's new tests) would have silently NOT rebuilt the
+    # image, the same "stale deploy, no signal" bug class 6.3 exists to
+    # close. fileset() + a stable sort keeps this reproducible between a
+    # local apply and CI's checkout (both start from git-tracked files
+    # only -- dbt's own gitignored target/logs/dbt_packages never enter
+    # the build context per .dockerignore, so they're excluded here too).
+    dbt_models_hash = md5(join(",", [
+      for f in sort(fileset("${path.module}/../../../transform/dbt/models", "**")) :
+      filemd5("${path.module}/../../../transform/dbt/models/${f}")
+    ]))
+    dbt_macros_hash = md5(join(",", [
+      for f in sort(fileset("${path.module}/../../../transform/dbt/macros", "**")) :
+      filemd5("${path.module}/../../../transform/dbt/macros/${f}")
+    ]))
     spark_files_hash = join(",", [
       filemd5("${path.module}/../../../transform/spark/spark-application.yaml"),
       filemd5("${path.module}/../../../transform/spark/promote_payments_spark.py"),

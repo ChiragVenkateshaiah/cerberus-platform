@@ -1,0 +1,58 @@
+version: 2
+
+# 6.3: data-quality tests on the gold marts, run as part of `dbt build`
+# (orchestration/runner/entrypoint_dbt.sh) so a failure here fails the
+# RunDbt ECS task -> fails the state-machine execution -> trips 6.2's
+# cerberus-pipeline-run-unsuccessful alarm. Bad data fails the pipeline
+# loudly instead of landing silently in gold (plan.md's Phase 6 "done
+# when").
+
+models:
+  - name: dim_merchants
+    description: >
+      Fixed merchant roster (ADR 0003) -- distinct, no latest-wins needed.
+    columns:
+      - name: merchant_id
+        tests: [not_null, unique]
+
+  - name: dim_customers
+    description: >
+      Fixed customer roster (ADR 0003) -- distinct, no latest-wins needed.
+    columns:
+      - name: customer_id
+        tests: [not_null, unique]
+
+  - name: fct_transactions
+    description: >
+      One row per transaction_id, latest-event-wins with a fixed
+      lifecycle-order tiebreak (see the model's own header) -- transaction_id
+      uniqueness is exactly the invariant the 2026-08-11 tiebreak bug
+      violated before it was fixed; this test is what would have caught it.
+    columns:
+      - name: transaction_id
+        tests: [not_null, unique]
+      - name: status
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  ["created", "authorized", "settled", "failed", "refunded"]
+      - name: amount
+        tests:
+          - not_null
+          - non_negative
+      - name: merchant_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_merchants')
+                field: merchant_id
+      - name: customer_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_customers')
+                field: customer_id

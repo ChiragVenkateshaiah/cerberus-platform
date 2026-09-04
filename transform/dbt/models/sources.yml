@@ -6,3 +6,36 @@ sources:
     schema: cerberus_platform
     tables:
       - name: payments_events
+        description: >
+          Silver event stream, one row per payment lifecycle event
+          (created/authorized/settled/failed/refunded) -- see ADR 0003 and
+          the 1.7 transform. The marts below resolve this down to
+          current-state rows.
+        columns:
+          - name: transaction_id
+            tests: [not_null]
+          - name: event_timestamp
+            tests: [not_null]
+          - name: event_type
+            tests:
+              - not_null
+              - accepted_values:
+                  arguments:
+                    values:
+                      [
+                        "created",
+                        "authorized",
+                        "settled",
+                        "failed",
+                        "refunded",
+                      ]
+          - name: amount
+            tests:
+              - not_null
+              - non_negative
+          - name: currency
+            tests:
+              - not_null
+              - accepted_values:
+                  arguments:
+                    values: ["USD", "EUR", "GBP"]
