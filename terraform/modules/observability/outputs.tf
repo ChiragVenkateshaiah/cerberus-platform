@@ -17,3 +17,8 @@ output "freshness_metric_namespace" {
   description = "CloudWatch namespace the freshness probe publishes to -- Phase 6.2's alarms read FreshnessSeconds{Signal} here."
   value       = "Cerberus/Pipeline"
 }
+
+output "alerts_topic_arn" {
+  description = "The cerberus-pipeline-alerts SNS topic ARN (6.2) -- the alarm notification channel."
+  value       = aws_sns_topic.alerts.arn
+}

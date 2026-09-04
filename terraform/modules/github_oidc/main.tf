@@ -309,6 +309,35 @@ resource "aws_iam_role_policy" "ci_apply" {
         Resource = "arn:aws:cloudwatch::${var.account_id}:dashboard/cerberus-platform-pipeline"
       },
       {
+        # 6.2: the pipeline alarms (terraform/modules/observability's
+        # alarms.tf). Put/Delete and the tag actions support alarm-ARN
+        # scoping to the cerberus-* prefix; cloudwatch:DescribeAlarms does
+        # not support resource-level scoping at all and is granted on "*"
+        # in DiscoveryReads below.
+        Sid    = "ManageObservabilityAlarms"
+        Effect = "Allow"
+        Action = [
+          "cloudwatch:PutMetricAlarm", "cloudwatch:DeleteAlarms",
+          "cloudwatch:EnableAlarmActions", "cloudwatch:DisableAlarmActions",
+          "cloudwatch:ListTagsForResource", "cloudwatch:TagResource", "cloudwatch:UntagResource",
+        ]
+        Resource = "arn:aws:cloudwatch:${var.region}:${var.account_id}:alarm:cerberus-*"
+      },
+      {
+        # 6.2: the cerberus-pipeline-alerts SNS topic and its email
+        # subscription. A subscription ARN is the topic ARN plus a
+        # :<uuid> suffix, so the trailing wildcard covers
+        # GetSubscriptionAttributes on it too.
+        Sid    = "ManageAlertsTopic"
+        Effect = "Allow"
+        Action = [
+          "sns:CreateTopic", "sns:DeleteTopic", "sns:GetTopicAttributes", "sns:SetTopicAttributes",
+          "sns:Subscribe", "sns:Unsubscribe", "sns:GetSubscriptionAttributes", "sns:SetSubscriptionAttributes",
+          "sns:ListSubscriptionsByTopic", "sns:ListTagsForResource", "sns:TagResource", "sns:UntagResource",
+        ]
+        Resource = "arn:aws:sns:${var.region}:${var.account_id}:cerberus-pipeline-alerts*"
+      },
+      {
         # Missing entirely from the first live apply -- ec2:DescribeVpcs
         # 403'd immediately, the first resource module.vpc's refresh
         # touches. envs/dev-standing's trimmed vpc module (VPC, subnets,
@@ -394,6 +423,9 @@ resource "aws_iam_role_policy" "ci_apply" {
           "ecr:DescribeRepositories", "ecr:GetAuthorizationToken",
           "logs:DescribeLogGroups",
           "sts:GetCallerIdentity",
+          # 6.2: the AWS provider refreshes every aws_cloudwatch_metric_alarm
+          # via DescribeAlarms, which has no resource-level scoping.
+          "cloudwatch:DescribeAlarms",
         ]
         Resource = "*"
       },
