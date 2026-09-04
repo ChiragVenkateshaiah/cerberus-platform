@@ -50,7 +50,7 @@ third-party sharing via CI's OIDC federation), three more gained real new
 evidence, and overall risk counts held steady at 25 HIGH/18 MEDIUM/9
 NONE/5 N/A, same as milestone 4.
 
-**Phase 6 — Observability & data quality is now 🔨 in progress** (6.1 of
+**Phase 6 — Observability & data quality is now 🔨 in progress** (6.1–6.3 of
 6.1–6.6 done, see [Phases.md](Phases.md#phase-6--observability--data-quality-)).
 **6.1 — CloudWatch dashboards** is complete and live: a new
 `terraform/modules/observability` (instantiated from `envs/dev-standing`,
@@ -88,33 +88,26 @@ subtasks. Session history entries before that date use the old numbering.
 
 ## Next up
 
-- **6.2 — CloudWatch alarms + slow-job alerting.** 6.1's building blocks
-  are in place: `Cerberus/Pipeline` → `FreshnessSeconds{Signal}` metrics
-  (hourly, from the freshness probe), plus the standard `AWS/States` /
-  `AWS/Lambda` / `AWS/Athena` metrics the dashboard already reads. 6.2
-  hangs alarms off these — likely an SNS topic (reuse or mirror
-  `cerberus-billing-alerts`) and alarms for: state-machine
-  `ExecutionsFailed` / `ExecutionTime` (slow-job), ingestion Lambda
-  `Errors`, and `FreshnessSeconds` thresholds per `Signal`. Same
-  `terraform/modules/observability` module, still in `envs/dev-standing`.
-  **Gate the pipeline-health / freshness alarms on the new
-  `var.pipeline_active`** (thread it from `envs/dev-standing` into
-  `module.observability`, the same way `step_functions` already receives
-  it): create those alarms only when `pipeline_active = true`, so a normal
-  down period (schedule DISABLED, every signal legitimately stale) doesn't
-  page. The freshness-probe self-health alarm (observer broken) stays
-  unconditional. ADR 0011's 2026-09-01 amendment already commits to this
-  "one switch" design.
+- **6.4 — Lineage.** Not yet scoped in any detail — Phases.md's one-liner
+  is the only planning that exists so far, same "first pass, not a fixed
+  spec" state 6.3 was in before this session's planning discussion. Worth
+  the same treatment before implementing: lay out the options (dbt's own
+  `docs generate`/DAG lineage — already free, the project's dbt project
+  already has the ref()/source() graph 6.3 tests reuse — vs. AWS Glue's
+  lineage features vs. a dedicated tool) and confirm a direction before
+  writing code.
+- **6.5 — SLO write-up**, then **6.6 — Well-Architected pass + ADR**
+  (milestone 6, `phase-6-observability-and-data-quality-complete`) close
+  the phase. Not started.
 - **`build_and_push` CI landmine (pre-existing, documented, not fully
-  fixed) — see Notes / blockers.** Reconciled locally 2026-08-27; the
-  proper fix (a CI build/push job, deleting the `null_resource`) is a
-  deferred decision, tracked below. Not triggered by this session's
-  changes (no `orchestration_runner` trigger path touched).
+  fixed) — see Notes / blockers.** This session hit it twice more (6.2's
+  SNS/alarm work needed a `cerberus-ci-apply` self-escalation fix, 6.3's
+  entrypoint/model changes needed an image rebuild) — both resolved the
+  documented way, a local `terraform apply` as `cerberus-admin` before the
+  CI merge. The proper fix (a CI build/push job, deleting the
+  `null_resource`) is still a deferred decision, tracked below.
 - The Faker Lambda-layer hash churn (Notes / blockers) is still noisy on
   every apply, still not blocking, still unrelated to Phase 6.
-- **Minor doc follow-up, not blocking:** README's Phase 2 status line was
-  softened this session (the ingestion schedule is no longer always-on);
-  no other drift outstanding.
 
 ## Session history
 
@@ -1750,6 +1743,118 @@ at 6.1 done, 6.2 next._
   unattended," which stopped being the steady state once the schedule went
   DISABLED-by-default. Now describes the Lambda + the `pipeline_active`
   gate.
+
+### 2026-09-04
+
+_6.2 and 6.3 both built, applied live, and merged — Phase 6 is now 4 of 6
+subtasks done._
+
+- **Built 6.2, CloudWatch alarms + slow-job alerting** (PR #26,
+  `403c6d1`/`96f77d3`). New `terraform/modules/observability/alarms.tf`:
+  a dedicated `cerberus-pipeline-alerts` SNS topic (email subscription
+  managed in Terraform — deliberately a new topic, not a reuse of the
+  Phase 0 `cerberus-billing-alerts` one, so a pipeline page and a cost
+  page stay separate channels — confirmed by the user's own choice among
+  three options offered) plus seven alarms:
+  - **Two unconditional** (freshness-probe self-health — if the observer
+    breaks, every gated alarm below goes stale-blind):
+    `cerberus-freshness-probe-errors` (`AWS/Lambda Errors`, `notBreaching`)
+    and `cerberus-freshness-probe-silent` (`AWS/Lambda Invocations`
+    dead-man switch, 3-of-3 hourly periods, `breaching` on missing data).
+  - **Five gated on `var.pipeline_active`** (threaded from
+    `envs/dev-standing` into `module.observability`, same switch ADR
+    0011's 2026-09-01 amendment already committed 6.2 to using):
+    `cerberus-pipeline-run-unsuccessful` (a metric-math alarm summing
+    `ExecutionsFailed`+`ExecutionsTimedOut`+`ExecutionsAborted`),
+    `cerberus-pipeline-execution-slow` (`ExecutionTime` Maximum > 45min —
+    Maximum, not p90/p99, since a once-daily execution has only one
+    datapoint per run), `cerberus-ingestion-errors`,
+    `cerberus-freshness-pipeline-run` and `cerberus-freshness-gold-data`
+    (`FreshnessSeconds{Signal}` > 36h, `treat_missing_data = missing` —
+    not `breaching` — so flipping `pipeline_active` on for a new exercise
+    doesn't guarantee a false page before the first run completes). No
+    `BronzeData` freshness alarm: the ingestion Lambda is still
+    `RETIRE_ON_OR_AFTER=2026-08-17`-capped, so bronze doesn't refresh even
+    during an active exercise — a manual-generation concern, not a
+    pipeline-health signal, matching the dashboard's own framing.
+  - Extended `cerberus-ci-apply` (`terraform/modules/github_oidc`) with
+    scoped `cloudwatch:PutMetricAlarm`/`DeleteAlarms`/tag actions on
+    `alarm:cerberus-*`, scoped `sns:*` on `cerberus-pipeline-alerts*`, and
+    `cloudwatch:DescribeAlarms` on `"*"` (no resource-level support) —
+    added proactively, but not enough on its own (see below).
+  - **Hit the same self-escalation guard `ReadOwnCiIdentity` documents**:
+    the first CI apply on merge failed —
+    `iam:PutRolePolicy on resource: role cerberus-ci-apply` denied,
+    because the new grants lived inside `cerberus-ci-apply`'s *own*
+    policy, and that role cannot widen its own permissions (by design —
+    the same guard 027d663 hit for 6.1). Fixed the documented way: applied
+    locally as `cerberus-admin` (5 added/2 changed/1 destroyed — the
+    policy fix, the SNS topic+subscription, the 2 probe-health alarms,
+    plus the pre-existing cosmetic Faker-layer churn), confirmed via a
+    follow-up `terraform plan` showing "No changes," then let the merge's
+    CI apply proceed as intended.
+  - Verified live: both probe-health alarms created and evaluating
+    (`probe_errors` → `OK`, `probe_silent` → settling to
+    `INSUFFICIENT_DATA` as expected right after creation), the 5 gated
+    alarms correctly absent (`pipeline_active` still `false`), and the SNS
+    email subscription confirmed by the user
+    (`PendingConfirmation: false`) — the topic actually delivers now.
+- **Planned 6.3 before building it**, at the user's request ("Have we
+  planned 6.3?") — nothing existed beyond Phases.md's one-liner and
+  plan.md's phase-level "dbt tests (or Great Expectations)" note. Laid out
+  a concrete first pass grounded in the actual dbt models/schema
+  (`transform/dbt/models/`) and a real finding:
+  `orchestration/runner/entrypoint_dbt.sh` ran `dbt run`, not `dbt test`/
+  `dbt build`, so no test would ever execute in the orchestrated pipeline
+  even once written — plan.md's Phase 6 "done when" (bad data fails
+  loudly) wasn't met by test YAML alone. Recommended dbt tests over Great
+  Expectations (no second framework/runner needed — the dbt project
+  already runs as an ECS Fargate step) and `dbt run` → `dbt build`; user
+  confirmed both as the defaults to build.
+- **Built 6.3, dbt tests for data quality** (PR #27, `64c19f6`/`c16cb13`).
+  New `transform/dbt/macros/test_non_negative.sql` (a custom generic test
+  for `amount >= 0` — no `dbt_utils` dependency added for one check).
+  `transform/dbt/models/sources.yml` gained column tests on
+  `payments_events` (`not_null`, `accepted_values` on `event_type` and
+  `currency` — values confirmed against `payments_lib.py`'s actual
+  generation logic, not guessed). New `transform/dbt/models/marts/
+  schema.yml`: `unique`+`not_null` on both dimension tables' keys; on
+  `fct_transactions`, `unique`+`not_null` on `transaction_id` (the exact
+  invariant the 2026-08-11 tiebreak bug violated — this is the test that
+  would have caught it), `accepted_values` on `status`, `non_negative` on
+  `amount`, `relationships` to both dimensions. Used dbt 1.12's newer
+  nested `arguments:` syntax for `accepted_values`/`relationships` (the
+  flat form is deprecated as of this dbt-core version) after `dbt parse`
+  surfaced the deprecation warning live. `entrypoint_dbt.sh`: `dbt run` →
+  `dbt build`, closing the loop with 6.2 — a failing test now fails the
+  ECS task → fails `RunDbt` → fails the execution →
+  `cerberus-pipeline-run-unsuccessful`.
+  - **Found and fixed a real latent gap**: `orchestration_runner`'s
+    `null_resource.build_and_push` only ever hashed `dbt_project.yml`/
+    `profiles.yml` as triggers, never the `models/`/`macros/` files the
+    Dockerfile `COPY`s wholesale into the image — a model/test-only change
+    would have silently never rebuilt the deployed image, the exact
+    "stale deploy, no signal" bug class 6.3 exists to close. Fixed with
+    two `fileset()`-based trigger hashes (`dbt_models_hash`,
+    `dbt_macros_hash`), scoped to those two directories and excluding
+    dbt's gitignored `target/`/`logs/` (matching `.dockerignore`) so the
+    hash stays reproducible between a local apply and CI's checkout.
+  - **Verified thoroughly before merging, not just parsed**: `terraform
+    validate` clean; `dbt parse` (CI's exact profile/invocation) clean,
+    no deprecation warnings; `sqlfluff lint models/` (CI's exact
+    invocation) clean; **`dbt build` against live Athena data**
+    (`cerberus-transform` profile) — **25/25 pass, 0 errors, 0 warnings**,
+    including `unique_fct_transactions_transaction_id` passing on real
+    data. `terraform plan` on `dev-standing` came back 1-add/0-change/
+    1-destroy (only `null_resource.build_and_push` — docker build/push,
+    which CI cannot run). Applied locally as `cerberus-admin`: image
+    rebuilt and pushed to ECR in 8m44s, confirmed via a follow-up
+    `terraform plan` showing "No changes." The merge's CI apply then ran
+    as a clean no-op, confirming the local-apply-first workflow left
+    nothing for CI to reconcile.
+  - Not yet exercised through a real orchestrated `RunDbt` execution —
+    that needs a `dev-compute` exercise (`pipeline_active = true`),
+    intentionally out of scope for this subtask.
 
 ## Notes / blockers
 

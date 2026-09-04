@@ -95,8 +95,8 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 ## Phase 6 — Observability & data quality 🔨
 
 - [x] 6.1 CloudWatch dashboards (pipeline health, data freshness)
-- [ ] 6.2 CloudWatch alarms + slow-job alerting
-- [ ] 6.3 dbt tests or Great Expectations suite
+- [x] 6.2 CloudWatch alarms + slow-job alerting
+- [x] 6.3 dbt tests or Great Expectations suite
 - [ ] 6.4 Lineage
 - [ ] 6.5 SLO write-up
 - [ ] 6.6 Well-Architected pass + ADR

@@ -39,15 +39,24 @@ real IAM permission gaps discovered across three live-apply attempts. A
 `code-ci.yml` workflow lints Python (ruff) and validates the dbt project
 (`dbt parse` + sqlfluff) on every PR; ADR 0012 closes the phase's
 Well-Architected pass (milestone 5, `phase-5-cicd-complete`).
-🔨 Phase 6 (observability & data quality) — in progress. 6.1 is done: a
-`terraform/modules/observability` module adds a CloudWatch dashboard
-(`cerberus-platform-pipeline`) over the pipeline's Step Functions / Lambda
-/ Athena metrics, plus an hourly "freshness probe" Lambda publishing
-`Cerberus/Pipeline` custom metrics for how stale each layer's data and the
-last successful pipeline run are. On its first run the probe caught a
-week-long silent failure of the daily scheduled run — its transform step
-depends on the torn-down EKS layer — now resolved by the `pipeline_active`
-gate above (ADR 0011 amendment).
+🔨 Phase 6 (observability & data quality) — in progress (6.1–6.3 of 6.1–6.6
+done). 6.1: a `terraform/modules/observability` module adds a CloudWatch
+dashboard (`cerberus-platform-pipeline`) over the pipeline's Step
+Functions / Lambda / Athena metrics, plus an hourly "freshness probe"
+Lambda publishing `Cerberus/Pipeline` custom metrics for how stale each
+layer's data and the last successful pipeline run are. On its first run
+the probe caught a week-long silent failure of the daily scheduled run —
+its transform step depends on the torn-down EKS layer — now resolved by
+the `pipeline_active` gate above (ADR 0011 amendment). 6.2: seven
+CloudWatch alarms — two unconditional (freshness-probe self-health) and
+five gated on `pipeline_active` (pipeline failures, slow runs, ingestion
+errors, data freshness) — notify a dedicated `cerberus-pipeline-alerts`
+SNS topic. 6.3: the dbt project gained schema/data-quality tests
+(`not_null`, `accepted_values`, `unique`, `relationships`, and a custom
+`non_negative` check), and the orchestrated `RunDbt` step now runs
+`dbt build` instead of `dbt run` — a failing test fails the run and trips
+6.2's alarms, so bad data fails loudly instead of landing silently in
+gold.
 
 See [docs/plan.md](docs/plan.md) for the full phased roadmap (Phases 0–7)
 and [Phases.md](Phases.md) for subtask-level progress.
@@ -134,7 +143,8 @@ constraints behind this diagram, see
 │   │                     #   VPC NAT, EKS, Spark Operator, Spark job
 │   │                     #   service account, orchestration runner
 │   │                     #   (ECR/Fargate), Step Functions, observability
-│   │                     #   (dashboard + freshness probe), GitHub OIDC)
+│   │                     #   (dashboard, freshness probe, alarms/SNS),
+│   │                     #   GitHub OIDC)
 │   ├── envs/dev-standing/  # CI-managed root (5.1): S3/IAM/Glue/Athena/
 │   │                     #   Lambda/orchestration/observability/GitHub OIDC
 │   │                     #   -- no idle cost, planned on every PR, applied
@@ -155,6 +165,7 @@ constraints behind this diagram, see
 │                         #   Phase 1): silver = flattened event history,
 │                         #   gold = current-state (still denormalized)
 ├── transform/dbt/        # dbt project: gold fact/dimension models (1.9)
+│                         #   + schema/data-quality tests (6.3)
 ├── transform/spark/      # PySpark bronze -> silver job (3.5), run on the
 │                         #   EKS cluster via the Spark Operator (3.4);
 │                         #   spark-application.yaml + submit_job.sh (not
