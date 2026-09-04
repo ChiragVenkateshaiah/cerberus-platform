@@ -15,7 +15,20 @@
 # brackets a compute exercise -- see docs/adr/0011 and
 # terraform/envs/dev-compute/main.tf's header for the runbook.
 variable "pipeline_active" {
-  description = "Whether a compute exercise is active. true = the daily orchestration schedule is ENABLED; false (default) = DISABLED."
+  description = "Whether a compute exercise is active. true = the daily orchestration schedule is ENABLED and 6.2's pipeline-health / data-freshness alarms exist; false (default) = schedule DISABLED and those alarms not created (every signal is legitimately stale while the pipeline is dormant)."
   type        = bool
   default     = false
+}
+
+# 6.2: the address subscribed to the cerberus-pipeline-alerts SNS topic.
+# Committed here (like pipeline_active) rather than a local -var override,
+# for the same reason -- CI applies this root with no -var flags, so an
+# override would be reverted to nothing on the next merge. Same inbox as
+# the Phase 0 cerberus-billing-alerts topic; already public in this repo's
+# git-author history. After the first apply that creates the subscription,
+# confirm it once via the link AWS emails to that address.
+variable "alert_email" {
+  description = "Email address subscribed to the cerberus-pipeline-alerts SNS topic (6.2)."
+  type        = string
+  default     = "chiragvenkateshaiah95@gmail.com"
 }

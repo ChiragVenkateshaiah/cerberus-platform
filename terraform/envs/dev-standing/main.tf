@@ -120,6 +120,12 @@ module "observability" {
   bronze_bucket_arn  = module.s3_medallion.bucket_arns["bronze"]
   gold_bucket_name   = module.s3_medallion.bucket_names["gold"]
   gold_bucket_arn    = module.s3_medallion.bucket_arns["gold"]
+
+  # 6.2: alarm delivery, plus the same pipeline-activity gate the schedule
+  # uses (ADR 0011 amended 2026-09-01) -- the pipeline-health / freshness
+  # alarms are created only while an exercise is active.
+  alert_email     = var.alert_email
+  pipeline_active = var.pipeline_active
 }
 
 module "github_oidc" {

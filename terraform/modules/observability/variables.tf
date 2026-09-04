@@ -50,3 +50,43 @@ variable "probe_timeout_seconds" {
   type        = number
   default     = 30
 }
+
+# --- 6.2: alarms + slow-job alerting ---------------------------------
+
+variable "pipeline_active" {
+  description = <<-EOT
+    Threaded from envs/dev-standing -- the same switch that ENABLEs the
+    daily schedule (ADR 0011, amended 2026-09-01). false (default): the
+    pipeline-health and data-freshness alarms are NOT created, because the
+    whole pipeline is dormant by design while dev-compute (EKS) is torn
+    down and every signal is legitimately stale -- alarms on it then would
+    page daily for a non-problem. true: those alarms exist and notify. The
+    two freshness-probe self-health alarms are created either way (the
+    probe runs hourly regardless).
+  EOT
+  type        = bool
+  default     = false
+}
+
+variable "alert_email" {
+  description = "Address subscribed to the cerberus-pipeline-alerts SNS topic. Terraform creates the subscription 'pending confirmation' -- the recipient must click the link AWS emails once, after the first apply that creates it."
+  type        = string
+}
+
+variable "slow_execution_threshold_ms" {
+  description = "cerberus-pipeline-execution-slow fires when a state-machine ExecutionTime (Maximum) exceeds this. Default 45min -- generous headroom over a real end-to-end run (the EKS spin-up is a separate manual step, not on this clock); tune down once there's a run-duration baseline."
+  type        = number
+  default     = 2700000
+}
+
+variable "pipeline_run_freshness_threshold_seconds" {
+  description = "cerberus-freshness-pipeline-run fires when FreshnessSeconds{PipelineRun} -- age of the last SUCCEEDED execution -- exceeds this. Default 36h: one missed daily run plus slack."
+  type        = number
+  default     = 129600
+}
+
+variable "gold_data_freshness_threshold_seconds" {
+  description = "cerberus-freshness-gold-data fires when FreshnessSeconds{GoldData} exceeds this. Default 36h -- a healthy daily run refreshes the gold bucket."
+  type        = number
+  default     = 129600
+}
