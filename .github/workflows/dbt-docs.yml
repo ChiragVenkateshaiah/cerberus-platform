@@ -1,0 +1,99 @@
+name: dbt docs (lineage)
+
+# 6.4a. Builds dbt's model-level lineage/DAG site from the committed dbt
+# project and publishes it to GitHub Pages.
+#
+# Runs fully offline: `dbt parse` (which writes manifest.json -- the lineage
+# graph) and `dbt docs generate --empty-catalog --no-compile` (which adds
+# catalog.json + the static site shell) never open a warehouse connection,
+# for the same reason code-ci.yml's own `dbt parse` step doesn't -- see that
+# workflow's comment. So, like code-ci.yml, this needs no AWS/OIDC access.
+#
+# On a PR it builds only (catches a broken dbt project before merge); on
+# merge to main it also deploys to Pages.
+#
+# Scope: this site covers only the dbt-managed slice of the pipeline
+# (payments_events -> fct_transactions / dim_merchants / dim_customers). The
+# bronze -> silver Spark step and the pandas-only payments_current table are
+# invisible to dbt. docs/lineage.md is the curated whole-pipeline view;
+# phase 6.4c adds OpenLineage runtime capture across both engines.
+
+on:
+  pull_request:
+    paths:
+      - "transform/dbt/**"
+      - "docs/pages/**"
+      - ".github/workflows/dbt-docs.yml"
+  push:
+    branches: [main]
+    paths:
+      - "transform/dbt/**"
+      - "docs/pages/**"
+      - ".github/workflows/dbt-docs.yml"
+
+permissions:
+  contents: read
+
+# One in-flight run per ref; a newer push supersedes an older build.
+concurrency:
+  group: dbt-docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: transform/dbt
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dbt
+        run: pip install --quiet -r requirements.txt
+
+      # manifest.json (the DAG the docs site renders as lineage) is written
+      # by `dbt parse`; `dbt docs generate` on its own with --no-compile
+      # does not write it. --empty-catalog skips the information_schema
+      # query, --no-compile skips relation introspection -- together they
+      # keep both commands connection-free against the placeholder
+      # ci_profiles profile.
+      - name: Generate dbt docs
+        env:
+          DBT_PROFILES_DIR: ci_profiles
+        run: |
+          dbt parse --no-partial-parse
+          dbt docs generate --empty-catalog --no-compile --no-partial-parse
+
+      - name: Assemble Pages site
+        working-directory: .
+        run: |
+          mkdir -p site/dbt
+          cp docs/pages/index.html site/index.html
+          cp transform/dbt/target/index.html site/dbt/index.html
+          cp transform/dbt/target/manifest.json site/dbt/manifest.json
+          cp transform/dbt/target/catalog.json site/dbt/catalog.json
+
+      - name: Upload Pages artifact
+        if: github.event_name == 'push'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4

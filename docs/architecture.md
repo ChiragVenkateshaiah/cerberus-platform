@@ -245,6 +245,11 @@ Airflow is still worth recording as an ADR when Phase 4 starts (see
 Resolved by ADR 0002 (bucket topology, partitioning, formats) and ADR 0003
 (the payment-event entity shape, append-only semantics, PII handling).
 
+How each column in each layer derives from the one before it — across both
+transform engines — is documented in [lineage.md](lineage.md) (Phase 6.4).
+The dbt-managed slice of that lineage is published as an interactive DAG to
+[GitHub Pages](https://chiragvenkateshaiah.github.io/cerberus-platform/).
+
 ## Decisions
 
 Non-obvious architectural choices are recorded as ADRs in

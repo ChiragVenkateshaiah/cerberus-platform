@@ -3,6 +3,7 @@
 [![terraform plan](https://github.com/ChiragVenkateshaiah/cerberus-platform/actions/workflows/terraform-plan.yml/badge.svg)](https://github.com/ChiragVenkateshaiah/cerberus-platform/actions/workflows/terraform-plan.yml)
 [![terraform apply](https://github.com/ChiragVenkateshaiah/cerberus-platform/actions/workflows/terraform-apply.yml/badge.svg)](https://github.com/ChiragVenkateshaiah/cerberus-platform/actions/workflows/terraform-apply.yml)
 [![code CI](https://github.com/ChiragVenkateshaiah/cerberus-platform/actions/workflows/code-ci.yml/badge.svg)](https://github.com/ChiragVenkateshaiah/cerberus-platform/actions/workflows/code-ci.yml)
+[![dbt docs](https://github.com/ChiragVenkateshaiah/cerberus-platform/actions/workflows/dbt-docs.yml/badge.svg)](https://github.com/ChiragVenkateshaiah/cerberus-platform/actions/workflows/dbt-docs.yml)
 
 A portfolio project that builds a working AWS lakehouse end to end — ingestion,
 medallion storage, transformation, a queryable serving layer, orchestration,
@@ -133,8 +134,12 @@ constraints behind this diagram, see
 ├── .github/workflows/    # terraform plan on PR, apply on merge (5.1/5.2,
 │                         #   against envs/dev-standing only), plus
 │                         #   code-ci.yml (5.3): Python lint (ruff) + dbt
-│                         #   validate (dbt parse + sqlfluff)
-├── docs/                 # plan, architecture notes, ADRs, learning notes
+│                         #   validate (dbt parse + sqlfluff); dbt-docs.yml
+│                         #   (6.4a): builds the dbt lineage site, deploys
+│                         #   it to GitHub Pages on merge
+├── docs/                 # plan, architecture notes, ADRs, learning notes,
+│                         #   lineage.md (6.4); docs/pages/ = the Pages
+│                         #   landing page
 ├── articles/             # weekly engineering articles (see article.md)
 ├── terraform/
 │   ├── bootstrap/        # state backend as code (S3 + DynamoDB lock)
@@ -215,6 +220,10 @@ git config pull.rebase true
 
 - [docs/plan.md](docs/plan.md) — the build plan and phased roadmap
 - [docs/architecture.md](docs/architecture.md) — architecture overview
+- [docs/lineage.md](docs/lineage.md) — data lineage (6.4): the curated
+  whole-pipeline view at table and column granularity; the auto-generated
+  dbt DAG is published to
+  [GitHub Pages](https://chiragvenkateshaiah.github.io/cerberus-platform/)
 - [docs/adr/](docs/adr/) — architecture decision records
 - [docs/courses-map-to-phases.md](docs/courses-map-to-phases.md) — which
   courses (if any) map to each phase, and where no course exists
