@@ -149,7 +149,7 @@ constraints behind this diagram, see
 │   │                     #   service account, orchestration runner
 │   │                     #   (ECR/Fargate), Step Functions, observability
 │   │                     #   (dashboard, freshness probe, alarms/SNS),
-│   │                     #   GitHub OIDC)
+│   │                     #   lineage (OpenLineage collector), GitHub OIDC)
 │   ├── envs/dev-standing/  # CI-managed root (5.1): S3/IAM/Glue/Athena/
 │   │                     #   Lambda/orchestration/observability/GitHub OIDC
 │   │                     #   -- no idle cost, planned on every PR, applied
@@ -184,6 +184,9 @@ constraints behind this diagram, see
 ├── observability/        # freshness_probe/handler.py -- hourly Lambda
 │                         #   publishing pipeline/data freshness as
 │                         #   CloudWatch custom metrics (6.1)
+├── lineage/              # collector/handler.py -- the OpenLineage event
+│                         #   collector Lambda behind an API Gateway HTTP
+│                         #   API, writing events to S3 (6.4b, ADR 0013)
 ├── serving/queries/      # demo Athena SQL against gold (1.10)
 ├── serving/scripts/      # runs the demo query as cerberus-serving
 └── data/samples/         # small sample datasets for local testing

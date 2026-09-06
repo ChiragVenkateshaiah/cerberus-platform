@@ -40,3 +40,8 @@ variable "athena_results_bucket_arn" {
   description = "Athena query-results bucket ARN, from the athena module -- a separate bucket from bucket_arns' bronze/silver/gold, also managed by envs/dev-standing so cerberus-ci-apply needs access to it too."
   type        = string
 }
+
+variable "lineage_bucket_arn" {
+  description = "OpenLineage event bucket ARN (6.4b lineage module) -- another envs/dev-standing-managed bucket cerberus-ci-apply needs full access to."
+  type        = string
+}

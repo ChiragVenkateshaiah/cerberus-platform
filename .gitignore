@@ -18,6 +18,7 @@ override.tf.json
 # see terraform/modules/lambda_ingestion/main.tf)
 terraform/modules/lambda_ingestion/build/
 terraform/modules/observability/build/
+terraform/modules/lineage/build/
 
 # Python
 __pycache__/

@@ -68,6 +68,16 @@ output "freshness_probe_function_name" {
   value       = module.observability.freshness_probe_function_name
 }
 
+output "lineage_collector_url" {
+  description = "Base URL of the 6.4b OpenLineage collector -- 6.4c sets this as the producers' OPENLINEAGE_URL."
+  value       = module.lineage.collector_url
+}
+
+output "lineage_bucket_name" {
+  description = "The 6.4b lineage event bucket name."
+  value       = module.lineage.bucket_name
+}
+
 output "ci_plan_role_arn" {
   description = "cerberus-ci-plan IAM role ARN, for GitHub's repo variable/workflow reference."
   value       = module.github_oidc.ci_plan_role_arn
