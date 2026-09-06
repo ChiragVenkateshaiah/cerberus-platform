@@ -56,9 +56,14 @@ resource "null_resource" "build_and_push" {
       filemd5("${path.module}/../../../orchestration/runner/entrypoint_dbt.sh"),
       filemd5("${path.module}/../../../orchestration/runner/lib.sh"),
     ])
+    # requirements.txt joined in 6.4c: the Dockerfile `pip install`s it, so
+    # adding openlineage-dbt (or any dep bump) must rebuild the image --
+    # the same "COPYed but never hashed -> silent stale deploy" gap 6.3
+    # closed for models/ and macros/.
     dbt_project_hash = join(",", [
       filemd5("${path.module}/../../../transform/dbt/dbt_project.yml"),
       filemd5("${path.module}/../../../transform/dbt/profiles.yml"),
+      filemd5("${path.module}/../../../transform/dbt/requirements.txt"),
     ])
     # 6.3: the Dockerfile COPYs the whole transform/dbt/ directory into the
     # image (see its own header), but until now only the two root config
@@ -162,6 +167,10 @@ resource "aws_ecs_task_definition" "transform" {
         { name = "SILVER_BUCKET", value = var.silver_bucket_name },
         { name = "GLUE_DATABASE", value = var.glue_database_name },
         { name = "ATHENA_WORKGROUP", value = var.athena_workgroup_name },
+        # 6.4c: entrypoint_transform.sh substitutes this into
+        # spark-application.yaml's OpenLineage listener config.
+        { name = "OPENLINEAGE_URL", value = var.openlineage_url },
+        { name = "OPENLINEAGE_NAMESPACE", value = var.openlineage_namespace },
       ]
 
       logConfiguration = {
@@ -193,6 +202,13 @@ resource "aws_ecs_task_definition" "dbt" {
       image     = local.image_uri
       command   = ["/opt/runner/entrypoint_dbt.sh"]
       essential = true
+
+      # 6.4c: `dbt-ol build` (entrypoint_dbt.sh) reads these to emit
+      # OpenLineage events to the collector.
+      environment = [
+        { name = "OPENLINEAGE_URL", value = var.openlineage_url },
+        { name = "OPENLINEAGE_NAMESPACE", value = var.openlineage_namespace },
+      ]
 
       logConfiguration = {
         logDriver = "awslogs"

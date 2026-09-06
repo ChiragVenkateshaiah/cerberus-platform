@@ -34,8 +34,16 @@ spec:
     # aws-java-sdk-bundle is pulled in transitively by hadoop-aws's own POM
     # at the matching version -- not pinned separately here to avoid hand-
     # picking a pair that doesn't actually match.
+    #
+    # openlineage-spark_2.12 (6.4c): the OpenLineage Spark listener. Scala
+    # 2.12 suffix matches apache/spark:3.5.9. Version tracks the Python
+    # client (openlineage-dbt) -- 1.53.0 supports Spark 3.2-3.5. Resolved
+    # via Ivy the same way hadoop-aws is; NEEDS LIVE VERIFICATION on the
+    # next dev-compute exercise (same as hadoop-aws's own version was),
+    # since it can't be checked without submitting a real job.
     packages:
       - org.apache.hadoop:hadoop-aws:3.3.4
+      - io.openlineage:openlineage-spark_2.12:1.53.0
   sparkConf:
     spark.hadoop.fs.s3a.aws.credentials.provider: "com.amazonaws.auth.WebIdentityTokenCredentialsProvider"
     # The Spark Operator's controller resolves `deps.packages` locally via
@@ -46,6 +54,18 @@ spec:
     # first submission attempt failed with a FileNotFoundException under
     # /nonexistent/.ivy2.5.2/cache before a driver pod was ever scheduled.
     spark.jars.ivy: "/tmp/.ivy2"
+    # 6.4c: OpenLineage listener -> the 6.4b collector. __OPENLINEAGE_URL__
+    # is substituted by entrypoint_transform.sh / submit_job.sh from the
+    # OPENLINEAGE_URL env var before `kubectl apply`; when that var is
+    # unset those scripts rewrite transport.type to "console" and drop the
+    # url line, so a manual submit without it still works. The http
+    # transport POSTs to <url>/api/v1/lineage (the collector's route).
+    # timeout caps each POST so a collector outage can't stall the job.
+    spark.extraListeners: "io.openlineage.spark.agent.OpenLineageSparkListener"
+    spark.openlineage.transport.type: "http"
+    spark.openlineage.transport.url: "__OPENLINEAGE_URL__"
+    spark.openlineage.transport.timeout: "10"
+    spark.openlineage.namespace: "cerberus-platform"
   driver:
     cores: 1
     memory: "1g"
