@@ -22,6 +22,19 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib.sh
 source "$SCRIPT_DIR/lib.sh"
 
-log "running dbt build (models + tests) against gold"
-dbt build --project-dir /opt/dbt --profiles-dir /opt/dbt
-log "dbt build complete"
+# 6.4c: `dbt-ol build`, not `dbt build` -- the openlineage-dbt wrapper runs
+# dbt normally, then emits OpenLineage events (dataset + column-level
+# lineage for each mart) from target/manifest.json + run_results.json to
+# the collector at $OPENLINEAGE_URL (6.4b, set on this task definition).
+# Verified 2026-09-06: dbt-ol emits AFTER dbt finishes and returns dbt's
+# own exit code -- a collector outage logs a ConnectionError and emits 0
+# events, it never fails this task. With OPENLINEAGE_URL unset the wrapper
+# falls back to a console transport (harmless), so this is unconditional.
+export OPENLINEAGE_NAMESPACE="${OPENLINEAGE_NAMESPACE:-cerberus-platform}"
+if [ -n "${OPENLINEAGE_URL:-}" ]; then
+  log "running dbt-ol build (models + tests) against gold -- lineage -> $OPENLINEAGE_URL"
+else
+  log "running dbt-ol build (models + tests) against gold -- OPENLINEAGE_URL unset, events to console only"
+fi
+dbt-ol build --project-dir /opt/dbt --profiles-dir /opt/dbt
+log "dbt-ol build complete"

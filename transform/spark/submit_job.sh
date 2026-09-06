@@ -51,8 +51,25 @@ aws eks update-kubeconfig --name "$CLUSTER_NAME" --region "$AWS_REGION" --profil
 # each time the stack is spun up, not accumulate history.
 kubectl delete sparkapplication "$APP_NAME" -n "$NAMESPACE" --ignore-not-found
 
+# 6.4c: resolve spark-application.yaml's __OPENLINEAGE_URL__ placeholder,
+# same as the orchestrated entrypoint_transform.sh. Take OPENLINEAGE_URL
+# from the environment, else try the dev-standing output, else fall back to
+# a console transport so a bare `./submit_job.sh` still works.
+OPENLINEAGE_URL="${OPENLINEAGE_URL:-$(cd "$SCRIPT_DIR/../../terraform/envs/dev-standing" \
+  && terraform output -raw lineage_collector_url 2>/dev/null || true)}"
+MANIFEST="$(mktemp)"
+if [[ -n "$OPENLINEAGE_URL" ]]; then
+  log "lineage: OpenLineage events -> $OPENLINEAGE_URL"
+  sed "s|__OPENLINEAGE_URL__|${OPENLINEAGE_URL}|" "$SCRIPT_DIR/spark-application.yaml" >"$MANIFEST"
+else
+  log "lineage: no OPENLINEAGE_URL -- Spark events to the driver console only"
+  sed -e 's|spark.openlineage.transport.type: "http"|spark.openlineage.transport.type: "console"|' \
+    -e '/spark.openlineage.transport.url:/d' \
+    "$SCRIPT_DIR/spark-application.yaml" >"$MANIFEST"
+fi
+
 log "submitting $APP_NAME"
-kubectl apply -f "$SCRIPT_DIR/spark-application.yaml"
+kubectl apply -f "$MANIFEST"
 
 log "waiting for $APP_NAME to complete"
 STATE=""

@@ -62,8 +62,25 @@ aws eks update-kubeconfig --name "$CLUSTER_NAME" --region "$AWS_REGION" >/dev/nu
 # runs, not accumulate history.
 kubectl delete sparkapplication "$APP_NAME" -n "$NAMESPACE" --ignore-not-found
 
+# 6.4c: resolve spark-application.yaml's __OPENLINEAGE_URL__ placeholder.
+# With OPENLINEAGE_URL set (the orchestrated case -- it's on this task
+# definition), point the OpenLineage listener at the 6.4b collector. Unset
+# (a bare manual run): rewrite the transport to "console" so the listener
+# still loads and logs events to the driver instead of failing on an
+# unresolved URL.
+MANIFEST=/tmp/spark-application.yaml
+if [[ -n "${OPENLINEAGE_URL:-}" ]]; then
+  log "lineage: OpenLineage events -> $OPENLINEAGE_URL"
+  sed "s|__OPENLINEAGE_URL__|${OPENLINEAGE_URL}|" /opt/spark/spark-application.yaml >"$MANIFEST"
+else
+  log "lineage: OPENLINEAGE_URL unset -- Spark events to the driver console only"
+  sed -e 's|spark.openlineage.transport.type: "http"|spark.openlineage.transport.type: "console"|' \
+    -e '/spark.openlineage.transport.url:/d' \
+    /opt/spark/spark-application.yaml >"$MANIFEST"
+fi
+
 log "submitting $APP_NAME"
-kubectl apply -f /opt/spark/spark-application.yaml
+kubectl apply -f "$MANIFEST"
 
 log "waiting for $APP_NAME to complete"
 STATE=""

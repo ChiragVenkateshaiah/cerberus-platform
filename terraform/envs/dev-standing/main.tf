@@ -78,6 +78,10 @@ module "orchestration_runner" {
   cluster_name          = local.eks_cluster_name
   glue_database_name    = module.glue_catalog.database_name
   athena_workgroup_name = module.athena.workgroup_name
+
+  # 6.4c: the transform + dbt tasks emit OpenLineage events to the 6.4b
+  # collector.
+  openlineage_url = module.lineage.collector_url
 }
 
 module "step_functions" {
