@@ -21,6 +21,14 @@ on:
       - "terraform/modules/**"
       - "terraform/envs/dev-standing/**"
       - ".github/workflows/terraform-apply.yml"
+  # Manual re-apply lever. Two uses: recovering from a dropped push webhook
+  # (a GitHub incident can land a merge on main without firing this
+  # workflow -- happened on PR #29's merge, 2026-09-06), and re-running an
+  # apply after a local `cerberus-admin` reconciliation without needing a
+  # fresh terraform-touching commit. Still gated by cerberus-ci-apply's
+  # refs/heads/main-only trust policy, so a dispatch from any other ref
+  # can't assume write credentials regardless.
+  workflow_dispatch:
 
 permissions:
   id-token: write
