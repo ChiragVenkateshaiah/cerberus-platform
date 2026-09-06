@@ -204,6 +204,15 @@ resource "aws_iam_role_policy" "ci_apply" {
         Resource = concat([for arn in var.bucket_arns : "${arn}/*"], ["${var.athena_results_bucket_arn}/*"])
       },
       {
+        # 6.4b: the OpenLineage event bucket (terraform/modules/lineage) --
+        # a fourth envs/dev-standing-managed bucket alongside
+        # bronze/silver/gold/athena-results.
+        Sid      = "ManageLineageBucket"
+        Effect   = "Allow"
+        Action   = "s3:*"
+        Resource = [var.lineage_bucket_arn, "${var.lineage_bucket_arn}/*"]
+      },
+      {
         # Name-prefix-scoped: this role can only ever touch roles/policies
         # named cerberus-ingestion*/cerberus-transform*/cerberus-serving*/
         # cerberus-orchestration-* -- the standing roles envs/dev-standing's
@@ -234,6 +243,11 @@ resource "aws_iam_role_policy" "ci_apply" {
           # neither matching the patterns above. Covers iam:PassRole too
           # (Lambda + Scheduler both need the probe roles passed to them).
           "arn:aws:iam::${var.account_id}:role/cerberus-freshness-probe*",
+          # 6.4b: the OpenLineage collector Lambda's execution role
+          # (terraform/modules/lineage) -- cerberus-lineage-collector,
+          # again not matching the patterns above. iam:PassRole included
+          # (Lambda needs this role passed to it on create/update).
+          "arn:aws:iam::${var.account_id}:role/cerberus-lineage-*",
         ]
       },
       {
@@ -269,6 +283,10 @@ resource "aws_iam_role_policy" "ci_apply" {
           # 6.1: the data-freshness probe Lambda
           # (terraform/modules/observability) -- boto3-only, no layer.
           "arn:aws:lambda:${var.region}:${var.account_id}:function:cerberus-freshness-probe*",
+          # 6.4b: the OpenLineage collector Lambda (terraform/modules/
+          # lineage) -- boto3-only, no layer. Covers lambda:AddPermission
+          # too (the HTTP API's invoke permission).
+          "arn:aws:lambda:${var.region}:${var.account_id}:function:cerberus-lineage-*",
         ]
       },
       {
@@ -294,6 +312,23 @@ resource "aws_iam_role_policy" "ci_apply" {
         Effect   = "Allow"
         Action   = "scheduler:*"
         Resource = "arn:aws:scheduler:${var.region}:${var.account_id}:schedule/*/cerberus-*"
+      },
+      {
+        # 6.4b: the OpenLineage collector's HTTP API (terraform/modules/
+        # lineage) -- an apigatewayv2 API, its integration, route, $default
+        # stage and tags, all addressed under /apis/{id}/... so /apis/*
+        # (with * spanning '/') covers them. API IDs are AWS-generated and
+        # not name-predictable, so this cannot be prefix-scoped the way the
+        # IAM/Lambda/Logs grants are -- it is scoped to this account's
+        # region-local API control plane instead. apigatewayv2 uses the
+        # `apigateway:*` action namespace.
+        Sid    = "ManageLineageApi"
+        Effect = "Allow"
+        Action = "apigateway:*"
+        Resource = [
+          "arn:aws:apigateway:${var.region}::/apis",
+          "arn:aws:apigateway:${var.region}::/apis/*",
+        ]
       },
       {
         # 6.1: the pipeline observability dashboard
@@ -408,6 +443,10 @@ resource "aws_iam_role_policy" "ci_apply" {
           # explicit log group, so /aws/lambda/* was never needed here
           # before.
           "arn:aws:logs:${var.region}:${var.account_id}:log-group:/aws/lambda/cerberus-freshness-probe*",
+          # 6.4b: the OpenLineage collector's Lambda log group and the HTTP
+          # API's access-log group (terraform/modules/lineage).
+          "arn:aws:logs:${var.region}:${var.account_id}:log-group:/aws/lambda/cerberus-lineage-*",
+          "arn:aws:logs:${var.region}:${var.account_id}:log-group:/aws/apigateway/cerberus-lineage-*",
         ]
       },
       {

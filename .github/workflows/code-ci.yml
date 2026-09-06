@@ -12,6 +12,7 @@ on:
       - "ingestion/**"
       - "transform/**"
       - "observability/**"
+      - "lineage/**"
       - "pyproject.toml"
       - "requirements-dev.txt"
       - ".github/workflows/code-ci.yml"

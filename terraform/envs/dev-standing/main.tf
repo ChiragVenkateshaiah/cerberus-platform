@@ -128,6 +128,12 @@ module "observability" {
   pipeline_active = var.pipeline_active
 }
 
+module "lineage" {
+  source = "../../modules/lineage"
+
+  account_id = data.aws_caller_identity.current.account_id
+}
+
 module "github_oidc" {
   source = "../../modules/github_oidc"
 
@@ -137,4 +143,5 @@ module "github_oidc" {
   tfstate_lock_table_arn    = "arn:aws:dynamodb:us-east-1:${data.aws_caller_identity.current.account_id}:table/cerberus-platform-tfstate-lock"
   bucket_arns               = module.s3_medallion.bucket_arns
   athena_results_bucket_arn = module.athena.results_bucket_arn
+  lineage_bucket_arn        = module.lineage.bucket_arn
 }
