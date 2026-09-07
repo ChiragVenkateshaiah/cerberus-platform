@@ -50,8 +50,7 @@
   .card:hover { border-color: var(--accent); }
   .card h2 { font-size: 1.05rem; margin: 0 0 0.4rem; }
   .card p { margin: 0; color: var(--muted); font-size: 0.92rem; }
-  .card.pending { opacity: 0.6; }
-  .card.pending:hover { border-color: var(--border); }
+  .card p a { color: var(--accent); }
   footer { margin-top: 3rem; color: var(--muted); font-size: 0.85rem; }
 </style>
 </head>
@@ -74,12 +73,14 @@
       </p>
     </a>
 
-    <a class="card pending" href="https://github.com/ChiragVenkateshaiah/cerberus-platform/blob/main/docs/lineage.md">
-      <h2>Whole-pipeline lineage &rarr;</h2>
+    <a class="card" href="./lineage/">
+      <h2>Runtime lineage &rarr;</h2>
       <p>
-        The curated end-to-end view &mdash; including the bronze&nbsp;&rarr;&nbsp;silver
-        Spark step and <code>payments_current</code>, which dbt cannot see.
-        OpenLineage runtime capture (phase 6.4c) renders here once wired.
+        The graph assembled from the OpenLineage events the Spark and dbt
+        steps emit as they run &mdash; the observed cross-check against the
+        curated
+        <a href="https://github.com/ChiragVenkateshaiah/cerberus-platform/blob/main/docs/lineage.md">docs/lineage.md</a>,
+        which also covers what runtime capture can't see.
       </p>
     </a>
   </div>
