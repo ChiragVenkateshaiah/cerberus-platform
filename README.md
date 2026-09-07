@@ -138,8 +138,8 @@ constraints behind this diagram, see
 │                         #   (6.4a): builds the dbt lineage site, deploys
 │                         #   it to GitHub Pages on merge
 ├── docs/                 # plan, architecture notes, ADRs, learning notes,
-│                         #   lineage.md (6.4); docs/pages/ = the Pages
-│                         #   landing page
+│                         #   lineage.md (6.4), slo.md (6.5); docs/pages/ =
+│                         #   the Pages landing page
 ├── articles/             # weekly engineering articles (see article.md)
 ├── terraform/
 │   ├── bootstrap/        # state backend as code (S3 + DynamoDB lock)
@@ -233,6 +233,9 @@ git config pull.rebase true
   [runtime lineage graph](https://chiragvenkateshaiah.github.io/cerberus-platform/lineage/)
   (from the Spark/dbt steps' own OpenLineage events — 6.4b collector, 6.4c
   producers, 6.4d render)
+- [docs/slo.md](docs/slo.md) — service level objectives (6.5): the platform's
+  reliability targets, the CloudWatch SLIs behind them, and the
+  error-budget policy — all backed by the 6.1/6.2 metrics and alarms
 - [docs/adr/](docs/adr/) — architecture decision records
 - [docs/courses-map-to-phases.md](docs/courses-map-to-phases.md) — which
   courses (if any) map to each phase, and where no course exists
