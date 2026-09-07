@@ -112,8 +112,9 @@ worth a scoping discussion before each, like 6.3/6.4/6.5 got.
   post-apply `terraform plan` shows "No changes". `dev-compute` is fully
   destroyed (verified: 0 EKS / 0 NAT / 0 EIP; an orphaned `Phase=3` EIP
   from a prior exercise was also released).
-- **First action next session: land PR #36** (6.6 — ADR 0014 + the Phase 6
-  status flips), then this checkpoint's own commit — see Notes / blockers.
+
+Everything from this session (PRs #28–#36) is merged to `main`; nothing
+mid-flight. Phase 7 starts clean.
 
 ## Session history
 
@@ -1866,7 +1867,7 @@ subtasks done._
 
 _Phase 6 taken from 3/6 to fully ✅ complete in one long session — 6.4
 (all four units + the Spark live-verification), 6.5, and 6.6. Ten PRs
-(#28–#36, #36 still open), a real `dev-compute` EKS exercise, and the
+(#28–#36, all merged), a real `dev-compute` EKS exercise, and the
 platform's first Well-Architected risk-bucket movement since milestone 1._
 
 - **6.4a — curated lineage doc + dbt DAG on Pages** (PR #28,
@@ -1970,8 +1971,8 @@ platform's first Well-Architected risk-bucket movement since milestone 1._
   design. Honest "current standing" section — the pipeline has run
   `SUCCEEDED` end to end only a handful of times, so trailing-window
   accounting starts from here.
-- **6.6 — Phase 6 Well-Architected pass** (ADR 0014; PR #36, still open on
-  branch `phase-6-well-architected-review`). Diffed milestone 5 → **new
+- **6.6 — Phase 6 Well-Architected pass** (ADR 0014; PR #36,
+  `89482fc`/`c8f6454`). Diffed milestone 5 → **new
   milestone 6** (`phase-6-observability-and-data-quality-complete`, saved
   and confirmed live). Eight questions re-answered via `update-answer`;
   **three moved a risk bucket** — the first movement since milestone 1,
@@ -1994,18 +1995,10 @@ platform's first Well-Architected risk-bucket movement since milestone 1._
   review is the next real candidate, Security only).
 - **Phase 6 flipped to ✅ complete** across `Phases.md` (6.4/6.5/6.6 +
   heading), `docs/plan.md`'s roadmap row, and `README.md`'s Status
-  section — on branch `phase-6-well-architected-review` with ADR 0014
-  (PR #36), not yet on `main`.
+  section, with ADR 0014 — PR #36 (`89482fc`/`c8f6454`).
 
 ## Notes / blockers
 
-- **Open (2026-09-07): PR #36 not yet merged.** ADR 0014 and the Phase 6
-  status flips (Phases.md 6.4/6.5/6.6 + heading, `docs/plan.md` roadmap
-  row, README status section) live on branch
-  `phase-6-well-architected-review`, pushed, PR open. This checkpoint's
-  own edits are uncommitted on the same branch. Next session: merge PR #36
-  (regular merge, per the workflow), then commit this checkpoint. Milestone
-  6 is already saved in the Well-Architected Tool independent of the merge.
 - **Open, deferred, not blocking (noted 2026-08-27):**
   `module.orchestration_runner.null_resource.build_and_push` runs a
   `local-exec` (`docker build`/`docker push`,
