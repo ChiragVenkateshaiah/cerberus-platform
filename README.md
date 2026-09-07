@@ -40,24 +40,26 @@ real IAM permission gaps discovered across three live-apply attempts. A
 `code-ci.yml` workflow lints Python (ruff) and validates the dbt project
 (`dbt parse` + sqlfluff) on every PR; ADR 0012 closes the phase's
 Well-Architected pass (milestone 5, `phase-5-cicd-complete`).
-🔨 Phase 6 (observability & data quality) — in progress (6.1–6.3 of 6.1–6.6
-done). 6.1: a `terraform/modules/observability` module adds a CloudWatch
-dashboard (`cerberus-platform-pipeline`) over the pipeline's Step
-Functions / Lambda / Athena metrics, plus an hourly "freshness probe"
-Lambda publishing `Cerberus/Pipeline` custom metrics for how stale each
-layer's data and the last successful pipeline run are. On its first run
-the probe caught a week-long silent failure of the daily scheduled run —
-its transform step depends on the torn-down EKS layer — now resolved by
-the `pipeline_active` gate above (ADR 0011 amendment). 6.2: seven
-CloudWatch alarms — two unconditional (freshness-probe self-health) and
-five gated on `pipeline_active` (pipeline failures, slow runs, ingestion
-errors, data freshness) — notify a dedicated `cerberus-pipeline-alerts`
-SNS topic. 6.3: the dbt project gained schema/data-quality tests
-(`not_null`, `accepted_values`, `unique`, `relationships`, and a custom
-`non_negative` check), and the orchestrated `RunDbt` step now runs
-`dbt build` instead of `dbt run` — a failing test fails the run and trips
-6.2's alarms, so bad data fails loudly instead of landing silently in
-gold.
+✅ Phase 6 (observability & data quality) — complete. A
+`terraform/modules/observability` module adds a CloudWatch dashboard
+(`cerberus-platform-pipeline`) over the pipeline's Step Functions / Lambda
+/ Athena metrics plus an hourly "freshness probe" Lambda publishing
+`Cerberus/Pipeline` custom metrics for data/run staleness (6.1); seven
+CloudWatch alarms — two unconditional, five gated on `pipeline_active` —
+notify a dedicated `cerberus-pipeline-alerts` SNS topic (6.2); the dbt
+project gained schema/data-quality tests and the orchestrated step runs
+`dbt build`, so bad data fails the run loudly instead of landing silently
+(6.3). Data lineage (6.4) is a curated
+[docs/lineage.md](docs/lineage.md) plus two generated companions on
+[GitHub Pages](https://chiragvenkateshaiah.github.io/cerberus-platform/) —
+dbt's model DAG and a runtime graph rendered from OpenLineage events a
+serverless collector captures from the Spark and dbt steps (ADR 0013),
+verified live on EKS. [docs/slo.md](docs/slo.md) defines six SLOs against
+those metrics (6.5). ADR 0014 closes the phase's Well-Architected pass
+(milestone 6, `phase-6-observability-and-data-quality-complete`) — the
+first pass since milestone 1 to move risk buckets: 25→23 HIGH, as
+`workload-observability`, `monitor-aws-resources`, and Performance's
+`process-culture` each improved.
 
 See [docs/plan.md](docs/plan.md) for the full phased roadmap (Phases 0–7)
 and [Phases.md](Phases.md) for subtask-level progress.
