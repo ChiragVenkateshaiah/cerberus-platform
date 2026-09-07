@@ -36,11 +36,12 @@ spec:
     # picking a pair that doesn't actually match.
     #
     # openlineage-spark_2.12 (6.4c): the OpenLineage Spark listener. Scala
-    # 2.12 suffix matches apache/spark:3.5.9. Version tracks the Python
-    # client (openlineage-dbt) -- 1.53.0 supports Spark 3.2-3.5. Resolved
-    # via Ivy the same way hadoop-aws is; NEEDS LIVE VERIFICATION on the
-    # next dev-compute exercise (same as hadoop-aws's own version was),
-    # since it can't be checked without submitting a real job.
+    # 2.12 suffix matches apache/spark:3.5.9. Resolved via Ivy the same way
+    # hadoop-aws is. Verified live 2026-09-07 on a dev-compute exercise:
+    # 1.53.0 resolves and pairs cleanly with Spark 3.5.9, the listener
+    # loads, and the job's bronze -> silver write emitted dataset +
+    # column-level lineage to the 6.4b collector (job COMPLETED, silver
+    # 8,723 rows intact).
     packages:
       - org.apache.hadoop:hadoop-aws:3.3.4
       - io.openlineage:openlineage-spark_2.12:1.53.0

@@ -3,10 +3,12 @@
 
 Reads the OpenLineage RunEvents the 6.4b collector wrote to S3 (synced to a
 local directory by the dbt-docs workflow) and produces one self-contained
-HTML page: a Mermaid graph of every dataset and job actually observed at
-runtime, a column-lineage table per output dataset, and a summary of the
-runs seen. It is the runtime cross-check against the hand-maintained graph
-in docs/lineage.md -- if the two disagree, one of them is stale.
+HTML page: a Mermaid graph of every dataset and job observed at runtime, a
+column-lineage table per output dataset, and the dataset-identifier map.
+canonical() collapses the S3-path names Spark emits and the catalog-table
+names dbt emits for the same data, so the cross-engine graph connects. It
+is the runtime cross-check against the hand-maintained graph in
+docs/lineage.md -- if the two disagree, one of them is stale.
 
 Pure stdlib: the workflow runs `aws s3 sync` (AWS CLI, preinstalled on the
 runner) to fetch the events, so this script only ever reads local files.
@@ -40,6 +42,29 @@ def short(name):
     return name.rsplit(".", 1)[-1] if name else name
 
 
+def canonical(namespace, name):
+    """Collapse the two identities OpenLineage gives the same physical data.
+
+    The Spark integration names datasets by S3 path
+    (s3://...-silver-.../ + "payments"); the dbt integration names them by
+    catalog table (awsdatacatalog.cerberus_platform.payments_events). The
+    Glue table is defined over the S3 prefix -- same bytes -- so without
+    this the cross-engine graph shows two disconnected halves. Silver's
+    "payments" and the catalog's "payments_events" both canonicalise to
+    payments_events, which is the edge that joins Spark's output to dbt's
+    source. docs/lineage.md's finding 4 is exactly this mismatch.
+    """
+    ns = namespace or ""
+    if ns.startswith("s3://") and "-bronze-" in ns:
+        return f"bronze/{name}"
+    if ns.startswith("s3://") and "-silver-" in ns and name == "payments":
+        return "payments_events"
+    if ns.startswith("s3://"):
+        return short(name)
+    # catalog-qualified (awsdatacatalog.schema.table, sometimes doubled)
+    return short(name)
+
+
 def job_label(name):
     """Last three dotted segments -- for dbt that's <model>.build.<run|test>,
     for Spark the app name. The full leading catalog/schema path is noise."""
@@ -55,13 +80,13 @@ def node_id(prefix, name):
 
 class Graph:
     def __init__(self):
-        self.datasets = set()  # (namespace, name)
+        self.datasets = set()  # canonical name
+        self.dataset_aliases = defaultdict(set)  # canonical -> {"namespace / name"}
         self.jobs = set()  # (namespace, name)
-        self.job_inputs = defaultdict(set)  # job name -> {dataset name}
+        self.job_inputs = defaultdict(set)  # job name -> {canonical dataset name}
         self.job_outputs = defaultdict(set)
-        # output dataset name -> {output field -> sorted [ "ds.field", ... ]}
+        # output canonical name -> {output field -> {"ds.field", ...}}
         self.column_lineage = defaultdict(lambda: defaultdict(set))
-        self.dataset_fields = defaultdict(set)  # dataset name -> {field}
         self.namespaces = set()
         self.producers = set()
         self.newest_event = None
@@ -91,32 +116,32 @@ class Graph:
             self.newest_event = et
 
         for ds in ev.get("inputs") or []:
-            self._dataset(ds)
-            if jname:
-                self.job_inputs[jname].add(ds.get("name"))
+            key = self._dataset(ds)
+            if jname and key:
+                self.job_inputs[jname].add(key)
         for ds in ev.get("outputs") or []:
-            self._dataset(ds)
-            if jname:
-                self.job_outputs[jname].add(ds.get("name"))
-            self._column_lineage(ds)
+            key = self._dataset(ds)
+            if jname and key:
+                self.job_outputs[jname].add(key)
+            self._column_lineage(ds, key)
 
     def _dataset(self, ds):
         name = ds.get("name")
         if not name:
-            return
-        self.datasets.add((ds.get("namespace", ""), name))
-        schema = (ds.get("facets") or {}).get("schema") or {}
-        for field in schema.get("fields") or []:
-            if field.get("name"):
-                self.dataset_fields[name].add(field["name"])
+            return None
+        key = canonical(ds.get("namespace", ""), name)
+        self.datasets.add(key)
+        self.dataset_aliases[key].add(f"{ds.get('namespace', '')} / {name}")
+        return key
 
-    def _column_lineage(self, ds):
-        out_name = ds.get("name")
+    def _column_lineage(self, ds, key):
+        if not key:
+            return
         cl = (ds.get("facets") or {}).get("columnLineage") or {}
         for out_field, spec in (cl.get("fields") or {}).items():
             for inp in spec.get("inputFields") or []:
                 ref = f"{short(inp.get('name', '?'))}.{inp.get('field', '?')}"
-                self.column_lineage[out_name][out_field].add(ref)
+                self.column_lineage[key][out_field].add(ref)
 
 
 def mermaid(graph):
@@ -126,11 +151,11 @@ def mermaid(graph):
     for j in jobs:
         touched |= {d for d in graph.job_inputs.get(j, ()) if d}
         touched |= {d for d in graph.job_outputs.get(j, ()) if d}
-    datasets = sorted({n for _ns, n in graph.datasets} | touched)
+    datasets = sorted(graph.datasets | touched)
 
     lines = ["flowchart LR"]
     for name in datasets:
-        lines.append(f'    {node_id("d", name)}[("{html.escape(short(name))}")]')
+        lines.append(f'    {node_id("d", name)}[("{html.escape(name)}")]')
     for job in sorted(jobs):
         lines.append(f'    {node_id("j", job)}["{html.escape(job_label(job))}"]')
     for job in sorted(jobs):
@@ -156,7 +181,7 @@ def column_tables(graph):
             for out_field, refs in sorted(graph.column_lineage[out_name].items())
         )
         blocks.append(
-            f"<details><summary>{html.escape(short(out_name))} "
+            f"<details><summary>{html.escape(out_name)} "
             f"&mdash; {len(graph.column_lineage[out_name])} columns</summary>"
             f"<table><thead><tr><th>column</th><th>derived from</th></tr></thead>"
             f"<tbody>{rows}</tbody></table></details>"
@@ -182,6 +207,21 @@ def render(graph, generated_at):
     (e.g. <code>ranked.*</code> is <code>fct_transactions.sql</code>'s window
     CTE), not transitively to the source columns.</p>
     {column_tables(graph) or "<p>No column-level facets in the captured events yet.</p>"}
+    <h2>Dataset identifiers</h2>
+    <p class="sub">Each graph node collapses the identifiers the two
+    integrations use for the same physical data (Spark names S3 paths, dbt
+    names catalog tables) &mdash; see <code>canonical()</code> in the
+    renderer.</p>
+    <table><thead><tr><th>node</th><th>seen as</th></tr></thead><tbody>
+    {
+            "".join(
+                f"<tr><td><code>{html.escape(k)}</code></td><td>"
+                + "<br>".join(f"<code>{html.escape(a)}</code>" for a in sorted(v))
+                + "</td></tr>"
+                for k, v in sorted(graph.dataset_aliases.items())
+            )
+        }
+    </tbody></table>
     <h2>Producers seen</h2>
     <ul>{"".join(f"<li><code>{html.escape(p)}</code></li>" for p in sorted(graph.producers))}</ul>
 """
