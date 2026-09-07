@@ -186,7 +186,9 @@ constraints behind this diagram, see
 │                         #   CloudWatch custom metrics (6.1)
 ├── lineage/              # collector/handler.py -- the OpenLineage event
 │                         #   collector Lambda behind an API Gateway HTTP
-│                         #   API, writing events to S3 (6.4b, ADR 0013)
+│                         #   API, writing events to S3 (6.4b, ADR 0013);
+│                         #   render/render_graph.py -- renders the captured
+│                         #   events into the Pages site (6.4d)
 ├── serving/queries/      # demo Athena SQL against gold (1.10)
 ├── serving/scripts/      # runs the demo query as cerberus-serving
 └── data/samples/         # small sample datasets for local testing
@@ -224,9 +226,13 @@ git config pull.rebase true
 - [docs/plan.md](docs/plan.md) — the build plan and phased roadmap
 - [docs/architecture.md](docs/architecture.md) — architecture overview
 - [docs/lineage.md](docs/lineage.md) — data lineage (6.4): the curated
-  whole-pipeline view at table and column granularity; the auto-generated
-  dbt DAG is published to
-  [GitHub Pages](https://chiragvenkateshaiah.github.io/cerberus-platform/)
+  whole-pipeline view at table and column granularity. Two generated
+  companions on [GitHub Pages](https://chiragvenkateshaiah.github.io/cerberus-platform/):
+  the [dbt model DAG](https://chiragvenkateshaiah.github.io/cerberus-platform/dbt/)
+  (offline from `manifest.json`) and the
+  [runtime lineage graph](https://chiragvenkateshaiah.github.io/cerberus-platform/lineage/)
+  (from the Spark/dbt steps' own OpenLineage events — 6.4b collector, 6.4c
+  producers, 6.4d render)
 - [docs/adr/](docs/adr/) — architecture decision records
 - [docs/courses-map-to-phases.md](docs/courses-map-to-phases.md) — which
   courses (if any) map to each phase, and where no course exists

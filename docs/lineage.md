@@ -12,7 +12,12 @@ Two other artifacts complement it:
 |---|---|---|
 | **This file** | The entire pipeline: generator → bronze → silver → gold marts + `payments_current` → serving | Hand-maintained |
 | **[dbt docs site](https://chiragvenkateshaiah.github.io/cerberus-platform/dbt/)** | Only the dbt-managed slice (`payments_events` → `fct_transactions` / `dim_*`) | Auto-generated offline from `manifest.json` on every merge to `main` ([`.github/workflows/dbt-docs.yml`](../.github/workflows/dbt-docs.yml)) |
-| **OpenLineage capture** (6.4c, [ADR 0013](adr/0013-lineage-openlineage-serverless-collector.md)) | Runtime events from **both** the Spark and dbt steps | Emitted per run to a serverless collector; rendered by 6.4d |
+| **[Runtime lineage graph](https://chiragvenkateshaiah.github.io/cerberus-platform/lineage/)** | What was **actually observed** at runtime — datasets, jobs and column lineage from the Spark and dbt steps' own OpenLineage events ([ADR 0013](adr/0013-lineage-openlineage-serverless-collector.md)) | Steps emit events to a serverless collector (6.4b/6.4c); `lineage/render/render_graph.py` renders them on every merge to `main` (6.4d) |
+
+The runtime graph is the **cross-check** against this file: if the two
+disagree, one of them is stale (see [_Maintenance_](#maintenance)). The dbt
+step's events carry column-level lineage; the Spark step's version needs
+one live `dev-compute` run to confirm (flagged in `spark-application.yaml`).
 
 Why three and not one: see [_Why not a lineage platform_](#why-not-a-lineage-platform)
 below.
@@ -242,12 +247,14 @@ The obvious tools — **Marquez** (the OpenLineage reference server) and
   three-model dbt project — does not justify a lineage platform.
 
 What 6.4 does instead ([ADR 0013](adr/0013-lineage-openlineage-serverless-collector.md)):
-emit **OpenLineage** events from both the Spark job and `dbt build` to a
-serverless collector (API Gateway + Lambda → S3, zero idle cost, same
-pattern as the freshness probe), and render the accumulated events into the
-[Pages site](https://chiragvenkateshaiah.github.io/cerberus-platform/)
+emit **OpenLineage** events from both the Spark job (`openlineage-spark`
+listener) and `dbt build` (`dbt-ol`) to a serverless collector — API
+Gateway HTTP API → Lambda → S3, zero idle cost, same pattern as the
+freshness probe — and render the accumulated events into the
+[Pages site](https://chiragvenkateshaiah.github.io/cerberus-platform/lineage/)
 alongside the dbt docs. Real automated capture across both engines, no
-server to run.
+server to run. The collector's endpoint is unauthenticated (write-only, to
+a private lifecycle-expiring prefix) — ADR 0013 covers that trade.
 
 ---
 
@@ -261,5 +268,8 @@ like the `architecture.md` diagrams. They should be re-checked whenever:
 - the state machine gains or drops a step, or
 - `payments_current` is retired.
 
-Once 6.4c lands, the OpenLineage events become the runtime cross-check: if
-the captured graph and this document disagree, one of them is wrong.
+The OpenLineage events (6.4c) are the runtime cross-check: if the
+[captured graph](https://chiragvenkateshaiah.github.io/cerberus-platform/lineage/)
+and this document disagree, one of them is stale. The dbt half of that
+capture is verified; the Spark half is wired and confirms on the next
+`dev-compute` exercise.
