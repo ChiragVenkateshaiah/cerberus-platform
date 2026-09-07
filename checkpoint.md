@@ -8,106 +8,112 @@ pointer._
 
 ## Current phase
 
-Phase 1 — MVP: end-to-end lakehouse is **✅ complete** (1.1–1.13, see
-[Phases.md](Phases.md#phase-1--mvp-end-to-end-lakehouse--)). Phase 2 —
-Event-driven ingestion is **✅ complete** (2.1–2.6, all verified live — see
-[Phases.md](Phases.md#phase-2--event-driven-ingestion-)). Phase 3 —
-Scalable compute is **✅ complete** (3.1–3.8, see
-[Phases.md](Phases.md#phase-3--scalable-compute-)): ADR 0007's VPC/EKS
-design was applied live end-to-end on 2026-08-18 — cluster up, a real
-Spark job run on EKS, silver/Glue verified, full stack destroyed cleanly —
-and ADR 0008 closes the phase's Well-Architected pass (milestone 3,
-`phase-3-scalable-compute-complete`). **Phase 4 — Orchestration is now
-✅ complete** (4.1–4.5, see
-[Phases.md](Phases.md#phase-4--orchestration-)): ADR 0009 chose Step
-Functions over Airflow; the state machine (Lambda → ECS Fargate
-transform/dbt tasks → Athena) is built, tuned for retries/visibility, and
-was applied and executed live on 2026-08-20 — a real Spark job ran on EKS
-through the full orchestrated pipeline and the demo query returned real
-data. ADR 0010 closes the phase's Well-Architected pass (milestone 4,
-`phase-4-orchestration-complete`) — three questions gained genuine new
-evidence (per-state ASL timeouts, idempotency-aware retries, X-Ray
-distributed tracing) without moving a risk bucket, recorded honestly
-rather than padded. **Phase 5 — CI/CD is now ✅ complete** (5.1–5.5, see
-[Phases.md](Phases.md#phase-5--cicd-)): ADR 0011 (**Accepted**) chose
-GitHub Actions + OIDC federation over AWS CodePipeline and split the old
-`envs/dev` root into `envs/dev-standing` (CI-managed, no idle cost) and
-`envs/dev-compute` (human-run only, spin-up/destroy per exercise), adding
-a new `github_oidc` module (two IAM roles: `cerberus-ci-plan` read-only/
-any-PR, `cerberus-ci-apply` write-scoped/`main`-only). `terraform plan`
-runs on every PR and `terraform apply` runs unattended on merge to `main`,
-both verified live: the first real `terraform-apply.yml` run succeeded on
-2026-08-24 after closing 9 total IAM permission gaps discovered across
-three live-apply attempts, and a follow-up `terraform plan` on both roots
-came back clean. A new `code-ci.yml` workflow lints Python (ruff) and
-validates the dbt project (`dbt parse` + sqlfluff) on every PR, both
-confirmed green live on PR #20; three build-status badges on the README
-(one per workflow) are confirmed rendering "passing." ADR 0012 closes the
-phase's Well-Architected pass (milestone 5, `phase-5-cicd-complete`) —
-two questions gained a genuinely new selected choice
-(`dev-integ`'s build/deployment management system, `permissions`'s
-third-party sharing via CI's OIDC federation), three more gained real new
-evidence, and overall risk counts held steady at 25 HIGH/18 MEDIUM/9
-NONE/5 N/A, same as milestone 4.
+**Phases 1–5 are all ✅ complete** (see [Phases.md](Phases.md) for the
+subtask checklist and the per-phase ADRs):
 
-**Phase 6 — Observability & data quality is now 🔨 in progress** (6.1–6.3 of
-6.1–6.6 done, see [Phases.md](Phases.md#phase-6--observability--data-quality-)).
-**6.1 — CloudWatch dashboards** is complete and live: a new
-`terraform/modules/observability` (instantiated from `envs/dev-standing`,
-per ADR 0011's no-idle-cost placement) provides one CloudWatch dashboard
-`cerberus-platform-pipeline` over metrics AWS already publishes (Step
-Functions execution outcomes/duration, the ingestion Lambda, per-
-integration timing, the Athena serving query, probe health) plus an hourly
-EventBridge Scheduler-triggered "freshness probe" Lambda
-(`cerberus-freshness-probe`, `observability/freshness_probe/handler.py`,
-boto3-only) publishing `Cerberus/Pipeline` → `FreshnessSeconds{Signal}`
-custom metrics for `PipelineRun` (age of the last `SUCCEEDED` state-machine
-execution), `BronzeData`, and `GoldData` (newest-object age). Chosen over a
-pipeline-emitted metric because CloudWatch has no native "time since last
-write" metric and dashboard metric math has no `now()` — a "seconds stale"
-number needs an external observer on its own clock. Applied live and
-verified: dashboard renders, probe returns
-`{"PipelineRun": ~7.5d, "BronzeData": ~11.7d, "GoldData": ~7.5d}`, all
-three metrics publishing.
+- **Phase 1 — MVP lakehouse** (1.1–1.13): medallion S3, IAM, a Python
+  bronze→silver→gold transform, Glue catalog, a dbt fact/dimension layer,
+  an Athena demo query, `apply`/`destroy` verified live. ADR 0002/0003 +
+  0004 (milestone 1).
+- **Phase 2 — Event-driven ingestion** (2.1–2.6): the ingestion Lambda +
+  EventBridge Scheduler replacing the systemd timer. ADR 0005 + 0006
+  (milestone 2).
+- **Phase 3 — Scalable compute** (3.1–3.8): VPC + EKS + Spark Operator,
+  spin-up/destroy per exercise, a real Spark job on EKS. ADR 0007 + 0008
+  (milestone 3).
+- **Phase 4 — Orchestration** (4.1–4.5): Step Functions state machine
+  (Lambda → ECS Fargate transform/dbt → Athena), retries + X-Ray. ADR
+  0009 + 0010 (milestone 4).
+- **Phase 5 — CI/CD** (5.1–5.5): GitHub Actions + OIDC over CodePipeline;
+  `envs/dev` split into `dev-standing` (CI-applied) / `dev-compute`
+  (human-run); `terraform-plan.yml` / `terraform-apply.yml` / `code-ci.yml`.
+  ADR 0011 + 0012 (milestone 5).
 
-The probe's first run surfaced a real pre-existing failure — the daily
-scheduled pipeline had been red since 2026-08-21 because `RunTransform`
-needs the `dev-compute` EKS cluster, torn down between exercises.
-**Resolved 2026-09-01 (ADR 0011 amendment):** a committed `pipeline_active`
-bool in `envs/dev-standing` (default `false`) now gates
-`aws_scheduler_schedule.daily`'s `state` — `DISABLED` unless a compute
-exercise is active, which is the normal state (the whole pipeline,
-ingestion included, is dormant while `dev-compute` is down). Applied via
-CI, schedule confirmed `DISABLED` live. 6.2's alarms will hang off the
-same switch.
+**Phase 6 — Observability & data quality is now ✅ complete** (6.1–6.6,
+see [Phases.md](Phases.md#phase-6--observability--data-quality-)):
+
+- **6.1** — `terraform/modules/observability`: the CloudWatch dashboard
+  `cerberus-platform-pipeline` over the metrics AWS already publishes,
+  plus the hourly boto3-only "freshness probe" Lambda
+  (`cerberus-freshness-probe`) publishing `Cerberus/Pipeline` →
+  `FreshnessSeconds{Signal}` custom metrics.
+- **6.2** — `alarms.tf`: a dedicated `cerberus-pipeline-alerts` SNS topic
+  and seven alarms, two probe-self-health (unconditional) and five gated
+  on `var.pipeline_active` (the same switch ADR 0011's 2026-09-01
+  amendment introduced for the daily schedule).
+- **6.3** — dbt schema/data-quality tests running inside `dbt build`
+  (`entrypoint_dbt.sh` switched from `dbt run`); a failed invariant fails
+  `RunDbt` → the execution → trips `cerberus-pipeline-run-unsuccessful`.
+- **6.4** — data lineage: `docs/lineage.md` (curated whole-pipeline) +
+  dbt's model DAG on GitHub Pages + a **serverless OpenLineage collector**
+  (`terraform/modules/lineage`: API Gateway HTTP API → Lambda → S3,
+  unauthenticated + rate-capped, ADR 0013) capturing runtime dataset +
+  column lineage from **both** the Spark job (`openlineage-spark`) and
+  `dbt build` (`dbt-ol`), rendered onto the Pages site by
+  `lineage/render/render_graph.py`. Verified end to end — dbt against
+  Athena (2026-09-06), Spark on EKS (2026-09-07).
+- **6.5** — `docs/slo.md`: six SLOs (pipeline success, gold freshness, run
+  latency, serving query, data quality, observer freshness) against the
+  existing SLIs, with an active-window / always-on split and a lightweight
+  halt-and-fix error-budget policy.
+- **6.6** — ADR 0014 + **milestone 6**
+  (`phase-6-observability-and-data-quality-complete`). First bucket
+  movement since milestone 1: 25→23 HIGH (`workload-observability`
+  MEDIUM→NONE, `monitor-aws-resources` and Perf `process-culture`
+  HIGH→MEDIUM), five more questions gained new evidence without a bucket
+  move. Recorded honestly — a phase whose purpose is observability moves
+  the observability questions, which does not imply Phase 7 will move
+  anything.
 
 **Note:** the roadmap was re-scoped on 2026-08-03 from 9 phases (0–8) to
-8 (0–7). The old "Phase 1 — IaC foundation" no longer exists as a phase;
-Terraform is now cross-cutting and its work is absorbed into Phase 1's
-subtasks. Session history entries before that date use the old numbering.
+8 (0–7). Session history entries before that date use the old numbering.
 
 ## Next up
 
-- **6.4 — Lineage.** Not yet scoped in any detail — Phases.md's one-liner
-  is the only planning that exists so far, same "first pass, not a fixed
-  spec" state 6.3 was in before this session's planning discussion. Worth
-  the same treatment before implementing: lay out the options (dbt's own
-  `docs generate`/DAG lineage — already free, the project's dbt project
-  already has the ref()/source() graph 6.3 tests reuse — vs. AWS Glue's
-  lineage features vs. a dedicated tool) and confirm a direction before
-  writing code.
-- **6.5 — SLO write-up**, then **6.6 — Well-Architected pass + ADR**
-  (milestone 6, `phase-6-observability-and-data-quality-complete`) close
-  the phase. Not started.
-- **`build_and_push` CI landmine (pre-existing, documented, not fully
-  fixed) — see Notes / blockers.** This session hit it twice more (6.2's
-  SNS/alarm work needed a `cerberus-ci-apply` self-escalation fix, 6.3's
-  entrypoint/model changes needed an image rebuild) — both resolved the
-  documented way, a local `terraform apply` as `cerberus-admin` before the
-  CI merge. The proper fix (a CI build/push job, deleting the
-  `null_resource`) is still a deferred decision, tracked below.
-- The Faker Lambda-layer hash churn (Notes / blockers) is still noisy on
-  every apply, still not blocking, still unrelated to Phase 6.
+**Phase 7 — End-to-end platform validation** is the last phase (7.1–7.6,
+see [Phases.md](Phases.md#phase-7--end-to-end-platform-validation-)). Not
+started; subtask breakdowns are the "first pass, not a fixed spec" kind —
+worth a scoping discussion before each, like 6.3/6.4/6.5 got.
+
+- **7.1 — Scaled-up synthetic payments workload** and **7.2 — full
+  orchestrated run exercising every layer** are naturally paired and both
+  need a `dev-compute` exercise (EKS up, `pipeline_active = true`). 7.1 is
+  about `TRANSACTION_COUNT` / a longer date window / more partitions;
+  `RETIRE_ON_OR_AFTER=2026-08-17` in the ingestion Lambda's env is still
+  capping bronze, so a scaled workload means bumping or removing that cap
+  (or running `generate_payments.py` by hand at volume). This is also the
+  run history `docs/slo.md`'s trailing-window SLO accounting needs before
+  it means anything.
+- **7.3 — Least-privilege IAM review** repays Phase 0's `cerberus-admin`
+  `AdministratorAccess` shortcut. `aws-iam` skill maps here. ADR 0013's
+  unauthenticated lineage endpoint is flagged in that ADR as a 7.3
+  re-examination item.
+- **7.4 — self-run Well-Architected review across the whole platform** —
+  unlike the per-phase diff passes (ADR 0004/0006/0008/0010/0012/0014),
+  this is the full 57-question review. Milestone 6 is its baseline. The
+  three organisational OpsEx HIGHs (`priorities`, `ops-model`,
+  `org-culture`) and Security's `detect-investigate-events` are the
+  standing gaps most likely in scope.
+- **7.5 — cost + security summary** and **7.6 — end-to-end demo (GIF /
+  short video)** close the project.
+
+**Carried-over, not blocking (see Notes / blockers):**
+
+- **`build_and_push` CI landmine** — hit again this session (6.4b's
+  `github_oidc` grants needed a `cerberus-admin` self-escalation apply;
+  6.4c's `entrypoint`/`requirements.txt`/`spark-application.yaml` changes
+  each triggered an image rebuild; 6.4/#34's `spark-application.yaml`
+  header edit needed one more local apply to reconcile). All resolved the
+  documented way. Proper fix (a CI build/push job, deleting the
+  `null_resource`) still a deferred decision.
+- **Faker Lambda-layer hash churn** — still a 1-add/1-change/1-destroy on
+  every `dev-standing` apply, still cosmetic.
+- **`dev-standing` is reconciled and clean** as of end of session —
+  post-apply `terraform plan` shows "No changes". `dev-compute` is fully
+  destroyed (verified: 0 EKS / 0 NAT / 0 EIP; an orphaned `Phase=3` EIP
+  from a prior exercise was also released).
+- **First action next session: land PR #36** (6.6 — ADR 0014 + the Phase 6
+  status flips), then this checkpoint's own commit — see Notes / blockers.
 
 ## Session history
 
@@ -1856,25 +1862,169 @@ subtasks done._
     that needs a `dev-compute` exercise (`pipeline_active = true`),
     intentionally out of scope for this subtask.
 
+### 2026-09-07
+
+_Phase 6 taken from 3/6 to fully ✅ complete in one long session — 6.4
+(all four units + the Spark live-verification), 6.5, and 6.6. Ten PRs
+(#28–#36, #36 still open), a real `dev-compute` EKS exercise, and the
+platform's first Well-Architected risk-bucket movement since milestone 1._
+
+- **6.4a — curated lineage doc + dbt DAG on Pages** (PR #28,
+  `d003afb`/`70cfb74`). `docs/lineage.md`: the whole-pipeline view at
+  table + column granularity across both transform engines, three findings
+  (dbt only sees its slice; `payments_current` is orphaned in the
+  orchestrated path; the silver schema has three hand-synced definitions),
+  and a "why not Marquez/DataZone" rationale. New `.github/workflows/
+  dbt-docs.yml` builds dbt's model DAG fully offline (`dbt parse` +
+  `dbt docs generate --empty-catalog --no-compile` — no warehouse
+  connection, same basis as `code-ci.yml`) and deploys it + a
+  `docs/pages/index.html` landing page to **GitHub Pages** (enabled via
+  `gh api ... -f build_type=workflow`, `build_type=workflow`). Fourth
+  README build badge added.
+- **6.4b — serverless OpenLineage collector** (PR #29, `ca36b04`/`f04b29a`;
+  ADR 0013 accepted separately in `6b36727`). Decision (scoped with the
+  user first): OpenLineage as the capture standard; collect via **API
+  Gateway HTTP API → Lambda → S3** rather than Marquez (standing
+  Postgres + web service) or Amazon DataZone (managed domain) — both
+  rejected on cost/standing-infra grounds, ADR 0007/0009/0011's line.
+  **Unauthenticated + rate-capped** (10/s, 20 burst) — the first
+  unauthenticated ingress in the stack, accepted on blast-radius grounds
+  (write-only to a private lifecycle-expiring prefix, no producer
+  credential to sign with, SigV4 not natively supported by
+  openlineage-spark). New `terraform/modules/lineage`: dedicated bucket
+  `cerberus-platform-lineage-<acct>` (no versioning — write-once keys;
+  90-day expiry), `lineage/collector/handler.py` (boto3-only, verbatim
+  storage, `events/malformed/` for bad bodies, always 200), the HTTP API
+  with access logging. `github_oidc` gained scoped grants. Applied locally
+  as `cerberus-admin` (self-escalation guard), smoke-tested live (valid
+  event → 200 + stored verbatim; malformed → `events/malformed/`).
+  - **GitHub GraphQL incident during the `gh pr merge` for #29** — the
+    merge commit landed on `main` correctly, but the PR shows CLOSED (not
+    MERGED) and the `push` webhook that fires `terraform-apply.yml` was
+    dropped. Recovered by **PR #30** (`163e8f0`/`14efbf7`): added
+    `workflow_dispatch` to `terraform-apply.yml` (a genuine manual
+    re-apply lever), whose merge re-triggered the apply on `main` — CI
+    apply then ran green with only the Faker churn, confirming
+    `cerberus-ci-apply` handles the new lineage resources. PR #29's
+    CLOSED-not-MERGED metadata is cosmetic and left as-is.
+- **6.4c — wire the OpenLineage producers** (PR #31, `e5f16fd`/`39c7510`).
+  dbt: `openlineage-dbt==1.53.0` in `transform/dbt/requirements.txt`,
+  `entrypoint_dbt.sh` runs `dbt-ol build` (emits after dbt finishes,
+  returns dbt's own exit code — a collector outage never fails `RunDbt`).
+  Spark: `io.openlineage:openlineage-spark_2.12:1.53.0` via Ivy
+  `deps.packages` + listener `sparkConf` with a `__OPENLINEAGE_URL__`
+  placeholder that `entrypoint_transform.sh` / `submit_job.sh` substitute
+  (or rewrite to a `console` transport when unset). `orchestration_runner`
+  task defs get `OPENLINEAGE_URL`/`OPENLINEAGE_NAMESPACE`;
+  `null_resource.build_and_push` now also hashes
+  `transform/dbt/requirements.txt` (the same COPYed-but-never-hashed gap
+  6.3 closed for `models/`/`macros/`). **dbt path verified live twice** —
+  a local `dbt-ol build` against Athena, then the real
+  `cerberus-orchestration-dbt:2` runner image as a standalone Fargate task
+  (run in a public subnet with a public IP, since NAT is down while
+  `dev-compute` is torn down): 16 events landed with column-level lineage.
+  Applied locally as `cerberus-admin` (docker rebuild + task-def
+  revisions + state-machine repoint).
+- **6.4d — render the captured events** (PR #32, `8558cb5`/`a06307f`).
+  `lineage/render/render_graph.py` (pure stdlib): reads the events
+  (synced from S3), emits `/lineage/` on the Pages site — a Mermaid
+  dataset/job graph (transform jobs only; dbt tests counted, not drawn), a
+  column-lineage table per output, a dataset-identifier map. `dbt-docs.yml`
+  on push assumes `cerberus-ci-plan` (read-only OIDC, same role
+  `terraform-plan.yml` uses) and `aws s3 sync`s the events; PRs smoke-test
+  the renderer against committed `lineage/render/sample/` fixtures — no
+  AWS on PRs. **PR #33** (`ff42987`/`25e278a`) added `workflow_dispatch`
+  to `dbt-docs.yml` too — the page's content depends on S3 state, not just
+  code, so it needs a re-render lever after a compute exercise.
+- **Spark caveat resolved — a real `dev-compute` exercise** (PR #34,
+  `e024d6a`/`692dfc2`). Chose the manual `submit_job.sh` path over a full
+  orchestrated run (targets the caveat directly, no `pipeline_active`
+  toggle). `make compute-apply` brought up VPC NAT + EKS + Spark Operator
+  (~20 min; one transient `CreateAccessEntry` 404 on the last resource,
+  fixed by a re-apply). `submit_job.sh` ran the Spark job to `COMPLETED`;
+  **`openlineage-spark_2.12:1.53.0` resolved via Ivy and paired cleanly
+  with Spark 3.5.9**, the listener emitted the `bronze → silver` write as
+  dataset + column lineage (`s3://…-bronze-…/payments` →
+  `s3://…-silver-…/payments`, 16 cols). silver verified (8,723 rows via
+  Athena). `render_graph.py` gained **`canonical()`** — the Spark
+  integration names datasets by S3 path, dbt by catalog table, so without
+  it the graph showed two disconnected halves; silver's `payments` and the
+  catalog's `payments_events` now collapse to one node, joining the
+  engines: `bronze → payments_events → {fct_transactions, dim_*}`.
+  `spark-application.yaml`'s header updated to record the verification.
+  - **Teardown hit the documented NAT/pod-termination gotcha**
+    (`context deadline exceeded` on the `spark-operator` namespace) —
+    worked around by force-clearing the namespace finalizer via the public
+    EKS API (`kubectl replace --raw .../finalize`), then re-ran
+    `terraform destroy` for the remaining 12 resources. Verified fully
+    torn down (0 EKS / 0 NAT / 0 EIP / 0 EC2, `cerberus-spark` gone).
+    Also found and **released an orphaned Elastic IP** (`54.89.47.36`,
+    tagged `Phase=3`, unassociated, not in any Terraform state — a
+    leftover from a prior Phase 3/4 exercise costing ~$3.60/mo).
+- **6.5 — SLO write-up** (PR #35, `6afa6ef`/`5b4c83e`). `docs/slo.md`:
+  six SLOs backed entirely by the 6.1/6.2 SLIs and alarms — no new
+  instrumentation. Scoped with the user first (6-objective set, lightweight
+  halt-and-fix error-budget policy, doc-only). Central idea: objectives
+  split **active-window** (only while `pipeline_active = true`) vs
+  **always-on** (the freshness probe), since the platform is dormant by
+  design. Honest "current standing" section — the pipeline has run
+  `SUCCEEDED` end to end only a handful of times, so trailing-window
+  accounting starts from here.
+- **6.6 — Phase 6 Well-Architected pass** (ADR 0014; PR #36, still open on
+  branch `phase-6-well-architected-review`). Diffed milestone 5 → **new
+  milestone 6** (`phase-6-observability-and-data-quality-complete`, saved
+  and confirmed live). Eight questions re-answered via `update-answer`;
+  **three moved a risk bucket** — the first movement since milestone 1,
+  after Phases 2–5 all held flat at 25/18/9/5:
+  - OpsEx `workload-observability` MEDIUM → NONE (6.1 dashboard + custom
+    metrics + 4.3 traces surfaced from it)
+  - Reliability `monitor-aws-resources` HIGH → MEDIUM (the freshness probe
+    *computes* metrics; 6.2's metric-math alarm; 6.5's SLI formulas;
+    "regularly review monitoring scope")
+  - Performance `process-culture` HIGH → MEDIUM (perf KPIs from the latency
+    SLO + timing widgets; monitoring solutions from the dashboard)
+  Five more gained genuine new evidence without a bucket move:
+  `observability` (+identify KPIs from the SLOs), `event-response` (off
+  "None of these" for the first time — process-per-alert, dashboards,
+  prioritise-by-impact), `operations-health`, `dev-integ` (+code quality:
+  6.3 tests + 5.3 lint), `mitigate-interaction-failure` (+fail fast: 6.3's
+  data-quality gate). Overall 25/18/9/5 → **23/19/10/5**. ADR is candid
+  that a phase whose purpose *is* observability moving the observability
+  questions doesn't imply Phase 7 will move anything (7.3's least-privilege
+  review is the next real candidate, Security only).
+- **Phase 6 flipped to ✅ complete** across `Phases.md` (6.4/6.5/6.6 +
+  heading), `docs/plan.md`'s roadmap row, and `README.md`'s Status
+  section — on branch `phase-6-well-architected-review` with ADR 0014
+  (PR #36), not yet on `main`.
+
 ## Notes / blockers
 
+- **Open (2026-09-07): PR #36 not yet merged.** ADR 0014 and the Phase 6
+  status flips (Phases.md 6.4/6.5/6.6 + heading, `docs/plan.md` roadmap
+  row, README status section) live on branch
+  `phase-6-well-architected-review`, pushed, PR open. This checkpoint's
+  own edits are uncommitted on the same branch. Next session: merge PR #36
+  (regular merge, per the workflow), then commit this checkpoint. Milestone
+  6 is already saved in the Well-Architected Tool independent of the merge.
 - **Open, deferred, not blocking (noted 2026-08-27):**
   `module.orchestration_runner.null_resource.build_and_push` runs a
   `local-exec` (`docker build`/`docker push`,
   `aws ecr get-login-password --profile cerberus-admin`) that **cannot
   execute on a GitHub Actions runner** — so any `terraform-apply.yml` run
-  fails whenever one of its `triggers` (`transform/spark/*`,
-  `transform/dbt/{dbt_project,profiles}.yml`, the Dockerfile,
-  `.dockerignore`, the runner entrypoints/`lib.sh`) changes without a
-  local `AWS_PROFILE=cerberus-admin terraform apply` first to rebuild+push
-  the image and reconcile the trigger in state. `orchestration_runner`'s
-  own module header now documents this workflow. `dev-standing` is
-  otherwise CI-applied on merge (ADR 0011); this one resource is a
-  human-run operation like everything in `dev-compute`. **Proper fix
-  (deferred, its own decision): a CI job — or a small `dev-compute`-style
-  local runbook — that builds+pushes the runner image on those paths,
-  deleting this `null_resource`.** It expands CI's blast radius to ECR
-  pushes, so it wasn't bolted onto Phase 6.
+  fails whenever one of its `triggers` changes without a local
+  `AWS_PROFILE=cerberus-admin terraform apply` first to rebuild+push the
+  image and reconcile the trigger in state. Trigger set as of 2026-09-07:
+  `transform/spark/*`, the whole of `transform/dbt/models/` and
+  `transform/dbt/macros/` (added 6.3), `transform/dbt/{dbt_project,
+  profiles,requirements}.yml`/`.txt` (`requirements.txt` added 6.4c), the
+  Dockerfile, `.dockerignore`, the runner entrypoints/`lib.sh`.
+  `orchestration_runner`'s own module header documents the workflow.
+  Hit repeatedly in Phase 6 (6.2, 6.3, 6.4b, 6.4c, and #34) — always
+  resolved the documented way. **Proper fix (deferred, its own decision):
+  a CI job — or a small `dev-compute`-style local runbook — that
+  builds+pushes the runner image on those paths, deleting this
+  `null_resource`.** It expands CI's blast radius to ECR pushes, so it
+  wasn't bolted onto Phase 6.
 - **Resolved 2026-09-01 (was: open operational, noted 2026-08-27):** the
   daily EventBridge-scheduled orchestration run
   (`aws_scheduler_schedule.daily`, `step_functions` module) failed every
@@ -1910,14 +2060,17 @@ subtasks done._
   cross-cutting Architecture bullet.** Workload `cerberus-platform`
   (`58c236e2c7844375965d22349b460084`, Framework lens, `us-east-1`) —
   verified live via `aws wellarchitected list-workloads`/`list-milestones`
-  most recently on 2026-08-24 (`cerberus-admin` profile). Milestones saved
+  most recently on 2026-09-07 (`cerberus-admin` profile). Milestones saved
   so far: **1** `phase-1-mvp-complete` (2026-08-10), **2**
   `phase-2-event-driven-ingestion-complete` (2026-08-12), **3**
-  `phase-3-scalable-compute-complete` (2026-08-18, see ADR 0008), **4**
-  `phase-4-orchestration-complete` (2026-08-20, see ADR 0010), **5**
-  `phase-5-cicd-complete` (2026-08-24, see ADR 0012). Next one is due at
-  **6.6**, once Phase 6 (Observability & data quality) is built — not
-  before; the formal review is at 7.4.
+  `phase-3-scalable-compute-complete` (2026-08-18, ADR 0008), **4**
+  `phase-4-orchestration-complete` (2026-08-20, ADR 0010), **5**
+  `phase-5-cicd-complete` (2026-08-24, ADR 0012), **6**
+  `phase-6-observability-and-data-quality-complete` (2026-09-07, ADR 0014).
+  Current risk counts (get-lens-review): **23 HIGH / 19 MEDIUM / 10 NONE /
+  5 N/A** (was 25/18/9/5 through milestones 2–5). Next milestone is due at
+  **7.4 — the full 57-question platform-wide review**, milestone 6 as its
+  baseline.
 - **AWS Agent Toolkit (`aws-core@claude-plugins-official`, installed
   2026-08-11) is in scope for the rest of the build — see `docs/plan.md`'s
   cross-cutting tracks.** Mapped to remaining phases: `aws-compute` (4.1,

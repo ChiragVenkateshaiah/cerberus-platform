@@ -137,8 +137,9 @@ constraints behind this diagram, see
 │                         #   against envs/dev-standing only), plus
 │                         #   code-ci.yml (5.3): Python lint (ruff) + dbt
 │                         #   validate (dbt parse + sqlfluff); dbt-docs.yml
-│                         #   (6.4a): builds the dbt lineage site, deploys
-│                         #   it to GitHub Pages on merge
+│                         #   (6.4a/6.4d): builds the dbt DAG + the runtime
+│                         #   lineage graph, deploys both to GitHub Pages on
+│                         #   merge or manual dispatch
 ├── docs/                 # plan, architecture notes, ADRs, learning notes,
 │                         #   lineage.md (6.4), slo.md (6.5); docs/pages/ =
 │                         #   the Pages landing page
