@@ -15,9 +15,12 @@ Two other artifacts complement it:
 | **[Runtime lineage graph](https://chiragvenkateshaiah.github.io/cerberus-platform/lineage/)** | What was **actually observed** at runtime — datasets, jobs and column lineage from the Spark and dbt steps' own OpenLineage events ([ADR 0013](adr/0013-lineage-openlineage-serverless-collector.md)) | Steps emit events to a serverless collector (6.4b/6.4c); `lineage/render/render_graph.py` renders them on every merge to `main` (6.4d) |
 
 The runtime graph is the **cross-check** against this file: if the two
-disagree, one of them is stale (see [_Maintenance_](#maintenance)). The dbt
-step's events carry column-level lineage; the Spark step's version needs
-one live `dev-compute` run to confirm (flagged in `spark-application.yaml`).
+disagree, one of them is stale (see [_Maintenance_](#maintenance)). Both
+steps are verified — the dbt and Spark events each carry dataset and
+column-level lineage, and the renderer's `canonical()` collapses the S3-path
+identity Spark uses and the catalog-table identity dbt uses for the same
+data (finding 3 below) so the graph connects end to end:
+`bronze → payments_events → {fct_transactions, dim_*}`.
 
 Why three and not one: see [_Why not a lineage platform_](#why-not-a-lineage-platform)
 below.
@@ -270,6 +273,5 @@ like the `architecture.md` diagrams. They should be re-checked whenever:
 
 The OpenLineage events (6.4c) are the runtime cross-check: if the
 [captured graph](https://chiragvenkateshaiah.github.io/cerberus-platform/lineage/)
-and this document disagree, one of them is stale. The dbt half of that
-capture is verified; the Spark half is wired and confirms on the next
-`dev-compute` exercise.
+and this document disagree, one of them is stale. Both halves are verified
+live — dbt against Athena (2026-09-06) and Spark on EKS (2026-09-07).
