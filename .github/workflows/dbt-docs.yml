@@ -9,13 +9,14 @@ name: dbt docs (lineage)
 # The dbt-docs half runs fully offline (`dbt parse` + `dbt docs generate
 # --empty-catalog --no-compile` never open a warehouse connection -- same
 # basis as code-ci.yml's `dbt parse`). The runtime-graph half needs to read
-# the lineage bucket, so on push it assumes cerberus-ci-plan (read-only
-# OIDC, the same role terraform-plan.yml uses) and `aws s3 sync`s the
-# events. On a PR that step is skipped and the renderer is smoke-tested
-# against the committed sample events instead -- no AWS access on PRs.
+# the lineage bucket, so on a push or a manual dispatch it assumes
+# cerberus-ci-plan (read-only OIDC, the same role terraform-plan.yml uses)
+# and `aws s3 sync`s the events.
 #
-# On a PR this builds only (catches a broken dbt project / renderer before
-# merge); on merge to main it also deploys to Pages.
+# On a PR: builds only, no AWS access -- the renderer is smoke-tested
+# against the committed sample events. On merge to main, or a manual
+# workflow_dispatch (e.g. to pick up new Spark events after a compute
+# exercise): also fetches the real events and deploys to Pages.
 
 on:
   pull_request:
@@ -31,6 +32,11 @@ on:
       - "lineage/**"
       - "docs/pages/**"
       - ".github/workflows/dbt-docs.yml"
+  # Manual re-render: the /lineage/ page's content depends on the
+  # OpenLineage events in S3, not just on code -- so after a compute
+  # exercise adds Spark events (or any pipeline run adds dbt events), a
+  # dispatch rebuilds and redeploys the site with no code change needed.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -82,7 +88,7 @@ jobs:
       # --- runtime lineage graph (6.4d) ---------------------------------
 
       - name: Fetch captured lineage events
-        if: github.event_name == 'push'
+        if: github.event_name != 'pull_request'
         id: fetch
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -90,7 +96,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Sync events from S3
-        if: github.event_name == 'push'
+        if: github.event_name != 'pull_request'
         run: |
           mkdir -p lineage-events
           aws s3 sync s3://cerberus-platform-lineage-131715059025/events/ lineage-events/ \
@@ -101,21 +107,21 @@ jobs:
       # before merge (the output is not uploaded).
       - name: Render runtime lineage graph
         run: |
-          if [ "${{ github.event_name }}" = "push" ]; then
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
             python lineage/render/render_graph.py --events-dir lineage-events --out site/lineage/index.html
           else
             python lineage/render/render_graph.py --events-dir lineage/render/sample --out /tmp/lineage-smoke.html
           fi
 
       - name: Upload Pages artifact
-        if: github.event_name == 'push'
+        if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
         with:
           path: site
 
   deploy:
     needs: build
-    if: github.event_name == 'push'
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       pages: write
