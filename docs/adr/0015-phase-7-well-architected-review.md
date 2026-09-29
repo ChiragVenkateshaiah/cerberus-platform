@@ -36,18 +36,21 @@ the full 57-question review across the whole platform**, per
 `Phases.md`'s framing of 7.4. Milestone 6
 (`phase-6-observability-and-data-quality-complete`) is still the baseline
 diffed against, since nothing in 7.1–7.3 touches a pillar Milestone 6
-didn't already cover. All 57 questions were re-answered honestly this
+didn't already cover. All 57 questions were re-reviewed honestly this
 pass — not just the ones plausibly affected by 7.1–7.3 — matching this
 project's standing practice (ADR 0014: "five more questions gained new
-evidence... without crossing the Tool's internal threshold").
+evidence... without crossing the Tool's internal threshold"). Only two
+answers actually changed; see below for what changed and, just as
+deliberately, what didn't.
 
 ## What changed, and what honestly didn't
 
 Two questions gained genuine new evidence and a new selected choice.
 **Neither crossed a risk bucket** — consistent with ADR 0014's own
 prediction that "7.3's least-privilege review is the next real candidate,
-and only for Security," which turned out right in kind (Security moved)
-but not in degree (it didn't cross).
+and only for Security": Security's `permissions` question did gain new
+evidence from 7.3, exactly as predicted, but that evidence wasn't enough
+to move it out of MEDIUM.
 
 **Security / `permissions`** ("How do you manage permissions for people
 and machines?", MEDIUM) — added **"Establish emergency access process"**.
@@ -62,16 +65,30 @@ symmetrically to policy management) — confirmed live twice this session,
 when a bug in the first policy draft required root-console intervention
 (MFA sign-in, CloudShell) to push the fix. That root-console path is now
 a documented, real emergency access process (`iam/cerberus-admin/README.md`'s
-"What's deliberately NOT granted"), not an improvised one-off. **Stayed
-MEDIUM** — one more real choice, not enough to cross.
+"What's deliberately NOT granted"), not an improvised one-off. Still not
+claiming a *mature* process, though: this account's only root path is the
+single root user itself (no separate pre-provisioned break-glass role),
+no periodic drill has ever exercised it before this session, and — per
+this ADR's own Consequences below — there is no CloudTrail trail, so
+root's use of that path this session left no durable audit log beyond
+this document. What changed is narrower than "mature emergency access":
+a real path was exercised successfully under real pressure, twice, which
+is more than existed before 7.3, but it is not yet a rehearsed, monitored
+one. **Stayed MEDIUM** — one more real choice, not enough to cross.
 
 **Reliability / `testing-resiliency`** ("How do you test reliability?",
-HIGH) — added **"Test scalability and performance requirements"**. 7.1's
-10x volume bump and 7.2's three successful full-pipeline executions at
-that volume are a genuine, verified scalability test — not a synthetic
-load test against defined breaking-point thresholds, but real evidence
-the pipeline holds at materially higher volume, which is what this choice
-asks about. **Stayed HIGH** — chaos engineering, game days, and
+HIGH) — added **"Test scalability and performance requirements"**.
+`docs/slo.md`'s Objective 3 already defines what that means for this
+platform: a full orchestrated run completing under 30 minutes, alarming
+at 45. 7.2's three executions, run at 7.1's 10x volume bump, all
+completed in ~6 minutes — comfortably inside a pre-existing, defined
+performance requirement, not a synthetic load test probing an undefined
+breaking point. Worth naming plainly: 2000 rows/run is still a modest
+absolute volume, so this is evidence the platform meets its own stated
+requirement at a higher load, not evidence of where it would actually
+break — see Performance Efficiency's `process-culture` below, which
+declines the more demanding "load test" choice on exactly this
+distinction. **Stayed HIGH** — chaos engineering, game days, and
 post-incident analysis were already selected from earlier phases; this
 adds a fourth real choice without crossing.
 
@@ -104,6 +121,20 @@ default.** The full 57 were reviewed, not skipped:
   documented NAT-before-node-group gotcha — was resolved via an existing
   documented fix, which is "use runbooks" (already selected), not a new
   formal event/incident/problem process).
+- **Performance Efficiency / `process-culture`** (MEDIUM) — ADR 0014
+  explicitly deferred this to Phase 7, by name: *"Not 'load test' — that
+  is Phase 7's scaled synthetic workload."* 7.1+7.2 delivered that
+  workload, but it doesn't earn the "Load test your workload" choice: a
+  load test implies a repeatable practice that searches toward a capacity
+  limit — a ramp, a sustained hold, an attempt to find where it breaks.
+  7.1+7.2 was a one-time volume bump run three times successfully, not a
+  search for a ceiling, and 2000 rows/run stays a modest absolute volume.
+  The same evidence is real, though, and is credited above to
+  `testing-resiliency` — it answers "does the pipeline meet its own
+  defined performance requirement at this volume," a narrower question
+  than `process-culture`'s "do you have a load-testing practice." Note
+  updated live in the Tool to close this loop explicitly rather than
+  leave ADR 0014's forward pointer dangling. Stays MEDIUM.
 - **Cost Optimization** (all 11 questions) — 7.1's config change and
   7.3's policy work are real, but neither is a new cost-governance
   *practice* (no cost modeling exercise was re-run, no new pricing-model
@@ -162,9 +193,12 @@ than in this Tool's checkboxes.
   its policies from the default 90-day Event History instead, precisely
   because no trail existed).
 - **`cerberus-admin`'s own emergency-access process is now a real,
-  documented thing, not an improvised one-off** — see
-  `iam/cerberus-admin/README.md`. Future changes to any of the 6 policies
-  go through the same root-console path used this session, by design.
+  exercised thing, not a hypothetical one** — see
+  `iam/cerberus-admin/README.md`. Still not a mature one: no drill has
+  rehearsed it outside of this session's real incident, and the missing
+  CloudTrail trail above means it left no audit log of its own. Future
+  changes to any of the 6 policies go through the same root-console path
+  used this session, by design.
 - **The three organisational Operational Excellence HIGHs remain the
   standing, expected gap** — ADR 0014 predicted they'd likely outlast
   Phase 7 entirely, and nothing here changes that prediction. 7.5's
