@@ -15,9 +15,9 @@
 # brackets a compute exercise -- see docs/adr/0011 and
 # terraform/envs/dev-compute/main.tf's header for the runbook.
 variable "pipeline_active" {
-  description = "Whether a compute exercise is active. true = the daily orchestration schedule is ENABLED and 6.2's pipeline-health / data-freshness alarms exist; false (default) = schedule DISABLED and those alarms not created (every signal is legitimately stale while the pipeline is dormant)."
+  description = "Whether a compute exercise is active. true = the daily orchestration schedule is ENABLED and 6.2's pipeline-health / data-freshness alarms exist; false (default) = schedule DISABLED and those alarms not created (every signal is legitimately stale while the pipeline is dormant). Flipped true for 7.1/7.2's scaled-workload + full-orchestrated-run exercise -- flip back to false once dev-compute is torn down again."
   type        = bool
-  default     = false
+  default     = true
 }
 
 # 6.2: the address subscribed to the cerberus-pipeline-alerts SNS topic.
