@@ -1,0 +1,179 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "IamRoleMgmt",
+      "Effect": "Allow",
+      "Action": [
+        "iam:GetRole",
+        "iam:GetRolePolicy",
+        "iam:ListAttachedRolePolicies",
+        "iam:ListRolePolicies",
+        "iam:CreateRole",
+        "iam:PutRolePolicy",
+        "iam:AttachRolePolicy",
+        "iam:DeleteRole",
+        "iam:DetachRolePolicy",
+        "iam:ListInstanceProfilesForRole",
+        "iam:DeleteRolePolicy",
+        "iam:UpdateAssumeRolePolicy",
+        "iam:TagRole"
+      ],
+      "Resource": "arn:aws:iam::131715059025:role/cerberus-*"
+    },
+    {
+      "Sid": "IamOidc",
+      "Effect": "Allow",
+      "Action": [
+        "iam:GetOpenIDConnectProvider",
+        "iam:CreateOpenIDConnectProvider",
+        "iam:DeleteOpenIDConnectProvider",
+        "iam:ListOpenIDConnectProviders",
+        "iam:TagOpenIDConnectProvider"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "IamPassRole",
+      "Effect": "Allow",
+      "Action": [
+        "iam:PassRole"
+      ],
+      "Resource": "arn:aws:iam::131715059025:role/cerberus-*",
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": [
+            "lambda.amazonaws.com",
+            "ecs-tasks.amazonaws.com",
+            "states.amazonaws.com",
+            "scheduler.amazonaws.com",
+            "eks.amazonaws.com"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "IamSimulate",
+      "Effect": "Allow",
+      "Action": [
+        "iam:SimulatePrincipalPolicy",
+        "iam:SimulateCustomPolicy"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "IamServiceLinked",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateServiceLinkedRole"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "IamSelf",
+      "Effect": "Allow",
+      "Action": [
+        "iam:ListRoles",
+        "iam:GetUser",
+        "iam:ListAccessKeys",
+        "iam:ListAttachedUserPolicies",
+        "iam:ListUserPolicies"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "WellArchitected",
+      "Effect": "Allow",
+      "Action": [
+        "wellarchitected:UpdateAnswer",
+        "wellarchitected:GetAnswer",
+        "wellarchitected:ListAnswers",
+        "wellarchitected:GetLensReview",
+        "wellarchitected:ListMilestones",
+        "wellarchitected:ListLensReviewImprovements",
+        "wellarchitected:CreateMilestone",
+        "wellarchitected:GetWorkload",
+        "wellarchitected:GetMilestone"
+      ],
+      "Resource": "arn:aws:wellarchitected:us-east-1:131715059025:workload/58c236e2c7844375965d22349b460084"
+    },
+    {
+      "Sid": "WellArchitectedAccount",
+      "Effect": "Allow",
+      "Action": [
+        "wellarchitected:ListWorkloads",
+        "wellarchitected:ListLenses",
+        "wellarchitected:CreateWorkload"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "Budgets",
+      "Effect": "Allow",
+      "Action": [
+        "budgets:ViewBudget",
+        "budgets:ModifyBudget",
+        "budgets:ListTagsForResource"
+      ],
+      "Resource": "arn:aws:budgets::131715059025:budget/*"
+    },
+    {
+      "Sid": "CostExplorer",
+      "Effect": "Allow",
+      "Action": [
+        "ce:GetAnomalySubscriptions",
+        "ce:ListTagsForResource",
+        "ce:DeleteAnomalySubscription"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ServiceQuotas",
+      "Effect": "Allow",
+      "Action": [
+        "servicequotas:GetServiceQuota"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "AutoScalingRead",
+      "Effect": "Allow",
+      "Action": [
+        "autoscaling:DescribeAutoScalingGroups"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CloudTrailSelfAudit",
+      "Effect": "Allow",
+      "Action": [
+        "cloudtrail:LookupEvents",
+        "cloudtrail:DescribeTrails",
+        "cloudtrail:ListTrails"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ApiGatewayLineage",
+      "Effect": "Allow",
+      "Action": [
+        "apigateway:GET",
+        "apigateway:POST",
+        "apigateway:PATCH",
+        "apigateway:DELETE"
+      ],
+      "Resource": [
+        "arn:aws:apigateway:us-east-1::/apis",
+        "arn:aws:apigateway:us-east-1::/apis/*"
+      ]
+    },
+    {
+      "Sid": "Sts",
+      "Effect": "Allow",
+      "Action": [
+        "sts:AssumeRole"
+      ],
+      "Resource": "arn:aws:iam::131715059025:role/cerberus-*"
+    }
+  ]
+}

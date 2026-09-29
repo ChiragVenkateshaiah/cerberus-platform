@@ -1,0 +1,136 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "States",
+      "Effect": "Allow",
+      "Action": [
+        "states:DescribeStateMachine",
+        "states:ListStateMachineVersions",
+        "states:ListTagsForResource",
+        "states:DescribeExecution",
+        "states:StartExecution",
+        "states:GetExecutionHistory",
+        "states:CreateStateMachine",
+        "states:ListExecutions",
+        "states:UpdateStateMachine",
+        "states:TagResource",
+        "states:DeleteStateMachine",
+        "states:StopExecution"
+      ],
+      "Resource": [
+        "arn:aws:states:us-east-1:131715059025:stateMachine:cerberus-*",
+        "arn:aws:states:us-east-1:131715059025:execution:cerberus-*:*"
+      ]
+    },
+    {
+      "Sid": "StatesAccount",
+      "Effect": "Allow",
+      "Action": [
+        "states:ValidateStateMachineDefinition",
+        "states:ListStateMachines"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "Scheduler",
+      "Effect": "Allow",
+      "Action": [
+        "scheduler:GetSchedule",
+        "scheduler:CreateSchedule",
+        "scheduler:UpdateSchedule",
+        "scheduler:DeleteSchedule"
+      ],
+      "Resource": "arn:aws:scheduler:us-east-1:131715059025:schedule/default/cerberus-*"
+    },
+    {
+      "Sid": "Sns",
+      "Effect": "Allow",
+      "Action": [
+        "sns:GetSubscriptionAttributes",
+        "sns:GetTopicAttributes",
+        "sns:ListTagsForResource",
+        "sns:SetTopicAttributes",
+        "sns:CreateTopic",
+        "sns:ListSubscriptionsByTopic",
+        "sns:Subscribe",
+        "sns:TagResource",
+        "sns:DeleteTopic",
+        "sns:Unsubscribe"
+      ],
+      "Resource": "arn:aws:sns:us-east-1:131715059025:cerberus-*"
+    },
+    {
+      "Sid": "SnsAccount",
+      "Effect": "Allow",
+      "Action": [
+        "sns:ListTopics"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CloudwatchAlarm",
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:DescribeAlarms",
+        "cloudwatch:ListTagsForResource",
+        "cloudwatch:PutMetricAlarm",
+        "cloudwatch:DeleteAlarms",
+        "cloudwatch:TagResource"
+      ],
+      "Resource": "arn:aws:cloudwatch:us-east-1:131715059025:alarm:cerberus-*"
+    },
+    {
+      "Sid": "CloudwatchDashboard",
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:GetDashboard",
+        "cloudwatch:PutDashboard",
+        "cloudwatch:DeleteDashboards"
+      ],
+      "Resource": "arn:aws:cloudwatch::131715059025:dashboard/cerberus-*"
+    },
+    {
+      "Sid": "CloudwatchAccount",
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:ListDashboards"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "Logs",
+      "Effect": "Allow",
+      "Action": [
+        "logs:ListTagsForResource",
+        "logs:CreateLogGroup",
+        "logs:FilterLogEvents",
+        "logs:PutRetentionPolicy",
+        "logs:DeleteLogGroup",
+        "logs:DescribeLogStreams",
+        "logs:TagResource"
+      ],
+      "Resource": [
+        "arn:aws:logs:us-east-1:131715059025:log-group:/aws/lambda/cerberus-*",
+        "arn:aws:logs:us-east-1:131715059025:log-group:/aws/lambda/cerberus-*:*",
+        "arn:aws:logs:us-east-1:131715059025:log-group:/aws/vendedlogs/states/cerberus-*",
+        "arn:aws:logs:us-east-1:131715059025:log-group:/aws/vendedlogs/states/cerberus-*:*",
+        "arn:aws:logs:us-east-1:131715059025:log-group:/ecs/cerberus-*",
+        "arn:aws:logs:us-east-1:131715059025:log-group:/ecs/cerberus-*:*",
+        "arn:aws:logs:us-east-1:131715059025:log-group:/aws/apigateway/cerberus-*",
+        "arn:aws:logs:us-east-1:131715059025:log-group:/aws/apigateway/cerberus-*:*"
+      ]
+    },
+    {
+      "Sid": "LogsAccount",
+      "Effect": "Allow",
+      "Action": [
+        "logs:DescribeResourcePolicies",
+        "logs:PutResourcePolicy",
+        "logs:DescribeLogGroups",
+        "logs:GetLogEvents"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
