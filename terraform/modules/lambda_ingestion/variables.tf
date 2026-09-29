@@ -9,15 +9,15 @@ variable "execution_role_arn" {
 }
 
 variable "retire_on_or_after" {
-  description = "Date (YYYY-MM-DD, UTC) on/after which the Lambda no-ops instead of generating. Same window ingestion/scripts/run_payments_scheduled.sh already started -- kept in sync with that script's RETIRE_ON_OR_AFTER by hand (decided 2026-08-11: keep the cap for data-volume control, not cost -- ADR 0005)."
+  description = "Date (YYYY-MM-DD, UTC) on/after which the Lambda no-ops instead of generating. Originally 2026-08-17 (ADR 0005, kept in sync with the now-retired ingestion/scripts/run_payments_scheduled.sh's own cap -- that systemd path was fully decommissioned at 2.5, so this variable is the only place the cap lives now). Bumped to 2026-10-15 for 7.1's scaled-up workload exercise -- same data-volume-control rationale as before, not cost, just a later date."
   type        = string
-  default     = "2026-08-17"
+  default     = "2026-10-15"
 }
 
 variable "transaction_count" {
-  description = "Transactions generated per invocation, passed to the Lambda as TRANSACTION_COUNT."
+  description = "Transactions generated per invocation, passed to the Lambda as TRANSACTION_COUNT. Bumped 200 -> 2000 for 7.1 (scaled-up synthetic payments workload)."
   type        = number
-  default     = 200
+  default     = 2000
 }
 
 variable "lambda_timeout_seconds" {
