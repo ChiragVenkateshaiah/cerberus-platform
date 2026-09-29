@@ -60,6 +60,15 @@ those metrics (6.5). ADR 0014 closes the phase's Well-Architected pass
 first pass since milestone 1 to move risk buckets: 25→23 HIGH, as
 `workload-observability`, `monitor-aws-resources`, and Performance's
 `process-culture` each improved.
+🔨 Phase 7 (end-to-end platform validation) — in progress. 7.1 scaled the
+ingestion Lambda's synthetic payments workload 10x (`TRANSACTION_COUNT`
+200 → 2000); 7.2 exercised the full orchestrated pipeline live in a
+`dev-compute` window — 3 manually-started state-machine executions all
+succeeded end to end (ingestion → Spark-on-EKS transform → dbt build →
+Athena serving query), verified at every layer including OpenLineage
+capture, with `dev-compute` torn down and `pipeline_active` returned to
+`false` afterward. 7.3–7.6 (IAM review, full Well-Architected review,
+cost/security summary, demo) are still open.
 
 See [docs/plan.md](docs/plan.md) for the full phased roadmap (Phases 0–7)
 and [Phases.md](Phases.md) for subtask-level progress.

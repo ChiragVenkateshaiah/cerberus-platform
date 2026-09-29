@@ -68,22 +68,24 @@ see [Phases.md](Phases.md#phase-6--observability--data-quality-)):
 **Note:** the roadmap was re-scoped on 2026-08-03 from 9 phases (0–8) to
 8 (0–7). Session history entries before that date use the old numbering.
 
+**Phase 7 — End-to-end platform validation is now 🔨 in progress** (see
+[Phases.md](Phases.md#phase-7--end-to-end-platform-validation-)):
+
+- **7.1** — scaled up the ingestion Lambda's `TRANSACTION_COUNT` 200 →
+  2000 and bumped `RETIRE_ON_OR_AFTER` to 2026-10-15
+  (`terraform/modules/lambda_ingestion/variables.tf`), replacing the
+  already-passed 2026-08-17 cap that had made the Lambda a pure no-op.
+- **7.2** — a `dev-compute` exercise (EKS/NAT/Spark Operator up,
+  `pipeline_active = true`), 3 manually-started state-machine executions
+  all `SUCCEEDED` (~6 min each, every layer verified live: ingestion →
+  Spark-on-EKS transform → dbt build → Athena serving query → lineage
+  capture), `dev-compute` torn down and verified clean afterward
+  (0 EKS / 0 NAT / 0 EIP), `pipeline_active` flipped back to `false`.
+  This also gives `docs/slo.md`'s trailing-window SLO accounting its
+  first real run-history sample (3 executions, all successful).
+
 ## Next up
 
-**Phase 7 — End-to-end platform validation** is the last phase (7.1–7.6,
-see [Phases.md](Phases.md#phase-7--end-to-end-platform-validation-)). Not
-started; subtask breakdowns are the "first pass, not a fixed spec" kind —
-worth a scoping discussion before each, like 6.3/6.4/6.5 got.
-
-- **7.1 — Scaled-up synthetic payments workload** and **7.2 — full
-  orchestrated run exercising every layer** are naturally paired and both
-  need a `dev-compute` exercise (EKS up, `pipeline_active = true`). 7.1 is
-  about `TRANSACTION_COUNT` / a longer date window / more partitions;
-  `RETIRE_ON_OR_AFTER=2026-08-17` in the ingestion Lambda's env is still
-  capping bronze, so a scaled workload means bumping or removing that cap
-  (or running `generate_payments.py` by hand at volume). This is also the
-  run history `docs/slo.md`'s trailing-window SLO accounting needs before
-  it means anything.
 - **7.3 — Least-privilege IAM review** repays Phase 0's `cerberus-admin`
   `AdministratorAccess` shortcut. `aws-iam` skill maps here. ADR 0013's
   unauthenticated lineage endpoint is flagged in that ADR as a 7.3
@@ -99,22 +101,28 @@ worth a scoping discussion before each, like 6.3/6.4/6.5 got.
 
 **Carried-over, not blocking (see Notes / blockers):**
 
-- **`build_and_push` CI landmine** — hit again this session (6.4b's
-  `github_oidc` grants needed a `cerberus-admin` self-escalation apply;
-  6.4c's `entrypoint`/`requirements.txt`/`spark-application.yaml` changes
-  each triggered an image rebuild; 6.4/#34's `spark-application.yaml`
-  header edit needed one more local apply to reconcile). All resolved the
-  documented way. Proper fix (a CI build/push job, deleting the
-  `null_resource`) still a deferred decision.
+- **`build_and_push` CI landmine** — not touched this session (7.1/7.2
+  didn't rebuild the transform/dbt task images). Proper fix (a CI
+  build/push job, deleting the `null_resource`) still a deferred
+  decision.
 - **Faker Lambda-layer hash churn** — still a 1-add/1-change/1-destroy on
-  every `dev-standing` apply, still cosmetic.
+  every `dev-standing` apply, still cosmetic. Hit twice more this session
+  (PR #37, PR #38/#39), as expected.
+- **The NAT-before-node-group destroy-order gotcha (documented
+  2026-08-18/2026-08-20) recurred exactly as predicted** during 7.2's
+  `dev-compute` teardown — see 2026-09-29's session entry. The existing
+  fix (`kubectl delete pod --grace-period=0 --force`, then re-run
+  `terraform destroy`) worked cleanly again. Still not worth automating
+  away (ADR 0007's public-endpoint design accepts this as a known
+  consequence) unless it starts costing real time on every single
+  exercise rather than one extra `kubectl`/`terraform` round-trip.
 - **`dev-standing` is reconciled and clean** as of end of session —
-  post-apply `terraform plan` shows "No changes". `dev-compute` is fully
-  destroyed (verified: 0 EKS / 0 NAT / 0 EIP; an orphaned `Phase=3` EIP
-  from a prior exercise was also released).
+  post-apply `terraform plan` shows only the pre-existing cosmetic
+  Faker-layer churn. `dev-compute` is fully destroyed (verified: 0 EKS /
+  0 NAT / 0 EIP).
 
-Everything from this session (PRs #28–#36) is merged to `main`; nothing
-mid-flight. Phase 7 starts clean.
+Everything from this session (PRs #37–#39) is merged to `main`; nothing
+mid-flight. 7.3 starts clean.
 
 ## Session history
 
@@ -1996,6 +2004,91 @@ platform's first Well-Architected risk-bucket movement since milestone 1._
 - **Phase 6 flipped to ✅ complete** across `Phases.md` (6.4/6.5/6.6 +
   heading), `docs/plan.md`'s roadmap row, and `README.md`'s Status
   section, with ADR 0014 — PR #36 (`89482fc`/`c8f6454`).
+
+### 2026-09-29
+
+_Phase 7 started: 7.1 (scaled-up workload) and 7.2 (full orchestrated run)
+both built and verified live in one `dev-compute` window._
+
+- **Scoping discussion first**, per the "worth a scoping discussion" note
+  left in Next up — three genuine open decisions, resolved via
+  `AskUserQuestion` before touching code: `TRANSACTION_COUNT` 200 → 2000
+  (10x, not 50x); 3-5 orchestrated executions in one `dev-compute` window
+  rather than waiting on the real daily schedule across several days
+  (cost discipline — avoids leaving EKS/NAT up for days just to get
+  multiple runs); `RETIRE_ON_OR_AFTER` bumped forward (not removed) —
+  keeps the cap itself as a live, working control rather than deleting it.
+- **Built 7.1** (PR #37, `84b3843`): bumped the ingestion Lambda's
+  `TRANSACTION_COUNT` 200 → 2000 and `RETIRE_ON_OR_AFTER` 2026-08-17 →
+  2026-10-15 (`terraform/modules/lambda_ingestion/variables.tf`) — the cap
+  had already passed (today is 2026-09-29), so the Lambda was a pure
+  no-op before this. Also dropped the variable's stale "kept in sync with
+  `run_payments_scheduled.sh`" claim — that script was fully decommissioned
+  at 2.5; this Terraform variable is the only place the cap lives now.
+  Clean `terraform plan` (0 add / 1 change / 0 destroy, both env vars
+  only), CI plan check passed, merged, CI applied — verified live via
+  `aws lambda get-function-configuration`.
+- **Started 7.2's exercise** (PR #38, `85422e3`): flipped
+  `pipeline_active = true` in `dev-standing` per the dev-compute runbook
+  (ADR 0011). Plan showed the expected 6 alarms/dashboard widgets created
+  and the schedule flipped `ENABLED`, plus the already-known cosmetic
+  Faker-layer hash churn (checkpoint's existing note) — not a new issue.
+  Merged, CI applied.
+- **Brought up `dev-compute`** (`make compute-apply` equivalent, run
+  directly via `terraform apply`): 23 resources — VPC NAT Gateway, EKS
+  cluster, Spark Operator, Spark job service account. One real gotcha hit
+  live: `aws_eks_access_entry.orchestration_transform` failed with
+  `ResourceNotFoundException: No cluster found` immediately after the EKS
+  cluster's own `Creation complete` — an EKS control-plane propagation lag
+  right after creation, not a config error. Fixed by re-running
+  `terraform apply`, which picked up just that one remaining resource
+  cleanly (1 add / 0 change / 0 destroy) once the API caught up.
+- **Ran 7.2's exercise: 3 manually-started state-machine executions**,
+  all `SUCCEEDED`, ~6 minutes each end to end (`InvokeIngestion` →
+  `RunTransform` → `RunDbt` → `RunServingQuery` → `PipelineSucceeded`).
+  Verified every layer directly, not just the console's green checkmark:
+  fresh bronze partitions at the new 2000-transaction volume (`aws s3 ls`,
+  ~230-440KB per partition vs. the old ~35KB/200-txn runs); fresh silver
+  Parquet written by the Spark job on EKS across both new and
+  historically-backfilled `dt=` partitions (full-rebuild semantics, 1.7's
+  design, confirmed still holds through the Spark path); dbt's
+  `fct_transactions`/`dim_merchants`/`dim_customers` marts rebuilt with
+  today's timestamp; the Athena serving query itself completing inside
+  `RunServingQuery`; OpenLineage `START`/`COMPLETE` events for all three
+  dbt models plus the `payments_events` source landing at the 6.4
+  collector. Chose to stop at 3 (of the planned 3-5 range) rather than
+  push to 5 — three identical successful runs already demonstrated
+  repeatability; each additional run only extends billed `dev-compute`
+  time without adding new signal.
+  - **Freshness alarms (`cerberus-freshness-gold-data`,
+    `-pipeline-run`) stayed in `ALARM` through all 3 runs** — correctly
+    so, not a bug: the hourly freshness probe's last evaluation (04:29:24)
+    predated the first run (04:53), so it was accurately reporting 6
+    weeks of real staleness. Confirmed this is a timing gap, not a wiring
+    problem, by checking the probe's schedule (`rate(1 hour)`, next due
+    ~05:29) rather than assuming something was broken — a live
+    demonstration that the alarm design (6.2) actually detects real
+    staleness, not just a schedule wired to fire.
+- **Tore down `dev-compute` — hit exactly the documented destroy-order
+  gotcha** from this same checkpoint's Notes/blockers (captured
+  2026-08-18/2026-08-20, predicted to "very likely recur on every future
+  destroy"): the NAT Gateway destroyed before the node group left nodes
+  `NotReady`, which stalled two `Terminating` pods in the `spark-operator`
+  namespace (`context deadline exceeded` on the namespace delete).
+  Diagnosed via `kubectl get namespace/pods -o json` (confirmed
+  `NamespaceDeletionContentFailure`, pods stuck with an unmet
+  `deletionTimestamp`), fixed exactly per the existing note —
+  `kubectl delete pod --grace-period=0 --force` on both stuck pods, then
+  re-ran `terraform destroy` for the remainder (EKS cluster, node group,
+  IAM). Confirmed fully clean afterward: 0 EKS clusters, 0 NAT gateways,
+  0 EIPs, empty `dev-compute` Terraform state.
+- **Closed the exercise** (PR #39, `ac39ab4`): flipped `pipeline_active`
+  back to `false` in `dev-standing` — plan mirrored PR #38 in reverse (6
+  alarms/widgets destroyed, schedule `DISABLED`), merged, CI applied.
+  Follow-up `terraform plan` on `dev-standing` shows only the pre-existing
+  cosmetic Faker-layer churn — fully reconciled otherwise.
+- **7.1 and 7.2 checked off** in `Phases.md`; Phase 7's heading flipped
+  from ⬜ to 🔨 (in progress — 7.3-7.6 still open).
 
 ## Notes / blockers
 
