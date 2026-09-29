@@ -83,13 +83,25 @@ see [Phases.md](Phases.md#phase-6--observability--data-quality-)):
   (0 EKS / 0 NAT / 0 EIP), `pipeline_active` flipped back to `false`.
   This also gives `docs/slo.md`'s trailing-window SLO accounting its
   first real run-history sample (3 executions, all successful).
+- **7.3** — `cerberus-admin`'s `AdministratorAccess` replaced with 6
+  customer-managed policies (`iam/cerberus-admin/policies/`), built from
+  its complete real CloudTrail history (241 distinct operations) and
+  verified via `iam:simulate-custom-policy` plus a live `terraform plan`
+  across all three roots with `AdministratorAccess` fully detached — see
+  the full writeup below. Scoped to `cerberus-admin` only, per user
+  decision; the existing service/execution roles and ADR 0013's
+  unauthenticated lineage endpoint were explicitly left out of scope (the
+  lineage endpoint stays a real, open item — see Next up).
 
 ## Next up
 
-- **7.3 — Least-privilege IAM review** repays Phase 0's `cerberus-admin`
-  `AdministratorAccess` shortcut. `aws-iam` skill maps here. ADR 0013's
-  unauthenticated lineage endpoint is flagged in that ADR as a 7.3
-  re-examination item.
+- **ADR 0013's unauthenticated lineage endpoint** — explicitly deferred
+  out of 7.3's scope (which was scoped to `cerberus-admin` only, not a
+  broader IAM/auth sweep). Still an open re-examination item; no phase
+  currently owns it besides the general "revisit before the project is
+  called done" framing in ADR 0013 itself. Worth deciding whether 7.4 or
+  7.5 picks it up, or whether it's accepted as a residual known gap in
+  7.5's cost + security summary.
 - **7.4 — self-run Well-Architected review across the whole platform** —
   unlike the per-phase diff passes (ADR 0004/0006/0008/0010/0012/0014),
   this is the full 57-question review. Milestone 6 is its baseline. The
@@ -2089,6 +2101,91 @@ both built and verified live in one `dev-compute` window._
   cosmetic Faker-layer churn — fully reconciled otherwise.
 - **7.1 and 7.2 checked off** in `Phases.md`; Phase 7's heading flipped
   from ⬜ to 🔨 (in progress — 7.3-7.6 still open).
+- **Built 7.3, the least-privilege IAM review repaying Phase 0's
+  `AdministratorAccess` shortcut on `cerberus-admin`.** Scoped to
+  `cerberus-admin` only (not the already-carefully-scoped service/execution
+  roles, not ADR 0013's lineage-endpoint auth gap — both explicitly deferred
+  per user decision during scoping).
+  - **Method: real usage, not guesswork.** No CloudTrail trail exists in
+    this account, so IAM Access Analyzer's automatic "generate policy from
+    CloudTrail" feature was unavailable (it requires a trail, confirmed via
+    docs — the default 90-day Event History alone isn't enough). Instead,
+    pulled `cerberus-admin`'s **complete** CloudTrail history directly
+    (`lookup-events`, no trail needed for data within 90 days) — 25,516
+    events, 241 distinct operations, spanning the whole project since
+    2026-07-31. Cross-checked against every Terraform resource type in the
+    repo; added the data-plane actions CloudTrail's management-events-only
+    view can't show (S3 object ops, DynamoDB item ops); added `iam:PassRole`
+    (never its own CloudTrail event) scoped to the exact 5 services this
+    project's own trust policies actually use (confirmed by reading
+    `terraform/modules/iam/main.tf` directly, not guessed).
+  - **6 customer-managed policies** (storage, analytics, compute,
+    orchestration, network, iam-and-governance — split because IAM's
+    6,144-char-per-policy limit can't hold this in one), committed to
+    `iam/cerberus-admin/policies/` as the audit trail. Deliberately **not**
+    Terraform-managed — self-managing `cerberus-admin`'s own policies via
+    its own `terraform apply` is a bootstrapping risk, same reasoning as
+    `terraform/bootstrap/`'s exception for the state backend (see
+    `iam/cerberus-admin/README.md`).
+  - **Rigorous verification caught real bugs before anything went live**
+    (the whole point of the agreed "test then swap" approach): a
+    completeness sweep (241/241 observed operations covered, the one
+    apparent gap — `sts:GetCallerIdentity` — confirmed via AWS docs to
+    require no IAM permission at all) and a 29-case `iam:simulate-custom-policy`
+    battery (every real resource → `allowed`, every deliberately-unrelated
+    resource → `implicitDeny`, `PassRole`'s condition correctly gated,
+    deliberately-excluded actions correctly denied) caught a first bug — an
+    IAM role ARN missing its required empty region segment
+    (`arn:aws:iam:us-east-1:...` instead of `arn:aws:iam::...`, since IAM is
+    a global service) — which would have silently broken every
+    `CreateRole`/`PassRole`/`AssumeRole` call.
+  - **Live `terraform plan` testing (after attaching the 6 policies and
+    detaching `AdministratorAccess`) caught two more real gaps** the
+    simulation battery's curated sample had missed: `s3:GetBucketLifecycle`
+    isn't a real IAM action (Terraform's actual call needs
+    `s3:GetLifecycleConfiguration`) and `logs:DescribeLogGroups` has no
+    resource-level permission support at all (needs `Resource: "*"`).
+    Rather than patch just those two, cross-checked **every** action across
+    all 6 policies against AWS's Service Authorization Reference JSON
+    (`servicereference.us-east-1.amazonaws.com`) — a stricter check than
+    "does the action exist" also verified ARN **shape** (segment count,
+    region presence) against each resource type's documented `ARNFormats`.
+    Found and fixed 15 more real problems this way: S3's
+    lifecycle/encryption/replication/ownership-controls/public-access-block
+    actions all have different real IAM names than their CloudTrail event
+    names (and no separate "Delete" action exists for several — deleting is
+    done via the same `Put*` action with an empty config, confirmed against
+    AWS docs); AWS Budgets' real IAM actions (`ViewBudget`/`ModifyBudget`)
+    are completely different from its API operation names
+    (`DescribeBudget`/`DeleteBudget` etc. aren't real IAM actions at all);
+    `eks:CreateCluster` has no resource-level support (needs `"*"`, same
+    reason EC2's networking actions do — the resource doesn't exist yet at
+    authorization time); the EKS `access-entry` ARN needs 5 path segments,
+    not the 3 guessed; the CloudWatch `dashboard` ARN has no region segment
+    (`arn:aws:cloudwatch::account:dashboard/...`) while `alarm` does. (A
+    same-checker flag on 7 Logs actions was confirmed a false positive — the
+    checker's naive segment-splitting breaks on log group names that
+    contain `/` themselves, e.g. `/aws/lambda/cerberus-ingest-payments`;
+    already-passing simulation results confirmed those were never actually
+    broken.)
+  - **Hit a genuine, by-design self-lockout getting the fix live**:
+    `cerberus-admin` couldn't call `iam:CreatePolicyVersion` on its own
+    policies (self-policy-management was deliberately never granted, to
+    avoid exactly the self-escalation risk `iam:PassRole` warns about,
+    applied symmetrically) — and confirmed via the simulation battery that
+    it couldn't re-attach `AdministratorAccess` to itself either. Required
+    root-console intervention (MFA sign-in, CloudShell) to re-attach
+    `AdministratorAccess` temporarily; pushed the corrected policy versions
+    from there, then detached `AdministratorAccess` again. This is the
+    intended, permanent shape of the boundary, not a bug to fix later — see
+    `iam/cerberus-admin/README.md`'s "What's deliberately NOT granted".
+  - **Final verification, live, with `AdministratorAccess` fully
+    detached**: `terraform plan` across all three roots —
+    `terraform/bootstrap` ("No changes"), `terraform/envs/dev-standing`
+    (only the pre-existing cosmetic Faker-layer churn), and
+    `terraform/envs/dev-compute` (23 to add, matching its normal torn-down
+    state) — all clean, zero `AccessDenied`.
+  - **7.3 checked off** in `Phases.md`.
 
 ## Notes / blockers
 

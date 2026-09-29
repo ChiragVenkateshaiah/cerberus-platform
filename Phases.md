@@ -105,7 +105,7 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 
 - [x] 7.1 Scaled-up synthetic payments workload
 - [x] 7.2 Full orchestrated run exercising every layer
-- [ ] 7.3 Least-privilege IAM review (repay Phase 0's `AdministratorAccess`)
+- [x] 7.3 Least-privilege IAM review (repay Phase 0's `AdministratorAccess`)
 - [ ] 7.4 Self-run Well-Architected review across the whole platform
       (AWS Well-Architected Tool)
 - [ ] 7.5 Cost + security summary
