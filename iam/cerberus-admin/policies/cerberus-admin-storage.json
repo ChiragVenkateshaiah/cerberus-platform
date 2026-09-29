@@ -1,0 +1,95 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "S3BucketLevel",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetBucketVersioning",
+        "s3:GetLifecycleConfiguration",
+        "s3:GetEncryptionConfiguration",
+        "s3:GetBucketTagging",
+        "s3:GetBucketPublicAccessBlock",
+        "s3:GetBucketOwnershipControls",
+        "s3:GetBucketPolicy",
+        "s3:GetAccelerateConfiguration",
+        "s3:GetBucketAcl",
+        "s3:GetBucketCors",
+        "s3:GetBucketLogging",
+        "s3:GetBucketObjectLockConfiguration",
+        "s3:GetReplicationConfiguration",
+        "s3:GetBucketRequestPayment",
+        "s3:GetBucketWebsite",
+        "s3:GetBucketLocation",
+        "s3:PutEncryptionConfiguration",
+        "s3:PutBucketVersioning",
+        "s3:CreateBucket",
+        "s3:PutBucketPublicAccessBlock",
+        "s3:PutBucketTagging",
+        "s3:PutBucketOwnershipControls",
+        "s3:PutLifecycleConfiguration",
+        "s3:DeleteBucket",
+        "s3:ListBucket",
+        "s3:ListBucketVersions"
+      ],
+      "Resource": [
+        "arn:aws:s3:::cerberus-platform-bronze-131715059025",
+        "arn:aws:s3:::cerberus-platform-silver-131715059025",
+        "arn:aws:s3:::cerberus-platform-gold-131715059025",
+        "arn:aws:s3:::cerberus-platform-tfstate-131715059025",
+        "arn:aws:s3:::cerberus-platform-athena-results-131715059025",
+        "arn:aws:s3:::cerberus-platform-lineage-131715059025"
+      ]
+    },
+    {
+      "Sid": "S3ObjectLevel",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject",
+        "s3:DeleteObjectVersion"
+      ],
+      "Resource": [
+        "arn:aws:s3:::cerberus-platform-bronze-131715059025/*",
+        "arn:aws:s3:::cerberus-platform-silver-131715059025/*",
+        "arn:aws:s3:::cerberus-platform-gold-131715059025/*",
+        "arn:aws:s3:::cerberus-platform-tfstate-131715059025/*",
+        "arn:aws:s3:::cerberus-platform-athena-results-131715059025/*",
+        "arn:aws:s3:::cerberus-platform-lineage-131715059025/*"
+      ]
+    },
+    {
+      "Sid": "S3Account",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListAllMyBuckets"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DynamoDbLockTable",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:DescribeTable",
+        "dynamodb:DescribeContinuousBackups",
+        "dynamodb:ListTagsOfResource",
+        "dynamodb:DescribeTimeToLive",
+        "dynamodb:CreateTable",
+        "dynamodb:TagResource",
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:DeleteItem"
+      ],
+      "Resource": "arn:aws:dynamodb:us-east-1:131715059025:table/cerberus-platform-tfstate-lock"
+    },
+    {
+      "Sid": "DynamoDbAccount",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:ListTables"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

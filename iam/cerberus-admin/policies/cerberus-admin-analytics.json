@@ -1,0 +1,58 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "Glue",
+      "Effect": "Allow",
+      "Action": [
+        "glue:GetTable",
+        "glue:GetPartitionIndexes",
+        "glue:GetDatabase",
+        "glue:GetTags",
+        "glue:CreateTable",
+        "glue:CreateDatabase",
+        "glue:DeleteTable",
+        "glue:GetPartitions",
+        "glue:GetTables",
+        "glue:DeleteDatabase",
+        "glue:TagResource"
+      ],
+      "Resource": [
+        "arn:aws:glue:us-east-1:131715059025:catalog",
+        "arn:aws:glue:us-east-1:131715059025:database/cerberus_platform",
+        "arn:aws:glue:us-east-1:131715059025:table/cerberus_platform/*"
+      ]
+    },
+    {
+      "Sid": "GlueAccount",
+      "Effect": "Allow",
+      "Action": [
+        "glue:GetDatabases"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "Athena",
+      "Effect": "Allow",
+      "Action": [
+        "athena:GetWorkGroup",
+        "athena:ListTagsForResource",
+        "athena:DeleteWorkGroup",
+        "athena:CreateWorkGroup",
+        "athena:UpdateWorkGroup",
+        "athena:GetQueryExecution",
+        "athena:ListQueryExecutions",
+        "athena:TagResource"
+      ],
+      "Resource": "arn:aws:athena:us-east-1:131715059025:workgroup/cerberus_platform"
+    },
+    {
+      "Sid": "AthenaAccount",
+      "Effect": "Allow",
+      "Action": [
+        "athena:ListWorkGroups"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

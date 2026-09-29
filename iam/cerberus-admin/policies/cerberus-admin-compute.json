@@ -1,0 +1,115 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "Lambda",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:GetFunction",
+        "lambda:GetFunctionCodeSigningConfig",
+        "lambda:ListVersionsByFunction",
+        "lambda:GetLayerVersion",
+        "lambda:GetPolicy",
+        "lambda:PublishLayerVersion",
+        "lambda:DeleteLayerVersion",
+        "lambda:UpdateFunctionConfiguration",
+        "lambda:CreateFunction",
+        "lambda:AddPermission",
+        "lambda:GetFunctionConfiguration",
+        "lambda:UpdateFunctionCode",
+        "lambda:TagResource",
+        "lambda:DeleteFunction"
+      ],
+      "Resource": [
+        "arn:aws:lambda:us-east-1:131715059025:function:cerberus-*",
+        "arn:aws:lambda:us-east-1:131715059025:layer:cerberus-*",
+        "arn:aws:lambda:us-east-1:131715059025:layer:cerberus-*:*"
+      ]
+    },
+    {
+      "Sid": "KmsLambdaDefaultKey",
+      "Effect": "Allow",
+      "Action": [
+        "kms:Decrypt",
+        "kms:Encrypt",
+        "kms:CreateGrant",
+        "kms:DescribeKey"
+      ],
+      "Resource": "arn:aws:kms:us-east-1:131715059025:key/65a25851-d370-46b1-9f2c-157d94d5202c"
+    },
+    {
+      "Sid": "Ecr",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:CompleteLayerUpload",
+        "ecr:InitiateLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:DescribeRepositories",
+        "ecr:ListTagsForResource",
+        "ecr:BatchGetImage",
+        "ecr:PutImage",
+        "ecr:CreateRepository",
+        "ecr:DeleteRepository",
+        "ecr:DescribeImages",
+        "ecr:TagResource"
+      ],
+      "Resource": "arn:aws:ecr:us-east-1:131715059025:repository/cerberus-*"
+    },
+    {
+      "Sid": "EcrAccount",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:GetAuthorizationToken"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "Ecs",
+      "Effect": "Allow",
+      "Action": [
+        "ecs:DescribeTaskDefinition",
+        "ecs:DescribeClusters",
+        "ecs:DescribeTasks",
+        "ecs:RegisterTaskDefinition",
+        "ecs:CreateCluster",
+        "ecs:DeregisterTaskDefinition",
+        "ecs:ListTaskDefinitions",
+        "ecs:RunTask",
+        "ecs:DeleteCluster",
+        "ecs:TagResource"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "Eks",
+      "Effect": "Allow",
+      "Action": [
+        "eks:DescribeNodegroup",
+        "eks:DescribeCluster",
+        "eks:DescribeAccessEntry",
+        "eks:CreateAccessEntry",
+        "eks:CreateNodegroup",
+        "eks:DeleteNodegroup",
+        "eks:DeleteCluster",
+        "eks:ListNodegroups",
+        "eks:DeleteAccessEntry",
+        "eks:TagResource"
+      ],
+      "Resource": [
+        "arn:aws:eks:us-east-1:131715059025:cluster/cerberus-*",
+        "arn:aws:eks:us-east-1:131715059025:nodegroup/cerberus-*/*/*",
+        "arn:aws:eks:us-east-1:131715059025:access-entry/cerberus-*/*/*/*/*"
+      ]
+    },
+    {
+      "Sid": "EksAccount",
+      "Effect": "Allow",
+      "Action": [
+        "eks:ListClusters",
+        "eks:CreateCluster"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
