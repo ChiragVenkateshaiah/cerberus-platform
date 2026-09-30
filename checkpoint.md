@@ -92,24 +92,33 @@ see [Phases.md](Phases.md#phase-6--observability--data-quality-)):
   decision; the existing service/execution roles and ADR 0013's
   unauthenticated lineage endpoint were explicitly left out of scope (the
   lineage endpoint stays a real, open item — see Next up).
+- **7.4** — the full 57-question Well-Architected review across the whole
+  platform (not a per-phase diff pass). **No risk bucket moved** — 23
+  HIGH / 19 MEDIUM / 10 NONE / 5 N/A, identical to milestone 6
+  (`phase-7-end-to-end-validation-complete`, milestone 7). Two questions
+  gained new, notes-recorded evidence without crossing (security
+  `permissions`, reliability `testing-resiliency`). ADR 0015 accepted
+  after an independent Opus review caught and fixed four real issues in
+  the draft — see the full writeup below.
 
 ## Next up
 
-- **ADR 0013's unauthenticated lineage endpoint** — explicitly deferred
-  out of 7.3's scope (which was scoped to `cerberus-admin` only, not a
-  broader IAM/auth sweep). Still an open re-examination item; no phase
-  currently owns it besides the general "revisit before the project is
-  called done" framing in ADR 0013 itself. Worth deciding whether 7.4 or
-  7.5 picks it up, or whether it's accepted as a residual known gap in
-  7.5's cost + security summary.
-- **7.4 — self-run Well-Architected review across the whole platform** —
-  unlike the per-phase diff passes (ADR 0004/0006/0008/0010/0012/0014),
-  this is the full 57-question review. Milestone 6 is its baseline. The
-  three organisational OpsEx HIGHs (`priorities`, `ops-model`,
-  `org-culture`) and Security's `detect-investigate-events` are the
-  standing gaps most likely in scope.
+- **ADR 0013's unauthenticated lineage endpoint** — still explicitly
+  deferred, now flagged by both ADR 0013 and ADR 0015's Consequences.
+  No phase currently owns it; the natural place is 7.5's cost + security
+  summary, to either close it or explicitly accept it as a residual,
+  documented risk.
+- **This account has no CloudTrail trail** — confirmed directly during
+  both 7.3 and 7.4 (not assumed). Keeps `detect-investigate-events`
+  honestly at MEDIUM and forced 7.3 to build its IAM policies from the
+  default 90-day Event History instead of IAM Access Analyzer's
+  automatic CloudTrail-based generation. Worth a decision in 7.5: add a
+  trail (unlocks both), or accept both as documented, deliberate gaps.
 - **7.5 — cost + security summary** and **7.6 — end-to-end demo (GIF /
-  short video)** close the project.
+  short video)** close the project. 7.5 is the natural place to name the
+  three organisational OpsEx HIGHs (`priorities`, `ops-model`,
+  `org-culture`) honestly as a standing, expected gap rather than an
+  oversight — ADR 0014 and ADR 0015 both predicted they'd outlast Phase 7.
 
 **Carried-over, not blocking (see Notes / blockers):**
 
@@ -133,8 +142,8 @@ see [Phases.md](Phases.md#phase-6--observability--data-quality-)):
   Faker-layer churn. `dev-compute` is fully destroyed (verified: 0 EKS /
   0 NAT / 0 EIP).
 
-Everything from this session (PRs #37–#39) is merged to `main`; nothing
-mid-flight. 7.3 starts clean.
+Everything from this session (PRs #37–#41) is merged to `main`; nothing
+mid-flight. 7.5 starts clean.
 
 ## Session history
 
@@ -2186,6 +2195,61 @@ both built and verified live in one `dev-compute` window._
     `terraform/envs/dev-compute` (23 to add, matching its normal torn-down
     state) — all clean, zero `AccessDenied`.
   - **7.3 checked off** in `Phases.md`.
+- **Built 7.4, the full 57-question Well-Architected review across the
+  whole platform** (not a per-phase diff pass like 1.13/2.6/3.8/4.5/5.5/6.6)
+  — ADR 0015, milestone 7 (`phase-7-end-to-end-validation-complete`).
+  User explicitly chose full honest re-review of all 57 questions over a
+  faster "likely movers only" pass.
+  - **Delegated to a forked instance** (57 questions × real evidence
+    review × ADR drafting was too much mechanical back-and-forth to do
+    inline) — the fork read every question's current choices, weighed
+    7.1/7.2/7.3's real evidence against each honestly, called
+    `update-answer` where warranted, saved the milestone, and drafted the
+    ADR on its own branch without opening a PR, leaving that for review.
+  - **Result: no risk bucket moved** — 23 HIGH / 19 MEDIUM / 10 NONE / 5
+    N/A, identical to milestone 6. Two questions gained new,
+    notes-recorded evidence without crossing: security `permissions`
+    (added "Establish emergency access process" — 7.3's twice-exercised
+    root-console path) and reliability `testing-resiliency` (added "Test
+    scalability and performance requirements" — 7.1+7.2's verified 10x-
+    volume runs). Honest outcome for a phase whose completed work so far
+    is a config change, a verification exercise, and a permission-scope
+    change — not the kind of pillar-defining build Phase 6 was.
+  - **Independently verified the fork's work before trusting it**: milestone
+    7's risk counts and both changed answers' exact selected-choices
+    checked directly against live AWS state (`get-lens-review`,
+    `get-answer`) — matched the ADR exactly.
+  - **Sent the drafted ADR to an independent Opus review before merge**,
+    at user's request, mirroring this project's own established practice
+    (ADR 0005 was reviewed this way and real problems were found, not
+    style nits). This one held up well but the review caught four real
+    issues, all verified before fixing, not taken on trust:
+    1. A dangling forward reference — ADR 0014 had explicitly deferred
+       Performance Efficiency's `process-culture` "load test" choice to
+       "Phase 7's scaled synthetic workload," by name. 0015 credited that
+       same 7.1+7.2 evidence to `testing-resiliency` but never revisited
+       `process-culture` itself — confirmed live: its Tool note was still
+       Phase 6's, untouched. Fixed by adding an explicit decline (both in
+       the ADR and live in the Tool via `update-answer --notes`, no
+       choice change): the evidence answers a narrower question (meets a
+       defined requirement at higher volume) than what "load test" asks
+       (a repeatable capacity-limit-seeking practice), and 2000 rows/run
+       is still a modest absolute scale.
+    2. A self-contradictory sentence ("right in kind... but not in
+       degree") that fought the review's own null-result table — rewritten
+       plainly.
+    3. "All 57 questions were re-answered" corrected to "re-reviewed" —
+       only 2 of 57 actually changed.
+    4. The `permissions`/emergency-access credit and its matching
+       Consequences bullet were asserting a *mature* process as settled
+       fact; qualified in both places (no break-glass role beyond root
+       itself, no drill before this session, no audit trail given the
+       account's missing CloudTrail trail) — same discipline ADR 0014
+       used for `event-response`. Also strengthened `testing-resiliency`'s
+       reasoning to cite `docs/slo.md`'s Objective 3 directly instead of
+       arguing past its own concession.
+  - **ADR 0015 accepted** by user after the Opus-driven revision; Status
+    flipped to `Accepted`. 7.4 checked off in `Phases.md`.
 
 ## Notes / blockers
 
