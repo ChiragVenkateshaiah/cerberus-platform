@@ -67,8 +67,18 @@ ingestion Lambda's synthetic payments workload 10x (`TRANSACTION_COUNT`
 succeeded end to end (ingestion → Spark-on-EKS transform → dbt build →
 Athena serving query), verified at every layer including OpenLineage
 capture, with `dev-compute` torn down and `pipeline_active` returned to
-`false` afterward. 7.3–7.6 (IAM review, full Well-Architected review,
-cost/security summary, demo) are still open.
+`false` afterward. 7.3 replaced `cerberus-admin`'s `AdministratorAccess`
+with six least-privilege policies built from its real CloudTrail history
+([iam/cerberus-admin/](iam/cerberus-admin/)). 7.4 ran the full 57-question
+Well-Architected review (ADR 0015, milestone 7).
+7.5's [cost and security summary](docs/cost-security-summary.md) found the
+whole build cost $5.74 gross, all of it covered by credits, and narrowed
+the lineage collector to unauthenticated-only-during-exercises. Phase 7
+was then extended with Prometheus metrics for the EKS/Spark layer: 7.6's
+ADR 0016 chose an in-cluster agent writing to Amazon Managed Service for
+Prometheus, viewed through self-hosted Grafana. 7.7 (building it, verified
+live) and 7.8 (the end-to-end demo, including that observability view)
+are still open.
 
 See [docs/plan.md](docs/plan.md) for the full phased roadmap (Phases 0–7)
 and [Phases.md](Phases.md) for subtask-level progress.
@@ -150,7 +160,8 @@ constraints behind this diagram, see
 │                         #   lineage graph, deploys both to GitHub Pages on
 │                         #   merge or manual dispatch
 ├── docs/                 # plan, architecture notes, ADRs, learning notes,
-│                         #   lineage.md (6.4), slo.md (6.5); docs/pages/ =
+│                         #   lineage.md (6.4), slo.md (6.5),
+│                         #   cost-security-summary.md (7.5); docs/pages/ =
 │                         #   the Pages landing page
 ├── articles/             # weekly engineering articles (see article.md)
 ├── terraform/
@@ -201,6 +212,10 @@ constraints behind this diagram, see
 │                         #   API, writing events to S3 (6.4b, ADR 0013);
 │                         #   render/render_graph.py -- renders the captured
 │                         #   events into the Pages site (6.4d)
+├── iam/cerberus-admin/   # cerberus-admin's 6 least-privilege policies (7.3)
+│                         #   as JSON -- the audit trail for policies
+│                         #   applied via CLI/root console, deliberately
+│                         #   not Terraform-managed (see its README)
 ├── serving/queries/      # demo Athena SQL against gold (1.10)
 ├── serving/scripts/      # runs the demo query as cerberus-serving
 └── data/samples/         # small sample datasets for local testing

@@ -100,50 +100,105 @@ see [Phases.md](Phases.md#phase-6--observability--data-quality-)):
   `permissions`, reliability `testing-resiliency`). ADR 0015 accepted
   after an independent Opus review caught and fixed four real issues in
   the draft — see the full writeup below.
+- **Scope addition (2026-10-02):** Phase 7 grew from 6 to 8 subtasks.
+  Prometheus for the EKS/Spark layer was inserted ahead of the demo, as
+  7.6 ADR → 7.7 build → 7.8 demo (the demo was 7.6), so the closing demo
+  can show it. `docs/plan.md`'s Phase 7 section records why: CloudWatch
+  sees everything except the ephemeral EKS/Spark layer (PR #43).
+- **7.5** — `docs/cost-security-summary.md`, built from live Cost
+  Explorer, Tagging API, and CloudTrail data. The platform cost **$5.74
+  gross over the whole build, $0 out of pocket** (credits absorbed every
+  month). 39% of it was one orphaned Elastic IP from the 2026-08-19 crash.
+  It also covers the identity/data-protection posture and five residual
+  risks accepted on purpose. The lineage collector route is now
+  unauthenticated only while `pipeline_active = true` (ADR 0013 amended).
+  See the full writeup below (PR #42).
+- **7.6** — ADR 0016 (Prometheus for the EKS/Spark layer) **Accepted**
+  after an independent Opus review. Option B: an in-cluster Prometheus
+  agent remote-writing to an AMP workspace in `dev-standing`, plus
+  self-hosted Grafana via `kubectl port-forward` (PR #44).
 
 ## Next up
 
-- **ADR 0013's unauthenticated lineage endpoint** — still explicitly
-  deferred, now flagged by both ADR 0013 and ADR 0015's Consequences.
-  No phase currently owns it; the natural place is 7.5's cost + security
-  summary, to either close it or explicitly accept it as a residual,
-  documented risk.
-- **This account has no CloudTrail trail** — confirmed directly during
-  both 7.3 and 7.4 (not assumed). Keeps `detect-investigate-events`
-  honestly at MEDIUM and forced 7.3 to build its IAM policies from the
-  default 90-day Event History instead of IAM Access Analyzer's
-  automatic CloudTrail-based generation. Worth a decision in 7.5: add a
-  trail (unlocks both), or accept both as documented, deliberate gaps.
-- **7.5 — cost + security summary** and **7.6 — end-to-end demo (GIF /
-  short video)** close the project. 7.5 is the natural place to name the
-  three organisational OpsEx HIGHs (`priorities`, `ops-model`,
-  `org-culture`) honestly as a standing, expected gap rather than an
-  oversight — ADR 0014 and ADR 0015 both predicted they'd outlast Phase 7.
+**7.7 — Prometheus metrics + Grafana dashboard for Spark-on-EKS**, built to
+ADR 0016's Decision and verified live in a `dev-compute` exercise. Do it in
+this order (ADR 0016's Consequences explain why):
+
+1. **Branch for 7.7** from `main` (ADR 0016 merged via PR #44, together with this checkpoint).
+2. **Root paste first.** Add AMP permissions to
+   `iam/cerberus-admin/policies/cerberus-admin-iam-and-governance.json`:
+   workspace management (`aps:CreateWorkspace`, `DescribeWorkspace`,
+   `DeleteWorkspace`, `TagResource`/`ListTagsForResource`, workspace-
+   configuration actions for retention) plus query
+   (`aps:QueryMetrics`, `GetSeries`, `GetLabels`, `GetMetricMetadata`) for
+   the local Grafana. Also add whatever IAM the two new IRSA roles need
+   (they must be named `cerberus-*`). Verify every action name against the
+   Service Authorization Reference and `iam:simulate-custom-policy` it, as
+   7.3/7.5 did. The user pushes it from the root console (they chose the
+   paste over a policy-edit identity on 2026-10-02).
+3. **`dev-standing`:** a new module with the AMP workspace and
+   `aws_prometheus_workspace_configuration` (explicit
+   `retention_period_in_days`), outputs for the remote-write and query
+   endpoints, and AMP grants on `cerberus-ci-apply` in
+   `terraform/modules/github_oidc`. **The first apply runs locally as
+   `cerberus-admin`**, because the CI apply role can't grant itself AMP.
+   After that, CI applies as normal.
+4. **`dev-compute`:** Helm releases for Prometheus (agent mode, 15s
+   scrape, scope bounded to the Spark driver, Spark Operator `/metrics`,
+   `kube-state-metrics` and node exporter; apiserver and raw cAdvisor
+   dropped) and Grafana (AMP data source via SigV4/IRSA plus read-only
+   CloudWatch, dashboards provisioned from committed JSON), both with IRSA
+   roles. Read the AMP endpoints through the existing
+   `terraform_remote_state.standing`.
+5. **Spark:** add the `PrometheusServlet` sink and
+   `spark.ui.prometheus.enabled` to `spark-application.yaml`'s `sparkConf`,
+   and annotate the driver for discovery. Verify both keys live on 3.5.9;
+   the fallback is the JMX exporter. `transform/spark/*` is a
+   `null_resource.build_and_push` trigger, so this edit needs the
+   documented local-apply-first rebuild before CI can apply (see Notes).
+6. **Live exercise**, bracketed by `pipeline_active` as 7.2 was. Verify
+   metrics land in AMP, measure the real series count
+   (`count({__name__=~".+"})`) against ADR 0016's ~10k estimate, confirm
+   Grafana's AMP plugin works with the chart version, and confirm AMP
+   free-tier eligibility. **Teardown:** let the agent flush its WAL before
+   the NAT Gateway goes, then run the account-wide 0-EIP check
+   (`aws ec2 describe-addresses`, empty), per 7.5's lesson.
+
+**7.8 — end-to-end demo**, ideally **recorded in the same exercise as
+7.7**. It should follow one orchestrated run: Step Functions graph → S3
+partitions → Athena result → CloudWatch dashboard → Grafana Spark panels
+→ lineage graph on Pages. Claude can't capture screen video, so the user
+screen-records while Claude drives the run from the CLI. Asciinema → GIF
+for the terminal, or Claude in Chrome GIF recording, are the
+alternatives.
+
+**Deadline: the ingestion Lambda's `RETIRE_ON_OR_AFTER` is 2026-10-15**
+(`terraform/modules/lambda_ingestion/variables.tf`). After that date the
+Lambda is a no-op. Either run the 7.7/7.8 exercise before then, or push the
+date forward in a one-line PR first (as 7.1 did).
+
+**Terraform isn't installed on this session's machine** (the
+`/home/chirag` workstation). This session put Terraform 1.16.5 in a
+scratchpad for `fmt`/`validate` only. The local `cerberus-admin` applies 7.7
+needs (step 3, the runner-image rebuild, and all of `dev-compute`) must run
+on a machine with Terraform, Docker, `kubectl` and `helm`. Either install
+them here or do those steps from the other machine.
 
 **Carried-over, not blocking (see Notes / blockers):**
 
-- **`build_and_push` CI landmine** — not touched this session (7.1/7.2
-  didn't rebuild the transform/dbt task images). Proper fix (a CI
-  build/push job, deleting the `null_resource`) still a deferred
-  decision.
-- **Faker Lambda-layer hash churn** — still a 1-add/1-change/1-destroy on
-  every `dev-standing` apply, still cosmetic. Hit twice more this session
-  (PR #37, PR #38/#39), as expected.
-- **The NAT-before-node-group destroy-order gotcha (documented
-  2026-08-18/2026-08-20) recurred exactly as predicted** during 7.2's
-  `dev-compute` teardown — see 2026-09-29's session entry. The existing
-  fix (`kubectl delete pod --grace-period=0 --force`, then re-run
-  `terraform destroy`) worked cleanly again. Still not worth automating
-  away (ADR 0007's public-endpoint design accepts this as a known
-  consequence) unless it starts costing real time on every single
-  exercise rather than one extra `kubectl`/`terraform` round-trip.
-- **`dev-standing` is reconciled and clean** as of end of session —
-  post-apply `terraform plan` shows only the pre-existing cosmetic
-  Faker-layer churn. `dev-compute` is fully destroyed (verified: 0 EKS /
-  0 NAT / 0 EIP).
-
-Everything from this session (PRs #37–#41) is merged to `main`; nothing
-mid-flight. 7.5 starts clean.
+- **Orchestration**: the user mentioned on 2026-10-02 wanting to discuss
+  orchestration, but didn't say what. Ask at the start of next session
+  whether it's a design question (ADR 0009, Step Functions vs Airflow) or
+  how orchestration shows up in the 7.8 demo.
+- **`build_and_push` CI landmine**: still deferred. 7.7 will hit it (step 5).
+- **Faker Lambda-layer hash churn**: still cosmetic, still present (seen
+  again in PR #42's plan).
+- **Follow-ups recorded in ADR 0016, not adopted:** private EKS endpoint
+  access (would enable the AMP managed collector, and would probably fix
+  the NAT-before-node-group destroy gotcha), and a Pushgateway.
+- **Well-Architected milestone after 7.7:** milestone 7 predates
+  Prometheus. Decide after 7.7 is live whether `workload-observability` /
+  `monitor-aws-resources` merit re-answering and a further milestone.
 
 ## Session history
 
@@ -2251,6 +2306,143 @@ both built and verified live in one `dev-compute` window._
   - **ADR 0015 accepted** by user after the Opus-driven revision; Status
     flipped to `Accepted`. 7.4 checked off in `Phases.md`.
 
+### 2026-10-02
+
+_7.5 (cost + security summary) completed, Phase 7 re-scoped to add
+Prometheus (7.6–7.8), and 7.6 (ADR 0016) accepted. Run on the
+`/home/chirag` workstation, the second machine, which has no Terraform
+install._
+
+- **7.5 scoping decisions** (via `AskUserQuestion`):
+  1. **Cost data:** push a widened `ce:`/`tag:` read grant from root.
+  2. **ADR 0013's lineage endpoint:** gate it on `pipeline_active`,
+     rather than accept it as-is or add real auth.
+  3. **No CloudTrail trail:** accept it as a documented gap.
+- **Found and fixed an unapplied repo change.** Commit `2db7945` (made
+  outside a session, 2026-09-30) added `ce:GetCostAndUsage`/
+  `GetCostForecast` to the governance policy JSON, but it had never been
+  pushed live (`AccessDenied` confirmed). Widened it with
+  `ce:ListCostAllocationTags` and a new `TagCoverageRead` Sid
+  (`tag:GetResources`). Action names were verified against the Service
+  Authorization Reference, and `simulate-custom-policy` showed the four
+  reads allowed and the write-side neighbours still denied.
+  `simulate-custom-policy` rejects inputs over 2,000 chars, so the changed
+  Sids were simulated in isolation. The user pushed the new version from
+  the root console, and `ce:GetCostAndUsage` succeeding verified it live.
+- **The user asked whether Claude could have its own policy-edit IAM
+  user instead.** Recommended against it: any identity with
+  `iam:CreatePolicyVersion` on `cerberus-admin`'s policies is
+  `AdministratorAccess` one call away, which undoes 7.3. Offered an
+  MFA-gated, policy-edit-only role as the middle ground if changes become
+  frequent. **The user chose the root paste.** Recorded as residual risk 3
+  in the summary.
+- **Lineage collector narrowed (ADR 0013 amended).** The route's
+  `authorization_type` now follows `pipeline_active`: `NONE` during an
+  exercise, `AWS_IAM` otherwise, with no `execute-api:Invoke` grantee.
+  Gating the route's auth rather than the API/stage was deliberate:
+  `collector_url` is baked into the ECS task definitions (recreating the
+  API would change the URL), and removing the only route from an
+  auto-deploy stage risks a failed redeploy leaving the old route live.
+  The first CI run failed `terraform fmt`: `type`/`default` weren't
+  aligned with a heredoc `description` above them. Fixed after putting
+  Terraform 1.16.5 in the scratchpad and running `fmt -check` + `validate`
+  (with `TF_DATA_DIR` in scratchpad and `-lockfile=readonly`, so the repo
+  wasn't modified). The CI plan was exactly as expected: 1 in-place route
+  change plus the Faker churn. After merge and apply, an unsigned
+  `POST /api/v1/lineage` → **403**, verified live.
+- **Cost findings (Cost Explorer, unblended):**
+  - **Every month's usage is exactly offset by credits**, so the real
+    out-of-pocket cost is $0.00. Budgets' "actual" $9.39 is gross usage.
+  - **About $6.59 of account spend was never the platform:** a stopped
+    `t3.micro` `sre-lab` (`i-0b65d9fb63ede2e26`, ap-south-2, launched
+    2026-06-29). Its EBS volume billed ~$0.73/month while stopped.
+  - **The platform (us-east-1) cost $5.74 gross:**
+    - $2.26 (39%) was an orphaned EIP, idle 2026-08-19 → 2026-09-07.
+      CloudTrail showed two `AllocateAddress` calls 13 minutes apart
+      during the 08-19 partial-apply crash, and state kept only the second.
+      This is the same orphan released by hand on 09-07; now it has a
+      price.
+    - $3.20 (56%) was `dev-compute` exercises.
+    - $0.28 was everything standing over three months.
+  - **Lesson recorded:** teardown "0 EIP" checks must be account-wide
+    (`describe-addresses`), not relative to state.
+- **Tagging:** 41 of the 43 resources the Tagging API sees carry
+  `Project=cerberus-platform`. The two exceptions are the Phase 0
+  hand-built billing alarm and a billing payment instrument. Every
+  user-defined tag was `Inactive` as a cost-allocation tag.
+- **Account-owner actions from root, at the user's request:**
+  - **Terminated `sre-lab`.** `cerberus-admin` correctly lacks
+    `ec2:TerminateInstances`. The console greyed out Hyderabad even though
+    `get-region-opt-status` returned `ENABLED`, so the user ran
+    `terminate-instances` from root CloudShell instead. Its root volume
+    had `DeleteOnTermination = true`. Verified `terminated`.
+  - **Activated `Project`** as a cost-allocation tag. Verified `Active`
+    2026-10-02 15:30 UTC.
+- **`docs/cost-security-summary.md`** covers cost by month and bucket,
+  why the platform is cheap, tagging, the identity table, data
+  protection, 7.5's changes, and five accepted residual risks:
+  1. Lineage open during exercise windows.
+  2. No CloudTrail trail.
+  3. Root-only `cerberus-admin` policy changes.
+  4. The three organisational OpsEx HIGHs.
+  5. Carried operational debt.
+
+  Two drafting claims were caught and corrected against the repo before
+  merge: there are no customer-managed KMS keys anywhere (the draft said
+  EKS secrets used one), and the 09-07 EIP release came from PR #34's
+  exercise session, not 6.6. Linked from README; `iam/cerberus-admin/README.md`
+  gained a "Changes since 7.3" log. **PR #42**, merged.
+- **Scope addition.** The user wanted orchestration and Prometheus
+  discussed. View given: CloudWatch already covers all the serverless and
+  managed layers natively, so Prometheus's real value is the EKS/Spark
+  layer, which has no metrics collection at all. **The user chose to add
+  it inside Phase 7, before the demo**, rather than as a new Phase 8.
+  `Phases.md` now has 7.6 ADR, 7.7 build + live verification, and 7.8
+  demo (renumbered from 7.6). `docs/plan.md` gained a *Scope addition*
+  bullet, the roadmap row, and the demo artifact now includes
+  observability. **PR #43**, merged. The orchestration topic itself was
+  raised but not specified; carried to Next up.
+- **7.6 — ADR 0016, Prometheus for the EKS/Spark layer.** The
+  Well-Architected method reference was rendered verbatim first.
+  - Facts verified before drafting: no add-ons, Container Insights or
+    Prometheus in code; the cluster is public-only with
+    `authentication_mode = "API"`; nodes are 2× `m7i-flex.large`; Spark is
+    1 driver + 1 executor at 1g. Current AMP, Managed Grafana and
+    CloudWatch pricing came from the AWS pricing pages; the managed
+    collector's requirements from its user guide; AMP retention (150-day
+    default, 1,095 max, Terraform-settable) was confirmed.
+  - **Key finding:** the AMP managed collector needs *private* endpoint
+    access, which ADR 0007 rules out, so it's recorded as a follow-up.
+  - **Decision (option B):**
+    - Storage: an AMP workspace in `dev-standing`.
+    - Collection: an in-cluster Prometheus agent in `dev-compute` with a
+      bounded scrape scope.
+    - Spark: the native `PrometheusServlet`.
+    - Viewing: in-cluster Grafana via port-forward only, with AMP plus
+      read-only CloudWatch data sources and JSON-provisioned dashboards.
+    - Rejected: Managed Grafana (fixed $9/month minimum) and Container
+      Insights, both enhanced and OTel (it covers infra, but Spark would
+      be the bolted-on part).
+  - **Independent Opus review** (user-requested, as for ADR 0015), with
+    findings verified before applying. It caught two real must-fixes:
+    1. **Two manual steps, not one.** `cerberus-ci-apply` can't modify
+       its own policy (`github_oidc/main.tf` comment), so the first
+       `dev-standing` apply is local, after a root paste.
+    2. **The Container Insights argument was wrong.** Custom metrics are
+       prorated hourly, and the OTel variant was missing.
+
+    Should-fixes applied: the managed collector costs ~$29/month if left
+    standing; the Pushgateway would not be standing; 7.2 had no metrics to
+    compare; Thanos/S3 and ADOT alternatives added; Spark Operator scope;
+    free-tier hedge. Nits applied: bounded scrape scope behind the ~10k
+    estimate; "56%" means all `dev-compute`; IRSA `cerberus-*` naming;
+    remote_state wiring (confirmed present); WAL flush before NAT
+    teardown; `spark.ui.prometheus.enabled`; Grafana's AMP plugin. One
+    reviewer citation was wrong (it pointed at ADR 0013's new amendment),
+    but the finding stood on the code comment. Declined: dropping the
+    "Sustainability: Follows Cost" row.
+  - **Accepted** by the user; **PR #44**.
+
 ## Notes / blockers
 
 - **Open, deferred, not blocking (noted 2026-08-27):**
@@ -2313,11 +2505,15 @@ both built and verified live in one `dev-compute` window._
   `phase-3-scalable-compute-complete` (2026-08-18, ADR 0008), **4**
   `phase-4-orchestration-complete` (2026-08-20, ADR 0010), **5**
   `phase-5-cicd-complete` (2026-08-24, ADR 0012), **6**
-  `phase-6-observability-and-data-quality-complete` (2026-09-07, ADR 0014).
-  Current risk counts (get-lens-review): **23 HIGH / 19 MEDIUM / 10 NONE /
-  5 N/A** (was 25/18/9/5 through milestones 2–5). Next milestone is due at
-  **7.4 — the full 57-question platform-wide review**, milestone 6 as its
-  baseline.
+  `phase-6-observability-and-data-quality-complete` (2026-09-07, ADR 0014),
+  **7** `phase-7-end-to-end-validation-complete` (2026-09-29, ADR 0015 —
+  the full 57-question review; no bucket moved). Current risk counts
+  (get-lens-review): **23 HIGH / 19 MEDIUM / 10 NONE / 5 N/A**, unchanged
+  since milestone 6 (was 25/18/9/5 through milestones 2–5). **No further
+  milestone is scheduled:** Phase 7's review subtask (7.4) is closed. ADR
+  0016 leaves it open whether 7.7's Prometheus work merits re-answering
+  `workload-observability` / `monitor-aws-resources` and saving a milestone
+  8. Decide after 7.7 is live.
 - **AWS Agent Toolkit (`aws-core@claude-plugins-official`, installed
   2026-08-11) is in scope for the rest of the build — see `docs/plan.md`'s
   cross-cutting tracks.** Mapped to remaining phases: `aws-compute` (4.1,
