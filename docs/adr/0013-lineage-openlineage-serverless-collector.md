@@ -164,3 +164,29 @@ rendered somewhere free.
   requests against a few requests a day, Lambda in the free tier, S3
   storage negligible under the 90-day expiry. Well inside the \$10/month
   billing alarm.
+
+## Amendment (2026-10-02): unauthenticated only during exercises
+
+7.5's cost + security summary picked up this ADR's open Consequence (the
+first unauthenticated ingress, flagged again by ADR 0015). The trade's
+three grounds still hold, but one fact had drifted: the producers only
+ever POST during a `dev-compute` exercise, yet the route accepted
+anonymous requests 24/7, so the exposure was all idle time.
+
+**Decision:** the route's `authorization_type` follows the same
+`pipeline_active` switch as the daily schedule and the 6.2 alarms (ADR
+0011's amendment): `NONE` while an exercise is active, `AWS_IAM` otherwise.
+No identity in the account holds `execute-api:Invoke` on the API, so
+outside an exercise every request is rejected `403` at API Gateway and
+never reaches the Lambda. The gate is on the route's auth rather than the
+API or stage, so `collector_url`, which is baked into the ECS task
+definitions, stays stable across flips.
+
+**Consequences:** the unauthenticated window shrinks from always to the
+few hours per month an exercise runs. A Spark job submitted by hand
+outside an exercise (`submit_job.sh` without flipping `pipeline_active`)
+gets 403s from the collector. That's harmless, because lineage transport
+is best-effort by this ADR's own design, but the run captures no lineage.
+The remaining risk, anonymous writes during exercise windows, is accepted
+in [cost-security-summary.md](../cost-security-summary.md) (residual
+risk 1).

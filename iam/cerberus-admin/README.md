@@ -73,4 +73,18 @@ across all three roots (`bootstrap`, `dev-standing`, `dev-compute`) with
 | `cerberus-admin-compute.json` | Lambda, ECR, ECS, EKS, one scoped KMS key |
 | `cerberus-admin-orchestration.json` | Step Functions, EventBridge Scheduler, SNS, CloudWatch, Logs |
 | `cerberus-admin-network.json` | EC2/VPC (`Resource: "*"` — most EC2 actions have no resource-level permission support) |
-| `cerberus-admin-iam-and-governance.json` | IAM role management (`role/cerberus-*` only), `PassRole`, Well-Architected Tool, budgets/cost anomaly detection, CloudTrail self-audit, API Gateway |
+| `cerberus-admin-iam-and-governance.json` | IAM role management (`role/cerberus-*` only), `PassRole`, Well-Architected Tool, budgets/cost anomaly detection, read-only Cost Explorer + tag inventory (added 7.5), CloudTrail self-audit, API Gateway |
+
+## Changes since 7.3
+
+- **2026-10-02 (7.5):** `cerberus-admin-iam-and-governance` gained
+  `ce:GetCostAndUsage`, `ce:GetCostForecast`, `ce:ListCostAllocationTags`
+  (in `CostExplorer`) and `tag:GetResources` (new `TagCoverageRead` Sid),
+  all read-only, for [docs/cost-security-summary.md](../../docs/cost-security-summary.md).
+  The write-side neighbours (`ce:UpdateCostAllocationTagsStatus`,
+  `tag:TagResources`) stay denied, confirmed via `iam:simulate-custom-policy`.
+  Pushed as a new default policy version from the root console, the
+  path described above. Verified live afterwards, when
+  `ce:GetCostAndUsage` succeeded where it had returned AccessDenied. A
+  standing policy-edit IAM user was considered and rejected (see the
+  summary's residual risk 3).

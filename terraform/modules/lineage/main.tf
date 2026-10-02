@@ -164,9 +164,10 @@ resource "aws_cloudwatch_log_group" "collector" {
 
 # --- 3. HTTP API --------------------------------------------------------
 # HTTP API (v2), not REST: cheaper ($1.00 vs $3.50 per million), and all
-# this needs is one unauthenticated POST route with a Lambda proxy
-# integration and a stage-level rate cap. No API keys, no usage plans, no
-# request validation -- ADR 0013's "unauthenticated + throttled" decision.
+# this needs is one POST route with a Lambda proxy integration and a
+# stage-level rate cap. No API keys, no usage plans, no request validation
+# -- ADR 0013's "unauthenticated + throttled" decision, narrowed by 7.5 to
+# compute-exercise windows only (the route below).
 
 resource "aws_apigatewayv2_api" "collector" {
   name          = local.name
@@ -181,10 +182,14 @@ resource "aws_apigatewayv2_integration" "collector" {
   payload_format_version = "2.0"
 }
 
+# 7.5: unauthenticated only while a compute exercise is active -- see
+# var.pipeline_active. Outside one, AWS_IAM with no grantee is a closed
+# door: unsigned requests 403 at the gateway and never invoke the Lambda.
 resource "aws_apigatewayv2_route" "collector" {
-  api_id    = aws_apigatewayv2_api.collector.id
-  route_key = "POST /api/v1/lineage"
-  target    = "integrations/${aws_apigatewayv2_integration.collector.id}"
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "POST /api/v1/lineage"
+  target             = "integrations/${aws_apigatewayv2_integration.collector.id}"
+  authorization_type = var.pipeline_active ? "NONE" : "AWS_IAM"
 }
 
 resource "aws_cloudwatch_log_group" "api_access" {

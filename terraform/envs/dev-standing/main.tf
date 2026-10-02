@@ -136,6 +136,10 @@ module "lineage" {
   source = "../../modules/lineage"
 
   account_id = data.aws_caller_identity.current.account_id
+
+  # 7.5: the collector route is unauthenticated only while an exercise is
+  # active (ADR 0013's ingress, narrowed) -- the same switch again.
+  pipeline_active = var.pipeline_active
 }
 
 module "github_oidc" {

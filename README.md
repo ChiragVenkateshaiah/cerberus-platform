@@ -248,6 +248,9 @@ git config pull.rebase true
 - [docs/slo.md](docs/slo.md) — service level objectives (6.5): the platform's
   reliability targets, the CloudWatch SLIs behind them, and the
   error-budget policy — all backed by the 6.1/6.2 metrics and alarms
+- [docs/cost-security-summary.md](docs/cost-security-summary.md) — cost and
+  security summary (7.5): what the build actually cost and where it went,
+  how every caller authenticates, and the residual risks accepted on purpose
 - [docs/adr/](docs/adr/) — architecture decision records
 - [docs/courses-map-to-phases.md](docs/courses-map-to-phases.md) — which
   courses (if any) map to each phase, and where no course exists

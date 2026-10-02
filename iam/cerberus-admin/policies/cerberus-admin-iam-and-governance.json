@@ -125,7 +125,16 @@
         "ce:ListTagsForResource",
         "ce:DeleteAnomalySubscription",
         "ce:GetCostAndUsage",
-        "ce:GetCostForecast"
+        "ce:GetCostForecast",
+        "ce:ListCostAllocationTags"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "TagCoverageRead",
+      "Effect": "Allow",
+      "Action": [
+        "tag:GetResources"
       ],
       "Resource": "*"
     },
