@@ -52,6 +52,6 @@ variable "pipeline_active" {
     auth rather than the API or stage keeps collector_url stable, since
     it is baked into the ECS task definitions.
   EOT
-  type    = bool
-  default = false
+  type        = bool
+  default     = false
 }
