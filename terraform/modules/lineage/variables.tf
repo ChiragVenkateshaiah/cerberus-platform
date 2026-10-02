@@ -38,3 +38,20 @@ variable "log_retention_days" {
   type        = number
   default     = 14
 }
+
+variable "pipeline_active" {
+  description = <<-EOT
+    Threaded from envs/dev-standing -- the same switch that ENABLEs the
+    daily schedule (ADR 0011, amended 2026-09-01) and creates 6.2's
+    pipeline alarms. true: the collector route is unauthenticated, per ADR
+    0013, so the producers can POST to it during a compute exercise.
+    false (default): the route requires AWS_IAM auth, and no identity in
+    this account is granted execute-api:Invoke on it -- every request is
+    rejected 403 at API Gateway, before the Lambda. 7.5 narrows ADR 0013's
+    unauthenticated ingress to exercise windows only. Gating the route's
+    auth rather than the API or stage keeps collector_url stable, since
+    it is baked into the ECS task definitions.
+  EOT
+  type    = bool
+  default = false
+}
