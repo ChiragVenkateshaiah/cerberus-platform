@@ -144,7 +144,7 @@ layered on top of a platform that already works.
 | 4 | Orchestration | AWS Step Functions | _(course gap — AWS workshop)_ | ✅ Complete |
 | 5 | CI/CD | AWS CodePipeline | AWS CodePipeline | ✅ Complete |
 | 6 | Observability & data quality | CloudWatch, dbt tests | AWS CloudWatch | ✅ Complete |
-| 7 | End-to-end platform validation | synthetic payments at scale, Well-Architected review | AWS SAA _(parallel track)_ | 🔨 In progress |
+| 7 | End-to-end platform validation | synthetic payments at scale, Well-Architected review, Prometheus metrics for EKS/Spark | AWS SAA _(parallel track)_ | 🔨 In progress |
 
 🎯 **MVP is complete at the end of Phase 1.**
 
@@ -227,11 +227,25 @@ layered on top of a platform that already works.
 - **Security debt:** this is where Phase 0's deliberate shortcut is repaid —
   `cerberus-admin` still holds `AdministratorAccess`, and the least-privilege
   review scopes it (and every per-phase role) down to what is actually used.
+- **Scope addition (2026-10-02): Prometheus for the EKS/Spark layer.**
+  Phase 6's CloudWatch observability covers everything serverless/managed
+  (Lambda, Step Functions, Fargate, Athena), because those publish to
+  CloudWatch natively. The ephemeral EKS cluster and the Spark jobs on it
+  (driver/executor, Spark Operator, pod/node metrics) are the one layer it
+  doesn't see. Prometheus is the native tool there. The central tension is
+  that Prometheus expects a standing server while `dev-compute` is torn down
+  after every exercise (ADR 0007), so where metrics live and how they are
+  viewed is an ADR decision (ADR 0016), not settled here. The candidates are
+  in-cluster only, an in-cluster agent writing to Amazon Managed Service for
+  Prometheus, and CloudWatch Container Insights. The constraint is the one
+  every ADR since 0005 has held: no new idle cost. Added inside Phase 7
+  rather than as a new phase so the closing demo can show it.
 - **Done when:** a full run from generated payments through bronze/silver/gold
   to an Athena result completes orchestrated, monitored, and tested — and the
   platform survives a self-run Well-Architected review.
-- **Artifact:** an end-to-end demo (GIF or short video), a Well-Architected
-  review write-up, and a cost/security summary.
+- **Artifact:** an end-to-end demo (GIF or short video) that includes the
+  Prometheus/Grafana view of the run, a Well-Architected review write-up, and
+  a cost/security summary.
 
 ## Existing infrastructure
 

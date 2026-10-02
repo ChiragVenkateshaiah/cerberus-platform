@@ -109,7 +109,12 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 - [x] 7.4 Self-run Well-Architected review across the whole platform
       (AWS Well-Architected Tool)
 - [ ] 7.5 Cost + security summary
-- [ ] 7.6 End-to-end demo (GIF or short video)
+- [ ] 7.6 ADR: Prometheus for the EKS/Spark layer (where metrics live, how
+      they're viewed, no new idle cost)
+- [ ] 7.7 Prometheus metrics + Grafana dashboard for Spark-on-EKS, verified
+      live during a `dev-compute` exercise
+- [ ] 7.8 End-to-end demo (GIF or short video), including the observability
+      view
 
 ---
 
