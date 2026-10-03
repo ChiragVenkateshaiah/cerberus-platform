@@ -67,6 +67,24 @@ spec:
     spark.openlineage.transport.url: "__OPENLINEAGE_URL__"
     spark.openlineage.transport.timeout: "10"
     spark.openlineage.namespace: "cerberus-platform"
+    # 7.7 (ADR 0016): metrics for the in-cluster Prometheus agent
+    # (terraform/modules/eks_observability), which scrapes the driver pod's
+    # UI port 4040 -- no new dependency, both endpoints are built into Spark.
+    #   /metrics/prometheus/            the PrometheusServlet sink (driver
+    #                                   metrics system: DAGScheduler, JVM...)
+    #   /metrics/executors/prometheus/  per-executor summary, behind
+    #                                   spark.ui.prometheus.enabled
+    # Both are marked experimental in Spark's docs.
+    spark.ui.prometheus.enabled: "true"
+    spark.metrics.conf.*.sink.prometheusServlet.class: "org.apache.spark.metrics.sink.PrometheusServlet"
+    spark.metrics.conf.*.sink.prometheusServlet.path: "/metrics/prometheus"
+    # The JVM source isn't registered by default -- without it there is no
+    # driver heap/GC data at all.
+    spark.metrics.conf.driver.source.jvm.class: "org.apache.spark.metrics.source.JvmSource"
+    # Metric names otherwise embed spark.app.id, minting a new set of series
+    # names every run. A fixed namespace keeps them stable across runs (the
+    # dashboard queries metrics_cerberus_driver_*).
+    spark.metrics.namespace: "cerberus"
   driver:
     cores: 1
     memory: "1g"

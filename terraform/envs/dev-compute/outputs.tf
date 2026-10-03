@@ -27,3 +27,18 @@ output "nat_gateway_id" {
   description = "NAT Gateway ID, for reference/verification."
   value       = module.vpc_nat.nat_gateway_id
 }
+
+output "grafana_port_forward" {
+  description = "7.7: how to reach Grafana (port-forward only, ADR 0016). Admin password: kubectl get secret -n monitoring grafana -o jsonpath='{.data.admin-password}' | base64 -d"
+  value       = module.eks_observability.grafana_port_forward
+}
+
+output "prometheus_role_arn" {
+  description = "7.7: cerberus-prometheus IRSA role ARN, for reference/verification."
+  value       = module.eks_observability.prometheus_role_arn
+}
+
+output "grafana_role_arn" {
+  description = "7.7: cerberus-grafana IRSA role ARN, for reference/verification."
+  value       = module.eks_observability.grafana_role_arn
+}
