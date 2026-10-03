@@ -9,9 +9,9 @@ variable "execution_role_arn" {
 }
 
 variable "retire_on_or_after" {
-  description = "Date (YYYY-MM-DD, UTC) on/after which the Lambda no-ops instead of generating. Originally 2026-08-17 (ADR 0005, kept in sync with the now-retired ingestion/scripts/run_payments_scheduled.sh's own cap -- that systemd path was fully decommissioned at 2.5, so this variable is the only place the cap lives now). Bumped to 2026-10-15 for 7.1's scaled-up workload exercise -- same data-volume-control rationale as before, not cost, just a later date."
+  description = "Date (YYYY-MM-DD, UTC) on/after which the Lambda no-ops instead of generating. Originally 2026-08-17 (ADR 0005, kept in sync with the now-retired ingestion/scripts/run_payments_scheduled.sh's own cap -- that systemd path was fully decommissioned at 2.5, so this variable is the only place the cap lives now). Bumped to 2026-10-15 for 7.1's scaled-up workload exercise -- same data-volume-control rationale as before, not cost, just a later date. Bumped again to 2026-10-30 so the 7.7/7.8 dev-compute exercise (Prometheus + demo) has live ingestion."
   type        = string
-  default     = "2026-10-15"
+  default     = "2026-10-30"
 }
 
 variable "transaction_count" {
