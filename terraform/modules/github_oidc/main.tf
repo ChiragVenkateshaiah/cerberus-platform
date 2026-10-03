@@ -387,6 +387,16 @@ resource "aws_iam_role_policy" "ci_apply" {
         Resource = "*"
       },
       {
+        # A tagged CreateWorkspace (default_tags always tags it) also
+        # authorizes aps:TagResource against the workspaces *collection*
+        # ARN, which the Service Authorization Reference doesn't list --
+        # found live on 7.7's first apply (403 on .../:/workspaces).
+        Sid      = "TagAmpWorkspaceOnCreate"
+        Effect   = "Allow"
+        Action   = "aps:TagResource"
+        Resource = "arn:aws:aps:${var.region}:${var.account_id}:/workspaces"
+      },
+      {
         Sid    = "ManageAmpWorkspace"
         Effect = "Allow"
         Action = [

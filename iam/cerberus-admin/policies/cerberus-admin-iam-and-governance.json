@@ -188,6 +188,14 @@
       "Resource": "*"
     },
     {
+      "Sid": "AmpTagOnCreate",
+      "Effect": "Allow",
+      "Action": [
+        "aps:TagResource"
+      ],
+      "Resource": "arn:aws:aps:us-east-1:131715059025:/workspaces"
+    },
+    {
       "Sid": "AmpWorkspaceMgmt",
       "Effect": "Allow",
       "Action": [
