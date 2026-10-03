@@ -106,12 +106,15 @@ across all three roots (`bootstrap`, `dev-standing`, `dev-compute`) with
   The two new IRSA roles need nothing here: `IamRoleMgmt` already covers
   `cerberus-*` roles with inline policies.
 - **2026-10-03 (7.7, second paste):** added `AmpTagOnCreate`
-  (`aps:TagResource` on `arn:aws:aps:us-east-1:131715059025:/workspaces`).
+  (`aps:TagResource` on `arn:aws:aps:us-east-1:131715059025:*`).
   The first local apply 403'd: a tagged `CreateWorkspace` (and
   `default_tags` always tags it) also checks `aps:TagResource` against the
   workspaces *collection* ARN. That ARN isn't in the Service Authorization
   Reference, and `iam:simulate-custom-policy` can't evaluate it at all (it
   returns `implicitDeny` even for `"Resource": "*"`), so the live apply is
-  the only verification. Nothing was orphaned: the 403 came before any
+  the only verification. The console's policy validator also rejects that
+  ARN literally (an error, not a warning), so the grant uses the
+  region/account wildcard instead. It's `TagResource` only, and the
+  workspace is this account's only AMP resource. Nothing was orphaned: the 403 came before any
   workspace existed. `cerberus-ci-apply` got the same grant in
   `terraform/modules/github_oidc`.

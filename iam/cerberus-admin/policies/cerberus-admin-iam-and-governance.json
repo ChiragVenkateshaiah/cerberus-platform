@@ -193,7 +193,7 @@
       "Action": [
         "aps:TagResource"
       ],
-      "Resource": "arn:aws:aps:us-east-1:131715059025:/workspaces"
+      "Resource": "arn:aws:aps:us-east-1:131715059025:*"
     },
     {
       "Sid": "AmpWorkspaceMgmt",

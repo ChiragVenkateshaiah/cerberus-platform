@@ -390,11 +390,14 @@ resource "aws_iam_role_policy" "ci_apply" {
         # A tagged CreateWorkspace (default_tags always tags it) also
         # authorizes aps:TagResource against the workspaces *collection*
         # ARN, which the Service Authorization Reference doesn't list --
-        # found live on 7.7's first apply (403 on .../:/workspaces).
+        # found live on 7.7's first apply (403 on .../:/workspaces). IAM's
+        # policy validator rejects that ARN literally, so the grant uses
+        # the region/account wildcard -- TagResource only, and this
+        # account's only AMP resource is the one workspace.
         Sid      = "TagAmpWorkspaceOnCreate"
         Effect   = "Allow"
         Action   = "aps:TagResource"
-        Resource = "arn:aws:aps:${var.region}:${var.account_id}:/workspaces"
+        Resource = "arn:aws:aps:${var.region}:${var.account_id}:*"
       },
       {
         Sid    = "ManageAmpWorkspace"
