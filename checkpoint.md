@@ -117,82 +117,87 @@ see [Phases.md](Phases.md#phase-6--observability--data-quality-)):
   after an independent Opus review. Option B: an in-cluster Prometheus
   agent remote-writing to an AMP workspace in `dev-standing`, plus
   self-hosted Grafana via `kubectl port-forward` (PR #44).
+- **7.7 — 🔨 in progress, built but not yet verified live.** The standing
+  half is live: AMP workspace `cerberus-platform`
+  (`ws-87e9cc99-40d8-4bc4-bc63-7d65d6beb7b4`, 90-day retention) via
+  `terraform/modules/prometheus_workspace`, plus the `aps:` grants on
+  `cerberus-admin` and `cerberus-ci-apply` (PR #46). The `dev-compute` half
+  is written and checked offline: `terraform/modules/eks_observability`
+  (Prometheus agent + Grafana, two IRSA roles), the dashboard at
+  `observability/grafana/dashboards/spark-on-eks.json`, and the Spark
+  `PrometheusServlet` config in `spark-application.yaml`. It's on branch
+  `phase-7-prometheus-dev-compute`. What's still open is the live
+  exercise. The ingestion retirement date moved to **2026-10-30** (PR #45).
 
 ## Next up
 
-**7.7 — Prometheus metrics + Grafana dashboard for Spark-on-EKS**, built to
-ADR 0016's Decision and verified live in a `dev-compute` exercise. Do it in
-this order (ADR 0016's Consequences explain why):
+**Finish 7.7 with the live `dev-compute` exercise, and record 7.8 during
+it.** Everything up to the exercise is built (see the 2026-10-03 entry).
+Branch `phase-7-prometheus-dev-compute` (commit `a7fe0b4`) holds the
+`dev-compute` half. Do it in this order:
 
-1. **Branch for 7.7** from `main` (ADR 0016 merged via PR #44, together with this checkpoint).
-2. **Root paste first.** Add AMP permissions to
-   `iam/cerberus-admin/policies/cerberus-admin-iam-and-governance.json`:
-   workspace management (`aps:CreateWorkspace`, `DescribeWorkspace`,
-   `DeleteWorkspace`, `TagResource`/`ListTagsForResource`, workspace-
-   configuration actions for retention) plus query
-   (`aps:QueryMetrics`, `GetSeries`, `GetLabels`, `GetMetricMetadata`) for
-   the local Grafana. Also add whatever IAM the two new IRSA roles need
-   (they must be named `cerberus-*`). Verify every action name against the
-   Service Authorization Reference and `iam:simulate-custom-policy` it, as
-   7.3/7.5 did. The user pushes it from the root console (they chose the
-   paste over a policy-edit identity on 2026-10-02).
-3. **`dev-standing`:** a new module with the AMP workspace and
-   `aws_prometheus_workspace_configuration` (explicit
-   `retention_period_in_days`), outputs for the remote-write and query
-   endpoints, and AMP grants on `cerberus-ci-apply` in
-   `terraform/modules/github_oidc`. **The first apply runs locally as
-   `cerberus-admin`**, because the CI apply role can't grant itself AMP.
-   After that, CI applies as normal.
-4. **`dev-compute`:** Helm releases for Prometheus (agent mode, 15s
-   scrape, scope bounded to the Spark driver, Spark Operator `/metrics`,
-   `kube-state-metrics` and node exporter; apiserver and raw cAdvisor
-   dropped) and Grafana (AMP data source via SigV4/IRSA plus read-only
-   CloudWatch, dashboards provisioned from committed JSON), both with IRSA
-   roles. Read the AMP endpoints through the existing
-   `terraform_remote_state.standing`.
-5. **Spark:** add the `PrometheusServlet` sink and
-   `spark.ui.prometheus.enabled` to `spark-application.yaml`'s `sparkConf`,
-   and annotate the driver for discovery. Verify both keys live on 3.5.9;
-   the fallback is the JMX exporter. `transform/spark/*` is a
-   `null_resource.build_and_push` trigger, so this edit needs the
-   documented local-apply-first rebuild before CI can apply (see Notes).
-6. **Live exercise**, bracketed by `pipeline_active` as 7.2 was. Verify
-   metrics land in AMP, measure the real series count
-   (`count({__name__=~".+"})`) against ADR 0016's ~10k estimate, confirm
-   Grafana's AMP plugin works with the chart version, and confirm AMP
-   free-tier eligibility. **Teardown:** let the agent flush its WAL before
-   the NAT Gateway goes, then run the account-wide 0-EIP check
-   (`aws ec2 describe-addresses`, empty), per 7.5's lesson.
+1. **Push the branch and open the PR** ("7.7 (part 2)"). CI only plans
+   `dev-standing`. That plan will show
+   `orchestration_runner.null_resource.build_and_push` being replaced
+   (`spark-application.yaml` is a trigger), plus the Faker churn.
+2. **Rebuild the runner image locally before merging:**
+   `AWS_PROFILE=cerberus-admin terraform apply` in `envs/dev-standing`. It
+   runs `docker build`/`push` and reconciles the trigger, so CI's apply on
+   merge doesn't fail (the `build_and_push` landmine in Notes). Plan first.
+   The expected changes are `build_and_push` plus the Faker churn, nothing
+   else. On this machine, run `uv pip install ... --target
+   terraform/modules/lambda_ingestion/build/layer/python --python-version
+   3.12` first if `build/layer` is missing (see Notes). Then merge the PR.
+3. **Turn the pipeline on:** `pipeline_active = true` in
+   `envs/dev-standing/variables.tf`, then a PR, a merge, and CI's apply. Same
+   bracket as 7.2.
+4. **`make compute-apply`.** The plan should be 31 to add, 8 of them from
+   `module.eks_observability`. It creates the `cerberus-prometheus` and
+   `cerberus-grafana` IRSA roles, so **the user runs it with `!`**: auto
+   mode blocks IAM changes (see Notes). From here, EKS, NAT and two nodes
+   are billing.
+5. **Check collection before running anything:**
+   - Prometheus and Grafana pods are `Running` in `monitoring`.
+   - The agent's log shows remote-write with no 403s.
+   - `kubectl port-forward -n monitoring svc/grafana 3000:80`. The admin
+     password comes from the `grafana` secret.
+   - The AMP data source tests OK, which proves IRSA works with plugin
+     3.2.0.
+6. **Start one state-machine execution, then:**
+   - **Fix the dashboard queries against the real series names.** The
+     Spark driver `metrics_cerberus_driver_*`, executor `metrics_executor_*`
+     and operator `spark_application_*` names in `spark-on-eks.json` are
+     unverified. Confirm the scrape paths `/metrics/prometheus/` and
+     `/metrics/executors/prometheus/` on port 4040.
+   - Measure the real series count in AMP (`count({__name__=~".+"})`)
+     against ADR 0016's ~10k estimate.
+   - Check AMP stays within the free tier in Cost Explorer once usage posts.
+   - **Record 7.8 here.** One orchestrated run: Step Functions graph → S3
+     partitions → Athena result → CloudWatch dashboard → Grafana Spark
+     panels → lineage graph on Pages. The user screen-records while Claude
+     drives the CLI.
+7. **Teardown:**
+   - Wait for the dashboard's "Samples pending" to read about 0.
+   - `make compute-destroy`. `eks_observability` depends on `vpc_nat`, so
+     the agent goes before the NAT.
+   - Account-wide 0-EIP check: `aws ec2 describe-addresses` must be empty.
+   - `pipeline_active = false` again, via PR and merge.
+8. **Write up 7.7 and 7.8.**
+   - Commit any dashboard query fixes from step 6. They're `dev-compute`
+     only, with no rebuild trigger.
+   - Check off 7.7 and 7.8. That completes Phase 7 and the whole roadmap,
+     so flip Phase 7 to ✅ across Phases.md, plan.md and README.
+   - Decide on Well-Architected milestone 8 (see below).
 
-**7.8 — end-to-end demo**, ideally **recorded in the same exercise as
-7.7**. It should follow one orchestrated run: Step Functions graph → S3
-partitions → Athena result → CloudWatch dashboard → Grafana Spark panels
-→ lineage graph on Pages. Claude can't capture screen video, so the user
-screen-records while Claude drives the run from the CLI. Asciinema → GIF
-for the terminal, or Claude in Chrome GIF recording, are the
-alternatives.
-
-**Deadline: the ingestion Lambda's `RETIRE_ON_OR_AFTER` is 2026-10-15**
-(`terraform/modules/lambda_ingestion/variables.tf`). After that date the
-Lambda is a no-op. Either run the 7.7/7.8 exercise before then, or push the
-date forward in a one-line PR first (as 7.1 did).
-
-**Terraform isn't installed on this session's machine** (the
-`/home/chirag` workstation). This session put Terraform 1.16.5 in a
-scratchpad for `fmt`/`validate` only. The local `cerberus-admin` applies 7.7
-needs (step 3, the runner-image rebuild, and all of `dev-compute`) must run
-on a machine with Terraform, Docker, `kubectl` and `helm`. Either install
-them here or do those steps from the other machine.
+**Deadline:** the ingestion Lambda's `RETIRE_ON_OR_AFTER` is now
+**2026-10-30** (PR #45, live).
 
 **Carried-over, not blocking (see Notes / blockers):**
 
-- **Orchestration**: the user mentioned on 2026-10-02 wanting to discuss
-  orchestration, but didn't say what. Ask at the start of next session
-  whether it's a design question (ADR 0009, Step Functions vs Airflow) or
-  how orchestration shows up in the 7.8 demo.
-- **`build_and_push` CI landmine**: still deferred. 7.7 will hit it (step 5).
-- **Faker Lambda-layer hash churn**: still cosmetic, still present (seen
-  again in PR #42's plan).
+- **`build_and_push` CI landmine:** still deferred, and step 2 above is its
+  workaround again.
+- **Faker Lambda-layer hash churn:** still cosmetic, still present (PRs #45
+  and #46).
 - **Follow-ups recorded in ADR 0016, not adopted:** private EKS endpoint
   access (would enable the AMP managed collector, and would probably fix
   the NAT-before-node-group destroy gotcha), and a Pushgateway.
@@ -2443,8 +2448,131 @@ install._
     "Sustainability: Follows Cost" row.
   - **Accepted** by the user; **PR #44**.
 
+### 2026-10-03
+
+_7.7's standing half built and live, its `dev-compute` half built and
+checked offline. Ran on the `/home/chirag` workstation and closed after
+midnight (2026-10-04)._
+
+- **Decisions at start of day:**
+  1. **Ingestion retirement moved** 2026-10-15 → **2026-10-30**
+     (`lambda_ingestion` `retire_on_or_after`). PR #45 merged; CI
+     applied it; the live Lambda's `RETIRE_ON_OR_AFTER` was checked.
+  2. **Tooling: install on this machine.** Terraform 1.16.5, `kubectl`
+     v1.37.1 and `helm` v4.3.0 are now single binaries in `~/.local/bin`,
+     each checksum-verified. `docker` and `aws` were already here.
+  3. **Orchestration: Step Functions stays; Airflow only if needed
+     later.** That matches ADR 0009 as written, including its own "revisit
+     Airflow (likely MWAA)" trigger, so nothing was amended. Resolves the
+     open "orchestration" question carried from 2026-10-02.
+- **7.7 part 1: AMP workspace + IAM (PR #46, merged and applied).**
+  - `cerberus-admin`'s governance policy gained four AMP Sids:
+    `AmpWorkspaceAccount`, `AmpTagOnCreate`, `AmpWorkspaceMgmt` and
+    `AmpQuery`. Both pastes went through the root console, and
+    `iam/cerberus-admin/README.md`'s change log explains both.
+    `cerberus-ci-apply` gained matching management-only grants: no
+    `RemoteWrite`, no `Query*`.
+  - Action names were checked against AWS's machine-readable service
+    reference (`servicereference.us-east-1.amazonaws.com/v1/aps/aps.json`)
+    *and* against the provider source.
+  - **The provider read always calls `aps:DescribeLoggingConfiguration`**
+    even with no logging configured. It wasn't in the original checkpoint
+    list, and without it every plan would 403.
+  - **A tagged `CreateWorkspace` also checks `aps:TagResource` on a
+    collection ARN**, `arn:aws:aps:<region>:<acct>:/workspaces`. That ARN
+    isn't in the Service Authorization Reference.
+    `simulate-custom-policy` can't evaluate it (it returns `implicitDeny`
+    even for `"Resource": "*"`), and the console validator rejects it as
+    an error. The first two local applies 403'd on it; the second was
+    because the root paste hadn't actually been saved. **The grant ended
+    as `arn:aws:aps:us-east-1:<acct>:*`, `TagResource` only.** No
+    workspace was orphaned either time.
+  - New `terraform/modules/prometheus_workspace`: workspace alias
+    `cerberus-platform` plus `aws_prometheus_workspace_configuration`
+    with **90-day retention**. That matches lineage's 90 days; ADR 0016
+    only required retention to be explicit. `dev-standing` exposes
+    `prometheus_workspace_arn`, `prometheus_endpoint` and
+    `prometheus_remote_write_url`.
+  - **First apply was local as `cerberus-admin`**, after merging #45
+    first. Ordering mattered: any `main` merge before #46 would have made
+    CI try to remove the workspace and roll back `ci_apply`'s policy.
+    Workspace `ws-87e9cc99-40d8-4bc4-bc63-7d65d6beb7b4` was verified
+    `ACTIVE`, tagged, with retention 90 `ACTIVE`. The follow-up local plan
+    showed **No changes**; CI's plan and apply on #46 showed only the
+    Faker churn.
+- **7.7 part 2: `dev-compute` (branch `phase-7-prometheus-dev-compute`,
+  `a7fe0b4`).**
+  - New `terraform/modules/eks_observability`, wired into `envs/dev-compute`
+    with `depends_on = [module.eks, module.vpc_nat]`. The `vpc_nat` edge
+    means the agent is destroyed, and flushes its WAL, before the NAT goes.
+  - **Prometheus:** `prometheus-community/prometheus` 29.35.0, app v3.15.0,
+    in agent mode. The IRSA role `cerberus-prometheus` holds
+    `aps:RemoteWrite` on the workspace only. There are six scrape jobs:
+    `prometheus-agent`, `spark-driver` (`:4040/metrics/prometheus/`),
+    `spark-executors` (`:4040/metrics/executors/prometheus/`, both selected
+    by the `spark-role=driver` label rather than a pod annotation),
+    `spark-operator`, `kube-state-metrics` and `node-exporter`.
+    Alertmanager and the Pushgateway are disabled.
+  - **Grafana:** `grafana-community/grafana` 13.2.7 (Grafana 13.2.3). The
+    old `grafana/helm-charts` repo stopped at 10.5.x. It's `ClusterIP`
+    only, with no PVC. The AMP plugin is pinned at 3.2.0 (needs Grafana
+    ≥ 12.2.5) with `sigV4AuthType: default`, and there's a read-only
+    CloudWatch data source. The IRSA role `cerberus-grafana` holds AMP
+    query plus CloudWatch read and `ec2:DescribeRegions`. Dashboards come
+    from a ConfigMap built from `observability/grafana/dashboards/*.json`.
+  - **Dashboard `spark-on-eks.json`** (20 panels, uid
+    `cerberus-spark-on-eks`): Step Functions executions from CloudWatch,
+    Spark Operator counts, executor and driver metrics, pod and node
+    health, and agent remote-write health, including the "Samples pending"
+    teardown check.
+  - **`spark-application.yaml`:** the `PrometheusServlet` sink,
+    `spark.ui.prometheus.enabled`, `spark.metrics.conf.driver.source.jvm.class`
+    (no JVM metrics otherwise), and `spark.metrics.namespace: cerberus` (so
+    series names don't carry the per-run app ID).
+  - **Checked offline before any apply:**
+    - **`--agent`** is the Prometheus 3 flag, confirmed against the real
+      v3.15.0 binary's `--help` with a negative control.
+      `--enable-feature=agent` is the removed v2 form.
+    - Both charts were rendered with the module's *real* values. The plan
+      can't show them, because the IRSA ARNs make every `values` string
+      unknown, so a scratch root evaluated the module's own `yamlencode`
+      blocks with placeholder ARNs. That caught two real chart issues:
+      1. The chart injects its default jobs (apiserver, cAdvisor, all
+         pods) from a separate **`scrapeConfigs` map**, on top of
+         `serverFiles`. Fixed with `scrapeConfigs = null`.
+      2. With `scrape_configs` and `rule_files` gone, the ConfigMap
+         template rendered a stray **`{}`** and invalid YAML. Fixed by
+         putting `remote_write` inside `serverFiles."prometheus.yml"`
+         instead of `server.remoteWrite`.
+    - **`promtool check config --agent` passes** on the final render.
+    - `terraform validate` and `fmt` are clean. The `dev-compute` plan is
+      31 to add. The `dev-standing` plan is `build_and_push` (the
+      `spark_files_hash` trigger) plus the Faker churn.
+
 ## Notes / blockers
 
+- **Open (noted 2026-10-03):** branch `phase-7-prometheus-dev-compute`
+  (`a7fe0b4`, 7.7's `dev-compute` half) had not been pushed when the session
+  closed. Next up step 1 pushes it. `git status` / `git branch -vv` are
+  authoritative.
+- **Auto mode blocks IAM-changing actions (noted 2026-10-03).** In Claude
+  Code's auto mode, edits that widen an IAM policy (the
+  `iam/cerberus-admin/policies/*.json` files) and any `terraform apply`
+  whose plan changes IAM are denied as permission grants, even after the
+  user says "go ahead" in chat. Two ways through: switch out of auto mode
+  (Shift+Tab) for that step, or have the user run the apply with `!`.
+  `simulate-custom-policy`, plans and reads are not blocked.
+- **Tooling on the `/home/chirag` workstation (noted 2026-10-03):**
+  Terraform, `kubectl` and `helm` now live in `~/.local/bin`. There's no
+  `.venv` or `pip` here, but `uv` is. The Faker layer that
+  `envs/dev-standing`'s plan needs is built with `uv pip install -r
+  ingestion/lambda/requirements.txt --target
+  terraform/modules/lambda_ingestion/build/layer/python --python-version
+  3.12 --python-platform x86_64-manylinux_2_28` (gitignored). Helm repos
+  added locally: `prometheus-community`, `grafana-community`,
+  `spark-operator`.
+- **AWS CLI service name (noted 2026-10-03):** the IAM prefix is `aps:`,
+  but the CLI command is `aws amp ...` (`aws aps` doesn't exist).
 - **Open, deferred, not blocking (noted 2026-08-27):**
   `module.orchestration_runner.null_resource.build_and_push` runs a
   `local-exec` (`docker build`/`docker push`,
@@ -2513,7 +2641,8 @@ install._
   milestone is scheduled:** Phase 7's review subtask (7.4) is closed. ADR
   0016 leaves it open whether 7.7's Prometheus work merits re-answering
   `workload-observability` / `monitor-aws-resources` and saving a milestone
-  8. Decide after 7.7 is live.
+  8. Decide after 7.7 is live. (`cerberus-admin`'s governance policy still
+  carries the Well-Architected Sids as of the 2026-10-03 AMP pastes.)
 - **AWS Agent Toolkit (`aws-core@claude-plugins-official`, installed
   2026-08-11) is in scope for the rest of the build — see `docs/plan.md`'s
   cross-cutting tracks.** Mapped to remaining phases: `aws-compute` (4.1,
