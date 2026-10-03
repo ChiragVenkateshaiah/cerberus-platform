@@ -142,6 +142,14 @@ module "lineage" {
   pipeline_active = var.pipeline_active
 }
 
+module "prometheus_workspace" {
+  source = "../../modules/prometheus_workspace"
+
+  # 7.7 (ADR 0016): the AMP workspace the EKS/Spark layer's metrics land
+  # in. Standing, zero idle cost -- dev-compute's Prometheus agent and
+  # Grafana read its endpoints via terraform_remote_state.
+}
+
 module "github_oidc" {
   source = "../../modules/github_oidc"
 

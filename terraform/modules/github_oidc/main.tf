@@ -373,6 +373,44 @@ resource "aws_iam_role_policy" "ci_apply" {
         Resource = "arn:aws:sns:${var.region}:${var.account_id}:cerberus-pipeline-alerts*"
       },
       {
+        # 7.7: the AMP workspace (terraform/modules/prometheus_workspace,
+        # ADR 0016). CreateWorkspace and ListWorkspaces support no resource
+        # type at all, so they take "*". Everything else is scoped to this
+        # region's workspaces -- workspace IDs are AWS-generated (ws-...),
+        # so no name prefix is possible. DescribeLoggingConfiguration is
+        # here because the provider's workspace read always calls it, even
+        # with no logging configured. Management only: no RemoteWrite or
+        # Query* -- CI never reads or writes metrics.
+        Sid      = "CreateAmpWorkspace"
+        Effect   = "Allow"
+        Action   = ["aps:CreateWorkspace", "aps:ListWorkspaces"]
+        Resource = "*"
+      },
+      {
+        # A tagged CreateWorkspace (default_tags always tags it) also
+        # authorizes aps:TagResource against the workspaces *collection*
+        # ARN, which the Service Authorization Reference doesn't list --
+        # found live on 7.7's first apply (403 on .../:/workspaces). IAM's
+        # policy validator rejects that ARN literally, so the grant uses
+        # the region/account wildcard -- TagResource only, and this
+        # account's only AMP resource is the one workspace.
+        Sid      = "TagAmpWorkspaceOnCreate"
+        Effect   = "Allow"
+        Action   = "aps:TagResource"
+        Resource = "arn:aws:aps:${var.region}:${var.account_id}:*"
+      },
+      {
+        Sid    = "ManageAmpWorkspace"
+        Effect = "Allow"
+        Action = [
+          "aps:DescribeWorkspace", "aps:DeleteWorkspace", "aps:UpdateWorkspaceAlias",
+          "aps:DescribeLoggingConfiguration",
+          "aps:DescribeWorkspaceConfiguration", "aps:UpdateWorkspaceConfiguration",
+          "aps:ListTagsForResource", "aps:TagResource", "aps:UntagResource",
+        ]
+        Resource = "arn:aws:aps:${var.region}:${var.account_id}:workspace/*"
+      },
+      {
         # Missing entirely from the first live apply -- ec2:DescribeVpcs
         # 403'd immediately, the first resource module.vpc's refresh
         # touches. envs/dev-standing's trimmed vpc module (VPC, subnets,

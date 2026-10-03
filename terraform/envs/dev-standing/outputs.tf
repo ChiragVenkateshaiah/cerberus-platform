@@ -87,3 +87,18 @@ output "ci_apply_role_arn" {
   description = "cerberus-ci-apply IAM role ARN, for GitHub's repo variable/workflow reference."
   value       = module.github_oidc.ci_apply_role_arn
 }
+
+output "prometheus_workspace_arn" {
+  description = "7.7: AMP workspace ARN -- read by envs/dev-compute via terraform_remote_state, to scope the Prometheus/Grafana IRSA roles' aps:* grants."
+  value       = module.prometheus_workspace.workspace_arn
+}
+
+output "prometheus_endpoint" {
+  description = "7.7: AMP workspace's Prometheus-compatible base URL -- read by envs/dev-compute for Grafana's AMP data source, and for local PromQL queries."
+  value       = module.prometheus_workspace.prometheus_endpoint
+}
+
+output "prometheus_remote_write_url" {
+  description = "7.7: AMP remote-write URL -- read by envs/dev-compute for the in-cluster Prometheus agent."
+  value       = module.prometheus_workspace.remote_write_url
+}

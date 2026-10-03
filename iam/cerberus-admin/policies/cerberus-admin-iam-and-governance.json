@@ -179,6 +179,50 @@
       ]
     },
     {
+      "Sid": "AmpWorkspaceAccount",
+      "Effect": "Allow",
+      "Action": [
+        "aps:CreateWorkspace",
+        "aps:ListWorkspaces"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "AmpTagOnCreate",
+      "Effect": "Allow",
+      "Action": [
+        "aps:TagResource"
+      ],
+      "Resource": "arn:aws:aps:us-east-1:131715059025:*"
+    },
+    {
+      "Sid": "AmpWorkspaceMgmt",
+      "Effect": "Allow",
+      "Action": [
+        "aps:DescribeWorkspace",
+        "aps:DeleteWorkspace",
+        "aps:UpdateWorkspaceAlias",
+        "aps:DescribeLoggingConfiguration",
+        "aps:DescribeWorkspaceConfiguration",
+        "aps:UpdateWorkspaceConfiguration",
+        "aps:TagResource",
+        "aps:UntagResource",
+        "aps:ListTagsForResource"
+      ],
+      "Resource": "arn:aws:aps:us-east-1:131715059025:workspace/*"
+    },
+    {
+      "Sid": "AmpQuery",
+      "Effect": "Allow",
+      "Action": [
+        "aps:QueryMetrics",
+        "aps:GetSeries",
+        "aps:GetLabels",
+        "aps:GetMetricMetadata"
+      ],
+      "Resource": "arn:aws:aps:us-east-1:131715059025:workspace/*"
+    },
+    {
       "Sid": "Sts",
       "Effect": "Allow",
       "Action": [

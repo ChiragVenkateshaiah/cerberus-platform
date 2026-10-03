@@ -88,3 +88,33 @@ across all three roots (`bootstrap`, `dev-standing`, `dev-compute`) with
   `ce:GetCostAndUsage` succeeded where it had returned AccessDenied. A
   standing policy-edit IAM user was considered and rejected (see the
   summary's residual risk 3).
+- **2026-10-03 (7.7):** `cerberus-admin-iam-and-governance` gained three
+  Amazon Managed Service for Prometheus (AMP) Sids for
+  [ADR 0016](../../docs/adr/0016-prometheus-for-eks-spark.md):
+  `AmpWorkspaceAccount` (`aps:CreateWorkspace`, `aps:ListWorkspaces`, on
+  `*` because neither action supports a resource type), `AmpWorkspaceMgmt`
+  (describe/delete, alias, tags, and the retention setting) and `AmpQuery`
+  (`QueryMetrics`, `GetSeries`, `GetLabels`, `GetMetricMetadata`). The
+  last two are scoped to `workspace/*` in `us-east-1`. Action names were
+  checked against AWS's service reference and against the provider source.
+  `aws_prometheus_workspace`'s read always calls
+  `DescribeLoggingConfiguration`, so that action is included even though
+  no logging is configured. `iam:simulate-custom-policy` showed the 15
+  intended actions allowed. It also showed `RemoteWrite` (the in-cluster
+  agent's IRSA role holds that), the logging/resource-policy/rule-group/
+  alert-manager writes, `CreateScraper` and every other region all denied.
+  The two new IRSA roles need nothing here: `IamRoleMgmt` already covers
+  `cerberus-*` roles with inline policies.
+- **2026-10-03 (7.7, second paste):** added `AmpTagOnCreate`
+  (`aps:TagResource` on `arn:aws:aps:us-east-1:131715059025:*`).
+  The first local apply 403'd: a tagged `CreateWorkspace` (and
+  `default_tags` always tags it) also checks `aps:TagResource` against the
+  workspaces *collection* ARN. That ARN isn't in the Service Authorization
+  Reference, and `iam:simulate-custom-policy` can't evaluate it at all (it
+  returns `implicitDeny` even for `"Resource": "*"`), so the live apply is
+  the only verification. The console's policy validator also rejects that
+  ARN literally (an error, not a warning), so the grant uses the
+  region/account wildcard instead. It's `TagResource` only, and the
+  workspace is this account's only AMP resource. Nothing was orphaned: the 403 came before any
+  workspace existed. `cerberus-ci-apply` got the same grant in
+  `terraform/modules/github_oidc`.
