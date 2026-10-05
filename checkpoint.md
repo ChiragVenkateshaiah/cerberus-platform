@@ -125,37 +125,34 @@ see [Phases.md](Phases.md#phase-6--observability--data-quality-)):
   is written and checked offline: `terraform/modules/eks_observability`
   (Prometheus agent + Grafana, two IRSA roles), the dashboard at
   `observability/grafana/dashboards/spark-on-eks.json`, and the Spark
-  `PrometheusServlet` config in `spark-application.yaml`. It's on branch
-  `phase-7-prometheus-dev-compute`. What's still open is the live
-  exercise. The ingestion retirement date moved to **2026-10-30** (PR #45).
+  `PrometheusServlet` config in `spark-application.yaml`. That half merged
+  to `main` in PR #47 (2026-10-05), after a local `dev-standing` apply
+  rebuilt the runner image, and CI's apply on `main` succeeded. What's
+  still open is the live exercise. The ingestion retirement date moved to
+  **2026-10-30** (PR #45).
 
 ## Next up
 
 **Finish 7.7 with the live `dev-compute` exercise, and record 7.8 during
-it.** Everything up to the exercise is built (see the 2026-10-03 entry).
-Branch `phase-7-prometheus-dev-compute` (commit `a7fe0b4`) holds the
-`dev-compute` half. Do it in this order:
+it.** Everything up to the exercise is built and on `main` (PR #47, see
+the 2026-10-05 entry). The old steps 1–2 (open the PR; rebuild the runner
+image locally, then merge) are done. Start by checking out `main` and
+pulling, since the local checkout was left on the merged feature branch.
+**Every merge and every `terraform apply` below is the user's to run**
+(GitHub button or `!`), because auto mode blocks both (see Notes). Do it in
+this order:
 
-1. **Push the branch and open the PR** ("7.7 (part 2)"). CI only plans
-   `dev-standing`. That plan will show
-   `orchestration_runner.null_resource.build_and_push` being replaced
-   (`spark-application.yaml` is a trigger), plus the Faker churn.
-2. **Rebuild the runner image locally before merging:**
-   `AWS_PROFILE=cerberus-admin terraform apply` in `envs/dev-standing`. It
-   runs `docker build`/`push` and reconciles the trigger, so CI's apply on
-   merge doesn't fail (the `build_and_push` landmine in Notes). Plan first.
-   The expected changes are `build_and_push` plus the Faker churn, nothing
-   else. On this machine, run `uv pip install ... --target
-   terraform/modules/lambda_ingestion/build/layer/python --python-version
-   3.12` first if `build/layer` is missing (see Notes). Then merge the PR.
 3. **Turn the pipeline on:** `pipeline_active = true` in
-   `envs/dev-standing/variables.tf`, then a PR, a merge, and CI's apply. Same
-   bracket as 7.2.
-4. **`make compute-apply`.** The plan should be 31 to add, 8 of them from
-   `module.eks_observability`. It creates the `cerberus-prometheus` and
-   `cerberus-grafana` IRSA roles, so **the user runs it with `!`**: auto
-   mode blocks IAM changes (see Notes). From here, EKS, NAT and two nodes
-   are billing.
+   `envs/dev-standing/variables.tf`, on a new branch off `main`. Open the PR
+   and check CI's plan shows only the switch flipping: the daily schedule
+   `ENABLED`, the five gated alarms, the lineage route opening, plus the
+   Faker churn. Same bracket as 7.2. **Merge it only when ready to run
+   step 4 straight after.** Once it's on, the daily schedule fires at its
+   next time and fails if EKS isn't up.
+4. **`make compute-apply`, run by the user with `!`.** The plan should be
+   31 to add, 8 of them from `module.eks_observability`, including the
+   `cerberus-prometheus` and `cerberus-grafana` IRSA roles. From here, EKS,
+   NAT and two nodes are billing.
 5. **Check collection before running anything:**
    - Prometheus and Grafana pods are `Running` in `monitoring`.
    - The agent's log shows remote-write with no 403s.
@@ -194,8 +191,8 @@ Branch `phase-7-prometheus-dev-compute` (commit `a7fe0b4`) holds the
 
 **Carried-over, not blocking (see Notes / blockers):**
 
-- **`build_and_push` CI landmine:** still deferred, and step 2 above is its
-  workaround again.
+- **`build_and_push` CI landmine:** still deferred. The workaround (a
+  local apply before merging) was used again for PR #47 on 2026-10-05.
 - **Faker Lambda-layer hash churn:** still cosmetic, still present (PRs #45
   and #46).
 - **Follow-ups recorded in ADR 0016, not adopted:** private EKS endpoint
@@ -2549,19 +2546,58 @@ midnight (2026-10-04)._
       31 to add. The `dev-standing` plan is `build_and_push` (the
       `spark_files_hash` trigger) plus the Faker churn.
 
+### 2026-10-05
+
+_A short evening session on the `/home/chirag` workstation. 7.7's
+`dev-compute` half reached `main`; the live exercise didn't start. Closed
+after midnight (2026-10-06)._
+
+- **PR #47, "7.7 (part 2)".** The branch had in fact been pushed at the
+  close of 2026-10-03; only the PR was missing. CI's `dev-standing` plan
+  was exactly as predicted: 2 to add, 1 to change, 2 to destroy
+  (`orchestration_runner.null_resource.build_and_push` replaced, plus the
+  Faker layer and Lambda churn). `python-lint` and `dbt-validate` passed.
+- **Runner image rebuilt locally before the merge** (the `build_and_push`
+  workaround). The local plan matched CI's. The user applied the saved plan
+  with `!` (2 added, 1 changed, 2 destroyed, about 4.5 minutes for the
+  `docker build`/`push`). The new `cerberus-orchestration-runner:latest`
+  digest in ECR (`sha256:8f54a3cd…`) matched the push output, and a
+  follow-up plan showed **No changes**.
+- **#47 merged** (regular merge, `da2c249`, by the user). CI's apply on
+  `main` changed only the Faker layer and Lambda (1 added, 1 changed, 1
+  destroyed). `build_and_push` didn't come up, so the workaround held.
+- **Auto mode blocks more than IAM.** It denied the `dev-standing` apply
+  even with no IAM change in the plan ("Protected-Scope IaC Apply"), and
+  `gh pr merge` ("Merge Without Review"). The Notes entry below is
+  updated.
+- Stopped before step 3 (`pipeline_active = true`) on purpose. Flipping it
+  enables the daily schedule, which fails unless EKS comes up straight
+  after.
+
 ## Notes / blockers
 
-- **Open (noted 2026-10-03):** branch `phase-7-prometheus-dev-compute`
-  (`a7fe0b4`, 7.7's `dev-compute` half) had not been pushed when the session
-  closed. Next up step 1 pushes it. `git status` / `git branch -vv` are
+- **Resolved 2026-10-05 (was: open, noted 2026-10-03):** branch
+  `phase-7-prometheus-dev-compute` *had* been pushed. PR #47 merged it to
+  `main`. The local checkout was still on that merged branch when
+  2026-10-05 closed, so switch to `main` and pull first. `git status` is
   authoritative.
-- **Auto mode blocks IAM-changing actions (noted 2026-10-03).** In Claude
-  Code's auto mode, edits that widen an IAM policy (the
-  `iam/cerberus-admin/policies/*.json` files) and any `terraform apply`
-  whose plan changes IAM are denied as permission grants, even after the
-  user says "go ahead" in chat. Two ways through: switch out of auto mode
-  (Shift+Tab) for that step, or have the user run the apply with `!`.
-  `simulate-custom-policy`, plans and reads are not blocked.
+- **Auto mode blocks IAM changes, every `terraform apply`, and PR merges
+  (noted 2026-10-03, widened 2026-10-05).** In Claude Code's auto mode,
+  edits that widen an IAM policy (the `iam/cerberus-admin/policies/*.json`
+  files) are denied as permission grants, even after the user says "go
+  ahead" in chat. So is **any** `terraform apply`, including a
+  `dev-standing` apply with no IAM in its plan ("Protected-Scope IaC
+  Apply"), and `gh pr merge` ("Merge Without Review"). Ways through:
+  switch out of auto mode (Shift+Tab) for that step, have the user run it
+  with `!` (or merge on GitHub), or add allow rules in settings. Saving a
+  plan with `-out` to the scratchpad and having the user apply that file
+  works well. `simulate-custom-policy`, plans, reads and opening PRs are
+  not blocked.
+- **`cerberus-admin` can't list ECR repositories with a wildcard (noted
+  2026-10-05).** That's 7.3's scoping. Look the repo up by name
+  (`cerberus-orchestration-runner`, or from `terraform state show
+  module.orchestration_runner.aws_ecr_repository.runner`) and run
+  `aws ecr describe-images` against it.
 - **Tooling on the `/home/chirag` workstation (noted 2026-10-03):**
   Terraform, `kubectl` and `helm` now live in `~/.local/bin`. There's no
   `.venv` or `pip` here, but `uv` is. The Faker layer that
