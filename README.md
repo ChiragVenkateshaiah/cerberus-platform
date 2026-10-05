@@ -76,9 +76,11 @@ whole build cost $5.74 gross, all of it covered by credits, and narrowed
 the lineage collector to unauthenticated-only-during-exercises. Phase 7
 was then extended with Prometheus metrics for the EKS/Spark layer: 7.6's
 ADR 0016 chose an in-cluster agent writing to Amazon Managed Service for
-Prometheus, viewed through self-hosted Grafana. 7.7 (building it, verified
-live) and 7.8 (the end-to-end demo, including that observability view)
-are still open.
+Prometheus, viewed through self-hosted Grafana. 7.7 is in progress: the
+standing AMP workspace is live, and the in-cluster Prometheus agent,
+Grafana and Spark metrics config are built, with live verification in a
+`dev-compute` exercise still to come. 7.8 (the end-to-end demo, including
+that observability view) is still open.
 
 See [docs/plan.md](docs/plan.md) for the full phased roadmap (Phases 0–7)
 and [Phases.md](Phases.md) for subtask-level progress.
@@ -172,14 +174,17 @@ constraints behind this diagram, see
 │   │                     #   service account, orchestration runner
 │   │                     #   (ECR/Fargate), Step Functions, observability
 │   │                     #   (dashboard, freshness probe, alarms/SNS),
-│   │                     #   lineage (OpenLineage collector), GitHub OIDC)
+│   │                     #   lineage (OpenLineage collector), GitHub OIDC,
+│   │                     #   prometheus_workspace (AMP, 7.7),
+│   │                     #   eks_observability (Prometheus agent + Grafana
+│   │                     #   on EKS, 7.7))
 │   ├── envs/dev-standing/  # CI-managed root (5.1): S3/IAM/Glue/Athena/
-│   │                     #   Lambda/orchestration/observability/GitHub OIDC
-│   │                     #   -- no idle cost, planned on every PR, applied
-│   │                     #   on merge
+│   │                     #   Lambda/orchestration/observability/GitHub OIDC/
+│   │                     #   AMP workspace -- no idle cost, planned on every
+│   │                     #   PR, applied on merge
 │   └── envs/dev-compute/  # human-run root, spin-up/destroy per exercise:
-│                         #   VPC NAT/EIP, EKS, Spark -- never touched by
-│                         #   CI (ADR 0011)
+│                         #   VPC NAT/EIP, EKS, Spark, Prometheus agent +
+│                         #   Grafana -- never touched by CI (ADR 0011)
 ├── ingestion/scripts/    # ingestion scripts: synthetic payments generator
 │                         #   + shared payments_lib.py core (Python, Phase
 │                         #   1); ingest_weather.sh (Phase 0, unscheduled —
@@ -206,7 +211,9 @@ constraints behind this diagram, see
 │                         #   entrypoint scripts, shared lib.sh (4.2)
 ├── observability/        # freshness_probe/handler.py -- hourly Lambda
 │                         #   publishing pipeline/data freshness as
-│                         #   CloudWatch custom metrics (6.1)
+│                         #   CloudWatch custom metrics (6.1);
+│                         #   grafana/dashboards/ -- Grafana dashboard JSON
+│                         #   provisioned into the EKS Grafana (7.7)
 ├── lineage/              # collector/handler.py -- the OpenLineage event
 │                         #   collector Lambda behind an API Gateway HTTP
 │                         #   API, writing events to S3 (6.4b, ADR 0013);
