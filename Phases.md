@@ -20,7 +20,7 @@ the specific "what's next" live in [checkpoint.md](checkpoint.md)._
   own work plus an ADR. This is a real checkbox in each phase below, not an
   aspiration: architecture is built by repetition, so it is tracked like any
   other deliverable. Two parts are required to check a "Well-Architected pass
-  + ADR" subtask off (3.8, 4.5, 5.5, 6.6, 7.4), not just the ADR: also save a
+  + ADR" subtask off (3.8, 4.5, 5.5, 6.6, 7.4, 8.11), not just the ADR: also save a
   new milestone on the `cerberus-platform` AWS Well-Architected Tool workload
   (`phase-N-<slug>-complete`). See [docs/plan.md](docs/plan.md)'s
   Architecture guiding principle and [checkpoint.md](checkpoint.md)'s
@@ -115,6 +115,27 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
       live during a `dev-compute` exercise
 - [x] 7.8 End-to-end demo (GIF or short video), including the observability
       view
+
+## Phase 8 — Scale validation 🔨
+
+- [x] 8.1 ADR 0017: Apache Iceberg tables + incremental processing
+- [ ] 8.2 Cost guardrails: AWS Budgets alerts ($15 / $20), Spot vCPU quota
+      and EC2 restriction checks
+- [ ] 8.3 Scale harness: Spark-based synthetic generator (1M–100M events),
+      the per-step metric set, and a baseline run at today's volume
+- [ ] 8.4 Data-quality suite as code (bronze → silver → gold
+      reconciliation), run on every exercise
+- [ ] 8.5 1M events: Iceberg silver/gold, incremental `MERGE`, dbt
+      incremental models
+- [ ] 8.6 10M events: Spark tuning (partition sizing, compaction, AQE,
+      skew) with before/after measurements
+- [ ] 8.7 ADR: node autoscaling + Spot for `dev-compute`
+- [ ] 8.8 Platform under load: autoscaler, Spot node pool, Spark dynamic
+      allocation, a Spot-interruption test
+- [ ] 8.9 100M events: full orchestrated run, SLOs under load, cost per
+      million events at each step
+- [ ] 8.10 Results write-up (per-step numbers and charts) + demo video
+- [ ] 8.11 Well-Architected pass + ADR
 
 ---
 

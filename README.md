@@ -86,7 +86,12 @@ Step Functions graph through S3, Athena, CloudWatch and Grafana to the
 lineage graph). That exercise also found and fixed a 7.3 permission gap,
 two data-quality issues and two CI gaps.
 
-See [docs/plan.md](docs/plan.md) for the full phased roadmap (Phases 0–7)
+🔨 Phase 8 (scale validation) — in progress. It takes the pipeline from about
+40k to 100M events in 10x steps, on Apache Iceberg with incremental
+processing ([ADR 0017](docs/adr/0017-iceberg-incremental-processing.md),
+accepted), and measures run time and cost per million events at each step.
+
+See [docs/plan.md](docs/plan.md) for the full phased roadmap (Phases 0–8)
 and [Phases.md](Phases.md) for subtask-level progress.
 
 The platform models **synthetic payments data** from Phase 1 onward.
