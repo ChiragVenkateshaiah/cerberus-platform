@@ -119,7 +119,7 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 ## Phase 8 — Scale validation 🔨
 
 - [x] 8.1 ADR 0017: Apache Iceberg tables + incremental processing
-- [ ] 8.2 Cost guardrails: AWS Budgets alerts ($15 / $20), Spot vCPU quota
+- [x] 8.2 Cost guardrails: AWS Budgets alerts ($15 / $20), Spot vCPU quota
       and EC2 restriction checks
 - [ ] 8.3 Scale harness: Spark-based synthetic generator (1M–100M events),
       the per-step metric set, and a baseline run at today's volume
