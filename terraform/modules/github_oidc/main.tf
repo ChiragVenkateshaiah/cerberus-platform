@@ -308,6 +308,19 @@ resource "aws_iam_role_policy" "ci_apply" {
         Resource = "arn:aws:states:${var.region}:${var.account_id}:stateMachine:cerberus-*"
       },
       {
+        # The AWS provider validates a definition before it updates a state
+        # machine. That action has no resource types in the Service
+        # Authorization Reference, so only "*" can grant it and the scoped
+        # grant above never covers it (the AccessDenied names
+        # stateMachine:*, which is misleading). Read-only: it only checks
+        # ASL syntax. Found when PR #50's apply failed, 2026-10-06;
+        # cerberus-admin already holds it on "*".
+        Sid      = "ValidateStepFunctionsDefinitions"
+        Effect   = "Allow"
+        Action   = "states:ValidateStateMachineDefinition"
+        Resource = "*"
+      },
+      {
         Sid      = "ManageEventBridgeScheduler"
         Effect   = "Allow"
         Action   = "scheduler:*"
