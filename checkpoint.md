@@ -8,8 +8,8 @@ pointer._
 
 ## Current phase
 
-**Phases 1–5 are all ✅ complete** (see [Phases.md](Phases.md) for the
-subtask checklist and the per-phase ADRs):
+**Phases 1–7 are all ✅ complete**, which closes the original roadmap (see
+[Phases.md](Phases.md) for the subtask checklist and the per-phase ADRs):
 
 - **Phase 1 — MVP lakehouse** (1.1–1.13): medallion S3, IAM, a Python
   bronze→silver→gold transform, Glue catalog, a dbt fact/dimension layer,
@@ -28,179 +28,100 @@ subtask checklist and the per-phase ADRs):
   `envs/dev` split into `dev-standing` (CI-applied) / `dev-compute`
   (human-run); `terraform-plan.yml` / `terraform-apply.yml` / `code-ci.yml`.
   ADR 0011 + 0012 (milestone 5).
-
-**Phase 6 — Observability & data quality is now ✅ complete** (6.1–6.6,
-see [Phases.md](Phases.md#phase-6--observability--data-quality-)):
-
-- **6.1** — `terraform/modules/observability`: the CloudWatch dashboard
-  `cerberus-platform-pipeline` over the metrics AWS already publishes,
-  plus the hourly boto3-only "freshness probe" Lambda
-  (`cerberus-freshness-probe`) publishing `Cerberus/Pipeline` →
-  `FreshnessSeconds{Signal}` custom metrics.
-- **6.2** — `alarms.tf`: a dedicated `cerberus-pipeline-alerts` SNS topic
-  and seven alarms, two probe-self-health (unconditional) and five gated
-  on `var.pipeline_active` (the same switch ADR 0011's 2026-09-01
-  amendment introduced for the daily schedule).
-- **6.3** — dbt schema/data-quality tests running inside `dbt build`
-  (`entrypoint_dbt.sh` switched from `dbt run`); a failed invariant fails
-  `RunDbt` → the execution → trips `cerberus-pipeline-run-unsuccessful`.
-- **6.4** — data lineage: `docs/lineage.md` (curated whole-pipeline) +
-  dbt's model DAG on GitHub Pages + a **serverless OpenLineage collector**
-  (`terraform/modules/lineage`: API Gateway HTTP API → Lambda → S3,
-  unauthenticated + rate-capped, ADR 0013) capturing runtime dataset +
-  column lineage from **both** the Spark job (`openlineage-spark`) and
-  `dbt build` (`dbt-ol`), rendered onto the Pages site by
-  `lineage/render/render_graph.py`. Verified end to end — dbt against
-  Athena (2026-09-06), Spark on EKS (2026-09-07).
-- **6.5** — `docs/slo.md`: six SLOs (pipeline success, gold freshness, run
-  latency, serving query, data quality, observer freshness) against the
-  existing SLIs, with an active-window / always-on split and a lightweight
-  halt-and-fix error-budget policy.
-- **6.6** — ADR 0014 + **milestone 6**
-  (`phase-6-observability-and-data-quality-complete`). First bucket
-  movement since milestone 1: 25→23 HIGH (`workload-observability`
-  MEDIUM→NONE, `monitor-aws-resources` and Perf `process-culture`
-  HIGH→MEDIUM), five more questions gained new evidence without a bucket
-  move. Recorded honestly — a phase whose purpose is observability moves
-  the observability questions, which does not imply Phase 7 will move
-  anything.
+- **Phase 6 — Observability & data quality** (6.1–6.6): CloudWatch
+  dashboard + freshness probe, seven alarms, dbt tests in `dbt build`,
+  OpenLineage lineage (ADR 0013) on GitHub Pages, six SLOs. ADR 0014
+  (milestone 6, the first bucket movement: 25→23 HIGH).
+- **Phase 7 — End-to-end platform validation** (7.1–7.8): 2,000-transaction
+  workload, full orchestrated run, `cerberus-admin`'s `AdministratorAccess`
+  replaced by six CloudTrail-derived policies, the full Well-Architected
+  review (ADR 0015, milestone 7, no bucket moved), the cost + security
+  summary, ADR 0016 (Prometheus agent → AMP + in-cluster Grafana), and on
+  2026-10-06: **7.7 verified live** (remote-write 0 failed samples, peak
+  4,349 active series vs the ~10k estimate) and **7.8 recorded**
+  (`demo-7-8-take1-20261006T075445`, SUCCEEDED in ~6 min). PRs #48–#52.
 
 **Note:** the roadmap was re-scoped on 2026-08-03 from 9 phases (0–8) to
 8 (0–7). Session history entries before that date use the old numbering.
+Phase 8 below is a *new* phase added on 2026-10-06, not the pre-re-scope
+Phase 8.
 
-**Phase 7 — End-to-end platform validation is now 🔨 in progress** (see
-[Phases.md](Phases.md#phase-7--end-to-end-platform-validation-)):
+**Phase 8 — Scale validation is now 🔨 in progress** (see
+[Phases.md](Phases.md#phase-8--scale-validation-) and
+[docs/plan.md](docs/plan.md#phase-8--scale-validation)). Thesis: prove the
+platform by putting real load on it. Take the same pipeline from ~40k
+events to 100M in 10x steps (1M, 10M, 100M), fix each bottleneck in the
+data layer or the infrastructure, and record run time and cost per
+million events per step. $20/month, six weeks from 2026-10-06.
 
-- **7.1** — scaled up the ingestion Lambda's `TRANSACTION_COUNT` 200 →
-  2000 and bumped `RETIRE_ON_OR_AFTER` to 2026-10-15
-  (`terraform/modules/lambda_ingestion/variables.tf`), replacing the
-  already-passed 2026-08-17 cap that had made the Lambda a pure no-op.
-- **7.2** — a `dev-compute` exercise (EKS/NAT/Spark Operator up,
-  `pipeline_active = true`), 3 manually-started state-machine executions
-  all `SUCCEEDED` (~6 min each, every layer verified live: ingestion →
-  Spark-on-EKS transform → dbt build → Athena serving query → lineage
-  capture), `dev-compute` torn down and verified clean afterward
-  (0 EKS / 0 NAT / 0 EIP), `pipeline_active` flipped back to `false`.
-  This also gives `docs/slo.md`'s trailing-window SLO accounting its
-  first real run-history sample (3 executions, all successful).
-- **7.3** — `cerberus-admin`'s `AdministratorAccess` replaced with 6
-  customer-managed policies (`iam/cerberus-admin/policies/`), built from
-  its complete real CloudTrail history (241 distinct operations) and
-  verified via `iam:simulate-custom-policy` plus a live `terraform plan`
-  across all three roots with `AdministratorAccess` fully detached — see
-  the full writeup below. Scoped to `cerberus-admin` only, per user
-  decision; the existing service/execution roles and ADR 0013's
-  unauthenticated lineage endpoint were explicitly left out of scope (the
-  lineage endpoint stays a real, open item — see Next up).
-- **7.4** — the full 57-question Well-Architected review across the whole
-  platform (not a per-phase diff pass). **No risk bucket moved** — 23
-  HIGH / 19 MEDIUM / 10 NONE / 5 N/A, identical to milestone 6
-  (`phase-7-end-to-end-validation-complete`, milestone 7). Two questions
-  gained new, notes-recorded evidence without crossing (security
-  `permissions`, reliability `testing-resiliency`). ADR 0015 accepted
-  after an independent Opus review caught and fixed four real issues in
-  the draft — see the full writeup below.
-- **Scope addition (2026-10-02):** Phase 7 grew from 6 to 8 subtasks.
-  Prometheus for the EKS/Spark layer was inserted ahead of the demo, as
-  7.6 ADR → 7.7 build → 7.8 demo (the demo was 7.6), so the closing demo
-  can show it. `docs/plan.md`'s Phase 7 section records why: CloudWatch
-  sees everything except the ephemeral EKS/Spark layer (PR #43).
-- **7.5** — `docs/cost-security-summary.md`, built from live Cost
-  Explorer, Tagging API, and CloudTrail data. The platform cost **$5.74
-  gross over the whole build, $0 out of pocket** (credits absorbed every
-  month). 39% of it was one orphaned Elastic IP from the 2026-08-19 crash.
-  It also covers the identity/data-protection posture and five residual
-  risks accepted on purpose. The lineage collector route is now
-  unauthenticated only while `pipeline_active = true` (ADR 0013 amended).
-  See the full writeup below (PR #42).
-- **7.6** — ADR 0016 (Prometheus for the EKS/Spark layer) **Accepted**
-  after an independent Opus review. Option B: an in-cluster Prometheus
-  agent remote-writing to an AMP workspace in `dev-standing`, plus
-  self-hosted Grafana via `kubectl port-forward` (PR #44).
-- **7.7 — 🔨 in progress, built but not yet verified live.** The standing
-  half is live: AMP workspace `cerberus-platform`
-  (`ws-87e9cc99-40d8-4bc4-bc63-7d65d6beb7b4`, 90-day retention) via
-  `terraform/modules/prometheus_workspace`, plus the `aps:` grants on
-  `cerberus-admin` and `cerberus-ci-apply` (PR #46). The `dev-compute` half
-  is written and checked offline: `terraform/modules/eks_observability`
-  (Prometheus agent + Grafana, two IRSA roles), the dashboard at
-  `observability/grafana/dashboards/spark-on-eks.json`, and the Spark
-  `PrometheusServlet` config in `spark-application.yaml`. That half merged
-  to `main` in PR #47 (2026-10-05), after a local `dev-standing` apply
-  rebuilt the runner image, and CI's apply on `main` succeeded. What's
-  still open is the live exercise. The ingestion retirement date moved to
-  **2026-10-30** (PR #45).
+- **8.1** — ADR 0017 **Accepted**: Apache Iceberg in the Glue catalog for
+  silver and gold. Silver `MERGE INTO` on `(transaction_id, event_type)`
+  with the bronze watermark committed as an Iceberg snapshot property;
+  gold `fct_transactions` as dbt-athena `incremental` + `merge` on
+  `transaction_id`; compaction + snapshot expiry as a step;
+  `cerberus-spark` gets scoped Glue write. Delta Lake ruled out (Athena
+  can't write it). PR #53.
+- **8.2** — cost guardrails: the hand-made `My Monthly Cost Budget`
+  raised $10 → $20 with alerts at 75% / 100% actual and 100% forecast
+  (gross cost; kept out of Terraform on purpose); Spot and on-demand vCPU
+  quotas both 32; account plan `PAID` / `ACTIVE` with $147.55 credits.
+  PR #54.
 
 ## Next up
 
-**Finish 7.7 with the live `dev-compute` exercise, and record 7.8 during
-it.** Everything up to the exercise is built and on `main` (PR #47, see
-the 2026-10-05 entry). The old steps 1–2 (open the PR; rebuild the runner
-image locally, then merge) are done. Start by checking out `main` and
-pulling, since the local checkout was left on the merged feature branch.
-**Every merge and every `terraform apply` below is the user's to run**
-(GitHub button or `!`), because auto mode blocks both (see Notes). Do it in
-this order:
+**8.3 — the scale harness.** Start with `git switch main && git pull`
+(the checkout should already be on `main`). Then:
 
-3. **Turn the pipeline on:** `pipeline_active = true` in
-   `envs/dev-standing/variables.tf`, on a new branch off `main`. Open the PR
-   and check CI's plan shows only the switch flipping: the daily schedule
-   `ENABLED`, the five gated alarms, the lineage route opening, plus the
-   Faker churn. Same bracket as 7.2. **Merge it only when ready to run
-   step 4 straight after.** Once it's on, the daily schedule fires at its
-   next time and fails if EKS isn't up.
-4. **`make compute-apply`, run by the user with `!`.** The plan should be
-   31 to add, 8 of them from `module.eks_observability`, including the
-   `cerberus-prometheus` and `cerberus-grafana` IRSA roles. From here, EKS,
-   NAT and two nodes are billing.
-5. **Check collection before running anything:**
-   - Prometheus and Grafana pods are `Running` in `monitoring`.
-   - The agent's log shows remote-write with no 403s.
-   - `kubectl port-forward -n monitoring svc/grafana 3000:80`. The admin
-     password comes from the `grafana` secret.
-   - The AMP data source tests OK, which proves IRSA works with plugin
-     3.2.0.
-6. **Start one state-machine execution, then:**
-   - **Fix the dashboard queries against the real series names.** The
-     Spark driver `metrics_cerberus_driver_*`, executor `metrics_executor_*`
-     and operator `spark_application_*` names in `spark-on-eks.json` are
-     unverified. Confirm the scrape paths `/metrics/prometheus/` and
-     `/metrics/executors/prometheus/` on port 4040.
-   - Measure the real series count in AMP (`count({__name__=~".+"})`)
-     against ADR 0016's ~10k estimate.
-   - Check AMP stays within the free tier in Cost Explorer once usage posts.
-   - **Record 7.8 here.** One orchestrated run: Step Functions graph → S3
-     partitions → Athena result → CloudWatch dashboard → Grafana Spark
-     panels → lineage graph on Pages. The user screen-records while Claude
-     drives the CLI.
-7. **Teardown:**
-   - Wait for the dashboard's "Samples pending" to read about 0.
-   - `make compute-destroy`. `eks_observability` depends on `vpc_nat`, so
-     the agent goes before the NAT.
-   - Account-wide 0-EIP check: `aws ec2 describe-addresses` must be empty.
-   - `pipeline_active = false` again, via PR and merge.
-8. **Write up 7.7 and 7.8.**
-   - Commit any dashboard query fixes from step 6. They're `dev-compute`
-     only, with no rebuild trigger.
-   - Check off 7.7 and 7.8. That completes Phase 7 and the whole roadmap,
-     so flip Phase 7 to ✅ across Phases.md, plan.md and README.
-   - Decide on Well-Architected milestone 8 (see below).
+1. **Decide the generator's shape before writing it** (record in the PR,
+   or a short ADR if it turns out architecturally significant):
+   - The ingestion Lambda can't produce 1M–100M events (15-minute limit),
+     and the stock `apache/spark:3.5.9` image has no Faker. So the
+     generator is a PySpark job that builds events from Spark functions
+     plus the fixed 15-merchant / 75-customer roster from
+     `ingestion/scripts/payments_lib.py` (same lifecycle rules: created →
+     authorized → settled/failed, some refunded; tokens `tok_` + 16
+     lowercase letters; emails `@example.com`).
+   - Where it writes: the same bronze `payments/dt=YYYY-MM-DD/` layout (so
+     the existing transform reads it unchanged), and how many files per
+     partition at 100M events (file count matters for the small-file
+     problem ADR 0017 names).
+   - How it runs: a second SparkApplication submitted by hand during an
+     exercise, not a new state-machine step (keep the orchestrated path
+     unchanged until 8.5).
+2. **Define the metric set and where each number comes from:** run time
+   per state (Step Functions history), events/s, bytes read and written
+   (Spark metrics in AMP / S3), cost per million events (Cost Explorer;
+   it posts daily, so one exercise per day keeps attribution clean, or
+   decide on another method), Prometheus series count, and the
+   data-quality result.
+3. **Baseline run at today's volume** with the *current* full-rebuild
+   pipeline, as the "before" numbers. Exercise bracket as on 2026-10-06:
+   `pipeline_active = true` PR → `make compute-apply` → run → teardown →
+   `pipeline_active = false` PR. Make every `dev-compute` plan right
+   before its apply (15-minute EKS token, see Notes).
+4. **8.4 follows directly:** put the 14-check data-quality suite into the
+   repo (the 2026-10-06 version lived only in the session scratchpad; the
+   checks are listed in that day's entry) and add the bronze → silver
+   count reconciliation ADR 0017's Consequences require.
 
-**Deadline:** the ingestion Lambda's `RETIRE_ON_OR_AFTER` is now
-**2026-10-30** (PR #45, live).
+**Deadline:** the ingestion Lambda's `RETIRE_ON_OR_AFTER` is
+**2026-10-30** (PR #45). The scale generator does not depend on it, but
+the daily orchestrated path does.
 
 **Carried-over, not blocking (see Notes / blockers):**
 
-- **`build_and_push` CI landmine:** still deferred. The workaround (a
-  local apply before merging) was used again for PR #47 on 2026-10-05.
-- **Faker Lambda-layer hash churn:** still cosmetic, still present (PRs #45
-  and #46).
+- **`build_and_push` CI landmine:** still deferred. The CI path filters
+  added on 2026-10-06 deliberately leave its trigger paths out.
+- **Faker Lambda-layer hash churn:** still cosmetic, still present.
 - **Follow-ups recorded in ADR 0016, not adopted:** private EKS endpoint
-  access (would enable the AMP managed collector, and would probably fix
-  the NAT-before-node-group destroy gotcha), and a Pushgateway.
-- **Well-Architected milestone after 7.7:** milestone 7 predates
-  Prometheus. Decide after 7.7 is live whether `workload-observability` /
-  `monitor-aws-resources` merit re-answering and a further milestone.
+  access, and a Pushgateway.
+- **Lineage page on GitHub Pages** doesn't include the 2026-10-06 runs
+  yet: re-render with the `dbt docs (lineage)` workflow's
+  `workflow_dispatch` when wanted.
+- **Well-Architected milestone 8** now belongs to 8.11 (it will also
+  cover 7.7's Prometheus evidence).
+- **Later phase, recorded in plan.md:** Kafka + Airflow on one start/stop
+  EC2 instance.
 
 ## Session history
 
@@ -2574,25 +2495,132 @@ after midnight (2026-10-06)._
   enables the daily schedule, which fails unless EKS comes up straight
   after.
 
+### 2026-10-06
+
+_A long session on the `/home/chirag` workstation. 7.7 verified live, 7.8
+recorded, Phase 7 closed, Phase 8 planned with ADR 0017 accepted, and 8.2
+done. PRs #48–#54._
+
+- **Exercise bracket.** `pipeline_active = true` (#48), CI apply as
+  predicted (6 added / 3 changed / 1 destroyed: schedule `ENABLED`, five
+  gated alarms, lineage route `AWS_IAM` → `NONE`, Faker churn). Flipped
+  back to `false` after teardown (#49); schedule confirmed `DISABLED`.
+- **First `dev-compute` create since 7.3 failed partway.** The cluster,
+  NAT and roles came up, then the node group failed: `Failed to validate
+  if SLR: AWSServiceRoleForAmazonEKSNodegroup already exists due to
+  missing permissions for 'iam:GetRole'`. `cerberus-admin`'s `GetRole`
+  was scoped to `role/cerberus-*`. Added `IamServiceLinkedRead`
+  (`iam:GetRole` on `role/aws-service-role/eks*`) to
+  `cerberus-admin-iam-and-governance.json`; root pushed the new version
+  from the console; all 76 actions in that file then simulated `allowed`
+  against the live user. A second plan (18 to add) applied cleanly. The
+  access-entry 404 in the same failed apply was a timing artefact and did
+  not recur. Lesson: 7.3 was verified with `simulate` and `plan`, and a
+  plan never exercises create-time calls.
+- **7.7 checks, all passed:** 2 nodes `Ready`; 5/5 `monitoring` pods
+  `Running`; IRSA annotations correct; remote-write 17,269 samples at
+  first check with 0 failed / retried / pending (1,396,957 sent by
+  teardown, still 0 failed); Grafana AMP data source `OK`. The CloudWatch
+  data source health shows `ERROR` only for its Logs half, by design
+  (metrics-only grant). All three Spark scrape targets `up`.
+- **Rehearsal run** `rehearsal-7-7-20261006T063937` SUCCEEDED in 6m40s.
+  Every dashboard series name checked against AMP: all correct except the
+  three driver panels. PrometheusServlet exports each gauge as `_Number`
+  and `_Value`, so the `.*` regexes drew duplicate lines; now `_Value`.
+  `spark_application_failure_count` only appears after a failure (fine).
+  **Peak 4,349 active series** (465 Spark `metrics_*`) vs ADR 0016's
+  ~10k.
+- **7.8 recorded:** `demo-7-8-take1-20261006T075445`, SUCCEEDED in 6m03s,
+  narrated tab by tab while the user screen-recorded (Take 1 kept).
+  Athena result led by Mcclure, Ward and Lee (842 settled).
+- **Teardown:** 31 destroyed; account-wide 0 EKS / 0 NAT / 0 EIP / 0
+  running instances; AMP stays. Samples pending was 0 before destroy.
+- **Data-quality pass (14 cross-layer Athena queries, scratchpad only):**
+  39,222 events / 12,862 transactions / 32 partitions. Clean: silver↔gold
+  reconciliation, duplicate `(transaction_id, event_type)`, lifecycle
+  (one `created`, ≤1 terminal, no refund without settle, order), refund
+  events = gold `refunded` (636), partition placement, key nulls, amount
+  range and stability per transaction, roster 15/75, dim FKs, email and
+  `last4` masking. **Two findings, fixed in #50:** (1) hex tokens held
+  13–16 digit runs, 22 of them Luhn-valid, which a DLP scanner would flag
+  → tokens are now `tok_` + 16 lowercase letters (`secrets`); old bronze
+  events keep their old tokens; (2) the demo query summed USD/EUR/GBP
+  together → now grouped by currency (45 rows).
+- **Two CI gaps found by #50:** (1) the Terraform workflows only watched
+  `terraform/**`, though `dev-standing` reads six other paths via
+  `file()`/`templatefile()` → both workflows now watch them, leaving the
+  `build_and_push` trigger paths out on purpose; (2) `cerberus-ci-apply`
+  lacked `states:ValidateStateMachineDefinition`, which the provider
+  calls before updating a state machine. That action has **no resource
+  types**, so only `Resource = "*"` grants it (#51). Because the CI role
+  can't edit its own policy, #51 went in by a local `dev-standing` apply
+  first (ADR 0016's order), then merge; both fixes confirmed live.
+- **Phase 7 ✅** across Phases.md, plan.md and README (#52), with the IAM
+  policy and dashboard fixes recorded.
+- **Phase 8 planned** (#53): discussion settled on a mixed platform +
+  data engineering thesis, $20/month, six weeks; streaming (Kafka) +
+  Airflow on one start/stop EC2 instance deferred to a later phase. ADR
+  0017 drafted with the pillar method and accepted.
+- **8.2** (#54): budget, quotas and account plan, as summarised above.
+- **Cost:** platform (`us-east-1`) posted usage $5.82 through 2026-10-05;
+  today's exercise was estimated at ~$0.70, so about $6.50 for the whole
+  build (confirm once it posts). The account's `ap-south-2` charges
+  ($3.68 to date) are not the platform.
+- **Also produced, outside the repo:** an animated dataflow page
+  (private Artifact, https://claude.ai/artifact/4FRJRVYkRicRh1dwnZYcWM)
+  and a LinkedIn post draft (2,978 chars) for the Take 1 video.
+
 ## Notes / blockers
 
 - **Resolved 2026-10-05 (was: open, noted 2026-10-03):** branch
   `phase-7-prometheus-dev-compute` *had* been pushed. PR #47 merged it to
-  `main`. The local checkout was still on that merged branch when
-  2026-10-05 closed, so switch to `main` and pull first. `git status` is
-  authoritative.
+  `main`. The checkout was found on `main` at the start of 2026-10-06.
+  `git status` is authoritative.
 - **Auto mode blocks IAM changes, every `terraform apply`, and PR merges
   (noted 2026-10-03, widened 2026-10-05).** In Claude Code's auto mode,
   edits that widen an IAM policy (the `iam/cerberus-admin/policies/*.json`
   files) are denied as permission grants, even after the user says "go
   ahead" in chat. So is **any** `terraform apply`, including a
   `dev-standing` apply with no IAM in its plan ("Protected-Scope IaC
-  Apply"), and `gh pr merge` ("Merge Without Review"). Ways through:
+  Apply"), and `gh pr merge` ("Merge Without Review"). On 2026-10-06 it
+  also blocked a plain *edit* of `terraform/envs/dev-standing/variables.tf`
+  (the `pipeline_active` flip), as "Protected-Scope IaC Apply", because CI
+  applies that root on merge. Ways through:
   switch out of auto mode (Shift+Tab) for that step, have the user run it
   with `!` (or merge on GitHub), or add allow rules in settings. Saving a
   plan with `-out` to the scratchpad and having the user apply that file
   works well. `simulate-custom-policy`, plans, reads and opening PRs are
   not blocked.
+- **Saved `dev-compute` plans expire after about 15 minutes (noted
+  2026-10-06).** The `kubernetes` and `helm` providers take their token
+  from `data.aws_eks_cluster_auth`, and a saved plan carries that token.
+  Applying a 45-minute-old plan failed with `Failed to update Config Map:
+  Unauthorized`. Make each `dev-compute` plan right before its apply.
+  `dev-standing` has no such provider, so its saved plans don't expire.
+- **`kubectl port-forward` to Grafana drops after a while (noted
+  2026-10-06):** `error: lost connection to pod`. During a recording, run
+  it in a restart loop (`while true; do kubectl port-forward -n
+  monitoring svc/grafana 3000:80; sleep 2; done`). Admin password:
+  `kubectl get secret -n monitoring grafana -o
+  jsonpath='{.data.admin-password}' | base64 -d`. To query AMP through
+  Grafana's API use `/api/datasources/uid/amp/resources/api/v1/...`; the
+  `/api/datasources/proxy/...` path returns `Missing Authentication
+  Token`.
+- **`cerberus-admin` read gaps that are fine as they are (noted
+  2026-10-06):** `scheduler:ListSchedules` and `cloudwatch:DescribeAlarms`
+  (look resources up by name instead), `athena:GetQueryResults` (read
+  results as `cerberus-serving` or `cerberus-transform`),
+  `eks:ListAccessEntries`, `iam:ListPolicies`,
+  `elasticloadbalancing:DescribeLoadBalancers` (the project creates no
+  load balancers), and `freetier:GetAccountPlanState` (run it as root in
+  CloudShell). None blocked any work.
+- **IAM simulator quirks (noted 2026-10-06):** passing a literal `*` in
+  `--resource-arns` returns `implicitDeny` even when the policy allows
+  it, so test with the default resource or a concrete ARN. An action with
+  **no resource types** (e.g. `states:ValidateStateMachineDefinition`)
+  can only be granted on `Resource = "*"`, whatever ARN the AccessDenied
+  message names. Check
+  `servicereference.us-east-1.amazonaws.com/v1/<service>/<service>.json`.
 - **`cerberus-admin` can't list ECR repositories with a wildcard (noted
   2026-10-05).** That's 7.3's scoping. Look the repo up by name
   (`cerberus-orchestration-runner`, or from `terraform state show
@@ -2627,7 +2655,11 @@ after midnight (2026-10-06)._
   a CI job — or a small `dev-compute`-style local runbook — that
   builds+pushes the runner image on those paths, deleting this
   `null_resource`.** It expands CI's blast radius to ECR pushes, so it
-  wasn't bolted onto Phase 6.
+  wasn't bolted onto Phase 6. **2026-10-06:** the Terraform workflows now
+  also watch `dev-standing`'s `file()` sources (Lambda code, lineage
+  collector, freshness probe, state-machine template, serving query), but
+  deliberately *not* this resource's trigger paths, so the workaround is
+  unchanged.
 - **Resolved 2026-09-01 (was: open operational, noted 2026-08-27):** the
   daily EventBridge-scheduled orchestration run
   (`aws_scheduler_schedule.daily`, `step_functions` module) failed every
@@ -2677,8 +2709,10 @@ after midnight (2026-10-06)._
   milestone is scheduled:** Phase 7's review subtask (7.4) is closed. ADR
   0016 leaves it open whether 7.7's Prometheus work merits re-answering
   `workload-observability` / `monitor-aws-resources` and saving a milestone
-  8. Decide after 7.7 is live. (`cerberus-admin`'s governance policy still
-  carries the Well-Architected Sids as of the 2026-10-03 AMP pastes.)
+  8. **Updated 2026-10-06:** milestone 8 is now part of 8.11 (Phase 8's
+  Well-Architected pass), which will also take in 7.7's Prometheus
+  evidence. (`cerberus-admin`'s governance policy still carries the
+  Well-Architected Sids as of the 2026-10-06 root paste.)
 - **AWS Agent Toolkit (`aws-core@claude-plugins-official`, installed
   2026-08-11) is in scope for the rest of the build — see `docs/plan.md`'s
   cross-cutting tracks.** Mapped to remaining phases: `aws-compute` (4.1,
