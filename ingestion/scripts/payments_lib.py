@@ -13,6 +13,8 @@ S3_CLIENT_CONFIG below so retries are handled consistently.
 
 import json
 import random
+import secrets
+import string
 import uuid
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
@@ -85,7 +87,10 @@ def build_roster():
 
 def make_payment_method(rng):
     method_type = rng.choices(["card", "bank_transfer", "wallet"], weights=[70, 20, 10])[0]
-    token = f"tok_{uuid.uuid4().hex[:16]}"
+    # Letters only, never digits: a hex token can by chance hold a 13-19
+    # digit run that passes the Luhn check, which a DLP scanner (Macie)
+    # would flag as a card number. 2026-10-06's data-quality pass found 22.
+    token = "tok_" + "".join(secrets.choice(string.ascii_lowercase) for _ in range(16))
     if method_type == "card":
         return {
             "type": "card",
