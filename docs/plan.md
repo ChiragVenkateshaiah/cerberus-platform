@@ -145,6 +145,7 @@ layered on top of a platform that already works.
 | 5 | CI/CD | AWS CodePipeline | AWS CodePipeline | ✅ Complete |
 | 6 | Observability & data quality | CloudWatch, dbt tests | AWS CloudWatch | ✅ Complete |
 | 7 | End-to-end platform validation | synthetic payments at scale, Well-Architected review, Prometheus metrics for EKS/Spark | AWS SAA _(parallel track)_ | ✅ Complete |
+| 8 | Scale validation | Apache Iceberg, incremental processing, Spark tuning, node autoscaling + Spot, AWS Budgets | _(course gap — Iceberg and Spark docs)_ | ⬜ Planned |
 
 🎯 **MVP is complete at the end of Phase 1.**
 
@@ -246,6 +247,44 @@ layered on top of a platform that already works.
 - **Artifact:** an end-to-end demo (GIF or short video) that includes the
   Prometheus/Grafana view of the run, a Well-Architected review write-up, and
   a cost/security summary.
+
+### Phase 8 — Scale validation
+- **Goal:** Prove the platform by putting real load on it. Take the same
+  pipeline from today's ~40k events to 100M events in three 10x steps
+  (about 1M, 10M, 100M), find the bottleneck at each step, and fix it in
+  the data layer or the infrastructure, whichever it lives in.
+- **Thesis:** platform engineering and data engineering are tested
+  together. The data work applies the load; the platform work answers what
+  the load breaks. Infrastructure is added only when a measurement shows
+  it is needed.
+- **Stack:** Apache Iceberg tables in the Glue Data Catalog with
+  incremental `MERGE` processing (ADR 0017); a Spark-based synthetic
+  generator for large volumes (the ingestion Lambda's 15-minute limit
+  cannot produce 100M events); Spark tuning (partition sizing, compaction,
+  AQE, skew); node autoscaling and Spot for `dev-compute` (its own ADR);
+  AWS Budgets.
+- **Measured at every step:** run time, events per second, bytes read and
+  written per run, cost per million events, Prometheus series count, and
+  the data-quality suite (bronze → silver → gold reconciliation must stay
+  clean).
+- **Budget:** $20/month on a pay-as-you-go account, about $30 over the
+  phase. Budgets alerts at $15 and $20 are in place before the first large
+  exercise; the Phase 0 `$10` billing alarm stays as an early warning. Cost
+  is checked after each step before climbing to the next one.
+- **Timeline:** six weeks (from 2026-10-06).
+- **Known risks:** a low Spot vCPU quota on the account (request early);
+  the new-account Free-Tier-only EC2 restriction seen on 2026-08-18 (check,
+  don't assume it lifted); new 7.3 permission gaps for Iceberg, Spot and
+  autoscaling calls (expect root-console policy updates).
+- **Out of scope:** streaming (Kafka) and Airflow, planned as a later phase
+  on one start/stop EC2 instance (about $70/month if left running, so it
+  follows the `dev-compute` spin-up/tear-down pattern); Delta Lake (ADR
+  0017).
+- **Done when:** a 100M-event run completes orchestrated, with the
+  data-quality suite clean, and run time and cost per million events are
+  recorded for the 1M, 10M and 100M steps.
+- **Artifact:** a results write-up with the per-step numbers and charts, a
+  demo video, ADRs for each decision, and Well-Architected milestone 8.
 
 ## Existing infrastructure
 
