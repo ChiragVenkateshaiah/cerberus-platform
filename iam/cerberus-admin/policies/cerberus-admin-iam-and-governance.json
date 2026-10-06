@@ -70,6 +70,14 @@
       "Resource": "*"
     },
     {
+      "Sid": "IamServiceLinkedRead",
+      "Effect": "Allow",
+      "Action": [
+        "iam:GetRole"
+      ],
+      "Resource": "arn:aws:iam::131715059025:role/aws-service-role/eks*"
+    },
+    {
       "Sid": "IamSelf",
       "Effect": "Allow",
       "Action": [

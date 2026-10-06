@@ -101,7 +101,7 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 - [x] 6.5 SLO write-up
 - [x] 6.6 Well-Architected pass + ADR
 
-## Phase 7 — End-to-end platform validation 🔨
+## Phase 7 — End-to-end platform validation ✅
 
 - [x] 7.1 Scaled-up synthetic payments workload
 - [x] 7.2 Full orchestrated run exercising every layer
@@ -111,9 +111,9 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 - [x] 7.5 Cost + security summary
 - [x] 7.6 ADR: Prometheus for the EKS/Spark layer (where metrics live, how
       they're viewed, no new idle cost)
-- [ ] 7.7 Prometheus metrics + Grafana dashboard for Spark-on-EKS, verified
+- [x] 7.7 Prometheus metrics + Grafana dashboard for Spark-on-EKS, verified
       live during a `dev-compute` exercise
-- [ ] 7.8 End-to-end demo (GIF or short video), including the observability
+- [x] 7.8 End-to-end demo (GIF or short video), including the observability
       view
 
 ---

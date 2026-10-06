@@ -60,7 +60,7 @@ those metrics (6.5). ADR 0014 closes the phase's Well-Architected pass
 first pass since milestone 1 to move risk buckets: 25→23 HIGH, as
 `workload-observability`, `monitor-aws-resources`, and Performance's
 `process-culture` each improved.
-🔨 Phase 7 (end-to-end platform validation) — in progress. 7.1 scaled the
+✅ Phase 7 (end-to-end platform validation) — complete. 7.1 scaled the
 ingestion Lambda's synthetic payments workload 10x (`TRANSACTION_COUNT`
 200 → 2000); 7.2 exercised the full orchestrated pipeline live in a
 `dev-compute` window — 3 manually-started state-machine executions all
@@ -76,11 +76,15 @@ whole build cost $5.74 gross, all of it covered by credits, and narrowed
 the lineage collector to unauthenticated-only-during-exercises. Phase 7
 was then extended with Prometheus metrics for the EKS/Spark layer: 7.6's
 ADR 0016 chose an in-cluster agent writing to Amazon Managed Service for
-Prometheus, viewed through self-hosted Grafana. 7.7 is in progress: the
-standing AMP workspace is live, and the in-cluster Prometheus agent,
-Grafana and Spark metrics config are built, with live verification in a
-`dev-compute` exercise still to come. 7.8 (the end-to-end demo, including
-that observability view) is still open.
+Prometheus, viewed through self-hosted Grafana. 7.7 verified it live in a
+`dev-compute` exercise on 2026-10-06: remote-write to AMP with no failed
+samples, the Spark driver, executor and operator series on the
+[Grafana dashboard](observability/grafana/dashboards/spark-on-eks.json),
+and a peak of 4,349 active series against ADR 0016's ~10k estimate.
+7.8 recorded one orchestrated run end to end (about 6 minutes, from the
+Step Functions graph through S3, Athena, CloudWatch and Grafana to the
+lineage graph). That exercise also found and fixed a 7.3 permission gap,
+two data-quality issues and two CI gaps.
 
 See [docs/plan.md](docs/plan.md) for the full phased roadmap (Phases 0–7)
 and [Phases.md](Phases.md) for subtask-level progress.

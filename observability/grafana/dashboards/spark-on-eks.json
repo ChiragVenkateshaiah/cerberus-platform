@@ -484,7 +484,7 @@
             "type": "grafana-amazonprometheus-datasource",
             "uid": "amp"
           },
-          "expr": "{__name__=~\"metrics_cerberus_driver_jvm_heap_used.*\"}",
+          "expr": "metrics_cerberus_driver_jvm_heap_used_Value",
           "legendFormat": "{{pod}}",
           "refId": "A",
           "range": true
@@ -527,7 +527,7 @@
             "type": "grafana-amazonprometheus-datasource",
             "uid": "amp"
           },
-          "expr": "{__name__=~\"metrics_cerberus_driver_DAGScheduler_job_activeJobs.*\"}",
+          "expr": "metrics_cerberus_driver_DAGScheduler_job_activeJobs_Value",
           "legendFormat": "active jobs",
           "refId": "A",
           "range": true
@@ -537,7 +537,7 @@
             "type": "grafana-amazonprometheus-datasource",
             "uid": "amp"
           },
-          "expr": "{__name__=~\"metrics_cerberus_driver_DAGScheduler_stage_runningStages.*\"}",
+          "expr": "metrics_cerberus_driver_DAGScheduler_stage_runningStages_Value",
           "legendFormat": "running stages",
           "refId": "B",
           "range": true
