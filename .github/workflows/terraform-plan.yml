@@ -27,6 +27,18 @@ on:
       - "terraform/modules/**"
       - "terraform/envs/dev-standing/**"
       - ".github/workflows/terraform-plan.yml"
+      # Code that dev-standing's modules read with file()/templatefile().
+      # Without these, a change here merges to main but never reaches AWS.
+      # The orchestration_runner image inputs (orchestration/runner/**,
+      # transform/dbt/**, transform/spark/**, .dockerignore) are left out on
+      # purpose: they trigger null_resource.build_and_push, which can't run
+      # on a GitHub runner (see checkpoint.md Notes).
+      - "ingestion/lambda/**"
+      - "ingestion/scripts/payments_lib.py"
+      - "lineage/collector/**"
+      - "observability/freshness_probe/**"
+      - "orchestration/state_machine.asl.json.tftpl"
+      - "serving/queries/**"
 
 permissions:
   id-token: write
