@@ -144,7 +144,7 @@ layered on top of a platform that already works.
 | 4 | Orchestration | AWS Step Functions | _(course gap — AWS workshop)_ | ✅ Complete |
 | 5 | CI/CD | AWS CodePipeline | AWS CodePipeline | ✅ Complete |
 | 6 | Observability & data quality | CloudWatch, dbt tests | AWS CloudWatch | ✅ Complete |
-| 7 | End-to-end platform validation | synthetic payments at scale, Well-Architected review, Prometheus metrics for EKS/Spark | AWS SAA _(parallel track)_ | 🔨 In progress |
+| 7 | End-to-end platform validation | synthetic payments at scale, Well-Architected review, Prometheus metrics for EKS/Spark | AWS SAA _(parallel track)_ | ✅ Complete |
 
 🎯 **MVP is complete at the end of Phase 1.**
 
