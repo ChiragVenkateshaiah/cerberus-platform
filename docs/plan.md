@@ -272,10 +272,15 @@ layered on top of a platform that already works.
   exercise; the Phase 0 `$10` billing alarm stays as an early warning. Cost
   is checked after each step before climbing to the next one.
 - **Timeline:** six weeks (from 2026-10-06).
-- **Known risks:** a low Spot vCPU quota on the account (request early);
-  the new-account Free-Tier-only EC2 restriction seen on 2026-08-18 (check,
-  don't assume it lifted); new 7.3 permission gaps for Iceberg, Spot and
-  autoscaling calls (expect root-console policy updates).
+- **Known risks:** new 7.3 permission gaps for Iceberg, Spot and
+  autoscaling calls (expect root-console policy updates). Checked and
+  cleared in 8.2 (2026-10-06): the Spot and on-demand vCPU quotas are 32
+  each, and the account is on the Paid plan (`freetier
+  get-account-plan-state`: `PAID`, `ACTIVE`, run as root because
+  `cerberus-admin` can't read it), so the Free-plan EC2 restriction seen
+  on 2026-08-18 no longer applies. $147.55 in credits remained, more than
+  the whole phase budget; the Budget measures gross cost, so its alerts
+  still fire while credits apply.
 - **Out of scope:** streaming (Kafka) and Airflow, planned as a later phase
   on one start/stop EC2 instance (about $70/month if left running, so it
   follows the `dev-compute` spin-up/tear-down pattern); Delta Lake (ADR
@@ -298,6 +303,7 @@ onward rather than rebuilt:
 | DynamoDB table | `cerberus-platform-tfstate-lock` | Terraform state locking |
 | CloudWatch alarm | `cerberus-billing-alarm-10usd` | Billing guard ($10/mo) |
 | SNS topic | `cerberus-billing-alerts` | Billing alarm delivery |
+| AWS Budget | `My Monthly Cost Budget` | Gross monthly cost (credits and refunds excluded), whole account. Raised from $10 to $20 for Phase 8 (8.2, 2026-10-06), with email alerts at 75% actual ($15), 100% actual ($20) and 100% forecast. Kept out of Terraform on purpose, like the billing alarm: a CI-applied role should not be able to raise the account's own spending cap. |
 | IAM user | `cerberus-admin` | Working (non-root) identity |
 
 All in `us-east-1`. Silver and gold buckets do not exist yet — they arrive in
