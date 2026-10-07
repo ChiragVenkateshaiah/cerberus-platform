@@ -66,43 +66,54 @@ million events per step. $20/month, six weeks from 2026-10-06.
   (gross cost; kept out of Terraform on purpose); Spot and on-demand vCPU
   quotas both 32; account plan `PAID` / `ACTIVE` with $147.55 credits.
   PR #54.
+- **8.3** — the scale harness, done 2026-10-07 (PRs #55–#60):
+  - **ADR 0018 Accepted:** bulk events land in bronze as **JSON Lines**
+    under a sibling prefix,
+    `payments_bulk/run_id=<id>/dt=YYYY-MM-DD/part-*.json`. Bronze
+    `payments/` (the Lambda's JSON arrays) is unchanged.
+  - **Generator** (`transform/spark/generate_bulk_payments.py`,
+    `generate_bulk.sh`, `spark-application-generate.yaml`): deterministic
+    by (`run_id`, row id), so a re-run replaces only its own run.
+    `cerberus-spark` gained Get/Put/Delete/AbortMultipartUpload on
+    `bronze/payments_bulk` and `payments_bulk/*` (the bare key too: S3A
+    probes it). Verified live: 1,000,029 events in 117 s.
+  - **Metric set** ([docs/scale-metrics.md](docs/scale-metrics.md)) and
+    collector (`observability/scale/collect_run_metrics.py`, one JSON
+    record per run in `observability/scale/runs/`). Cost is scoped by
+    us-east-1, not the `Project` tag (node instances are untagged).
+  - **Baseline** from the five existing runs (median 363 s at about 39k
+    events, $1.07 per million events), plus today's exercise.
+  - **`make exercise`** (`orchestration/exercise.sh`): preflight → plan +
+    apply → optional generator → one execution → collect → destroy from an
+    EXIT trap → account-wide check. Cluster time fell from 2.10 h to 42 min.
 
 ## Next up
 
-**8.3 — the scale harness.** Start with `git switch main && git pull`
-(the checkout should already be on `main`). Then:
+Start with `git switch main && git pull`.
 
-1. **Decide the generator's shape before writing it** (record in the PR,
-   or a short ADR if it turns out architecturally significant):
-   - The ingestion Lambda can't produce 1M–100M events (15-minute limit),
-     and the stock `apache/spark:3.5.9` image has no Faker. So the
-     generator is a PySpark job that builds events from Spark functions
-     plus the fixed 15-merchant / 75-customer roster from
-     `ingestion/scripts/payments_lib.py` (same lifecycle rules: created →
-     authorized → settled/failed, some refunded; tokens `tok_` + 16
-     lowercase letters; emails `@example.com`).
-   - Where it writes: the same bronze `payments/dt=YYYY-MM-DD/` layout (so
-     the existing transform reads it unchanged), and how many files per
-     partition at 100M events (file count matters for the small-file
-     problem ADR 0017 names).
-   - How it runs: a second SparkApplication submitted by hand during an
-     exercise, not a new state-machine step (keep the orchestrated path
-     unchanged until 8.5).
-2. **Define the metric set and where each number comes from:** run time
-   per state (Step Functions history), events/s, bytes read and written
-   (Spark metrics in AMP / S3), cost per million events (Cost Explorer;
-   it posts daily, so one exercise per day keeps attribution clean, or
-   decide on another method), Prometheus series count, and the
-   data-quality result.
-3. **Baseline run at today's volume** with the *current* full-rebuild
-   pipeline, as the "before" numbers. Exercise bracket as on 2026-10-06:
-   `pipeline_active = true` PR → `make compute-apply` → run → teardown →
-   `pipeline_active = false` PR. Make every `dev-compute` plan right
-   before its apply (15-minute EKS token, see Notes).
-4. **8.4 follows directly:** put the 14-check data-quality suite into the
-   repo (the 2026-10-06 version lived only in the session scratchpad; the
-   checks are listed in that day's entry) and add the bronze → silver
-   count reconciliation ADR 0017's Consequences require.
+1. **Add the cost to yesterday's exercise record** (one Cost Explorer
+   request, $0.01):
+   `uv run --no-project --with boto3 python observability/scale/collect_run_metrics.py --execution exercise-20261007T145442Z --cost-only`.
+   Expect about $0.28 for the exercise (42 cluster-minutes at about $0.40
+   per cluster-hour) plus the failed first attempt (about 28 minutes) on
+   the same UTC day, so the day's rate covers both. Update
+   `docs/scale-metrics.md`'s baseline section with the run's numbers.
+2. **8.4 — the data-quality suite as code.** The 14 checks from
+   2026-10-06 are listed in that day's entry (silver↔gold reconciliation,
+   duplicate `(transaction_id, event_type)`, lifecycle, refund/status
+   agreement, partition placement, key nulls, amount range and
+   stability, roster 15/75, dim FKs, email and `last4` masking). Add the
+   bronze → silver count reconciliation ADR 0017 requires, and a per-
+   `run_id` check for `payments_bulk/` (events written = the generator's
+   `[generate]` manifest). Decide where it runs: as Athena queries under
+   `cerberus-transform` from the collector (fills the record's
+   `data_quality` field, no cluster needed), or as a state-machine step.
+   The first option keeps the orchestrated path unchanged until 8.5.
+3. **Then 8.5** (Iceberg silver/gold per ADR 0017). Its silver job must:
+   read bronze **once** (today's job reads it 3× — three uncached
+   actions), and read both prefixes — `payments/` with `multiLine=true`
+   and `payments_bulk/` with `multiLine=false` (ADR 0018). The 1M
+   generator run `e1000000-20261007T151119Z` is already in bronze for it.
 
 **Deadline:** the ingestion Lambda's `RETIRE_ON_OR_AFTER` is
 **2026-10-30** (PR #45). The scale generator does not depend on it, but
@@ -110,16 +121,19 @@ the daily orchestrated path does.
 
 **Carried-over, not blocking (see Notes / blockers):**
 
-- **`build_and_push` CI landmine:** still deferred. The CI path filters
-  added on 2026-10-06 deliberately leave its trigger paths out.
+- **`build_and_push` CI landmine:** still deferred.
 - **Faker Lambda-layer hash churn:** still cosmetic, still present.
 - **Follow-ups recorded in ADR 0016, not adopted:** private EKS endpoint
   access, and a Pushgateway.
-- **Lineage page on GitHub Pages** doesn't include the 2026-10-06 runs
+- **Lineage page on GitHub Pages** doesn't include the 2026-10-06/07 runs
   yet: re-render with the `dbt docs (lineage)` workflow's
   `workflow_dispatch` when wanted.
-- **Well-Architected milestone 8** now belongs to 8.11 (it will also
-  cover 7.7's Prometheus evidence).
+- **Well-Architected milestone 8** belongs to 8.11 (it will also cover
+  7.7's Prometheus evidence).
+- **New 2026-10-07:** untagged EKS node instances (8.7/8.8), stale Spark
+  labels on pod-IP reuse (Grafana driver panels), and
+  `RunServingQuery`'s ~55 s Step Functions polling floor (a latency fix
+  for SLO 3, worth only about $0.006 per run).
 - **Later phase, recorded in plan.md:** Kafka + Airflow on one start/stop
   EC2 instance.
 
@@ -2514,8 +2528,10 @@ done. PRs #48–#54._
   `cerberus-admin-iam-and-governance.json`; root pushed the new version
   from the console; all 76 actions in that file then simulated `allowed`
   against the live user. A second plan (18 to add) applied cleanly. The
-  access-entry 404 in the same failed apply was a timing artefact and did
-  not recur. Lesson: 7.3 was verified with `simulate` and `plan`, and a
+  access-entry 404 in the same failed apply did not recur on that second
+  apply. _(Corrected 2026-10-07: not a timing artefact but a missing
+  dependency. `spark_job` got the cluster name as a literal, so the access
+  entry raced the cluster on every fresh apply. Fixed in #59.)_ Lesson: 7.3 was verified with `simulate` and `plan`, and a
   plan never exercises create-time calls.
 - **7.7 checks, all passed:** 2 nodes `Ready`; 5/5 `monitoring` pods
   `Running`; IRSA annotations correct; remote-write 17,269 samples at
@@ -2569,6 +2585,71 @@ done. PRs #48–#54._
 - **Also produced, outside the repo:** an animated dataflow page
   (private Artifact, https://claude.ai/artifact/4FRJRVYkRicRh1dwnZYcWM)
   and a LinkedIn post draft (2,978 chars) for the Take 1 video.
+
+### 2026-10-07
+
+_8.3 done in one session: ADR 0018, the generator, the metric set with a
+baseline from existing runs, `make exercise`, and the first live exercise.
+PRs #55–#60._
+
+- **Generator design → ADR 0018 (Accepted, #55).** Tested locally in
+  `apache/spark:3.5.9` before writing it: a 539 MB JSON array read with
+  `multiLine=true` ran out of memory at 512 MB heap, where 538 MB of JSON
+  Lines split into 5 partitions; and `multiLine=true` on JSON Lines
+  silently returns only the first object. So bulk data is JSON Lines on a
+  sibling prefix (`payments_bulk/run_id=/dt=/`), invisible to today's
+  silver job, cumulative ladder (1M, +9M, +90M), and a first Delete grant
+  in bronze limited to that prefix.
+- **Generator (#56).** PySpark from `spark.range`, the roster copied from
+  `payments_lib` (checked live against 886 bronze events, and by
+  `check_bulk_roster.py`), every value a hash of (`run_id`, row id, salt).
+  Local 100k run: 0 rule violations, identical output across runs, a
+  re-run replaced only its own files. A self-review caught the count pass
+  re-running the write's shuffle (45 GB at 100M); fixed before merge.
+- **Metric set + baseline (#57).** All sources checked live: Step
+  Functions history, Athena per-state bytes (matched by submission time),
+  AMP (series and `metrics_executor_totalInputBytes`), S3 listings, an
+  Athena count as `cerberus-transform`, Cost Explorer. Baseline from the
+  five existing runs, which all predate #50 (it touched only
+  `InvokeIngestion` and `RunServingQuery`). Findings: the silver job reads
+  bronze **3×**; node instances are **untagged** ($0.33 of $0.84 on
+  2026-10-06); `RunServingQuery` is ~55 s of Step Functions polling; and
+  **90% of 2026-10-06's cost was the cluster waiting** (2.10 h up, 13 min
+  of runs). The user asked to check the `#50` claim; the first PR text had
+  understated its scope, and both the doc and the PR were corrected.
+- **`make exercise` (#58).** Testing with a fake `terraform` (`TF_BIN`)
+  found a real bug: a signal to the process group also killed the log
+  `tee`, and the script died of SIGPIPE **before the destroy**. `tee` now
+  ignores INT/TERM, the teardown ignores INT/TERM/PIPE, and preflight fails
+  closed when state can't be read (it first said "empty" on a credential
+  error).
+- **First exercise, failed apply (11:14–11:43 UTC).** `CreateAccessEntry`
+  404, "No cluster found": `spark_job` took the cluster name as a literal,
+  so the access entry raced the cluster. The trap destroyed all 30
+  resources; account check 0/0/0/0; cluster up 28 min (~$0.19). Fixed in
+  #59 (`module.eks.cluster_name`; `terraform graph` shows the edge). The
+  same 404 on 2026-10-06 had been recorded as a timing artefact; that
+  entry is corrected.
+- **Second exercise, succeeded (`exercise-20261007T145442Z`, 14:54–15:37
+  UTC).** Apply 966 s. Generator `e1000000-20261007T151119Z`: 1,000,029
+  events, 8 files, 432.6 MB, write 42.9 s (23,307 events/s); the
+  `payments_bulk/` grant worked first time. Orchestrated run SUCCEEDED,
+  411 s, 45,304 events; Spark read 63.1 MB = 3 × bronze `payments/` again;
+  peak 4,808 series. Destroy 924 s, 31 resources; account check
+  0/0/0/0. **Cluster up 42 min** against 2.10 h on 2026-10-06.
+- **Collector fix (#60).** The transform's driver reused the generator
+  driver's pod IP, so a few scrapes carried stale `spark_app` labels and
+  the transform's bytes showed under both apps. Now grouped by Spark's
+  `application_name`, after a max per executor to collapse the duplicate
+  series. Record re-collected; every other field identical.
+- **Workstation:** `gh` upgraded 2.46.0 → 2.102.0 in `~/.local/bin`
+  (checksum-verified), because the apt build broke `gh pr view`. The user
+  asked for PR links with review commands every time; saved as a
+  preference.
+- **Cost today:** about $0.55 (failed attempt ~$0.19, exercise ~$0.28,
+  8 Cost Explorer requests $0.08). `--cost-only` tomorrow records the
+  posted number.
+- **8.3 checked off** in Phases.md. Phase 8 stays 🔨.
 
 ## Notes / blockers
 
@@ -2635,6 +2716,39 @@ done. PRs #48–#54._
   3.12 --python-platform x86_64-manylinux_2_28` (gitignored). Helm repos
   added locally: `prometheus-community`, `grafana-community`,
   `spark-operator`.
+  _Updated 2026-10-07:_ a `.venv` exists but is nearly empty (no `boto3`,
+  `botocore` or Faker), so run Python with `uv run --no-project --with
+  boto3 ...` or `--with-requirements ingestion/requirements.txt` instead.
+  `gh` is 2.102.0 at `~/.local/bin/gh`: the apt 2.46.0 in `/usr/bin` broke
+  `gh pr view` on GitHub's removed Projects (classic) field. Docker is
+  available, and `apache/spark:3.5.9` is pulled, which is how Spark code is
+  tested locally at no cost. `gh pr diff` takes no path filter; use `git
+  diff origin/main...origin/<branch> -- <path>`.
+- **Run `make exercise` from the user's own terminal (noted 2026-10-07).**
+  Auto mode blocks its `terraform apply`. Claude watches the log under
+  `observability/scale/exercises/` (gitignored) with a Monitor filtered to
+  milestones and errors. Exclude `Still (creating|destroying)` and Grafana's
+  `Persistence is disabled` note from the filter, or every 10 s becomes an
+  event.
+- **Metric-source permissions and costs (noted 2026-10-07):**
+  `cerberus-admin` has `athena:GetQueryExecution` but not
+  `BatchGetQueryExecution` (fetch queries one by one) and can't
+  `StartQueryExecution`, so counts run as `cerberus-transform`. Each Cost
+  Explorer API request costs $0.01. An AMP query signed with SigV4 must
+  encode spaces as `%20` (`quote_via=urllib.parse.quote`), or AMP answers
+  403. zsh doesn't word-split `$VAR`, so `aws $P ...` with options in one
+  variable fails.
+- **Open, minor (noted 2026-10-07): Spark labels can go stale on pod IP
+  reuse.** The transform's driver reused the generator driver's IP, and a
+  few scrapes carried the old pod's `spark_app`/`pod` labels. The collector
+  now groups by Spark's `application_name` (#60). The Grafana driver panels
+  (`metrics_cerberus_driver_*`) don't separate two apps on one cluster
+  either; fix it when two apps first share a dashboard view (8.5+).
+- **Open, for 8.7/8.8 (noted 2026-10-07): EKS node instances are
+  untagged.** A managed node group doesn't pass the provider's
+  `default_tags` to its instances, so about 40% of an exercise day misses
+  the `Project` tag. The collector scopes cost by region instead. The fix
+  is a launch template with `tag_specifications`.
 - **AWS CLI service name (noted 2026-10-03):** the IAM prefix is `aps:`,
   but the CLI command is `aws amp ...` (`aws aps` doesn't exist).
 - **Open, deferred, not blocking (noted 2026-08-27):**

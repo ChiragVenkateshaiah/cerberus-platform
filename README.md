@@ -90,6 +90,13 @@ two data-quality issues and two CI gaps.
 40k to 100M events in 10x steps, on Apache Iceberg with incremental
 processing ([ADR 0017](docs/adr/0017-iceberg-incremental-processing.md),
 accepted), and measures run time and cost per million events at each step.
+8.3's scale harness is done: a Spark generator that writes 1M–100M events
+to bronze as JSON Lines
+([ADR 0018](docs/adr/0018-bulk-bronze-json-lines.md)), the metric set and
+baseline in [docs/scale-metrics.md](docs/scale-metrics.md), and
+`make exercise`, which runs apply → run → collect → destroy as one
+command. Its first live run wrote 1M events and cut cluster time per
+exercise from 2.1 hours to 42 minutes.
 
 See [docs/plan.md](docs/plan.md) for the full phased roadmap (Phases 0–8)
 and [Phases.md](Phases.md) for subtask-level progress.
