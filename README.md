@@ -172,7 +172,8 @@ constraints behind this diagram, see
 │                         #   merge or manual dispatch
 ├── docs/                 # plan, architecture notes, ADRs, learning notes,
 │                         #   lineage.md (6.4), slo.md (6.5),
-│                         #   cost-security-summary.md (7.5); docs/pages/ =
+│                         #   cost-security-summary.md (7.5),
+│                         #   scale-metrics.md (8.3); docs/pages/ =
 │                         #   the Pages landing page
 ├── articles/             # weekly engineering articles (see article.md)
 ├── terraform/
@@ -224,7 +225,9 @@ constraints behind this diagram, see
 │                         #   publishing pipeline/data freshness as
 │                         #   CloudWatch custom metrics (6.1);
 │                         #   grafana/dashboards/ -- Grafana dashboard JSON
-│                         #   provisioned into the EKS Grafana (7.7)
+│                         #   provisioned into the EKS Grafana (7.7);
+│                         #   scale/ -- the Phase 8 metric collector and
+│                         #   its per-run records (8.3)
 ├── lineage/              # collector/handler.py -- the OpenLineage event
 │                         #   collector Lambda behind an API Gateway HTTP
 │                         #   API, writing events to S3 (6.4b, ADR 0013);
@@ -284,6 +287,9 @@ git config pull.rebase true
 - [docs/cost-security-summary.md](docs/cost-security-summary.md) — cost and
   security summary (7.5): what the build actually cost and where it went,
   how every caller authenticates, and the residual risks accepted on purpose
+- [docs/scale-metrics.md](docs/scale-metrics.md) — the Phase 8 metric set
+  (8.3): what each scale step measures, where every number comes from, the
+  cost method, and the baseline at today's volume
 - [docs/adr/](docs/adr/) — architecture decision records
 - [docs/courses-map-to-phases.md](docs/courses-map-to-phases.md) — which
   courses (if any) map to each phase, and where no course exists
