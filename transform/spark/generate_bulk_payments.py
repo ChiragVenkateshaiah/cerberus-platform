@@ -328,17 +328,18 @@ def main():
 
     events = to_events(build_transactions(spark, args.run_id, transactions, now_epoch), args.run_id)
     # _bucket spreads one dt= partition over files_per_dt write tasks.
-    events = events.withColumn(
+    to_write = events.withColumn(
         "_bucket", F.pmod(F.xxhash64("transaction_id"), F.lit(files_per_dt))
     ).repartition(DT_SPAN_DAYS * files_per_dt, "dt", "_bucket")
 
     started = time.time()
-    (events.drop("_bucket").write.mode("overwrite").partitionBy("run_id", "dt").json(args.output))
+    (to_write.drop("_bucket").write.mode("overwrite").partitionBy("run_id", "dt").json(args.output))
     elapsed = time.time() - started
 
-    # A second pass over the same deterministic generation, no I/O: the
-    # per-partition counts are this run's manifest for the 8.4
-    # reconciliation (events written per run_id and dt).
+    # A second pass over the same deterministic generation: the per-partition
+    # counts are this run's manifest for the 8.4 reconciliation. Counted from
+    # `events`, not `to_write`, so the pass skips the repartition shuffle
+    # (about 45 GB at 100M events) and only aggregates.
     counts = events.groupBy("dt").count().orderBy("dt").collect()
     total = sum(row["count"] for row in counts)
     for row in counts:
