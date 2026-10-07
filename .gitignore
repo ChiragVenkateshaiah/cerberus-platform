@@ -57,3 +57,7 @@ get-docker.sh
 
 # Logs
 *.log
+
+# 8.3: orchestration/exercise.sh run logs (the metric records in
+# observability/scale/runs/ are committed; the raw logs are not).
+observability/scale/exercises/
