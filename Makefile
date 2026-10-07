@@ -46,6 +46,13 @@ compute-apply: ## terraform apply the compute environment -- spin up for a Spark
 compute-destroy: ## terraform destroy the compute environment -- tear down after a Spark exercise (cost discipline)
 	cd $(TF_COMPUTE_DIR) && $(TF_BIN) destroy
 
+.PHONY: exercise exercise-check
+exercise: ## one-command compute exercise: apply -> run -> collect -> destroy (orchestration/exercise.sh; ARGS="--generate 1000000")
+	orchestration/exercise.sh $(ARGS)
+
+exercise-check: ## read-only preflight for an exercise: no cluster, empty dev-compute state, nothing running
+	orchestration/exercise.sh --check
+
 .PHONY: fmt
 fmt: ## terraform fmt across the whole terraform/ tree
 	$(TF_BIN) fmt -recursive terraform/

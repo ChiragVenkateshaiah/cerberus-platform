@@ -217,7 +217,9 @@ constraints behind this diagram, see
 │                         #   scale ladder (8.3, ADR 0018): generate_bulk.sh
 ├── orchestration/        # state_machine.asl.json.tftpl -- the orchestration
 │                         #   state machine's ASL definition (4.2/4.3),
-│                         #   templated by terraform/modules/step_functions
+│                         #   templated by terraform/modules/step_functions;
+│                         #   exercise.sh -- `make exercise`, the one-command
+│                         #   apply -> run -> collect -> destroy (8.3)
 ├── orchestration/runner/ # container image the state machine's ECS Fargate
 │                         #   transform/dbt steps run: Dockerfile,
 │                         #   entrypoint scripts, shared lib.sh (4.2)

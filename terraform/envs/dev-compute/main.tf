@@ -23,6 +23,12 @@
 #   5. In dev-standing, set `pipeline_active = false` and merge -- schedule
 #      back to DISABLED. Do this even if step 4 slipped: a live schedule
 #      with no cluster just fails RunTransform daily.
+#
+# Since 8.3, `make exercise` runs steps 2-4 as one command with no pauses
+# (orchestration/exercise.sh): plan+apply, start an execution by hand,
+# collect the metrics, destroy -- the destroy runs even after a failure or
+# Ctrl-C. A manual execution doesn't need the schedule, so steps 1 and 5
+# are only for multi-day exercises or for testing the gated alarms.
 
 locals {
   orchestration_transform_k8s_group = "cerberus-orchestration-transform"
