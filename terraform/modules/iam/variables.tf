@@ -29,6 +29,11 @@ variable "glue_table_names" {
   type        = list(string)
 }
 
+variable "glue_bronze_table_names" {
+  description = "Bronze Glue tables (8.4) that cerberus-transform reads for the data-quality suite."
+  type        = list(string)
+}
+
 variable "glue_partition_table_name" {
   description = "The single Glue table (payments_events) that cerberus-transform registers partitions against."
   type        = string

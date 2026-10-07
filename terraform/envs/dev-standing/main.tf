@@ -25,6 +25,7 @@ module "s3_medallion" {
 module "glue_catalog" {
   source = "../../modules/glue_catalog"
 
+  bronze_bucket_name = module.s3_medallion.bucket_names["bronze"]
   silver_bucket_name = module.s3_medallion.bucket_names["silver"]
   gold_bucket_name   = module.s3_medallion.bucket_names["gold"]
 }
@@ -49,6 +50,7 @@ module "iam" {
   glue_database_name        = module.glue_catalog.database_name
   glue_table_names          = values(module.glue_catalog.table_names)
   glue_partition_table_name = module.glue_catalog.table_names["payments_events"]
+  glue_bronze_table_names   = values(module.glue_catalog.bronze_table_names)
 
   athena_workgroup_name     = module.athena.workgroup_name
   athena_results_bucket_arn = module.athena.results_bucket_arn

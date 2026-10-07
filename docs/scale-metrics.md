@@ -27,7 +27,7 @@ screenshots.
 | **Athena bytes** | Per state: query count, bytes scanned, and bytes billed (each query billed at least 10 MB, rounded up to the MB) | `GetQueryExecution` for each query in the `cerberus_platform` workgroup submitted inside the state's window | `cerberus-admin` |
 | **Peak active series** | The highest count of series with a sample at any 15 s step during the run | AMP: `max_over_time(count({__name__=~".+"})[<run>:15s])` | `cerberus-admin` |
 | **Cost per million events** | Run cost ÷ (events processed ÷ 1M), where run cost = the day's platform cost per EKS cluster-hour × run hours + the run's Athena billed cost | Cost Explorer, one request (see the cost method below) | `cerberus-admin` |
-| **Data quality** | Pass/fail per check, including the bronze → silver count reconciliation ADR 0017 requires | The 8.4 suite. Until 8.4 lands, the record holds `null` | — |
+| **Data quality** | Pass/fail per check across bronze → silver → gold, including the bronze → silver reconciliation ADR 0017 requires (see [Data-quality suite](#data-quality-suite)) | [`data_quality.py`](../observability/scale/data_quality.py): one Athena query per check, run by the collector | `cerberus-transform` |
 
 The generator (`transform/spark/generate_bulk.sh`) is measured separately,
 because it runs outside the state machine. Its driver prints a manifest of
@@ -109,7 +109,7 @@ stand as the baseline without a new exercise.
 | Day cost, 2026-10-06 (estimated) | $0.84 for 2.10 cluster-hours = $0.40 per cluster-hour |
 | Run cost | $0.042 |
 | **Cost per million events** | **$1.07** |
-| Data quality | The 14 manual checks on 2026-10-06 were clean after the #50 fixes. The suite becomes code in 8.4 |
+| Data quality | The 14 manual checks on 2026-10-06 were clean after the #50 fixes. Since 8.4 the suite is code and runs with every collection |
 
 ## What the baseline already shows
 
@@ -147,6 +147,52 @@ stand as the baseline without a new exercise.
   The region scope above works around it. The real fix (a launch template
   with `tag_specifications`) belongs with the node group changes in
   8.7/8.8.
+
+## Data-quality suite
+
+Added in 8.4. [`observability/scale/data_quality.py`](../observability/scale/data_quality.py)
+runs one Athena query per check, all at once, as `cerberus-transform`. Each
+returns a violation count (0 = pass). `error` checks fail the suite and
+`warn` checks are reported but accepted. A check that can't run (a missing
+table, a permission gap) counts as a failure, never as a pass. The
+collector runs the suite on every run and stores the result in the
+record's `data_quality` field; it exits with code 3 when the suite fails,
+and `make exercise` reports that separately from a collector error.
+
+It complements the dbt tests in `transform/dbt/models/marts/schema.yml`,
+which already test gold itself (unique, not null, accepted values, foreign
+keys). The suite covers what no single dbt model can see:
+
+| Group | Checks |
+|---|---|
+| Bronze → silver | `bronze_to_silver_count`, `bronze_to_silver_keys` (full outer join on `(transaction_id, event_type)`) |
+| Silver → gold | `silver_to_gold_transactions`, `gold_status_matches_lifecycle` |
+| Silver rules (ADR 0003) | `silver_duplicate_keys`, `lifecycle_created_authorized`, `lifecycle_one_terminal`, `lifecycle_refunds`, `lifecycle_order`, `silver_partition_placement`, `silver_key_nulls`, `amount_range_and_stability`, `roster`, `masking`, `token_format` |
+| Accepted risk (`warn`) | `token_digit_runs`: 97 legacy hex tokens from before #50 hold a 13+ digit run. Bronze is append-only, so they stay |
+| `payments_bulk/` (ADR 0018) | `bulk_duplicate_keys`; `bulk_run_counts` compares one generator run's per-`dt` counts in bronze with its own `[generate]` manifest (`--generator-log`) |
+
+Bronze is read through two Glue tables added in 8.4, both unpartitioned:
+Athena reads every object under the location, and the checks take `dt`
+and `run_id` from `"$path"`, so nothing has to be registered after a run.
+`bronze_payments_raw` reads each Lambda file as one text line (each is a
+single-line JSON array) and the checks unpack it with `json_parse`;
+`bronze_payments_bulk` reads the generator's JSON Lines. Neither is in
+`cerberus-serving`'s catalog grant.
+
+**Scope before 8.5:** silver is built from bronze `payments/` only, so the
+bronze → silver checks reconcile that prefix. `payments_bulk/` is checked
+on its own until 8.5's silver job reads it; then `SILVER_SOURCES` gains it.
+
+**Cost:** about 14 MB scanned for the silver and gold checks at today's
+volume. The two bulk checks each scan the whole bulk JSON (433 MB at 1M
+events; about 45 GB at 100M, so about $0.45 per suite run at $5/TB). That
+is the one part of the suite whose cost grows with the ladder; a Parquet
+copy or an Iceberg table (8.5) is the fix if it starts to matter.
+
+**Tested on 2026-10-07:** all 14 silver/gold checks passed on live data
+with the one expected warning, and a duplicated event injected into the
+queries' input was caught by `silver_duplicate_keys` and
+`lifecycle_created_authorized`, as it should be.
 
 ## Running the collector
 
