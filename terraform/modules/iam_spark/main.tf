@@ -8,7 +8,8 @@
 # roles in terraform/modules/iam -- this module is applied only from
 # envs/dev-compute, alongside those three, never by CI.
 #
-# Read bronze/payments/*, write silver only -- S3 only, no Glue. Narrower
+# Read bronze/payments/*, write silver (and, since 8.3, bronze/payments_bulk/*
+# for the bulk generator, ADR 0018) -- S3 only, no Glue. Narrower
 # than cerberus-transform in two ways: this job replaces only the bronze ->
 # silver step (flatten/parse), not the gold rollup, so it has no reason to
 # touch gold; and it doesn't register silver's new partitions with Glue
@@ -57,12 +58,28 @@ resource "aws_iam_role_policy" "spark" {
         Resource = "${var.bucket_arns["bronze"]}/payments/*"
       },
       {
+        # 8.3 (ADR 0018): the bulk generator writes JSON Lines here. Delete
+        # is for the committer's staging files and for a same-run_id re-run;
+        # nothing outside payments_bulk/ gains write or delete. The bare
+        # payments_bulk key is listed too: S3A probes the output root as a
+        # file before it writes, and without a grant on that exact key S3
+        # answers 403 instead of 404 (checked live 2026-10-07 against
+        # cerberus-transform's same prefix-scoped shape).
+        Sid    = "WriteBronzePaymentsBulk"
+        Effect = "Allow"
+        Action = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:AbortMultipartUpload"]
+        Resource = [
+          "${var.bucket_arns["bronze"]}/payments_bulk",
+          "${var.bucket_arns["bronze"]}/payments_bulk/*",
+        ]
+      },
+      {
         Sid      = "ListBronzePaymentsPrefixOnly"
         Effect   = "Allow"
         Action   = "s3:ListBucket"
         Resource = var.bucket_arns["bronze"]
         Condition = {
-          StringLike = { "s3:prefix" = ["payments/*"] }
+          StringLike = { "s3:prefix" = ["payments/*", "payments_bulk", "payments_bulk/*"] }
         }
       },
       {

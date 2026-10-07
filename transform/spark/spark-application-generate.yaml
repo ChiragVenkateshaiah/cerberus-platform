@@ -1,0 +1,68 @@
+# Cerberus 8.3 -- the bulk payments generator (ADR 0018), submitted by hand
+# via generate_bulk.sh during a dev-compute exercise. Not part of the state
+# machine, and not Terraform-managed, for the same reason as
+# spark-application.yaml: a job run, not standing infrastructure.
+#
+# Same image, hadoop-aws pairing, service account and metrics config as
+# spark-application.yaml (see that file's header for how the versions were
+# verified). Differences:
+#   - no OpenLineage listener: the job reads no dataset, so the only lineage
+#     it could emit is "something wrote bronze", which the run summary
+#     already records.
+#   - __RUN_ID__/__EVENTS__/__NOW__/__EXECUTORS__ are substituted by
+#     generate_bulk.sh before `kubectl apply`.
+#   - executors request 800m CPU, not a whole core, so a driver and two
+#     executors fit on the two m7i-flex.large nodes beside the system and
+#     monitoring pods. Each executor still runs one task at a time.
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: cerberus-generate-bulk-payments
+  namespace: spark-jobs
+spec:
+  type: Python
+  pythonVersion: "3"
+  mode: cluster
+  image: "apache/spark:3.5.9"
+  imagePullPolicy: IfNotPresent
+  sparkVersion: "3.5.9"
+  # Uploaded by generate_bulk.sh to the same _spark_jobs/ prefix as the
+  # transform script (silver, which cerberus-spark can already read).
+  mainApplicationFile: "s3a://cerberus-platform-silver-131715059025/_spark_jobs/generate_bulk_payments.py"
+  arguments:
+    - "--run-id"
+    - "__RUN_ID__"
+    - "--events"
+    - "__EVENTS__"
+    - "--now"
+    - "__NOW__"
+  restartPolicy:
+    type: Never
+  deps:
+    packages:
+      - org.apache.hadoop:hadoop-aws:3.3.4
+  sparkConf:
+    spark.hadoop.fs.s3a.aws.credentials.provider: "com.amazonaws.auth.WebIdentityTokenCredentialsProvider"
+    # See spark-application.yaml: the operator pod's $HOME is not writable.
+    spark.jars.ivy: "/tmp/.ivy2"
+    # 7.7 (ADR 0016) metrics, unchanged, so the run shows on the Spark
+    # dashboard under spark_app="cerberus-generate-bulk-payments".
+    spark.ui.prometheus.enabled: "true"
+    spark.metrics.conf.*.sink.prometheusServlet.class: "org.apache.spark.metrics.sink.PrometheusServlet"
+    spark.metrics.conf.*.sink.prometheusServlet.path: "/metrics/prometheus"
+    spark.metrics.conf.driver.source.jvm.class: "org.apache.spark.metrics.source.JvmSource"
+    spark.metrics.namespace: "cerberus"
+  driver:
+    cores: 1
+    coreRequest: "500m"
+    memory: "1g"
+    serviceAccount: cerberus-spark
+    labels:
+      version: "3.5.9"
+  executor:
+    cores: 1
+    coreRequest: "800m"
+    instances: __EXECUTORS__
+    memory: "2g"
+    labels:
+      version: "3.5.9"

@@ -211,7 +211,9 @@ constraints behind this diagram, see
 ├── transform/spark/      # PySpark bronze -> silver job (3.5), run on the
 │                         #   EKS cluster via the Spark Operator (3.4);
 │                         #   spark-application.yaml + submit_job.sh (not
-│                         #   Terraform-managed -- see its own header)
+│                         #   Terraform-managed -- see its own header);
+│                         #   bulk payments generator for the Phase 8
+│                         #   scale ladder (8.3, ADR 0018): generate_bulk.sh
 ├── orchestration/        # state_machine.asl.json.tftpl -- the orchestration
 │                         #   state machine's ASL definition (4.2/4.3),
 │                         #   templated by terraform/modules/step_functions
