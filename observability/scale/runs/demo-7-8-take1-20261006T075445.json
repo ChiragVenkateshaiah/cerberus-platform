@@ -1,0 +1,124 @@
+{
+  "execution": "demo-7-8-take1-20261006T075445",
+  "status": "SUCCEEDED",
+  "start": "2026-10-06T07:54:46.630000+00:00",
+  "end": "2026-10-06T08:00:50.036000+00:00",
+  "run_seconds": 363.4,
+  "events_processed": 39222,
+  "events_per_second": 108,
+  "silver": {
+    "events": 39222,
+    "transactions": 12862
+  },
+  "states": [
+    {
+      "state": "InvokeIngestion",
+      "seconds": 3.1,
+      "events_per_second": 12455,
+      "athena": {
+        "queries": 0,
+        "bytes_scanned": 0,
+        "bytes_billed": 0,
+        "usd": 0.0
+      }
+    },
+    {
+      "state": "RunTransform",
+      "seconds": 205.6,
+      "events_per_second": 191,
+      "athena": {
+        "queries": 1,
+        "bytes_scanned": 0,
+        "bytes_billed": 10485760,
+        "usd": 5.2e-05
+      }
+    },
+    {
+      "state": "RunDbt",
+      "seconds": 100.3,
+      "events_per_second": 391,
+      "athena": {
+        "queries": 31,
+        "bytes_scanned": 2694253,
+        "bytes_billed": 325058560,
+        "usd": 0.001625
+      }
+    },
+    {
+      "state": "RunServingQuery",
+      "seconds": 54.3,
+      "events_per_second": 723,
+      "athena": {
+        "queries": 1,
+        "bytes_scanned": 50233,
+        "bytes_billed": 10485760,
+        "usd": 5.2e-05
+      }
+    }
+  ],
+  "athena_totals": {
+    "queries": 33,
+    "bytes_scanned": 2744486,
+    "bytes_billed": 346030080
+  },
+  "prometheus": {
+    "peak_active_series": 4307,
+    "spark": {
+      "cerberus-promote-payments": {
+        "spark_input_bytes": 54619569,
+        "spark_shuffle_write_bytes": 6222
+      }
+    }
+  },
+  "storage_snapshot": {
+    "bronze_payments": {
+      "objects": 183,
+      "bytes": 18206523
+    },
+    "bronze_payments_bulk": {
+      "objects": 0,
+      "bytes": 0
+    },
+    "silver_payments": {
+      "objects": 80,
+      "bytes": 2649925
+    },
+    "gold": {
+      "objects": 4,
+      "bytes": 686094
+    }
+  },
+  "data_quality": null,
+  "collected_at": "2026-10-07T09:04:19+00:00",
+  "cost": {
+    "day": "2026-10-06",
+    "estimated": true,
+    "usd": 0.839864,
+    "by_service": {
+      "Amazon Elastic Compute Cloud - Compute": 0.331489,
+      "EC2 - Other": 0.256352,
+      "Amazon Elastic Container Service for Kubernetes": 0.210165,
+      "Amazon Simple Storage Service": 0.021497,
+      "Amazon Virtual Private Cloud": 0.010504,
+      "Amazon Elastic Container Service": 0.003411,
+      "Amazon EC2 Container Registry (ECR)": 0.003013,
+      "Amazon Athena": 0.00205,
+      "AmazonCloudWatch": 0.00129,
+      "Amazon API Gateway": 4.6e-05,
+      "Amazon DynamoDB": 4.2e-05,
+      "AWS Secrets Manager": 5e-06,
+      "AWS Glue": 0.0,
+      "AWS Lambda": 0.0,
+      "AWS Step Functions": 0.0,
+      "AWS X-Ray": 0.0,
+      "Amazon Managed Service for Prometheus": 0.0,
+      "Amazon Simple Notification Service": 0.0,
+      "CloudWatch Events": 0.0
+    },
+    "eks_cluster_hours": 2.102,
+    "usd_per_cluster_hour": 0.3996,
+    "run_usd": 0.0421,
+    "usd_per_million_events": 1.07,
+    "collected_at": "2026-10-07T09:05:43+00:00"
+  }
+}
