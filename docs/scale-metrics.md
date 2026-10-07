@@ -67,9 +67,20 @@ post about a day later, and they are daily. The method works with both.
 
 The current pipeline (full rebuild, Hive Parquet) at about 39k events.
 The five successful orchestrated runs at this volume are all still in
-Step Functions history. The pipeline code they ran is the code on `main`
-today, except for #50's per-currency demo query, which changes only the
-serving query's grouping.
+Step Functions history. All five ran before #50 merged (2026-10-06
+11:26 UTC; the last run ended 08:00 UTC). #50 changed two things the
+pipeline runs, and both sit in the two shortest states:
+
+- **`InvokeIngestion`:** the Lambda's `payments_lib` now builds tokens
+  from 16 letters (`secrets`) instead of 16 hex characters. Same event
+  count and size; the state takes about 3 s.
+- **`RunServingQuery`:** the demo query now groups by currency as well
+  (45 rows, not 15). It reads one more small column. At this volume it
+  still scans well under 10 MB, so Athena bills the same 10 MB minimum.
+
+`RunTransform` and `RunDbt`, about 84% of the run time and all of the
+Spark and dbt bytes, ran exactly the code on `main` today. So these runs
+stand as the baseline without a new exercise.
 
 **Run time, seconds:**
 
@@ -112,11 +123,23 @@ serving query's grouping.
   200 s for about 2 MB of Parquet output, so most of it is ECS task start,
   operator submission and pod scheduling, not data work. The ladder will
   show where data work overtakes that overhead.
+- **Most of an exercise day's cost is the cluster waiting, not the
+  runs.** On 2026-10-06 the cluster was up 2.10 hours ($0.84), and the
+  two orchestrated runs used about 13 minutes of that ($0.084, 10%). The
+  rest was bring-up, checks, the screen recording and teardown. At about
+  $0.40 per cluster-hour, every idle 15 minutes costs about $0.10, more
+  than two whole runs. The cheapest cost optimization at this volume is a
+  shorter bracket (apply, run, collect, destroy without pauses), not a
+  faster pipeline. This changes at 10M+ events, where the runs
+  themselves get long.
 - **`RunServingQuery` measures polling, not Athena.** The demo query
   executes in under 1 s, but the state takes 54–58 s in every run.
   Step Functions checks the `.sync` Athena integration's status on an
   interval it chooses, so this state has a floor of about a minute. Read
-  Athena's own `TotalExecutionTimeInMillis` for query speed.
+  Athena's own `TotalExecutionTimeInMillis` for query speed. A
+  start-then-poll loop with a short `Wait` state would remove about 50 s
+  per run. That is worth about $0.006 per run at $0.40 per cluster-hour,
+  so it is a latency fix (SLO 3), not a cost fix.
 - **Athena's 10 MB minimum dominates its bill at this volume.** 2.74 MB
   scanned is billed as about 330 MB. The ratio flips as the data grows.
 - **Cost attribution needs node tags.** Until the node group tags its
