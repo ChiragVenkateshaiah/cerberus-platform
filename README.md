@@ -96,7 +96,10 @@ to bronze as JSON Lines
 baseline in [docs/scale-metrics.md](docs/scale-metrics.md), and
 `make exercise`, which runs apply → run → collect → destroy as one
 command. Its first live run wrote 1M events and cut cluster time per
-exercise from 2.1 hours to 42 minutes.
+exercise from 2.1 hours to 42 minutes. 8.4 turned the data-quality checks
+into code: 17 Athena checks reconcile bronze → silver → gold and run with
+every exercise; the first full run passed, with bronze and silver matching
+event for event.
 
 See [docs/plan.md](docs/plan.md) for the full phased roadmap (Phases 0–8)
 and [Phases.md](Phases.md) for subtask-level progress.

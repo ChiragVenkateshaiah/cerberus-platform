@@ -86,34 +86,51 @@ million events per step. $20/month, six weeks from 2026-10-06.
   - **`make exercise`** (`orchestration/exercise.sh`): preflight → plan +
     apply → optional generator → one execution → collect → destroy from an
     EXIT trap → account-wide check. Cluster time fell from 2.10 h to 42 min.
+- **8.4** — the data-quality suite as code, done 2026-10-07 (PRs #61, #62):
+  `observability/scale/data_quality.py`, 17 Athena checks run as
+  `cerberus-transform` with no cluster, all started at once. Bronze →
+  silver count and key reconciliation (ADR 0017), silver → gold
+  reconciliation and status, silver lifecycle and value rules, a `warn`
+  for 97 legacy digit-run tokens, and `payments_bulk/` duplicate and
+  per-run manifest checks. A check that can't run fails the suite. The
+  collector runs it on every collection (`record.data_quality`, exit 3 on
+  failure) and records the generator manifest (`--generator-log`); new
+  `--dq-only`. Bronze is read through two unpartitioned Glue tables,
+  `bronze_payments_raw` and `bronze_payments_bulk` (own output, so
+  `cerberus-serving`'s grant didn't widen). First full run on the
+  2026-10-07 exercise: **passed**, bronze 45,304 = silver 45,304, generator
+  1,000,029 = manifest.
 
 ## Next up
 
 Start with `git switch main && git pull`.
 
-1. **Add the cost to yesterday's exercise record** (one Cost Explorer
-   request, $0.01):
+1. **Add the cost to the 2026-10-07 exercise record** — on 2026-10-08
+   UTC or later, once Cost Explorer has posted (one request, $0.01):
    `uv run --no-project --with boto3 python observability/scale/collect_run_metrics.py --execution exercise-20261007T145442Z --cost-only`.
    Expect about $0.28 for the exercise (42 cluster-minutes at about $0.40
    per cluster-hour) plus the failed first attempt (about 28 minutes) on
-   the same UTC day, so the day's rate covers both. Update
-   `docs/scale-metrics.md`'s baseline section with the run's numbers.
-2. **8.4 — the data-quality suite as code.** The 14 checks from
-   2026-10-06 are listed in that day's entry (silver↔gold reconciliation,
-   duplicate `(transaction_id, event_type)`, lifecycle, refund/status
-   agreement, partition placement, key nulls, amount range and
-   stability, roster 15/75, dim FKs, email and `last4` masking). Add the
-   bronze → silver count reconciliation ADR 0017 requires, and a per-
-   `run_id` check for `payments_bulk/` (events written = the generator's
-   `[generate]` manifest). Decide where it runs: as Athena queries under
-   `cerberus-transform` from the collector (fills the record's
-   `data_quality` field, no cluster needed), or as a state-machine step.
-   The first option keeps the orchestrated path unchanged until 8.5.
-3. **Then 8.5** (Iceberg silver/gold per ADR 0017). Its silver job must:
-   read bronze **once** (today's job reads it 3× — three uncached
-   actions), and read both prefixes — `payments/` with `multiLine=true`
-   and `payments_bulk/` with `multiLine=false` (ADR 0018). The 1M
-   generator run `e1000000-20261007T151119Z` is already in bronze for it.
+   the same UTC day, so the day's rate covers both. Commit the record (a
+   small PR) and add the run's numbers to `docs/scale-metrics.md`'s
+   baseline section.
+2. **8.5 — 1M events on Iceberg (ADR 0017).** Silver `payments_events`
+   and gold become Iceberg tables in the Glue catalog; silver writes are
+   `MERGE INTO` on `(transaction_id, event_type)` with the bronze
+   watermark as a snapshot property; `fct_transactions` becomes dbt
+   `incremental` + `merge`; compaction and snapshot expiry as a step;
+   `cerberus-spark` gets scoped Glue write. The new silver job must:
+   - read bronze **once** (today's job reads it 3×: three uncached
+     actions),
+   - read both prefixes: `payments/` with `multiLine=true` and
+     `payments_bulk/` with `multiLine=false` (ADR 0018). The 1M run
+     `e1000000-20261007T151119Z` is already in bronze for it.
+   When it lands, add `"payments_bulk"` to `SILVER_SOURCES` in
+   `data_quality.py` and extend `BRONZE_PAYMENTS` to union the bulk table,
+   so bronze → silver reconciles both prefixes. The suite's
+   `silver_partition_placement` check reads the `dt` column, which ADR 0017
+   drops with hidden partitioning; replace it with a check on Iceberg's
+   partition. Start with the Iceberg/Glue package versions (pinned and
+   verified against Maven Central, as 3.5 did for `hadoop-aws`).
 
 **Deadline:** the ingestion Lambda's `RETIRE_ON_OR_AFTER` is
 **2026-10-30** (PR #45). The scale generator does not depend on it, but
@@ -2651,6 +2668,44 @@ PRs #55–#60._
   posted number.
 - **8.3 checked off** in Phases.md. Phase 8 stays 🔨.
 
+### 2026-10-07 (second session)
+
+_8.4 done: the data-quality suite as code, its catalog and grants applied
+by CI, and the first full run passing. PRs #61, #62. No cluster time._
+
+- **Design decision:** the suite runs as Athena queries under
+  `cerberus-transform`, called by the collector, not as a state-machine
+  step. No cluster is needed, the result lands in each run's record, and
+  the orchestrated path stays unchanged until 8.5.
+- **Bronze in Athena without partitions.** Checked first: all 191 bronze
+  `payments/` files are single-line JSON arrays (largest 478 KB), so
+  `bronze_payments_raw` reads each file as one text line and the checks
+  unpack it with `json_parse`. `bronze_payments_bulk` reads the JSON Lines
+  with the OpenX SerDe. Both tables are unpartitioned; `dt` and `run_id`
+  come from `"$path"`, so nothing has to be registered per run. Bronze also
+  showed 6,082 letter tokens and 39,222 legacy hex tokens, which is why
+  `token_format` accepts both and `token_digit_runs` is a `warn`.
+- **Grants.** The bronze tables have their own module output: putting them
+  in `table_names` would have widened `cerberus-serving`'s catalog grant.
+  `cerberus-transform` gained read on `bronze/payments_bulk/*` and
+  `GetTable`/`GetPartitions` on the two tables. The CI apply role already
+  had `glue:*` on `table/cerberus_platform/*`. Local and CI plans matched
+  (3 add / 2 change / 1 destroy, including the Faker churn); CI applied it
+  cleanly.
+- **Tests before merge:** the 14 silver/gold checks passed on live data
+  with one warning (97, the same as 2026-10-06's manual count); the bronze
+  checks failed with `TABLE_NOT_FOUND` before the tables existed, proving
+  the suite fails closed; a duplicated event injected into the queries'
+  input was caught by `silver_duplicate_keys` and
+  `lifecycle_created_authorized` and by nothing else.
+- **First full run (after the apply), on `exercise-20261007T145442Z`:**
+  17 checks passed, 1 accepted warning. Bronze → silver 45,304 = 45,304
+  with 0 key differences; silver → gold 14,862 transactions;
+  `bulk_run_counts` 1,000,029 written = 1,000,029 in the manifest; 922 MB
+  scanned in 21 s (about $0.005). The two bulk checks are the part of the
+  suite whose cost grows with the ladder (about $0.45 per run at 100M).
+- **8.4 checked off** in Phases.md. Phase 8 stays 🔨.
+
 ## Notes / blockers
 
 - **Resolved 2026-10-05 (was: open, noted 2026-10-03):** branch
@@ -2749,6 +2804,11 @@ PRs #55–#60._
   `default_tags` to its instances, so about 40% of an exercise day misses
   the `Project` tag. The collector scopes cost by region instead. The fix
   is a launch template with `tag_specifications`.
+- **Athena reads unpartitioned tables recursively (confirmed 2026-10-07).**
+  `bronze_payments_bulk` points at `payments_bulk/` and returned all
+  1,000,029 events from the nested `run_id=/dt=/` objects, skipping
+  `_SUCCESS`. The bulk checks scan the whole JSON every run; a Parquet copy
+  or an Iceberg table is the fix if the cost starts to matter.
 - **AWS CLI service name (noted 2026-10-03):** the IAM prefix is `aps:`,
   but the CLI command is `aws amp ...` (`aws aps` doesn't exist).
 - **Open, deferred, not blocking (noted 2026-08-27):**

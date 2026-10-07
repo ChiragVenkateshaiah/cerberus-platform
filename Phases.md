@@ -123,7 +123,7 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
       and EC2 restriction checks
 - [x] 8.3 Scale harness: Spark-based synthetic generator (1M–100M events),
       the per-step metric set, and a baseline run at today's volume
-- [ ] 8.4 Data-quality suite as code (bronze → silver → gold
+- [x] 8.4 Data-quality suite as code (bronze → silver → gold
       reconciliation), run on every exercise
 - [ ] 8.5 1M events: Iceberg silver/gold, incremental `MERGE`, dbt
       incremental models
