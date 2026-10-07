@@ -215,7 +215,9 @@ if [[ -n "$GENERATE" ]]; then
   gen_log="$(mktemp)"
   "$REPO/transform/spark/generate_bulk.sh" "$GENERATE" | tee "$gen_log"
   run_id="$(sed -n 's/.*RUN_ID=\([^ ]*\).*/\1/p' "$gen_log" | head -1)"
-  GENERATOR_ARGS=(--generator-run-id "$run_id")
+  # The log carries the generator's [generate] manifest, which the
+  # collector records and the data-quality suite checks against bronze.
+  GENERATOR_ARGS=(--generator-run-id "$run_id" --generator-log "$gen_log")
   log "generator took $((SECONDS - gen_start))s (run_id $run_id)"
 fi
 
@@ -235,10 +237,17 @@ log "collecting metrics"
 # Collected while the cluster is still up but no longer needed for it --
 # a collector failure is reported, not fatal: the run itself is recorded in
 # Step Functions and AMP, and the collector can be re-run after the destroy
-# (only the S3 sizes and silver count are moment-sensitive).
+# (only the S3 sizes and silver count are moment-sensitive). Exit code 3 is
+# different: the record is written, but the data-quality suite (8.4) failed.
+collector_rc=0
 uv run -q --no-project --with boto3 python "$REPO/observability/scale/collect_run_metrics.py" \
-  --execution "$EXECUTION_NAME" "${GENERATOR_ARGS[@]}" ||
-  log "collector failed -- re-run it by hand: collect_run_metrics.py --execution $EXECUTION_NAME"
+  --execution "$EXECUTION_NAME" "${GENERATOR_ARGS[@]}" || collector_rc=$?
+case "$collector_rc" in
+  0) ;;
+  3) log "DATA QUALITY FAILED -- see data_quality in observability/scale/runs/$EXECUTION_NAME.json" ;;
+  *) log "collector failed -- re-run it by hand: collect_run_metrics.py --execution $EXECUTION_NAME" ;;
+esac
 
 [[ "$status" == "SUCCEEDED" ]] || { log "execution did not succeed"; exit 1; }
+[[ "$collector_rc" != 3 ]] || exit 3
 log "exercise done -- the destroy follows. Tomorrow: collect_run_metrics.py --execution $EXECUTION_NAME --cost-only"

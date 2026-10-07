@@ -43,6 +43,10 @@ locals {
   # payments_events/payments_current (those stay Terraform-owned via 1.8).
   glue_dbt_fct_table_arn = "arn:aws:glue:${var.region}:${var.account_id}:table/${var.glue_database_name}/fct_*"
   glue_dbt_dim_table_arn = "arn:aws:glue:${var.region}:${var.account_id}:table/${var.glue_database_name}/dim_*"
+  glue_bronze_table_arns = [
+    for name in var.glue_bronze_table_names :
+    "arn:aws:glue:${var.region}:${var.account_id}:table/${var.glue_database_name}/${name}"
+  ]
 
   athena_workgroup_arn = "arn:aws:athena:${var.region}:${var.account_id}:workgroup/${var.athena_workgroup_name}"
 
@@ -139,10 +143,16 @@ resource "aws_iam_role_policy" "transform" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "ReadBronzePayments"
-        Effect   = "Allow"
-        Action   = "s3:GetObject"
-        Resource = "${var.bucket_arns["bronze"]}/payments/*"
+        # payments_bulk/ (8.4): read-only, for the data-quality suite's
+        # bronze -> silver reconciliation. Writes there stay with
+        # cerberus-spark (ADR 0018).
+        Sid    = "ReadBronzePayments"
+        Effect = "Allow"
+        Action = "s3:GetObject"
+        Resource = [
+          "${var.bucket_arns["bronze"]}/payments/*",
+          "${var.bucket_arns["bronze"]}/payments_bulk/*",
+        ]
       },
       {
         Sid      = "ListBronzePaymentsPrefixOnly"
@@ -150,8 +160,17 @@ resource "aws_iam_role_policy" "transform" {
         Action   = "s3:ListBucket"
         Resource = var.bucket_arns["bronze"]
         Condition = {
-          StringLike = { "s3:prefix" = ["payments/*"] }
+          StringLike = { "s3:prefix" = ["payments/*", "payments_bulk/*"] }
         }
+      },
+      {
+        # 8.4: catalog read on the two bronze tables, so Athena can plan
+        # the data-quality suite's queries. Read only -- no partitions to
+        # register (see glue_catalog's bronze tables).
+        Sid      = "ReadBronzeCatalogTables"
+        Effect   = "Allow"
+        Action   = ["glue:GetTable", "glue:GetPartitions"]
+        Resource = concat([local.glue_catalog_arn, local.glue_database_arn], local.glue_bronze_table_arns)
       },
       {
         Sid    = "ReadWriteSilverAndGold"

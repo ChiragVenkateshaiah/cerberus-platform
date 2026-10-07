@@ -235,8 +235,9 @@ constraints behind this diagram, see
 │                         #   CloudWatch custom metrics (6.1);
 │                         #   grafana/dashboards/ -- Grafana dashboard JSON
 │                         #   provisioned into the EKS Grafana (7.7);
-│                         #   scale/ -- the Phase 8 metric collector and
-│                         #   its per-run records (8.3)
+│                         #   scale/ -- the Phase 8 metric collector, its
+│                         #   per-run records (8.3) and the cross-layer
+│                         #   data-quality suite (8.4)
 ├── lineage/              # collector/handler.py -- the OpenLineage event
 │                         #   collector Lambda behind an API Gateway HTTP
 │                         #   API, writing events to S3 (6.4b, ADR 0013);
@@ -298,7 +299,8 @@ git config pull.rebase true
   how every caller authenticates, and the residual risks accepted on purpose
 - [docs/scale-metrics.md](docs/scale-metrics.md) — the Phase 8 metric set
   (8.3): what each scale step measures, where every number comes from, the
-  cost method, and the baseline at today's volume
+  cost method, the baseline at today's volume, and the data-quality suite
+  (8.4)
 - [docs/adr/](docs/adr/) — architecture decision records
 - [docs/courses-map-to-phases.md](docs/courses-map-to-phases.md) — which
   courses (if any) map to each phase, and where no course exists

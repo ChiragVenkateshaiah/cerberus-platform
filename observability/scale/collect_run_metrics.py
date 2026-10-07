@@ -12,6 +12,18 @@ summary on stdout.
     uv run --no-project --with boto3 python observability/scale/collect_run_metrics.py \
         --execution demo-7-8-take1-20261006T075445 --cost-only
 
+    # (re-)run only the data-quality suite into an existing record:
+    uv run --no-project --with boto3 python observability/scale/collect_run_metrics.py \
+        --execution exercise-20261007T145442Z --dq-only \
+        --generator-log observability/scale/exercises/exercise-20261007T145442Z.log
+
+Since 8.4 the record also carries the data-quality suite's result
+(data_quality.py, Athena as cerberus-transform) and, with --generator-log,
+the generator's own manifest (its [generate] lines: events per dt and write
+throughput), which the suite's bulk_run_counts check compares with what
+landed in bronze. Exit code 3 means the run was collected but the suite
+failed.
+
 Read-only, with two narrow exceptions: one Athena count(*) against silver
 (run as cerberus-transform, since cerberus-admin can't start queries -- 7.3),
 and, only with --cost, one Cost Explorer request, which AWS bills at $0.01.
@@ -24,6 +36,8 @@ silver count are a snapshot of "now", not of the run's moment.
 import argparse
 import json
 import math
+import re
+import sys
 import time
 import urllib.parse
 import urllib.request
@@ -31,6 +45,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import boto3
+import data_quality  # sibling module: the script directory is on sys.path
 from botocore.auth import SigV4Auth
 from botocore.awsrequest import AWSRequest
 
@@ -67,6 +82,17 @@ def parse_args():
     parser.add_argument(
         "--generator-run-id",
         help="also size bronze/payments_bulk/run_id=<ID>/ (a generate_bulk.sh run)",
+    )
+    parser.add_argument(
+        "--generator-log",
+        help="a log holding the generator's [generate] lines (generate_bulk.sh output, or "
+        "an exercise log); recorded as the run's generator manifest",
+    )
+    parser.add_argument("--no-dq", action="store_true", help="skip the data-quality suite (8.4)")
+    parser.add_argument(
+        "--dq-only",
+        action="store_true",
+        help="run only the data-quality suite into an existing record, leaving the rest",
     )
     parser.add_argument(
         "--events-processed",
@@ -279,6 +305,36 @@ def add_cost(record, admin):
     record["cost"] = cost
 
 
+def parse_generator_log(path):
+    """The generator's manifest from its [generate] lines (generate_bulk_payments.py)."""
+    text = Path(path).read_text()
+    done = re.findall(
+        r"\[generate\] done run_id=(\S+) events=(\d+) partitions=(\d+) "
+        r"write_seconds=([\d.]+) events_per_second=(\d+)",
+        text,
+    )
+    if not done:
+        raise SystemExit(f"no '[generate] done' line in {path}")
+    run_id, events, partitions, write_seconds, rate = done[-1]
+    return {
+        "run_id": run_id,
+        "events": int(events),
+        "partitions": int(partitions),
+        "write_seconds": float(write_seconds),
+        "events_per_second": int(rate),
+        "per_dt": {dt: int(n) for dt, n in re.findall(r"\[generate\] dt=(\S+) events=(\d+)", text)},
+    }
+
+
+def add_data_quality(record):
+    generator = record.get("generator") or {}
+    record["data_quality"] = data_quality.run_suite(
+        boto3.Session(profile_name=QUERY_PROFILE, region_name=REGION),
+        generator_run_id=generator.get("run_id"),
+        generator_manifest=generator.get("per_dt"),
+    )
+
+
 def print_cost(cost):
     print(
         f"  day {cost['day']} ${cost['usd']} (estimated={cost['estimated']}), "
@@ -292,13 +348,27 @@ def main():
     admin = boto3.Session(profile_name=ADMIN_PROFILE, region_name=REGION)
     out = OUT_DIR / f"{args.execution}.json"
 
+    generator = parse_generator_log(args.generator_log) if args.generator_log else None
+    if generator and not args.generator_run_id:
+        args.generator_run_id = generator["run_id"]
+
     if args.cost_only:
         record = json.loads(out.read_text())
         add_cost(record, admin)
         out.write_text(json.dumps(record, indent=2) + "\n")
         print(f"{args.execution}: cost refreshed in {out.name}")
         print_cost(record["cost"])
-        return
+        return 0
+
+    if args.dq_only:
+        record = json.loads(out.read_text())
+        if generator:
+            record["generator"] = generator
+        add_data_quality(record)
+        out.write_text(json.dumps(record, indent=2) + "\n")
+        print(f"{args.execution}: data quality refreshed in {out.name}")
+        data_quality.print_suite(record["data_quality"])
+        return 0 if record["data_quality"]["passed"] else 3
     execution_arn = STATE_MACHINE.replace(":stateMachine:", ":execution:") + ":" + args.execution
 
     execution, states = state_timings(admin.client("stepfunctions"), execution_arn)
@@ -352,11 +422,13 @@ def main():
         },
         "prometheus": prometheus,
         "storage_snapshot": storage,
-        # 8.4 builds the suite; until then this stays empty on purpose.
+        "generator": generator,
         "data_quality": None,
         "collected_at": datetime.now(UTC).isoformat(timespec="seconds"),
     }
 
+    if not args.no_dq:
+        add_data_quality(record)
     if args.cost:
         add_cost(record, admin)
 
@@ -372,8 +444,11 @@ def main():
     print(f"  peak series {prometheus['peak_active_series']}, spark {prometheus['spark']}")
     if "cost" in record:
         print_cost(record["cost"])
+    if record["data_quality"]:
+        data_quality.print_suite(record["data_quality"])
     print(f"  wrote {out.relative_to(Path.cwd()) if out.is_relative_to(Path.cwd()) else out}")
+    return 0 if not record["data_quality"] or record["data_quality"]["passed"] else 3
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

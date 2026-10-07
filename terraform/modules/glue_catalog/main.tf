@@ -97,3 +97,97 @@ resource "aws_glue_catalog_table" "payments_current" {
     }
   }
 }
+
+# --- 8.4: bronze tables for the data-quality suite --------------------------
+# Read-only views over bronze so the suite (observability/scale/data_quality.py)
+# can reconcile bronze -> silver in Athena, with no cluster. Neither table has
+# partitions: Athena reads every object under the location, including the
+# dt=/run_id= subdirectories, and the checks take dt and run_id from the
+# "$path" pseudo-column -- so there is nothing to register after each run.
+# Athena skips objects whose names start with _ or ., which covers Spark's
+# _SUCCESS marker and .spark-staging directories.
+
+# The ingestion Lambda's files: one JSON array per file, on a single line
+# (payments_lib.upload_day, json.dumps). No JSON SerDe maps a root array to
+# rows, so each file is read as one text line and the checks unpack it with
+# json_parse. LazySimpleSerDe splits on \001 by default, which never occurs
+# in this JSON, so the whole line lands in `line`.
+resource "aws_glue_catalog_table" "bronze_payments_raw" {
+  name          = "bronze_payments_raw"
+  database_name = aws_glue_catalog_database.this.name
+  table_type    = "EXTERNAL_TABLE"
+
+  parameters = {
+    classification = "text"
+  }
+
+  storage_descriptor {
+    location      = "s3://${var.bronze_bucket_name}/payments/"
+    input_format  = "org.apache.hadoop.mapred.TextInputFormat"
+    output_format = "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat"
+
+    ser_de_info {
+      serialization_library = "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"
+    }
+
+    columns {
+      name = "line"
+      type = "string"
+    }
+  }
+}
+
+# The bulk generator's files: JSON Lines with ADR 0003's nested event shape
+# (ADR 0018).
+resource "aws_glue_catalog_table" "bronze_payments_bulk" {
+  name          = "bronze_payments_bulk"
+  database_name = aws_glue_catalog_database.this.name
+  table_type    = "EXTERNAL_TABLE"
+
+  parameters = {
+    classification = "json"
+  }
+
+  storage_descriptor {
+    location      = "s3://${var.bronze_bucket_name}/payments_bulk/"
+    input_format  = "org.apache.hadoop.mapred.TextInputFormat"
+    output_format = "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat"
+
+    ser_de_info {
+      serialization_library = "org.openx.data.jsonserde.JsonSerDe"
+    }
+
+    columns {
+      name = "transaction_id"
+      type = "string"
+    }
+    columns {
+      name = "event_type"
+      type = "string"
+    }
+    columns {
+      name = "event_timestamp"
+      type = "string"
+    }
+    columns {
+      name = "amount"
+      type = "double"
+    }
+    columns {
+      name = "currency"
+      type = "string"
+    }
+    columns {
+      name = "merchant"
+      type = "struct<merchant_id:string,name:string,category:string>"
+    }
+    columns {
+      name = "customer"
+      type = "struct<customer_id:string,name:string,email:string>"
+    }
+    columns {
+      name = "payment_method"
+      type = "struct<type:string,brand:string,last4:string,token:string>"
+    }
+  }
+}
