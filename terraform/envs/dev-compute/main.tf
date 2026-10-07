@@ -96,7 +96,11 @@ module "spark_job" {
   namespace = module.spark_operator.jobs_namespace
   role_arn  = module.iam_spark.role_arn
 
-  cluster_name                             = local.eks_cluster_name
+  # module.eks's output, not local.eks_cluster_name: the literal carries no
+  # dependency, so Terraform created the access entry in parallel with the
+  # cluster and got a 404 ("No cluster found") on a fresh apply -- on
+  # 2026-10-06 and again on 2026-10-07's first `make exercise`.
+  cluster_name                             = module.eks.cluster_name
   orchestration_transform_role_arn         = data.terraform_remote_state.standing.outputs.orchestration_transform_role_arn
   orchestration_transform_kubernetes_group = local.orchestration_transform_k8s_group
 }
