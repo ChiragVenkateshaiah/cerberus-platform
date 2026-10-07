@@ -168,9 +168,19 @@ def prometheus_metrics(amp, start, end):
     ]:
         # A counter per executor that resets with each application: the max
         # inside the window is that executor's total; sum over executors.
-        promql = f"sum by (spark_app) (max_over_time({metric}[{window}]))"
+        # Grouped by Spark's own application_name, not the scrape-added
+        # spark_app: on 2026-10-07 the transform's driver reused the
+        # generator driver's pod IP, and for a few scrapes its metrics
+        # carried the old pod's Kubernetes labels (spark_app, pod). Spark's
+        # labels come from the application itself and can't go stale. The
+        # inner max collapses those duplicate series (same executor, two
+        # label sets) so the sum counts each executor once.
+        promql = (
+            "sum by (application_name) (max by (application_name, application_id, executor_id) "
+            f"(max_over_time({metric}[{window}])))"
+        )
         for row in amp.query(promql, end):
-            per_app.setdefault(row["metric"].get("spark_app", "?"), {})[key] = int(
+            per_app.setdefault(row["metric"].get("application_name", "?"), {})[key] = int(
                 float(row["value"][1])
             )
     return {
