@@ -2,6 +2,13 @@
 
 # Override with `make standing-plan TF_BIN=tofu` to use OpenTofu instead of Terraform.
 TF_BIN ?= terraform
+
+# Every target runs as cerberus-admin unless the shell already sets a
+# profile (`AWS_PROFILE=other make ...` still wins). Terraform's S3 backend
+# and providers read it from the environment; without it, a shell with no
+# profile set fails with "No valid credential sources found" (twice on
+# 2026-10-08). orchestration/exercise.sh sets the same profile itself.
+export AWS_PROFILE ?= cerberus-admin
 TF_STANDING_DIR := terraform/envs/dev-standing
 TF_COMPUTE_DIR := terraform/envs/dev-compute
 TF_BOOTSTRAP_DIR := terraform/bootstrap
