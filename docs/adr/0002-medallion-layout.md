@@ -113,3 +113,32 @@ actual policy documents are 1.6's decision, not this one.
   is binding on every future ingestion source unless superseded by a new
   ADR — this is the naming contract 1.8's Glue Data Catalog registration
   will assume.
+
+## Amendment (2026-10-08): the serving engine stays Athena, and is pluggable
+
+This ADR shaped the layout around Athena's per-TB pricing, but no ADR
+compared Athena with a warehouse. On 2026-10-08 Amazon Redshift Serverless
+was considered as an alternative serving engine and **not adopted**. The
+platform stays on Athena.
+
+- **Why Athena stays:** cost and maintenance at this project's scale.
+  Athena has no idle cost and bills per query ($5 per TB scanned, at
+  least 10 MB per query); the serving workload is a few scheduled queries
+  per pipeline run (the demo query, the data-quality suite, dbt). Redshift
+  Serverless bills capacity (RPU-hours) with a 60-second minimum each time
+  it serves queries, so for this workload it costs more per query, and it
+  adds a namespace, a workgroup, a role and usage limits to own and
+  maintain.
+- **Why a switch stays cheap to make later:** since ADR 0017, silver and
+  gold are Apache Iceberg tables registered in the Glue Data Catalog, and
+  every engine finds them through that catalog. Redshift Serverless can
+  map the `cerberus_platform` database as an external schema and read the
+  Iceberg gold through Redshift Spectrum, with no data copied and no
+  second schema to keep in sync. Adding it would mean adding a reader and
+  a least-privilege role, not changing how bronze, silver or gold are
+  built.
+- **When to revisit:** a workload this project doesn't have today --
+  dashboards or BI with many users and many small, repeated queries, where
+  shared capacity and result caching make a warehouse cheaper or faster
+  per query than per-query scanning. A measured comparison on the same
+  gold tables (latency and cost per query) would then decide.
