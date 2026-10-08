@@ -291,6 +291,53 @@ layered on top of a platform that already works.
 - **Artifact:** a results write-up with the per-step numbers and charts, a
   demo video, ADRs for each decision, and Well-Architected milestone 8.
 
+## Candidate later work (unscheduled)
+
+_Ideas agreed in discussion but not yet given a phase number, subtasks or
+a budget. Each becomes a phase (or part of one) only after it is discussed
+again; until then nothing here is built._
+
+### Redshift Serverless vs Athena — a measured serving-layer comparison
+
+_Proposed 2026-10-08._
+
+- **Why:** the serving layer has used Athena since Phase 1, chosen for its
+  zero idle cost and in-place queries over S3, but Redshift was never
+  formally compared (no ADR records it). A measured comparison turns that
+  implicit choice into an evidenced one ("evaluated both, chose X with
+  data") and adds hands-on Redshift experience, a commonly requested
+  skill.
+- **Scope:** Amazon Redshift Serverless reading the **same** Glue catalog
+  and Iceberg gold through Redshift Spectrum (an external schema), so no
+  data is copied and the lakehouse stays the single source of truth. No
+  change to how silver or gold are built.
+- **Method:** run the same workload on both engines against the same gold
+  snapshot -- the serving demo query and the data-quality suite's gold
+  checks -- and record per query: latency (cold and warm), bytes scanned,
+  and cost (Athena: $5/TB with a 10 MB minimum per query; Redshift
+  Serverless: RPU-hours with its 60-second minimum per query). Repeat at
+  two data sizes from the Phase 8 ladder to see how the gap moves.
+- **Guardrails:** spin-up/tear-down like `dev-compute` (the workgroup
+  exists only for the measurement window), the smallest base capacity
+  available, a usage limit on RPU-hours, and the AWS Budgets alerts from
+  8.2.
+- **Deliverables:** Terraform for the namespace/workgroup and the
+  Spectrum role (least-privilege, read-only on gold and the Glue catalog);
+  a short script that runs the workload on both engines and writes a
+  comparison record next to the Phase 8 run records; an ADR, "Athena vs
+  Redshift Serverless for serving", with the numbers and the decision.
+- **Open questions for the discussion:** a phase of its own or part of a
+  later one; whether Redshift writes anything (materialized views for a
+  dashboard workload) or stays read-only; which concurrency to test (one
+  query at a time vs a small dashboard-like burst); the cost cap for the
+  whole evaluation.
+
+### Streaming and Airflow
+
+Already noted under Phase 8's out-of-scope items: Kafka and Airflow on one
+start/stop EC2 instance, following the `dev-compute` spin-up/tear-down
+pattern.
+
 ## Existing infrastructure
 
 Live AWS resources, all created by hand during Phase 0 and reused from Phase 1
