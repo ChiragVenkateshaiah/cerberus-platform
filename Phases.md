@@ -20,7 +20,7 @@ the specific "what's next" live in [checkpoint.md](checkpoint.md)._
   own work plus an ADR. This is a real checkbox in each phase below, not an
   aspiration: architecture is built by repetition, so it is tracked like any
   other deliverable. Two parts are required to check a "Well-Architected pass
-  + ADR" subtask off (3.8, 4.5, 5.5, 6.6, 7.4, 8.11), not just the ADR: also save a
+  + ADR" subtask off (3.8, 4.5, 5.5, 6.6, 7.4, 8.11, 9.7, 10.7), not just the ADR: also save a
   new milestone on the `cerberus-platform` AWS Well-Architected Tool workload
   (`phase-N-<slug>-complete`). See [docs/plan.md](docs/plan.md)'s
   Architecture guiding principle and [checkpoint.md](checkpoint.md)'s
@@ -136,6 +136,29 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
       million events at each step
 - [ ] 8.10 Results write-up (per-step numbers and charts) + demo video
 - [ ] 8.11 Well-Architected pass + ADR
+
+## Phase 9 — Platform tooling in Go ⬜
+
+- [ ] 9.1 ADR: Go for platform tooling (module layout, CLI framework, testing)
+- [ ] 9.2 Go module, `golangci-lint` + `go test` in CI, release builds
+- [ ] 9.3 `cerberusctl dq`: the data-quality suite, all checks concurrent, fail-closed
+- [ ] 9.4 `cerberusctl collect`: the metric record, `--cost-only`, `--dq-only`
+- [ ] 9.5 `cerberusctl exercise`: preflight → apply → run → collect →
+      guaranteed teardown → account check
+- [ ] 9.6 Parity run: same record as the Python tools on one exercise; retire
+      `exercise.sh`, `collect_run_metrics.py`, `data_quality.py`
+- [ ] 9.7 Well-Architected pass + ADR
+
+## Phase 10 — Streaming ingestion ⬜
+
+- [ ] 10.1 ADR: streaming design (Kafka on start/stop EC2, bronze prefix,
+      delivery guarantees, Airflow or not)
+- [ ] 10.2 Terraform: start/stop Kafka (KRaft) instance, tagged, torn down to $0
+- [ ] 10.3 Go producer: synthetic payment events at a configurable rate
+- [ ] 10.4 Go consumer: batched JSON Lines into bronze, at-least-once
+- [ ] 10.5 Silver job and data-quality suite cover the streaming prefix
+- [ ] 10.6 Sustained-load test: throughput, consumer lag, cost per hour
+- [ ] 10.7 Well-Architected pass + ADR
 
 ---
 
