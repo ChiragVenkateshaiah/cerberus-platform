@@ -171,6 +171,31 @@ teardown() {
   exit "$status"
 }
 
+# 8.6: the Spark Operator's and drivers' logs, plus the SparkApplications and
+# the spark-jobs events, for timing a run's fixed overhead (Ivy package
+# resolution in the operator and again in each driver, pod scheduling and
+# start-up). They exist only on the cluster, which the teardown destroys, so
+# they are saved right after the run. Best-effort throughout: nothing here
+# may stop the run from reaching the collector and the teardown.
+capture_spark_logs() {
+  local dir="$LOG_DIR/$EXECUTION_NAME-spark" pod
+  mkdir -p "$dir"
+  kubectl get sparkapplications -n spark-jobs -o yaml >"$dir/sparkapplications.yaml" 2>&1 || true
+  kubectl get events -n spark-jobs --sort-by=.lastTimestamp -o wide >"$dir/events-spark-jobs.txt" 2>&1 || true
+  for pod in $(kubectl get pods -n spark-operator -o name 2>/dev/null || true); do
+    kubectl logs -n spark-operator "$pod" --all-containers --timestamps \
+      >"$dir/operator-${pod#pod/}.log" 2>&1 || true
+  done
+  for pod in $(kubectl get pods -n spark-jobs -l spark-role=driver -o name 2>/dev/null || true); do
+    kubectl logs -n spark-jobs "$pod" --timestamps >"$dir/${pod#pod/}.log" 2>&1 || true
+  done
+  log "Spark logs saved to ${dir#"$REPO"/}"
+  # Ivy prints one ":: resolution report :: resolve Nms :: artifacts dl Nms"
+  # line per resolution: the package-download cost, per operator and driver.
+  grep -H -o 'resolve [0-9]*ms :: artifacts dl [0-9]*ms' "$dir"/*.log 2>/dev/null |
+    sed "s|^$dir/|  |" || true
+}
+
 if $CHECK; then
   preflight
   log "preflight passed"
@@ -232,6 +257,7 @@ while [[ "$status" == "RUNNING" ]]; do
     --query status --output text)"
 done
 log "execution $status after $((SECONDS - run_start))s"
+capture_spark_logs
 
 log "collecting metrics"
 # Collected while the cluster is still up but no longer needed for it --
