@@ -60,8 +60,13 @@ post about a day later, and they are daily. The method works with both.
   the "all-in" exercise cost.
 - **One exercise per UTC day** keeps the attribution clean. Two different
   ladder steps on one day would share one rate.
-- **Collect `--cost` the day after** for the posted number. The record
-  keeps Cost Explorer's `Estimated` flag either way.
+- **Collect `--cost-only` the day after** for the posted number. The
+  record keeps Cost Explorer's `Estimated` flag either way, but that flag
+  stays `true` until the month closes, so it can't show a partly posted
+  day. The record's `complete` field does: a day with EKS hours but no EC2
+  compute hasn't fully posted (on 2026-10-08, the day-old 2026-10-07
+  exercise showed 0.26 of about 1.2 cluster-hours). Don't commit an
+  incomplete cost; re-run `--cost-only` later.
 
 ## Baseline at today's volume
 
