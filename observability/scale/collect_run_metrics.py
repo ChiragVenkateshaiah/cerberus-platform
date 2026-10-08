@@ -288,6 +288,14 @@ def day_cost(session, day):
         "by_service": dict(sorted(by_service.items(), key=lambda kv: -kv[1])),
         "eks_cluster_hours": round(cluster_hours, 3),
         "usd_per_cluster_hour": round(total / cluster_hours, 4) if cluster_hours else None,
+        # Cost Explorer posts a day in pieces, and `Estimated` stays true until
+        # the month closes, so it can't tell a partial day from a whole one.
+        # On 2026-10-08 a day-old exercise showed 0.26 of ~1.2 cluster-hours
+        # and $0 of EC2 compute. Node instances bill whenever EKS does, so
+        # EKS hours with no EC2 compute means the day hasn't fully posted.
+        "complete": not (
+            cluster_hours > 0 and by_service.get("Amazon Elastic Compute Cloud - Compute", 0) == 0
+        ),
     }
 
 
@@ -341,6 +349,11 @@ def print_cost(cost):
         f"{cost['eks_cluster_hours']} cluster-h, run ${cost['run_usd']}, "
         f"${cost['usd_per_million_events']}/M events"
     )
+    if not cost.get("complete", True):
+        print(
+            "  WARNING: the day has not fully posted (EKS hours but no EC2 compute yet). "
+            "Don't commit this cost; re-run --cost-only later."
+        )
 
 
 def main():
