@@ -18,3 +18,15 @@ variable "spark_service_account" {
   type        = string
   default     = "spark-jobs:cerberus-spark"
 }
+
+variable "glue_database_name" {
+  description = "Glue database holding silver's Iceberg table (8.5)."
+  type        = string
+  default     = "cerberus_platform"
+}
+
+variable "silver_table_name" {
+  description = "The Iceberg silver table cerberus-spark commits to (8.5, ADR 0017)."
+  type        = string
+  default     = "payments_events"
+}

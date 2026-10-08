@@ -35,7 +35,7 @@ variable "glue_bronze_table_names" {
 }
 
 variable "glue_partition_table_name" {
-  description = "The single Glue table (payments_events) that cerberus-transform registers partitions against."
+  description = "The silver Glue table (payments_events) cerberus-transform reads; Iceberg since 8.5, so no partitions to register."
   type        = string
 }
 

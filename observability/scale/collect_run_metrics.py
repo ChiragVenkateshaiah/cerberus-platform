@@ -97,8 +97,8 @@ def parse_args():
     parser.add_argument(
         "--events-processed",
         type=int,
-        help="events this run processed; defaults to the silver total, right for the "
-        "current full rebuild but not for an incremental run (8.5)",
+        help="events this run processed; defaults to what silver's Iceberg snapshots "
+        "added during the run (8.5), or the silver total for the old full rebuild",
     )
     return parser.parse_args()
 
@@ -226,12 +226,11 @@ def prefix_size(s3, layer, prefix):
     return {"objects": objects, "bytes": size}
 
 
-def silver_counts(session):
+def athena_row(session, sql, what):
+    """The first result row of one query, as strings (None for a SQL null)."""
     athena = session.client("athena")
     query_id = athena.start_query_execution(
-        QueryString="SELECT count(*), count(DISTINCT transaction_id) FROM payments_events",
-        WorkGroup=WORKGROUP,
-        QueryExecutionContext={"Database": DATABASE},
+        QueryString=sql, WorkGroup=WORKGROUP, QueryExecutionContext={"Database": DATABASE}
     )["QueryExecutionId"]
     while True:
         query = athena.get_query_execution(QueryExecutionId=query_id)["QueryExecution"]
@@ -239,9 +238,38 @@ def silver_counts(session):
             break
         time.sleep(1)
     if query["Status"]["State"] != "SUCCEEDED":
-        raise SystemExit(f"silver count failed: {query['Status'].get('StateChangeReason')}")
+        raise SystemExit(f"{what} failed: {query['Status'].get('StateChangeReason')}")
     row = athena.get_query_results(QueryExecutionId=query_id)["ResultSet"]["Rows"][1]["Data"]
-    return int(row[0]["VarCharValue"]), int(row[1]["VarCharValue"])
+    return [cell.get("VarCharValue") for cell in row]
+
+
+def silver_counts(session):
+    events, transactions = athena_row(
+        session,
+        "SELECT count(*), count(DISTINCT transaction_id) FROM payments_events",
+        "silver count",
+    )
+    return int(events), int(transactions)
+
+
+def silver_added_events(session, start, end):
+    """Events silver gained during the run, from its Iceberg snapshots (8.5).
+
+    The sum of `added-records` over the append snapshots committed inside
+    the run window -- what an incremental run actually processed. None when
+    silver has no snapshots table (the Hive layout before 8.5).
+    """
+    sql = f"""
+SELECT sum(CAST(summary['added-records'] AS bigint))
+FROM "payments_events$snapshots"
+WHERE operation = 'append'
+  AND committed_at BETWEEN from_iso8601_timestamp('{start.astimezone(UTC).isoformat()}')
+                       AND from_iso8601_timestamp('{end.astimezone(UTC).isoformat()}')"""
+    try:
+        (added,) = athena_row(session, sql, "silver snapshot sum")
+    except SystemExit:
+        return None
+    return int(added or 0)
 
 
 def day_cost(session, day):
@@ -299,7 +327,9 @@ def add_cost(record, admin):
     run_usd = rate * record["run_seconds"] / 3600 + athena_usd if rate else None
     cost["run_usd"] = round(run_usd, 4) if run_usd is not None else None
     cost["usd_per_million_events"] = (
-        round(run_usd / (record["events_processed"] / 1e6), 2) if run_usd is not None else None
+        round(run_usd / (record["events_processed"] / 1e6), 2)
+        if run_usd is not None and record["events_processed"]
+        else None
     )
     cost["collected_at"] = datetime.now(UTC).isoformat(timespec="seconds")
     record["cost"] = cost
@@ -392,7 +422,10 @@ def main():
     silver_events, silver_transactions = silver_counts(
         boto3.Session(profile_name=QUERY_PROFILE, region_name=REGION)
     )
-    events_processed = args.events_processed or silver_events
+    added = silver_added_events(
+        boto3.Session(profile_name=QUERY_PROFILE, region_name=REGION), start, end
+    )
+    events_processed = args.events_processed or (added if added is not None else silver_events)
 
     state_rows = []
     for state in states:

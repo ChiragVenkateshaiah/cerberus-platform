@@ -30,9 +30,6 @@ SILVER_BUCKET="cerberus-platform-silver-131715059025"
 SCRIPT_S3_KEY="_spark_jobs/promote_payments_spark.py"
 NAMESPACE="spark-jobs"
 APP_NAME="cerberus-promote-payments"
-GLUE_DATABASE="cerberus_platform"
-GLUE_SILVER_TABLE="payments_events"
-ATHENA_WORKGROUP="cerberus_platform"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -86,34 +83,4 @@ if [[ "$STATE" != "COMPLETED" ]]; then
   exit 1
 fi
 
-log "job completed -- registering new silver partitions via MSCK REPAIR TABLE"
-
-QUERY_EXECUTION_ID="$(aws athena start-query-execution \
-  --profile "$TRANSFORM_PROFILE" \
-  --region "$AWS_REGION" \
-  --work-group "$ATHENA_WORKGROUP" \
-  --query-execution-context "Database=$GLUE_DATABASE" \
-  --query-string "MSCK REPAIR TABLE $GLUE_SILVER_TABLE" \
-  --output text --query 'QueryExecutionId')"
-
-REPAIR_STATE="RUNNING"
-while [[ "$REPAIR_STATE" == "RUNNING" || "$REPAIR_STATE" == "QUEUED" ]]; do
-  sleep 1
-  REPAIR_STATE="$(aws athena get-query-execution \
-    --profile "$TRANSFORM_PROFILE" \
-    --region "$AWS_REGION" \
-    --query-execution-id "$QUERY_EXECUTION_ID" \
-    --output text --query 'QueryExecution.Status.State')"
-done
-
-if [[ "$REPAIR_STATE" != "SUCCEEDED" ]]; then
-  log "MSCK REPAIR TABLE $REPAIR_STATE" >&2
-  aws athena get-query-execution \
-    --profile "$TRANSFORM_PROFILE" \
-    --region "$AWS_REGION" \
-    --query-execution-id "$QUERY_EXECUTION_ID" \
-    --query 'QueryExecution.Status.StateChangeReason' --output text >&2
-  exit 1
-fi
-
-log "done -- silver's new partitions are registered and queryable"
+log "job completed -- silver committed through the Iceberg Glue catalog (8.5: no MSCK REPAIR)"

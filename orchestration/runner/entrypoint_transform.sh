@@ -4,7 +4,7 @@ set -euo pipefail
 # Containerized adaptation of transform/spark/submit_job.sh (3.5/3.6) --
 # runs inside the "transform" ECS Fargate task Step Functions invokes via
 # RunTransform (orchestration/state_machine.asl.json.tftpl, 4.2). Same
-# kubectl-apply/poll + MSCK REPAIR/poll structure as the original, adapted
+# kubectl-apply/poll structure as the original, adapted
 # for two things that differ inside a task instead of on a laptop: no
 # named CLI profile (the task role, cerberus-orchestration-transform,
 # supplies credentials directly via the container credentials endpoint),
@@ -32,11 +32,8 @@ SILVER_BUCKET="${SILVER_BUCKET:?}"
 SCRIPT_S3_KEY="${SCRIPT_S3_KEY:-_spark_jobs/promote_payments_spark.py}"
 NAMESPACE="${NAMESPACE:-spark-jobs}"
 APP_NAME="${APP_NAME:-cerberus-promote-payments}"
-GLUE_DATABASE="${GLUE_DATABASE:?}"
-GLUE_SILVER_TABLE="${GLUE_SILVER_TABLE:-payments_events}"
-ATHENA_WORKGROUP="${ATHENA_WORKGROUP:?}"
 
-# Bounds on both poll loops below -- an earlier version of this script had
+# Bound on the poll loop below -- an earlier version of this script had
 # none, and the Spark-state loop's `|| true` (needed so one transient
 # kubectl API blip doesn't kill the whole task) meant a persistent failure
 # (RBAC/access-entry propagation delay, EKS API outage) left STATE empty
@@ -44,9 +41,10 @@ ATHENA_WORKGROUP="${ATHENA_WORKGROUP:?}"
 # submit_job.sh, run interactively where a human could Ctrl-C, this runs
 # unattended inside a Step Functions execution -- an unbounded hang here
 # burns real Fargate cost with no automatic failure. 5s * 240 = 20
-# minutes for the Spark job; 1s * 300 = 5 minutes for the MSCK REPAIR.
+# minutes for the Spark job. (8.5 removed the second loop, which waited on
+# an MSCK REPAIR: silver is an Iceberg table now, and the job's own commit
+# makes new data queryable. GLUE_DATABASE/ATHENA_WORKGROUP went with it.)
 SPARK_POLL_MAX_ATTEMPTS=240
-REPAIR_POLL_MAX_ATTEMPTS=300
 
 log "uploading promote_payments_spark.py to s3://$SILVER_BUCKET/$SCRIPT_S3_KEY"
 aws s3 cp /opt/spark/promote_payments_spark.py \
@@ -103,37 +101,4 @@ if [[ "$STATE" != "COMPLETED" ]]; then
   exit 1
 fi
 
-log "job completed -- registering new silver partitions via MSCK REPAIR TABLE"
-
-QUERY_EXECUTION_ID="$(aws athena start-query-execution \
-  --region "$AWS_REGION" \
-  --work-group "$ATHENA_WORKGROUP" \
-  --query-execution-context "Database=$GLUE_DATABASE" \
-  --query-string "MSCK REPAIR TABLE $GLUE_SILVER_TABLE" \
-  --output text --query 'QueryExecutionId')"
-
-REPAIR_STATE="RUNNING"
-ATTEMPT=0
-while [[ "$REPAIR_STATE" == "RUNNING" || "$REPAIR_STATE" == "QUEUED" ]]; do
-  if (( ATTEMPT >= REPAIR_POLL_MAX_ATTEMPTS )); then
-    log "timed out after $ATTEMPT polls waiting for MSCK REPAIR TABLE to finish" >&2
-    exit 1
-  fi
-  ATTEMPT=$((ATTEMPT + 1))
-  sleep 1
-  REPAIR_STATE="$(aws athena get-query-execution \
-    --region "$AWS_REGION" \
-    --query-execution-id "$QUERY_EXECUTION_ID" \
-    --output text --query 'QueryExecution.Status.State')"
-done
-
-if [[ "$REPAIR_STATE" != "SUCCEEDED" ]]; then
-  log "MSCK REPAIR TABLE $REPAIR_STATE" >&2
-  aws athena get-query-execution \
-    --region "$AWS_REGION" \
-    --query-execution-id "$QUERY_EXECUTION_ID" \
-    --query 'QueryExecution.Status.StateChangeReason' --output text >&2
-  exit 1
-fi
-
-log "done -- silver's new partitions are registered and queryable"
+log "job completed -- silver committed through the Iceberg Glue catalog"

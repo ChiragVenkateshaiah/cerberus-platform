@@ -19,7 +19,7 @@ screenshots.
 | Metric | Definition | Source | Read as |
 |---|---|---|---|
 | **Run time** | Wall clock from execution start to stop, and per state (`InvokeIngestion`, `RunTransform`, `RunDbt`, `RunServingQuery`) | Step Functions execution history: `TaskStateEntered` → `TaskStateExited` timestamps | `cerberus-admin` |
-| **Events processed** | Events the run had to process. The current full rebuild processes every silver event; from 8.5 (incremental) it is the new events only, passed with `--events-processed` | Athena `count(*)` on `payments_events` after the run | `cerberus-transform` (`cerberus-admin` can't start queries, 7.3) |
+| **Events processed** | Events the run had to process. The old full rebuild processed every silver event; since 8.5 (incremental) it is the events the run added | Since 8.5: the sum of `added-records` over silver's Iceberg append snapshots committed during the run (`"payments_events$snapshots"`). Before: `count(*)` on `payments_events`. `--events-processed` overrides both | `cerberus-transform` (`cerberus-admin` can't start queries, 7.3) |
 | **Events per second** | Events processed ÷ seconds, for the whole run and for each state | Derived | — |
 | **Spark bytes read** | Sum over executors of each executor's peak `metrics_executor_totalInputBytes_bytes_total` inside the run window, per `spark_app` | AMP (Prometheus), SigV4 query API | `cerberus-admin` (`aps:QueryMetrics`) |
 | **Spark shuffle bytes** | Same method with `metrics_executor_totalShuffleWrite_bytes_total` | AMP | `cerberus-admin` |
@@ -167,7 +167,8 @@ keys). The suite covers what no single dbt model can see:
 |---|---|
 | Bronze → silver | `bronze_to_silver_count`, `bronze_to_silver_keys` (full outer join on `(transaction_id, event_type)`) |
 | Silver → gold | `silver_to_gold_transactions`, `gold_status_matches_lifecycle` |
-| Silver rules (ADR 0003) | `silver_duplicate_keys`, `lifecycle_created_authorized`, `lifecycle_one_terminal`, `lifecycle_refunds`, `lifecycle_order`, `silver_partition_placement`, `silver_key_nulls`, `amount_range_and_stability`, `roster`, `masking`, `token_format` |
+| Silver rules (ADR 0003) | `silver_duplicate_keys`, `lifecycle_created_authorized`, `lifecycle_one_terminal`, `lifecycle_refunds`, `lifecycle_order`, `silver_key_nulls`, `amount_range_and_stability`, `roster`, `masking`, `token_format` |
+| Incremental silver (8.5) | `silver_caught_up`: no bronze object (`"$file_modified_time"`) is newer than the watermark in silver's Iceberg snapshots. It replaced `silver_partition_placement`, which checked the `dt` column that hidden partitioning removed |
 | Accepted risk (`warn`) | `token_digit_runs`: 97 legacy hex tokens from before #50 hold a 13+ digit run. Bronze is append-only, so they stay |
 | `payments_bulk/` (ADR 0018) | `bulk_duplicate_keys`; `bulk_run_counts` compares one generator run's per-`dt` counts in bronze with its own `[generate]` manifest (`--generator-log`) |
 
@@ -179,9 +180,10 @@ single-line JSON array) and the checks unpack it with `json_parse`;
 `bronze_payments_bulk` reads the generator's JSON Lines. Neither is in
 `cerberus-serving`'s catalog grant.
 
-**Scope before 8.5:** silver is built from bronze `payments/` only, so the
-bronze → silver checks reconcile that prefix. `payments_bulk/` is checked
-on its own until 8.5's silver job reads it; then `SILVER_SOURCES` gains it.
+**Scope since 8.5:** silver is an incremental Iceberg table built from both
+bronze prefixes, so the bronze → silver checks reconcile `payments/` and
+`payments_bulk/` together (`SILVER_SOURCES`). Before the first Iceberg run,
+the checks that read silver's snapshots fail, as a missing table should.
 
 **Cost:** about 14 MB scanned for the silver and gold checks at today's
 volume. The two bulk checks each scan the whole bulk JSON (433 MB at 1M
