@@ -101,36 +101,59 @@ million events per step. $20/month, six weeks from 2026-10-06.
   2026-10-07 exercise: **passed**, bronze 45,304 = silver 45,304, generator
   1,000,029 = manifest.
 
+- **8.5** — 1M events on Iceberg, done 2026-10-08 (PRs #63–#70):
+  - **Silver** (`promote_payments_spark.py`): incremental Iceberg table
+    `payments_events` (format v2, `days(event_timestamp)`,
+    `silver/iceberg/`), Iceberg **1.10.2** (1.11+ needs Java 17; the image
+    runs 11). Each run globs only bronze files newer than the watermark
+    under both prefixes, reads them once, anti-joins on
+    `(transaction_id, event_type)` and appends with the watermark as a
+    snapshot property in the same commit; then compaction and snapshot
+    expiry. New `loaded_at` column. The Hive table was retired by Terraform.
+  - **Gold** (dbt): all three models Iceberg (`schema_table_unique`);
+    `fct_transactions` incremental + merge on `transaction_id`, recomputing
+    only transactions with silver events newer than its `silver_loaded_at`.
+  - **Live:** silver 1,063,625 events / 349,000 transactions; the latest
+    run appended 6,094 events and merged exactly 2,000 gold rows, in 340 s
+    with data quality passing.
+  - **Also:** CI apply refuses commits that aren't `main`'s head (#65);
+    `Makefile` defaults `AWS_PROFILE` to `cerberus-admin` (#68); the
+    collector flags a partly posted Cost Explorer day (#63).
+
 ## Next up
 
-Start with `git switch main && git pull`.
+Start with `git switch main && git pull`. `make` targets no longer need
+`AWS_PROFILE=` (#68); `make exercise` must still be run by the user (auto
+mode blocks `terraform apply`).
 
-1. **Add the cost to the 2026-10-07 exercise record** — on 2026-10-08
-   UTC or later, once Cost Explorer has posted (one request, $0.01):
-   `uv run --no-project --with boto3 python observability/scale/collect_run_metrics.py --execution exercise-20261007T145442Z --cost-only`.
-   Expect about $0.28 for the exercise (42 cluster-minutes at about $0.40
-   per cluster-hour) plus the failed first attempt (about 28 minutes) on
-   the same UTC day, so the day's rate covers both. Commit the record (a
-   small PR) and add the run's numbers to `docs/scale-metrics.md`'s
-   baseline section.
-2. **8.5 — 1M events on Iceberg (ADR 0017).** Silver `payments_events`
-   and gold become Iceberg tables in the Glue catalog; silver writes are
-   `MERGE INTO` on `(transaction_id, event_type)` with the bronze
-   watermark as a snapshot property; `fct_transactions` becomes dbt
-   `incremental` + `merge`; compaction and snapshot expiry as a step;
-   `cerberus-spark` gets scoped Glue write. The new silver job must:
-   - read bronze **once** (today's job reads it 3×: three uncached
-     actions),
-   - read both prefixes: `payments/` with `multiLine=true` and
-     `payments_bulk/` with `multiLine=false` (ADR 0018). The 1M run
-     `e1000000-20261007T151119Z` is already in bronze for it.
-   When it lands, add `"payments_bulk"` to `SILVER_SOURCES` in
-   `data_quality.py` and extend `BRONZE_PAYMENTS` to union the bulk table,
-   so bronze → silver reconciles both prefixes. The suite's
-   `silver_partition_placement` check reads the `dt` column, which ADR 0017
-   drops with hidden partitioning; replace it with a check on Iceberg's
-   partition. Start with the Iceberg/Glue package versions (pinned and
-   verified against Maven Central, as 3.5 did for `hadoop-aws`).
+1. **Costs, once the days have fully posted** (one Cost Explorer request
+   each, $0.01): run
+   `uv run --no-project --with boto3 python observability/scale/collect_run_metrics.py --execution <name> --cost-only`
+   for `exercise-20261007T145442Z` and, for 2026-10-08,
+   `exercise-20261008T115807Z` (the day had three exercises, so the day's
+   rate covers all of them). Commit only when the printout has **no**
+   `WARNING: the day has not fully posted` line. Then add the 8.5 runs to
+   `docs/scale-metrics.md` (a short "1M step" section next to the
+   baseline).
+2. **8.6 — 10M events, tuning with before/after numbers.** Measured
+   starting points from 2026-10-08's incremental runs:
+   - **Anti-join reads every silver key:** 30.5 MB read and 41.5 MB
+     shuffled for about 2–3 MB of new bronze. Prune it to the
+     `days(event_timestamp)` partitions the new events touch (filter the
+     silver side on those days before the join). The suite's
+     `bronze_to_silver_keys` proves nothing is lost.
+   - **RunDbt ~120 s** with 25 Athena queries; most of it is per-query
+     overhead and the Glue version pruning.
+   - Then generate +9M events (`make exercise ARGS="--generate 9000000"`;
+     check executor sizing first — 2 executors × 1 core on two
+     m7i-flex.large nodes) and compare run time, bytes and files per
+     partition. Compaction has not triggered yet (`min-input-files` 5).
+3. **Small follow-ups (any time):** the `use_lockfile` switch for the three
+   Terraform backends (one PR, `terraform init -reconfigure` per root);
+   orphaned Hive data from before 8.5 (`silver/payments/`,
+   `gold/fct_transactions/`, `gold/dim_*/`) can be deleted once a cleanup
+   is wanted; moving the Spark image to `3.5.9-java17-python3` would allow
+   Iceberg 1.12.
 
 **Deadline:** the ingestion Lambda's `RETIRE_ON_OR_AFTER` is
 **2026-10-30** (PR #45). The scale generator does not depend on it, but
@@ -151,6 +174,10 @@ the daily orchestrated path does.
   labels on pod-IP reuse (Grafana driver panels), and
   `RunServingQuery`'s ~55 s Step Functions polling floor (a latency fix
   for SLO 3, worth only about $0.006 per run).
+- **New 2026-10-08:** the Spark job's poll limit in
+  `entrypoint_transform.sh` is 20 minutes, which the 100M step (8.9) will
+  likely need raised; and the transform task definition still receives
+  OpenLineage env only.
 - **Later phase, recorded in plan.md:** Kafka + Airflow on one start/stop
   EC2 instance.
 
@@ -2706,6 +2733,70 @@ by CI, and the first full run passing. PRs #61, #62. No cluster time._
   suite whose cost grows with the ladder (about $0.45 per run at 100M).
 - **8.4 checked off** in Phases.md. Phase 8 stays 🔨.
 
+### 2026-10-08
+
+_8.5 done: incremental Apache Iceberg silver and gold at about 1M events,
+proved by three exercises. Also a CI guard, a Makefile default, and a
+partial-cost guard. PRs #63–#70._
+
+- **Cost step deferred, guard added (#63).** `--cost-only` for 2026-10-07
+  at 04:44 UTC returned a partly posted day (0.26 of ~1.2 cluster-hours,
+  $0 EC2 compute); `Estimated` stays true all month, so it can't tell. Not
+  recorded; the cost section now has `complete` and warns.
+- **Silver design, tested locally first** (Docker, `apache/spark:3.5.9`,
+  Hadoop catalog, real bronze copies). Iceberg 1.12.0 and 1.11.0 fail on
+  Java 11 (`UnsupportedClassVersionError`); **1.10.2** chosen (user). The
+  watermark must commit with the data: the session-conf snapshot property
+  is ignored for SQL writes, and `CommitMetadata` via py4j deadlocked, so
+  the insert-only MERGE is an anti-join + DataFrame append with
+  `snapshot-property.cerberus.bronze_watermark`. Bronze listed with globs
+  (a bare-key probe would 403). Full load read 73.4 MB for 73.3 MB of
+  bronze; re-runs added 0. Swap in place (user): Terraform retired the Hive
+  table; the job recreates `payments_events` as Iceberg.
+- **CI landmine, then a bad re-run.** #64 merged before the local apply;
+  CI's apply failed at `build_and_push` as expected (planned changes
+  applied, image missing). The user's `make standing-apply` then built
+  the image. A `gh run rerun` of the *latest failed* run picked #50's run
+  from 2026-10-06 (ours was `cancelled`), which re-applied that old
+  commit: it deleted the 8.4 bronze tables, re-created the Hive table and
+  reverted `cerberus-transform`'s policy. A local apply from `main`
+  restored everything (`4 add / 2 change / 3 destroy`, then `No changes`).
+  **#65:** `terraform-apply.yml` now refuses any commit that isn't
+  `main`'s head, before assuming credentials; verified on its own merge.
+- **Exercise 1 (`exercise-20261008T085728Z`):** the Iceberg build
+  worked — 1,051,434 events from both prefixes in one read — but `RunDbt`
+  failed: the dbt task role could read only `silver/payments/*`, and Spark
+  writes `timestamptz`, which Hive gold can't store. **#66** fixed both
+  (dbt role reads `silver/iceberg/payments_events/*`; `fct` casts),
+  removed the transform task role's MSCK-only grants and env, and fixed a
+  `silver_caught_up` SQL bug. Verified without a cluster: `dbt build`
+  PASS=25 and the suite PASSED against the live Iceberg silver.
+- **Exercise 2 (`exercise-20261008T095905Z`):** first incremental silver
+  run — SUCCEEDED in 351 s, 6,097 events appended into 1,057,531,
+  RunTransform 164.9 s (baseline 205.6 s), data quality PASSED. Spark read
+  30.3 MB and shuffled 41.2 MB, nearly all the anti-join scanning every
+  silver key (8.6).
+- **Iceberg gold (#69).** First live builds surfaced three things:
+  `table_unique` nested the new table under the old Hive location and the
+  Hive drop deleted the new metadata (now `schema_table_unique`);
+  dbt-athena's full refresh renames the old table, which Athena can't do
+  to a Hive table (the Hive `fct_transactions` was dropped once via
+  Athena, Glue entry only); and dbt-athena prunes Glue table versions
+  (both dbt roles gained `glue:GetTableVersions`/`DeleteTableVersion`).
+  An incremental run with no new events merged 0 rows; PASS=25; suite
+  PASSED.
+- **Exercise 3 (`exercise-20261008T115807Z`):** both layers incremental —
+  SUCCEEDED in 340 s; 6,094 events appended (silver 1,063,625); gold
+  merged exactly 2,000 transactions (rows by `silver_loaded_at`:
+  345,000 / 2,000 / 2,000); data quality PASSED; cluster up 33 min.
+- **Also:** `Makefile` defaults `AWS_PROFILE` (#68) after two credential
+  failures; the user asked which resume skills this work shows (IaC,
+  CI/CD safety, incident response, IAM, containers, lakehouse migration,
+  data quality, FinOps) and how to watch runs in tmux.
+- **Cost today:** about $0.75 (three exercises: 41 + 37 + 33
+  cluster-minutes) plus one Cost Explorer request.
+- **8.5 checked off** in Phases.md. Phase 8 stays 🔨.
+
 ## Notes / blockers
 
 - **Resolved 2026-10-05 (was: open, noted 2026-10-03):** branch
@@ -2809,6 +2900,27 @@ by CI, and the first full run passing. PRs #61, #62. No cluster time._
   1,000,029 events from the nested `run_id=/dt=/` objects, skipping
   `_SUCCESS`. The bulk checks scan the whole JSON every run; a Parquet copy
   or an Iceberg table is the fix if the cost starts to matter.
+- **Never re-run an old `terraform apply` run (noted 2026-10-08).** A
+  re-run applies that run's own commit; `--status failure` can return a
+  days-old run when the latest one was `cancelled`. #65's guard now fails
+  such runs before credentials. To re-apply `main`, use
+  `gh workflow run terraform-apply.yml --ref main`.
+- **Iceberg on this platform (noted 2026-10-08).** Iceberg 1.10.2 is the
+  newest that runs on `apache/spark:3.5.9` (Java 11). Silver timestamps are
+  `timestamptz`; Athena's Iceberg tables store `timestamp(6)` without a
+  zone, so gold casts. Every role that reads silver needs
+  `silver/iceberg/payments_events/*` (the dbt role was missed once).
+  dbt-athena needs `glue:GetTableVersions`/`DeleteTableVersion` and a
+  `schema_table_unique` location. Gold and silver are no longer queryable
+  as Hive tables; the Hive data under `silver/payments/` and
+  `gold/<table>/` is orphaned.
+- **Local test gotchas (noted 2026-10-08).** Files written by the
+  `apache/spark` container belong to its user, so clean them with a fresh
+  directory, not `rm` (Claude Code's safety check also blocks `rm` inside
+  `sh -c`). Running the container as the host UID breaks Hadoop's login.
+  zsh doesn't split `set -- $var`. A local script named `inspect.py`
+  shadows Python's `inspect` and breaks py4j. `2>1` (no `&`) writes a file
+  named `1` into the repo.
 - **AWS CLI service name (noted 2026-10-03):** the IAM prefix is `aps:`,
   but the CLI command is `aws amp ...` (`aws aps` doesn't exist).
 - **Open, deferred, not blocking (noted 2026-08-27):**

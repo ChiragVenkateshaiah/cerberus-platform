@@ -99,7 +99,11 @@ command. Its first live run wrote 1M events and cut cluster time per
 exercise from 2.1 hours to 42 minutes. 8.4 turned the data-quality checks
 into code: 17 Athena checks reconcile bronze → silver → gold and run with
 every exercise; the first full run passed, with bronze and silver matching
-event for event.
+event for event. 8.5 moved silver and gold to Apache Iceberg with
+incremental processing: each run reads only new bronze files, once, and
+gold merges only the transactions that changed. At about 1M events the
+orchestrated run appended 6,094 new events, merged exactly 2,000 gold rows
+and finished in 340 s, faster than the 39k-event full-rebuild baseline.
 
 See [docs/plan.md](docs/plan.md) for the full phased roadmap (Phases 0–8)
 and [Phases.md](Phases.md) for subtask-level progress.
@@ -218,8 +222,10 @@ constraints behind this diagram, see
 │                         #   Phase 1): silver = flattened event history,
 │                         #   gold = current-state (still denormalized)
 ├── transform/dbt/        # dbt project: gold fact/dimension models (1.9)
-│                         #   + schema/data-quality tests (6.3)
-├── transform/spark/      # PySpark bronze -> silver job (3.5), run on the
+│                         #   + schema/data-quality tests (6.3); Iceberg
+│                         #   gold with incremental fct_transactions (8.5)
+├── transform/spark/      # PySpark bronze -> silver job (3.5; incremental
+│                         #   into Apache Iceberg since 8.5), run on the
 │                         #   EKS cluster via the Spark Operator (3.4);
 │                         #   spark-application.yaml + submit_job.sh (not
 │                         #   Terraform-managed -- see its own header);

@@ -125,7 +125,7 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
       the per-step metric set, and a baseline run at today's volume
 - [x] 8.4 Data-quality suite as code (bronze → silver → gold
       reconciliation), run on every exercise
-- [ ] 8.5 1M events: Iceberg silver/gold, incremental `MERGE`, dbt
+- [x] 8.5 1M events: Iceberg silver/gold, incremental `MERGE`, dbt
       incremental models
 - [ ] 8.6 10M events: Spark tuning (partition sizing, compaction, AQE,
       skew) with before/after measurements
