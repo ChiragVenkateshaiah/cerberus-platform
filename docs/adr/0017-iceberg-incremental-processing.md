@@ -190,3 +190,18 @@ mechanics it needed.
   table can't store. `fct_transactions` (still Hive until gold becomes
   incremental) casts `event_timestamp` to `timestamp(3)`; the values are
   UTC, so nothing shifts.
+- **Gold moved to Iceberg once, partly by hand (2026-10-08).** All three
+  dbt models are Iceberg (`+table_type: iceberg`); `fct_transactions` is
+  `incremental` + `merge` on `transaction_id`, recomputing only
+  transactions whose silver `loaded_at` is newer than gold's
+  `silver_loaded_at`, over all of their events. Three things surfaced on
+  the first builds against the live Iceberg silver:
+  `s3_data_naming: table_unique` nests the new table under the old Hive
+  location, and dropping the Hive table deleted the new Iceberg metadata
+  (`ICEBERG_MISSING_METADATA`), so gold uses `schema_table_unique`;
+  dbt-athena's full refresh renames the old table first, which Athena
+  can't do to a Hive table, so the old Hive `fct_transactions` was dropped
+  once through Athena (Glue entry only) and rebuilt as Iceberg; and
+  dbt-athena prunes Glue table versions after an Iceberg build, so both
+  dbt roles gained `glue:GetTableVersions` and `glue:DeleteTableVersion`
+  on `fct_*`/`dim_*`.
