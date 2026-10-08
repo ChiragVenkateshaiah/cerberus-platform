@@ -120,42 +120,53 @@ million events per step. $20/month, six weeks from 2026-10-06.
     `Makefile` defaults `AWS_PROFILE` to `cerberus-admin` (#68); the
     collector flags a partly posted Cost Explorer day (#63).
 
+- **8.6** — 🔨 in progress (2026-10-08, second session): measured before
+  changing anything. Of RunTransform's 178 s, data work is 28 s and
+  maintenance 10 s; the rest is fixed overhead (ECS task start/stop ~50 s,
+  Spark image pulls on fresh nodes ~20 s, Ivy ~8 s, JVM/executor start-up,
+  catalog + listing 16 s). The anti-join was tuned locally: day pruning
+  kept (branch `phase-8-6-prune-anti-join`, small gain on today's data);
+  broadcast, bucketing/SPJ and a hash-key join measured and rejected.
+  `make exercise` now saves the Spark operator/driver logs (#74).
+
 ## Next up
 
-Start with `git switch main && git pull`. `make` targets no longer need
-`AWS_PROFILE=` (#68); `make exercise` must still be run by the user (auto
-mode blocks `terraform apply`).
+Start with `git switch main && git pull`. Run `make exercise` **in your
+own terminal** (a `!` command in Claude Code has no keyboard for the
+`[y/N]` question; there use `make exercise ARGS="--yes"`).
 
-1. **Costs, once the days have fully posted** (one Cost Explorer request
-   each, $0.01): run
-   `uv run --no-project --with boto3 python observability/scale/collect_run_metrics.py --execution <name> --cost-only`
-   for each record: `exercise-20261007T145442Z`, then the three
-   2026-10-08 runs `exercise-20261008T085728Z`, `exercise-20261008T095905Z`
-   and `exercise-20261008T115807Z` (each call costs $0.01; the day's rate
-   per cluster-hour is shared, the run cost is each run's own). Commit
-   only when the printout has **no**
-   `WARNING: the day has not fully posted` line. Then add the 8.5 runs to
-   `docs/scale-metrics.md` (a short "1M step" section next to the
-   baseline).
-2. **8.6 — 10M events, tuning with before/after numbers.** Measured
-   starting points from 2026-10-08's incremental runs:
-   - **Anti-join reads every silver key:** 30.5 MB read and 41.5 MB
-     shuffled for about 2–3 MB of new bronze. Prune it to the
-     `days(event_timestamp)` partitions the new events touch (filter the
-     silver side on those days before the join). The suite's
-     `bronze_to_silver_keys` proves nothing is lost.
-   - **RunDbt ~120 s** with 25 Athena queries; most of it is per-query
-     overhead and the Glue version pruning.
-   - Then generate +9M events (`make exercise ARGS="--generate 9000000"`;
-     check executor sizing first — 2 executors × 1 core on two
-     m7i-flex.large nodes) and compare run time, bytes and files per
-     partition. Compaction has not triggered yet (`min-input-files` 5).
-3. **Small follow-ups (any time):** the `use_lockfile` switch for the three
-   Terraform backends (one PR, `terraform init -reconfigure` per root);
-   orphaned Hive data from before 8.5 (`silver/payments/`,
-   `gold/fct_transactions/`, `gold/dim_*/`) can be deleted once a cleanup
-   is wanted; moving the Spark image to `3.5.9-java17-python3` would allow
-   Iceberg 1.12.
+1. **Open PRs to review and merge first:**
+   - **#72** — ADR 0002 amendment: serving stays on Athena; Redshift
+     Serverless is pluggable through the Glue catalog (not adopted, for
+     cost and maintenance). Docs only.
+   - **#73** — plan: Phase 9 (Go `cerberusctl`), Phase 10 (Kafka streaming
+     with a Go producer/consumer), and "Planned later work": a realistic
+     time spread for the synthetic data, and Spark 4 / Java 17. Updates
+     `Phases.md`, `docs/plan.md`, `README.md`. Docs only.
+2. **8.6 — cut RunTransform's fixed overhead, in measured steps** (numbers
+   in today's entry):
+   - **Pre-pull the Spark image** while `dev-compute` is created (a small
+     DaemonSet in `eks_observability` or `spark_operator`), so driver and
+     executor don't each pull `apache/spark:3.5.9` (~10 s each) at run
+     time. Expected: ~20 s per run. `dev-compute` only, so no runner-image
+     rebuild.
+   - **ADR first, then maybe build:** submit and watch the Spark job from
+     Step Functions' native EKS integration instead of the ECS Fargate
+     wrapper (~25 s start + ~24 s stop per run, and RunDbt pays the start
+     too). The trade-offs: kubectl/RBAC from Step Functions, the
+     `entrypoint_transform.sh` logic, retries.
+   - The day-pruning branch `phase-8-6-prune-anti-join` joins whichever
+     change next rebuilds the runner image (one `make standing-apply`).
+3. **Then the 10M step:** `make exercise ARGS="--generate 9000000"` —
+   check executor sizing first (2 × 1 core × 2 GB on two m7i-flex.large).
+   Consider the realistic time spread (in #73's plan) before it, so the
+   10M numbers reflect a production-like shape.
+4. **Costs, once days have fully posted:** `--cost-only` for
+   `exercise-20261007T145442Z` and the four 2026-10-08 runs
+   (`…T085728Z`, `…T095905Z`, `…T115807Z`, `…T160759Z`); commit only
+   without the "not fully posted" warning.
+5. **Small follow-ups:** `use_lockfile`; orphaned Hive data
+   (`silver/payments/`, `gold/fct_transactions/`, `gold/dim_*/`).
 
 **Deadline:** the ingestion Lambda's `RETIRE_ON_OR_AFTER` is
 **2026-10-30** (PR #45). The scale generator does not depend on it, but
@@ -2799,6 +2810,51 @@ partial-cost guard. PRs #63–#70._
   cluster-minutes) plus one Cost Explorer request.
 - **8.5 checked off** in Phases.md. Phase 8 stays 🔨.
 
+### 2026-10-08 (second session)
+
+_Discussion and planning, then 8.6 measurements. PRs #71 (closed), #72,
+#73 (open), #74, #75; branch `phase-8-6-prune-anti-join`._
+
+- **Serving engine:** the user asked why Redshift isn't in the stack.
+  Athena was never formally compared; an interactive explainer of how the
+  Glue Data Catalog connects Spark, dbt, Athena (and, hypothetically,
+  Redshift Serverless through Spectrum) was published as a private
+  Artifact (https://claude.ai/artifact/4TMpEcEAY7BT9WoptoapiG). A plan
+  entry for a Redshift evaluation (#71) was **closed unmerged** by
+  decision: serving stays on Athena for cost. **#72** records it in ADR
+  0002, with Redshift noted as pluggable via the catalog.
+- **Go, planned not built (#73):** the user's idea of adding Go as data
+  grows was discussed; the data path is Spark/Athena, so Go goes where its
+  strengths do work: Phase 9 `cerberusctl` (replacing `exercise.sh`, the
+  collector and the suite) and Phase 10 Kafka streaming with a Go producer
+  and consumer. 8.6–8.11 stay Python/Spark/SQL. #73 also adds "Planned
+  later work": a realistic time spread for the synthetic data, and Spark
+  4 / Java 17.
+- **8.6 anti-join, measured locally first** (Docker, real bronze copies,
+  a local 1M-event run to match production's silver):
+  - Day pruning from the new files' `dt=` paths: correct, small gain
+    here (13.33 → 12.61 MB) because every batch lands in the same last
+    7–8 days; kept on its branch.
+  - Broadcasting the batch keys: read bronze twice — rejected.
+  - Bucketing silver (`bucket(16, transaction_id)`) for a
+    storage-partitioned join: **Spark 3.5.9 has no one-side SPJ**
+    (`spark.sql.sources.v2.bucketing.shuffle.enabled` is Spark 4), so
+    silver was still shuffled — rejected for now (→ Spark 4 plan item).
+  - Hash-key anti-join (option 2): exact, halves the shuffle (46 → 22.5
+    MB) but +60% run time at 1.2M rows (16.3 → 26.1 s) — rejected.
+- **Exercise `exercise-20261008T160759Z` (#74's log capture, #75's
+  record):** SUCCEEDED in 355 s; 6,086 new events (silver 1,069,711);
+  data quality PASSED. RunTransform's 178 s: ECS start 25 s, upload 7 s,
+  operator submit 8 s, driver image pull 10 s, Ivy 8 s (425 MB copied;
+  Maven downloads <2 s), JVM/SparkContext 10 s, executor schedule + pull +
+  start 19 s, catalog/listing 16 s, **data work 28 s**, maintenance 10 s,
+  completion polling 8 s, ECS stop 24 s. The package-download suspicion
+  was mostly wrong; the ECS wrapper and image pulls are the big levers.
+- **Also:** the user asked which resume skills the work shows and how to
+  watch runs in tmux; a `!`-started `make exercise` stopped harmlessly at
+  the `[y/N]` question (no stdin) before any apply.
+- **Cost:** one exercise, about $0.22 (33 cluster-minutes).
+
 ## Notes / blockers
 
 - **Resolved 2026-10-05 (was: open, noted 2026-10-03):** branch
@@ -2923,6 +2979,18 @@ partial-cost guard. PRs #63–#70._
   zsh doesn't split `set -- $var`. A local script named `inspect.py`
   shadows Python's `inspect` and breaks py4j. `2>1` (no `&`) writes a file
   named `1` into the repo.
+- **Spark 3.5.9 limits found in 8.6 (noted 2026-10-08).** No one-side
+  storage-partitioned join (Spark 4's
+  `spark.sql.sources.v2.bucketing.shuffle.enabled`); also absent:
+  `allowJoinKeysSubsetOfPartitionKeys`, `allowCompatibleTransforms`. A
+  bucketed silver avoids its shuffle only when both join sides are
+  bucketed tables.
+- **Local Spark tests (noted 2026-10-08).** `mv` keeps old file times, so
+  a moved bronze file can look older than the watermark (in S3,
+  LastModified is the upload time); `touch` it. Use separate warehouse
+  directories per variant (Iceberg metadata holds absolute paths, so a
+  copied table writes into the original). Spark event logs give bytes
+  read/shuffled and run time per variant.
 - **AWS CLI service name (noted 2026-10-03):** the IAM prefix is `aps:`,
   but the CLI command is `aws amp ...` (`aws aps` doesn't exist).
 - **Open, deferred, not blocking (noted 2026-08-27):**
