@@ -14,3 +14,12 @@ models:
   cerberus_platform:
     marts:
       +materialized: table
+      # 8.5 (ADR 0017): gold is Apache Iceberg in the Glue catalog, like
+      # silver. schema_table_unique gives each build its own prefix,
+      # s3://<gold>/cerberus_platform/<table>/<uuid>/, which dbt-athena needs
+      # to swap Iceberg tables safely on a rebuild. Not table_unique: that
+      # nests the new table under the old Hive table's location
+      # (s3://<gold>/<table>/), and dropping the Hive table deletes that whole
+      # prefix -- new metadata included (ICEBERG_MISSING_METADATA, 2026-10-08).
+      +table_type: iceberg
+      +s3_data_naming: schema_table_unique

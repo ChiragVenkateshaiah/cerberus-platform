@@ -221,6 +221,12 @@ resource "aws_iam_role_policy" "transform" {
           "glue:BatchCreatePartition",
           "glue:GetPartitions",
           "glue:BatchDeletePartition",
+          # 8.5: dbt-athena prunes old Glue table versions after it builds
+          # an Iceberg table (impl.py: get_table_versions, then
+          # delete_table_version); without these the build fails after the
+          # table is already written (AccessDenied, 2026-10-08).
+          "glue:GetTableVersions",
+          "glue:DeleteTableVersion",
         ]
         Resource = [
           local.glue_catalog_arn,
@@ -351,6 +357,12 @@ resource "aws_iam_role_policy" "orchestration_dbt" {
           "glue:BatchCreatePartition",
           "glue:GetPartitions",
           "glue:BatchDeletePartition",
+          # 8.5: dbt-athena prunes old Glue table versions after it builds
+          # an Iceberg table (impl.py: get_table_versions, then
+          # delete_table_version); without these the build fails after the
+          # table is already written (AccessDenied, 2026-10-08).
+          "glue:GetTableVersions",
+          "glue:DeleteTableVersion",
         ]
         Resource = [
           local.glue_catalog_arn,
