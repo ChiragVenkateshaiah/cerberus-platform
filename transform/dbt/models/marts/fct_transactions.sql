@@ -30,7 +30,12 @@ with ranked as (
 select
     transaction_id,
     event_type as status,
-    event_timestamp as last_event_at,
+    -- 8.5: silver is Iceberg, and Spark writes its timestamps as
+    -- timestamptz, which Athena reads as timestamp(6) with time zone. This
+    -- table is Hive, which can't store a zoned type (NOT_SUPPORTED:
+    -- Unsupported Hive type). The values are UTC instants, so the cast keeps
+    -- the same UTC wall-clock time and the column type gold always had.
+    cast(event_timestamp as timestamp(3)) as last_event_at,
     amount,
     currency,
     merchant_id,

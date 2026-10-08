@@ -178,3 +178,15 @@ mechanics it needed.
   cleanup), and the first Iceberg run recreates the name under
   `silver/iceberg/` by a full rebuild from bronze. `cerberus-spark` gets
   Glue read/create/update on that one table and no `DeleteTable`.
+- **Every role that reads silver needed the new path (found 2026-10-08,
+  first Iceberg exercise).** The job built silver correctly (1,051,434
+  events, bronze read once), but `RunDbt` failed: the dbt task role could
+  read only `silver/payments/*`, the retired Hive path, so Athena could not
+  read the Iceberg files. Its grant now covers `silver/iceberg/payments_events/*`
+  instead. The transform task role lost its silver, Glue and Athena grants
+  altogether: they existed only for the removed `MSCK REPAIR`.
+- **Silver's timestamps are `timestamptz`.** Spark writes them that way,
+  and Athena reads them as `timestamp(6) with time zone`, a type a Hive
+  table can't store. `fct_transactions` (still Hive until gold becomes
+  incremental) casts `event_timestamp` to `timestamp(3)`; the values are
+  UTC, so nothing shifts.

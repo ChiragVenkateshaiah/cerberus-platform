@@ -293,68 +293,13 @@ resource "aws_iam_role_policy" "orchestration_transform" {
         Action   = "s3:PutObject"
         Resource = "${var.bucket_arns["silver"]}/_spark_jobs/*"
       },
-      {
-        # Added 2026-08-20 after a second real, live MSCK REPAIR TABLE
-        # failure (generic Hive DDLTask error, no AccessDenied this time)
-        # -- once the glue:GetDatabase gap below was fixed, MSCK REPAIR
-        # got far enough to actually try scanning the table's S3 data
-        # location to discover partitions, which this role had never been
-        # granted at all: UploadSparkScriptToSilver above is write-only,
-        # scoped to _spark_jobs/*, not payments/*. cerberus-transform (the
-        # role this one's policy shape was copied from) has this
-        # incidentally via its own ReadWriteSilverAndGold/ListSilverAndGold
-        # statements; this role needs it explicitly.
-        Sid      = "ReadSilverPaymentsForRepair"
-        Effect   = "Allow"
-        Action   = "s3:GetObject"
-        Resource = "${var.bucket_arns["silver"]}/payments/*"
-      },
-      {
-        Sid      = "ListSilverPaymentsPrefixOnly"
-        Effect   = "Allow"
-        Action   = "s3:ListBucket"
-        Resource = var.bucket_arns["silver"]
-        Condition = {
-          StringLike = { "s3:prefix" = ["payments/*"] }
-        }
-      },
-      {
-        # glue:GetDatabase added 2026-08-20 after a real, live
-        # MSCK REPAIR TABLE AccessDeniedException -- Athena resolves the
-        # database before the table when running that statement, and
-        # cerberus-transform (the human-assumed role this containerized
-        # task's policy shape was copied from) only avoids needing this
-        # explicitly because its separate ManageDbtGoldTables statement
-        # happens to grant glue:GetDatabase on the same catalog/database
-        # resources too. This role has no dbt-table statement to
-        # piggyback on, so it needs the grant here directly.
-        Sid    = "RegisterPaymentsEventsPartitions"
-        Effect = "Allow"
-        Action = ["glue:GetDatabase", "glue:GetTable", "glue:BatchCreatePartition", "glue:GetPartitions"]
-        Resource = [
-          local.glue_catalog_arn,
-          local.glue_database_arn,
-          local.glue_partition_table_arn,
-        ]
-      },
-      {
-        Sid      = "RunAthenaQueries"
-        Effect   = "Allow"
-        Action   = ["athena:StartQueryExecution", "athena:GetQueryExecution", "athena:GetQueryResults", "athena:StopQueryExecution", "athena:GetWorkGroup"]
-        Resource = local.athena_workgroup_arn
-      },
-      {
-        Sid      = "WriteAthenaResults"
-        Effect   = "Allow"
-        Action   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
-        Resource = "${var.athena_results_bucket_arn}/*"
-      },
-      {
-        Sid      = "ListAthenaResults"
-        Effect   = "Allow"
-        Action   = ["s3:ListBucket", "s3:GetBucketLocation"]
-        Resource = var.athena_results_bucket_arn
-      },
+      # 8.5: the ReadSilverPaymentsForRepair / ListSilverPaymentsPrefixOnly /
+      # RegisterPaymentsEventsPartitions / RunAthenaQueries / Athena-results
+      # statements that used to sit here served one step only -- the MSCK
+      # REPAIR this task ran after the Spark job. Silver is an Iceberg table
+      # now and the job's own commit makes data queryable, so the step and
+      # every grant it needed are gone. This role uploads the Spark script
+      # and drives kubectl, nothing else.
       {
         Sid      = "DescribeClusterForKubeconfig"
         Effect   = "Allow"
@@ -452,10 +397,15 @@ resource "aws_iam_role_policy" "orchestration_dbt" {
         # same two-layer (catalog + data) permission split
         # cerberus-orchestration-transform's MSCK REPAIR fix already hit
         # earlier tonight.
+        # 8.5: silver's payments_events is an Iceberg table under
+        # iceberg/payments_events/ (metadata/ and data/). Athena reads both
+        # through this role; the old Hive path, payments/, is no longer read.
+        # Missing this failed every dbt source test on 2026-10-08's first
+        # Iceberg exercise (Runtime Error: no file could be read).
         Sid      = "ReadSilverPaymentsSource"
         Effect   = "Allow"
         Action   = "s3:GetObject"
-        Resource = "${var.bucket_arns["silver"]}/payments/*"
+        Resource = "${var.bucket_arns["silver"]}/iceberg/payments_events/*"
       },
       {
         Sid      = "ListSilverPaymentsPrefixOnly"
@@ -463,7 +413,7 @@ resource "aws_iam_role_policy" "orchestration_dbt" {
         Action   = "s3:ListBucket"
         Resource = var.bucket_arns["silver"]
         Condition = {
-          StringLike = { "s3:prefix" = ["payments/*"] }
+          StringLike = { "s3:prefix" = ["iceberg/payments_events/*"] }
         }
       },
       {
