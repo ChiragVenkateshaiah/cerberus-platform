@@ -17,10 +17,11 @@ runs on its own:
 All queries start at once and are polled together, so the suite takes about
 as long as its slowest query.
 
-Scope today (before 8.5): silver is built from bronze `payments/` only, so
-bronze -> silver reconciles that prefix. `payments_bulk/` is checked on its
-own (per-run counts against the generator's manifest, and duplicates) until
-8.5's silver job reads it too -- then SILVER_SOURCES gains "payments_bulk".
+Since 8.5 silver is an incremental Iceberg table built from both bronze
+prefixes, so bronze -> silver reconciles `payments/` and `payments_bulk/`
+together, and `silver_caught_up` checks that no bronze object is newer than
+the watermark in silver's own snapshots. `payments_bulk/` keeps its own
+per-run manifest and duplicate checks too.
 """
 
 import argparse
@@ -35,10 +36,12 @@ WORKGROUP = "cerberus_platform"
 DATABASE = "cerberus_platform"
 QUERY_PROFILE = "cerberus-transform"
 
-# Which bronze prefixes silver is built from. 8.5 adds "payments_bulk".
-SILVER_SOURCES = ("payments",)
+# Which bronze prefixes silver is built from (both since 8.5, ADR 0017/0018).
+SILVER_SOURCES = ("payments", "payments_bulk")
 
-# Bronze payments/: one JSON array per file, on one line (bronze_payments_raw).
+# Every bronze event silver is built from: the Lambda's payments/ (one JSON
+# array per file, on one line: bronze_payments_raw) and the generator's
+# payments_bulk/ (JSON Lines: bronze_payments_bulk).
 BRONZE_PAYMENTS = """
 bronze_payments AS (
     SELECT
@@ -46,6 +49,8 @@ bronze_payments AS (
         json_extract_scalar(e, '$.event_type') AS event_type
     FROM bronze_payments_raw
     CROSS JOIN UNNEST(CAST(json_parse(line) AS ARRAY(JSON))) AS t (e)
+    UNION ALL
+    SELECT transaction_id, event_type FROM bronze_payments_bulk
 )"""
 
 # Per-transaction event flags over silver, shared by the lifecycle checks.
@@ -71,7 +76,8 @@ CHECKS = [
     {
         "name": "bronze_to_silver_count",
         "severity": "error",
-        "about": "silver holds exactly as many events as bronze payments/ (full rebuild, no dedup)",
+        "about": "silver holds exactly as many events as bronze, both prefixes (no bronze key "
+        "repeats, so the job's dedup removes nothing)",
         "sql": f"""
 WITH {BRONZE_PAYMENTS}
 SELECT abs(b.n - s.n) AS violations,
@@ -182,13 +188,24 @@ FROM lifecycle""",
     },
     # --- Placement, nulls and values ------------------------------------------
     {
-        "name": "silver_partition_placement",
+        "name": "silver_caught_up",
         "severity": "error",
-        "about": "each silver event sits in the dt= partition of its own UTC day",
+        "about": "no bronze object is newer than the bronze watermark in silver's snapshots "
+        "(the incremental job missed nothing)",
         "sql": """
-SELECT count_if(dt <> date_format(event_timestamp, '%Y-%m-%d')) AS violations,
-       cast(count(DISTINCT dt) AS varchar) || ' partitions' AS detail
-FROM payments_events""",
+WITH watermark AS (
+    SELECT max(CAST(summary['cerberus.bronze_watermark'] AS bigint)) AS ms
+    FROM "payments_events$snapshots"
+),
+bronze_files AS (
+    SELECT DISTINCT "$path" AS path, to_unixtime("$file_modified_time") * 1000 AS ms
+    FROM bronze_payments_raw
+    UNION ALL
+    SELECT DISTINCT "$path", to_unixtime("$file_modified_time") * 1000 FROM bronze_payments_bulk
+)
+SELECT count_if(b.ms > coalesce(w.ms, -1)) AS violations,
+       'watermark ' || coalesce(cast(from_unixtime(w.ms / 1000) AS varchar), 'none') AS detail
+FROM bronze_files b CROSS JOIN watermark w""",
     },
     {
         "name": "silver_key_nulls",
@@ -198,7 +215,7 @@ FROM payments_events""",
 SELECT count_if(transaction_id IS NULL OR event_type IS NULL OR event_timestamp IS NULL
                 OR amount IS NULL OR currency IS NULL OR merchant_id IS NULL
                 OR customer_id IS NULL OR payment_method_type IS NULL
-                OR payment_method_token IS NULL) AS violations,
+                OR payment_method_token IS NULL OR loaded_at IS NULL) AS violations,
        cast(count(*) AS varchar) || ' events' AS detail
 FROM payments_events""",
     },
@@ -274,7 +291,7 @@ SELECT count(DISTINCT payment_method_token) AS violations,
 FROM payments_events
 WHERE regexp_like(payment_method_token, '[0-9]{13,}')""",
     },
-    # --- payments_bulk/ (ADR 0018), on its own until 8.5 reads it -------------
+    # --- payments_bulk/ (ADR 0018): its own checks, on top of the reconciliation -
     {
         "name": "bulk_duplicate_keys",
         "severity": "error",

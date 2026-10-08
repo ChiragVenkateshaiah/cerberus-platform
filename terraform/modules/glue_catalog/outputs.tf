@@ -6,7 +6,9 @@ output "database_name" {
 output "table_names" {
   description = "Map of logical name -> Glue table name."
   value = {
-    payments_events  = aws_glue_catalog_table.payments_events.name
+    # A literal since 8.5: the Iceberg table is created by the silver job,
+    # not this module, but its name is fixed and the IAM grants need it.
+    payments_events  = "payments_events"
     payments_current = aws_glue_catalog_table.payments_current.name
   }
 }

@@ -137,3 +137,44 @@ raw, append-only JSON.
 - **Not decided here:** Spark tuning (partition sizing, AQE, skew), node
   autoscaling and Spot. Those are measured decisions for the 10M step and
   a separate ADR.
+
+## Implementation notes (2026-10-08, 8.5)
+
+Recorded while building the silver job, after local tests in the
+`apache/spark:3.5.9` image. The decision above stands; these are the
+mechanics it needed.
+
+- **Iceberg 1.10.2, not the latest.** 1.11.0 and 1.12.0 are built for Java
+  17 (class file 61); the image runs Java 11, and both failed with
+  `UnsupportedClassVersionError`. 1.10.2 passed every test. Moving the
+  Spark image to `3.5.9-java17` (which exists) is a recorded follow-up,
+  not part of this phase's critical path.
+- **The insert-only MERGE is an anti-join plus an append.** The watermark
+  must commit with the data. Iceberg ignores
+  `spark.sql.iceberg.snapshot-property.*` for SQL writes (the snapshot
+  carried no property), and wrapping the SQL `MERGE INTO` in
+  `CommitMetadata.withCommitProperties` from PySpark deadlocked on the
+  py4j callback. A DataFrame append accepts the
+  `snapshot-property.cerberus.bronze_watermark` write option, so the job
+  keeps only events whose `(transaction_id, event_type)` is not in silver
+  yet (left anti-join) and appends them. That is the same operation as an
+  insert-only `MERGE INTO`; tested: a re-run of an already-loaded batch
+  adds 0 rows.
+- **The watermark is read from the newest snapshot that carries it**, not
+  the newest snapshot: compaction commits snapshots of its own without the
+  property. `expire_snapshots` keeps at least 5, and a run commits at most
+  2, so the newest watermark always survives.
+- **Silver gained a `loaded_at` column** (one value per job run), so gold's
+  incremental dbt model can find the events added since its last run.
+- **Bronze is listed with globs** (`payments/dt=*/*.json`,
+  `payments_bulk/run_id=*/dt=*/*.json`), as 3.5's job read it: a plain
+  `exists()`/`listFiles()` probes the bare `payments` key first, which
+  `cerberus-spark`'s prefix-scoped grant answers with 403. Each run reads
+  only the bronze files modified after the watermark, once (tested: 73.4 MB
+  read for 73.3 MB of bronze on a full load).
+- **The Hive table is retired by Terraform.** `glue_catalog` no longer
+  declares `payments_events`; the apply that removes it deletes the Glue
+  entry only (the Hive Parquet under `silver/payments/` stays until a
+  cleanup), and the first Iceberg run recreates the name under
+  `silver/iceberg/` by a full rebuild from bronze. `cerberus-spark` gets
+  Glue read/create/update on that one table and no `DeleteTable`.

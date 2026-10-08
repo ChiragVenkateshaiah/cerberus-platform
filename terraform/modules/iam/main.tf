@@ -194,9 +194,13 @@ resource "aws_iam_role_policy" "transform" {
         ]
       },
       {
-        Sid    = "RegisterPaymentsEventsPartitions"
+        # Read-only since 8.5: payments_events is an Iceberg table with
+        # hidden partitioning, so there are no Hive partitions to register
+        # (the MSCK REPAIR step this role used to run is gone). dbt and the
+        # data-quality suite still read it through Athena.
+        Sid    = "ReadPaymentsEvents"
         Effect = "Allow"
-        Action = ["glue:GetTable", "glue:BatchCreatePartition", "glue:GetPartitions"]
+        Action = ["glue:GetTable", "glue:GetPartitions"]
         Resource = [
           local.glue_catalog_arn,
           local.glue_database_arn,

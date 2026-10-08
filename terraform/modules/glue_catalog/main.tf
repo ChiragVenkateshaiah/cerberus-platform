@@ -1,4 +1,6 @@
-# Schema registration for 1.7's transform output. Columns are declared
+# Schema registration for 1.7's transform output (since 8.5, gold's
+# payments_current and the two bronze tables; silver is Iceberg-owned, see
+# below). Columns are declared
 # explicitly here rather than discovered by a Glue Crawler -- the schema
 # is already fully known and controlled (transform/scripts/promote_payments.py
 # writes it), so a Crawler would just be paying to re-derive something
@@ -34,39 +36,15 @@ locals {
 }
 
 # Silver: full event history, dt=YYYY-MM-DD partitioned.
-resource "aws_glue_catalog_table" "payments_events" {
-  name          = "payments_events"
-  database_name = aws_glue_catalog_database.this.name
-  table_type    = "EXTERNAL_TABLE"
-
-  parameters = {
-    classification  = "parquet"
-    compressionType = "snappy"
-  }
-
-  partition_keys {
-    name = "dt"
-    type = "string"
-  }
-
-  storage_descriptor {
-    location      = "s3://${var.silver_bucket_name}/payments/"
-    input_format  = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"
-    output_format = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
-
-    ser_de_info {
-      serialization_library = "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
-    }
-
-    dynamic "columns" {
-      for_each = local.payment_columns
-      content {
-        name = columns.value.name
-        type = columns.value.type
-      }
-    }
-  }
-}
+# Silver's payments_events is no longer declared here (8.5, ADR 0017). It
+# became an Apache Iceberg table that the silver Spark job creates and
+# commits to through Iceberg's Glue catalog: the table's schema, partition
+# spec and current metadata pointer belong to Iceberg, and a Terraform-owned
+# definition would fight every commit. Removing this resource is also how
+# the Hive table is retired: the apply that removes it deletes only the
+# Glue entry (the Hive Parquet under s3://<silver>/payments/ stays), and the
+# next exercise's job recreates payments_events as Iceberg under
+# s3://<silver>/iceberg/ by a full rebuild from bronze.
 
 # Gold: current-state, one row per transaction_id, unpartitioned.
 resource "aws_glue_catalog_table" "payments_current" {

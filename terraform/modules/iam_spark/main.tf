@@ -9,13 +9,15 @@
 # envs/dev-compute, alongside those three, never by CI.
 #
 # Read bronze/payments/*, write silver (and, since 8.3, bronze/payments_bulk/*
-# for the bulk generator, ADR 0018) -- S3 only, no Glue. Narrower
-# than cerberus-transform in two ways: this job replaces only the bronze ->
-# silver step (flatten/parse), not the gold rollup, so it has no reason to
-# touch gold; and it doesn't register silver's new partitions with Glue
-# itself (the off-the-shelf Spark image has no boto3), so it needs no Glue
-# permissions at all -- transform/spark/submit_job.sh does that step
-# afterward via cerberus-transform's existing Glue/Athena grant instead.
+# for the bulk generator, ADR 0018). It never touches gold: the job is only
+# the bronze -> silver step. Until 8.5 it had no Glue permissions at all
+# (an MSCK REPAIR run as cerberus-transform registered silver's partitions).
+# Since 8.5 silver is an Iceberg table whose commits go through the Glue
+# catalog, so the role has Glue read/create/update on that one table
+# (ADR 0017) -- and still nothing else in Glue.
+
+data "aws_region" "current" {}
+data "aws_caller_identity" "current" {}
 
 locals {
   # OIDC issuer URL without its https:// scheme -- how it appears as the
@@ -83,9 +85,11 @@ resource "aws_iam_role_policy" "spark" {
         }
       },
       {
+        # AbortMultipartUpload (8.5): Iceberg's S3FileIO writes large data
+        # files as multipart uploads and aborts them on a failed task.
         Sid      = "WriteSilver"
         Effect   = "Allow"
-        Action   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+        Action   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:AbortMultipartUpload"]
         Resource = "${var.bucket_arns["silver"]}/*"
       },
       {
@@ -93,6 +97,21 @@ resource "aws_iam_role_policy" "spark" {
         Effect   = "Allow"
         Action   = "s3:ListBucket"
         Resource = var.bucket_arns["silver"]
+      },
+      {
+        # 8.5 (ADR 0017): Iceberg's Glue catalog commits each silver write by
+        # updating the table's metadata pointer in Glue, so the job needs
+        # table read/create/update -- scoped to the one silver table. No
+        # DeleteTable: the Hive table it replaces is dropped by Terraform
+        # (dev-standing), not by the job.
+        Sid    = "IcebergSilverCatalog"
+        Effect = "Allow"
+        Action = ["glue:GetDatabase", "glue:GetTable", "glue:CreateTable", "glue:UpdateTable"]
+        Resource = [
+          "arn:aws:glue:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:catalog",
+          "arn:aws:glue:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:database/${var.glue_database_name}",
+          "arn:aws:glue:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/${var.glue_database_name}/${var.silver_table_name}",
+        ]
       }
     ]
   })

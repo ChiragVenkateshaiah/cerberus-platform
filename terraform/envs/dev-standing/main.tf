@@ -26,7 +26,6 @@ module "glue_catalog" {
   source = "../../modules/glue_catalog"
 
   bronze_bucket_name = module.s3_medallion.bucket_names["bronze"]
-  silver_bucket_name = module.s3_medallion.bucket_names["silver"]
   gold_bucket_name   = module.s3_medallion.bucket_names["gold"]
 }
 
