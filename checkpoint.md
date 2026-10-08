@@ -129,9 +129,11 @@ mode blocks `terraform apply`).
 1. **Costs, once the days have fully posted** (one Cost Explorer request
    each, $0.01): run
    `uv run --no-project --with boto3 python observability/scale/collect_run_metrics.py --execution <name> --cost-only`
-   for `exercise-20261007T145442Z` and, for 2026-10-08,
-   `exercise-20261008T115807Z` (the day had three exercises, so the day's
-   rate covers all of them). Commit only when the printout has **no**
+   for each record: `exercise-20261007T145442Z`, then the three
+   2026-10-08 runs `exercise-20261008T085728Z`, `exercise-20261008T095905Z`
+   and `exercise-20261008T115807Z` (each call costs $0.01; the day's rate
+   per cluster-hour is shared, the run cost is each run's own). Commit
+   only when the printout has **no**
    `WARNING: the day has not fully posted` line. Then add the 8.5 runs to
    `docs/scale-metrics.md` (a short "1M step" section next to the
    baseline).
