@@ -75,10 +75,8 @@ module "orchestration_runner" {
   dbt_task_role_arn       = module.iam.orchestration_dbt_role_arn
   task_execution_role_arn = module.iam.orchestration_ecs_execution_role_arn
 
-  silver_bucket_name    = module.s3_medallion.bucket_names["silver"]
-  cluster_name          = local.eks_cluster_name
-  glue_database_name    = module.glue_catalog.database_name
-  athena_workgroup_name = module.athena.workgroup_name
+  silver_bucket_name = module.s3_medallion.bucket_names["silver"]
+  cluster_name       = local.eks_cluster_name
 
   # 6.4c: the transform + dbt tasks emit OpenLineage events to the 6.4b
   # collector.

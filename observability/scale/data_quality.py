@@ -204,7 +204,8 @@ bronze_files AS (
     SELECT DISTINCT "$path", to_unixtime("$file_modified_time") * 1000 FROM bronze_payments_bulk
 )
 SELECT count_if(b.ms > coalesce(w.ms, -1)) AS violations,
-       'watermark ' || coalesce(cast(from_unixtime(w.ms / 1000) AS varchar), 'none') AS detail
+       cast(count(*) AS varchar) || ' bronze files, watermark '
+       || coalesce(cast(from_unixtime(arbitrary(w.ms) / 1000) AS varchar), 'none') AS detail
 FROM bronze_files b CROSS JOIN watermark w""",
     },
     {

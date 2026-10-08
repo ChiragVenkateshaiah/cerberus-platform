@@ -165,8 +165,6 @@ resource "aws_ecs_task_definition" "transform" {
         { name = "CLUSTER_NAME", value = var.cluster_name },
         { name = "AWS_REGION", value = var.region },
         { name = "SILVER_BUCKET", value = var.silver_bucket_name },
-        { name = "GLUE_DATABASE", value = var.glue_database_name },
-        { name = "ATHENA_WORKGROUP", value = var.athena_workgroup_name },
         # 6.4c: entrypoint_transform.sh substitutes this into
         # spark-application.yaml's OpenLineage listener config.
         { name = "OPENLINEAGE_URL", value = var.openlineage_url },

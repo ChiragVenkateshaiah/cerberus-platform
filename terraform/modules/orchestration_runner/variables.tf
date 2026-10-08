@@ -44,16 +44,6 @@ variable "cluster_name" {
   type        = string
 }
 
-variable "glue_database_name" {
-  description = "Glue database name (glue_catalog module) -- the transform task's GLUE_DATABASE env var."
-  type        = string
-}
-
-variable "athena_workgroup_name" {
-  description = "Athena workgroup name (athena module) -- the transform task's ATHENA_WORKGROUP env var."
-  type        = string
-}
-
 variable "openlineage_url" {
   description = "6.4c: base URL of the OpenLineage collector (lineage module). Both task defs get it -- the transform task substitutes it into spark-application.yaml's listener config, the dbt task passes it to `dbt-ol`. Empty string = producers fall back to a console transport (no events emitted off-box)."
   type        = string
