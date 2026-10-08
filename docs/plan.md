@@ -351,6 +351,59 @@ layered on top of a platform that already works.
   ingests it incrementally with the data-quality suite clean (bronze →
   silver reconciles the new prefix too), and the stack tears down to $0.
 
+## Planned later work (no phase number yet)
+
+_Agreed in discussion and kept here until each one is scheduled -- either
+folded into a phase or given its own. Nothing here is built yet._
+
+### Realistic time spread for the synthetic data
+
+_Proposed 2026-10-08, from 8.6's first measurements._
+
+- **Problem:** both producers put every event in the last 7–8 days (the
+  ingestion Lambda's 7-day creation window; the bulk generator's same
+  window). So every new batch touches the same few days that hold almost
+  all of silver, and day pruning -- correct and in place since 8.6 --
+  saves almost nothing (13.33 → 12.61 MB read in the local test). Real
+  payment data spans months and years, with a busy recent edge and a long,
+  quieter history.
+- **Plan:** give the bulk generator a configurable history -- events spread
+  across days, weeks, months and years, with realistic shapes (weekday and
+  hour-of-day patterns, month-end peaks, growth over time) -- and keep each
+  new batch landing mostly in the recent days, as real ingestion does. Same
+  schema, lifecycle rules and determinism as ADR 0018.
+- **What it unlocks:** measurements that mean what they would in
+  production -- partition pruning (a batch touches a few of hundreds of day
+  partitions), broadcast and hash-join choices (a small batch against a
+  large, spread-out history), the size of the anti-join shuffle against a
+  realistic silver, file counts and compaction per partition, and
+  Athena's pruning on time-filtered gold queries. It also makes the 10M and
+  100M steps a realistic larger load, not a denser copy of one week.
+- **Where it fits:** best before the 10M step of Phase 8, so 8.6's
+  before/after numbers are taken on the realistic shape; otherwise as the
+  first item of whichever phase picks it up.
+
+### Spark 4 and Java 17 for the Spark jobs
+
+_Proposed 2026-10-08, from 8.6's bucketing test._
+
+- **Why:** two limits found on `apache/spark:3.5.9` (Java 11). Iceberg
+  1.11+ is built for Java 17, so the platform is pinned to Iceberg 1.10.2.
+  And Spark 3.5 has no one-side storage-partitioned join
+  (`spark.sql.sources.v2.bucketing.shuffle.enabled` arrived in Spark 4.0):
+  a bucketed silver can avoid shuffling its keys only when both join sides
+  are bucketed tables, so an incoming batch can't use it.
+- **Scope:** move the transform and generator to Spark 4 on Java 17; with
+  it, Scala 2.13 artifacts, a matching `hadoop-aws`, the OpenLineage
+  listener, the Iceberg runtime (1.12+), and the Spark Operator's support
+  for Spark 4. Then re-test bucketed silver with one-side SPJ against the
+  8.6 baseline.
+- **Done when:** the orchestrated run, the generator and the data-quality
+  suite pass on the new stack, and the silver anti-join's shuffle is
+  measured with and without one-side SPJ.
+- **Its own unit of work:** every Spark dependency changes at once, so it
+  is planned and tested on its own, not mixed into a scale step.
+
 ## Existing infrastructure
 
 Live AWS resources, all created by hand during Phase 0 and reused from Phase 1
