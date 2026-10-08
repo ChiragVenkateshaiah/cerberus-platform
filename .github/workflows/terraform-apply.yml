@@ -55,6 +55,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Re-running a run re-applies that run's own commit, so re-running an
+      # old failed apply rolls AWS back to old configuration. On 2026-10-08 a
+      # re-run of #50's failed apply (2026-10-06) deleted the 8.4 bronze
+      # tables, re-created the retired Hive table and reverted a role policy
+      # until a local apply restored them. Apply only the current head of
+      # main; before any credentials are assumed. A newer merge's own run
+      # applies everything an older, refused run would have.
+      - name: Refuse to apply a commit that isn't main's head
+        working-directory: .
+        run: |
+          head="$(git ls-remote origin refs/heads/main | cut -f1)"
+          if [ "$GITHUB_SHA" != "$head" ]; then
+            echo "::error::This run is for $GITHUB_SHA, but main is at $head. Re-applying an old commit would roll AWS back. Start the workflow on the current main instead: gh workflow run terraform-apply.yml --ref main"
+            exit 1
+          fi
+          echo "applying main's head, $head"
+
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_CI_APPLY_ROLE_ARN }}
