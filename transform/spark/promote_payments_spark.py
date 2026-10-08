@@ -42,8 +42,10 @@ the apache/spark image against a Hadoop catalog and local directories.
 """
 
 import argparse
+import re
 import sys
 import time
+from datetime import date, timedelta
 
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
@@ -248,6 +250,50 @@ def read_bronze(spark, files_by_prefix):
     return raw
 
 
+def touched_days(files_by_prefix):
+    """The UTC event days the new bronze files hold, from their `dt=` paths.
+
+    Both bronze layouts put each event in the `dt=` directory of its own
+    event_timestamp's UTC day (payments_lib.upload_day; the generator's
+    partitionBy("dt")). None if any path lacks a `dt=` segment, so the
+    caller falls back to comparing against all of silver.
+    """
+    days = set()
+    for files in files_by_prefix.values():
+        for path, _ in files:
+            match = re.search(r"/dt=(\d{4}-\d{2}-\d{2})/", path)
+            if match is None:
+                return None
+            days.add(match.group(1))
+    return sorted(days)
+
+
+def existing_keys(spark, table, days):
+    """Silver's keys, limited to the event days the new events fall on (8.6).
+
+    A new event can only duplicate a silver event with the same
+    (transaction_id, event_type) -- the same event, delivered again, with
+    the same event_timestamp and therefore the same UTC day. So the
+    anti-join needs only those days' partitions. The filter is plain
+    timestamp ranges on the partition source column, which Iceberg turns
+    into partition pruning: the files of all other days are never opened.
+    Before 8.6 this read every silver key (30.5 MB read and 41.5 MB
+    shuffled for ~2-3 MB of new bronze at 1M events, 2026-10-08).
+    """
+    keys = spark.table(table)
+    if days is not None:
+        condition = None
+        for day in days:
+            start = date.fromisoformat(day)
+            in_day = (F.col("event_timestamp") >= F.lit(f"{start} 00:00:00").cast("timestamp")) & (
+                F.col("event_timestamp")
+                < F.lit(f"{start + timedelta(days=1)} 00:00:00").cast("timestamp")
+            )
+            condition = in_day if condition is None else condition | in_day
+        keys = keys.where(condition)
+    return keys.select(*KEY)
+
+
 def flatten(df, loaded_at):
     return df.select(
         F.col("transaction_id"),
@@ -325,8 +371,9 @@ def main():
     # One timestamp for the whole run, so every row this run adds shares it.
     loaded_at = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
     events = flatten(read_bronze(spark, files_by_prefix), loaded_at).dropDuplicates(KEY)
-    existing = spark.table(table).select(*KEY)
-    new_events = events.join(existing, KEY, "left_anti")
+    days = touched_days(files_by_prefix)
+    log(f"anti-join limited to {'all of silver' if days is None else f'{len(days)} event days'}")
+    new_events = events.join(existing_keys(spark, table, days), KEY, "left_anti")
 
     # One action: bronze is read once, here, and the watermark commits with
     # the data in the same snapshot.
