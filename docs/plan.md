@@ -146,8 +146,9 @@ layered on top of a platform that already works.
 | 6 | Observability & data quality | CloudWatch, dbt tests | AWS CloudWatch | ✅ Complete |
 | 7 | End-to-end platform validation | synthetic payments at scale, Well-Architected review, Prometheus metrics for EKS/Spark | AWS SAA _(parallel track)_ | ✅ Complete |
 | 8 | Scale validation | Apache Iceberg, incremental processing, Spark tuning, node autoscaling + Spot, AWS Budgets | _(course gap — Iceberg and Spark docs)_ | 🔨 In progress |
-| 9 | Platform tooling in Go | Go, AWS SDK for Go v2, `cerberusctl` CLI | _(Go docs, AWS SDK for Go v2 examples)_ | ⬜ Planned |
-| 10 | Streaming ingestion | Apache Kafka (KRaft, one start/stop EC2 instance), Go producer and consumer | _(Kafka docs; KodeKloud Kafka if available)_ | ⬜ Planned |
+| 9 | Pipeline status & alerting | Prometheus exporter for the batch pipeline, PromQL, Grafana dashboards as code, Alertmanager, SLO burn-rate alerts, a terminal status view | _(Prometheus and Grafana docs; Google SRE Workbook, alerting on SLOs)_ | ⬜ Planned |
+| 10 | Platform tooling in Go | Go, AWS SDK for Go v2, `cerberusctl` CLI | _(Go docs, AWS SDK for Go v2 examples)_ | ⬜ Planned |
+| 11 | Streaming ingestion | Apache Kafka (KRaft, one start/stop EC2 instance), Go producer and consumer | _(Kafka docs; KodeKloud Kafka if available)_ | ⬜ Planned |
 
 🎯 **MVP is complete at the end of Phase 1.**
 
@@ -283,19 +284,72 @@ layered on top of a platform that already works.
   on 2026-08-18 no longer applies. $147.55 in credits remained, more than
   the whole phase budget; the Budget measures gross cost, so its alerts
   still fire while credits apply.
-- **Out of scope:** streaming (Kafka) and Airflow, now Phase 10 (on one
+- **Out of scope:** streaming (Kafka) and Airflow, now Phase 11 (on one
   start/stop EC2 instance, about $70/month if left running, so it follows
   the `dev-compute` spin-up/tear-down pattern); Delta Lake (ADR 0017); any
   language change -- 8.6–8.11 stay in Python, Spark and SQL, so the
   Phase 8 numbers show where the real limits are before Go is introduced
-  (Phases 9 and 10).
+  (Phases 10 and 11).
 - **Done when:** a 100M-event run completes orchestrated, with the
   data-quality suite clean, and run time and cost per million events are
   recorded for the 1M, 10M and 100M steps.
 - **Artifact:** a results write-up with the per-step numbers and charts, a
   demo video, ADRs for each decision, and Well-Architected milestone 8.
 
-### Phase 9 — Platform tooling in Go
+### Phase 9 — Pipeline status & alerting
+_Added 2026-10-09, to follow Phase 8 directly._
+
+- **Goal:** Make the result of every pipeline run visible at a glance --
+  succeeded or failed, which step failed, how long each step took, how
+  many events it processed, and whether the data-quality suite passed --
+  on a Grafana dashboard and in the terminal, with an alert when a run
+  fails or the data goes stale.
+- **Gap it closes:** today a run's outcome is spread across the Step
+  Functions console, CloudWatch, the exercise log and the JSON run record
+  in `observability/scale/runs/`. The Prometheus agent and Grafana from
+  7.7 (ADR 0016) see only the EKS/Spark layer, and only while
+  `dev-compute` is up -- they are gone when the question "did last
+  night's run pass?" is asked.
+- **Why this skill set:** Prometheus, PromQL and Grafana are the
+  open-source default for metrics in platform and SRE roles, and the
+  skills that set an engineer apart are the layers on top: writing an
+  exporter, alert rules and dashboards kept as code and tested in CI,
+  and alerting on SLOs and error budgets rather than raw thresholds. This
+  phase builds those on the six SLOs from 6.5, so it extends the existing
+  stack instead of adding a second one.
+- **Stack:** a small Prometheus exporter for the batch pipeline (Python
+  `prometheus_client`, reusing what `collect_run_metrics.py` already reads
+  from Step Functions and the data-quality suite), following the
+  Prometheus batch-job pattern -- last-run status and a last-success
+  timestamp per step, not a scrape of a process that has already exited;
+  Grafana with provisioned, version-controlled dashboards; Prometheus
+  alerting rules with Alertmanager, unit-tested with `promtool test
+  rules` in `code-ci.yml`; multi-window, multi-burn-rate SLO alerts; a
+  terminal view (`make status`) that runs the same PromQL queries as the
+  dashboard, so both always show the same numbers.
+- **The central decision (its own ADR):** where pipeline status lives
+  while `dev-compute` is down, with no new idle cost -- the rule every ADR
+  since 0005 has held. Candidates: a local Docker Compose stack
+  (Prometheus, Grafana, Alertmanager, the exporter) that reads AWS on
+  demand; the exporter's series written to the standing Amazon Managed
+  Service for Prometheus workspace from 7.7 (a few hundred series, cents
+  per month) with Grafana run locally or in-cluster; or Grafana Cloud's
+  free tier. The ADR also decides dashboard tooling (provisioned JSON as
+  in 7.7, or Grafonnet/Jsonnet) and whether the exporter uses the
+  OpenTelemetry metrics SDK.
+- **Out of scope:** log aggregation (Loki) -- the exercise already saves
+  the Spark logs; a Go rewrite of the exporter or the terminal view --
+  `cerberusctl status` belongs to Phase 10.
+- **Done when:** after a successful run and a deliberately failed one,
+  the dashboard and `make status` show each run's status, failed step,
+  step timings, events and data-quality result; the failed run fires an
+  alert; the alert rules pass `promtool test rules` in CI; and the stack
+  costs $0 when idle.
+- **Artifact:** a short video of the dashboard and terminal view across
+  one passing and one failing run, the ADR, and Well-Architected
+  milestone 9.
+
+### Phase 10 — Platform tooling in Go
 - **Goal:** Replace the platform's operational scripts with one Go
   command-line tool, `cerberusctl`, that runs an exercise, collects its
   metrics and runs the data-quality suite -- with real concurrency and
@@ -317,7 +371,8 @@ layered on top of a platform that already works.
 - **Scope:** `cerberusctl exercise` (preflight, apply, optional generator,
   execution, collect, guaranteed teardown, account check), `cerberusctl
   collect` (the metric record, `--cost-only`, `--dq-only`), `cerberusctl
-  dq` (the 17 checks, all queries in flight at once, fail-closed). The SQL
+  dq` (the 17 checks, all queries in flight at once, fail-closed),
+  `cerberusctl status` (Phase 9's terminal view, same PromQL). The SQL
   of the checks stays in one place that both tools read until the Python
   versions are retired.
 - **Engineering bar:** unit tests with fakes for the AWS clients, a
@@ -328,7 +383,7 @@ layered on top of a platform that already works.
   still ends in the account check, and the Python and Bash versions are
   retired.
 
-### Phase 10 — Streaming ingestion
+### Phase 11 — Streaming ingestion
 - **Goal:** Add a streaming path next to the batch one: payment events
   flow through Apache Kafka into bronze continuously, and the Phase 8
   incremental silver job picks them up on its next run.
