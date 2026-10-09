@@ -44,7 +44,10 @@
         "athena:ListQueryExecutions",
         "athena:TagResource"
       ],
-      "Resource": "arn:aws:athena:us-east-1:131715059025:workgroup/cerberus_platform"
+      "Resource": [
+        "arn:aws:athena:us-east-1:131715059025:workgroup/cerberus_platform",
+        "arn:aws:athena:us-east-1:131715059025:workgroup/cerberus_platform_dq"
+      ]
     },
     {
       "Sid": "AthenaAccount",
