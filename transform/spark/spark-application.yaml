@@ -95,15 +95,23 @@ spec:
     # names every run. A fixed namespace keeps them stable across runs (the
     # dashboard queries metrics_cerberus_driver_*).
     spark.metrics.namespace: "cerberus"
+  # 8.6 (10M step): two 2 GB executors in place of one 1 GB executor --
+  # the "after" of the 10M before/after pair. Same requests as
+  # spark-application-generate.yaml: driver 500m and executors 800m CPU,
+  # so a driver and two executors fit on the two m7i-flex.large nodes
+  # beside the system and monitoring pods. Each executor still runs one
+  # task at a time.
   driver:
     cores: 1
+    coreRequest: "500m"
     memory: "1g"
     serviceAccount: cerberus-spark
     labels:
       version: "3.5.9"
   executor:
     cores: 1
-    instances: 1
-    memory: "1g"
+    coreRequest: "800m"
+    instances: 2
+    memory: "2g"
     labels:
       version: "3.5.9"
