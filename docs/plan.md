@@ -147,8 +147,9 @@ layered on top of a platform that already works.
 | 7 | End-to-end platform validation | synthetic payments at scale, Well-Architected review, Prometheus metrics for EKS/Spark | AWS SAA _(parallel track)_ | ✅ Complete |
 | 8 | Scale validation | Apache Iceberg, incremental processing, Spark tuning, node autoscaling + Spot, AWS Budgets | _(course gap — Iceberg and Spark docs)_ | 🔨 In progress |
 | 9 | Pipeline status & alerting | Prometheus exporter for the batch pipeline, PromQL, Grafana dashboards as code, Alertmanager, SLO burn-rate alerts, a terminal status view | _(Prometheus and Grafana docs; Google SRE Workbook, alerting on SLOs)_ | ⬜ Planned |
-| 10 | Platform tooling in Go | Go, AWS SDK for Go v2, `cerberusctl` CLI | _(Go docs, AWS SDK for Go v2 examples)_ | ⬜ Planned |
-| 11 | Streaming ingestion | Apache Kafka (KRaft, one start/stop EC2 instance), Go producer and consumer | _(Kafka docs; KodeKloud Kafka if available)_ | ⬜ Planned |
+| 10 | Databricks interoperability | Unity Catalog federation to AWS Glue (Cerberus's Iceberg tables, no copy), Databricks Terraform provider, serverless SQL and jobs, Lakeflow | _(Databricks Academy; Databricks docs)_ | ⬜ Planned |
+| 11 | Platform tooling in Go | Go, AWS SDK for Go v2, `cerberusctl` CLI | _(Go docs, AWS SDK for Go v2 examples)_ | ⬜ Planned |
+| 12 | Streaming ingestion | Apache Kafka (KRaft, one start/stop EC2 instance), Go producer and consumer | _(Kafka docs; KodeKloud Kafka if available)_ | ⬜ Planned |
 
 🎯 **MVP is complete at the end of Phase 1.**
 
@@ -284,12 +285,12 @@ layered on top of a platform that already works.
   on 2026-08-18 no longer applies. $147.55 in credits remained, more than
   the whole phase budget; the Budget measures gross cost, so its alerts
   still fire while credits apply.
-- **Out of scope:** streaming (Kafka) and Airflow, now Phase 11 (on one
+- **Out of scope:** streaming (Kafka) and Airflow, now Phase 12 (on one
   start/stop EC2 instance, about $70/month if left running, so it follows
   the `dev-compute` spin-up/tear-down pattern); Delta Lake (ADR 0017); any
   language change -- 8.6–8.11 stay in Python, Spark and SQL, so the
   Phase 8 numbers show where the real limits are before Go is introduced
-  (Phases 10 and 11).
+  (Phases 11 and 12).
 - **Done when:** a 100M-event run completes orchestrated, with the
   data-quality suite clean, and run time and cost per million events are
   recorded for the 1M, 10M and 100M steps.
@@ -339,7 +340,7 @@ _Added 2026-10-09, to follow Phase 8 directly._
   OpenTelemetry metrics SDK.
 - **Out of scope:** log aggregation (Loki) -- the exercise already saves
   the Spark logs; a Go rewrite of the exporter or the terminal view --
-  `cerberusctl status` belongs to Phase 10.
+  `cerberusctl status` belongs to Phase 11.
 - **Done when:** after a successful run and a deliberately failed one,
   the dashboard and `make status` show each run's status, failed step,
   step timings, events and data-quality result; the failed run fires an
@@ -349,7 +350,80 @@ _Added 2026-10-09, to follow Phase 8 directly._
   one passing and one failing run, the ADR, and Well-Architected
   milestone 9.
 
-### Phase 10 — Platform tooling in Go
+### Phase 10 — Databricks interoperability
+_Added 2026-10-09, after Phase 9 and before the Go tooling. Feature and
+cost facts below were checked against the Databricks docs on that date;
+re-check them in the phase's ADR._
+
+- **Goal:** Show where Databricks fits in a platform like Cerberus. Read
+  Cerberus's Iceberg tables from Databricks with no copy, manage the
+  Databricks side as code, and run the same workload on both engines with
+  measured run time and cost per million events.
+- **Why:** the target roles are platform engineering at companies that
+  run Databricks, and solutions-architect or platform roles at Databricks.
+  Both meet at one question -- how Databricks fits into the rest of a
+  company's platform, and what it costs. Cerberus answers the first half
+  from first principles; this phase answers the second half with real
+  numbers instead of a feature list.
+- **Not a migration:** Cerberus stays the system of record and the only
+  writer. Databricks is a second engine reading through the catalog --
+  the same "pluggable through the Glue catalog" stance ADR 0002 takes for
+  Redshift.
+- **Stack:**
+  - **Unity Catalog federation to AWS Glue** (GA since March 2025): the
+    Glue catalog is mounted as a foreign catalog. Iceberg reads are
+    supported; the foreign catalog needs its own `storage_root`.
+    Databricks reaches Glue through an IAM role registered as a service
+    credential, and S3 through an external location over the
+    silver/gold paths.
+  - **Databricks Terraform provider** for the Databricks side: the
+    connection, service credential, external location, foreign catalog,
+    grants and jobs. The IAM role it assumes lives in `dev-standing`.
+  - **Serverless SQL warehouse and serverless jobs** only -- no classic
+    compute, so no EC2 in the Cerberus account.
+  - **Lakeflow Jobs / Lakeflow Declarative Pipelines** with expectations
+    for the comparison port of one pipeline step, beside dbt and the
+    data-quality suite.
+- **Two environments, each for what it allows:**
+  - **Free Edition** (no cost, no end date): serverless only, one
+    workspace and one metastore, no account console or account-level
+    APIs, outbound internet limited to trusted domains, at most 5
+    concurrent job tasks, one 2X-Small SQL warehouse, compute shut down
+    for the day when the quota is exceeded, non-commercial use only. Use
+    it to build and rehearse the port at no cost.
+  - **14-day free trial**: usage credits valid for 14 days (the AWS
+    Marketplace listing caps them at $400); personal-email trials are
+    capped (one SQL warehouse at 50 DBU/h, limited external network
+    access). Needed for what Free Edition can't show: federation with
+    Cerberus's own IAM role and S3, and account-level configuration.
+    **Cost guardrail:** a Marketplace signup or a saved card switches the
+    account to pay-as-you-go when the trial ends, so sign up without a
+    payment method, keep the cancellation steps (terminate compute,
+    remove the card, cancel the plan) in the runbook, and start the
+    14-day clock only when the Terraform and the runbook are ready.
+- **Measured:** the same input on both engines (the Phase 8 data), run
+  time and cost per million events (Cerberus from its run records,
+  Databricks from its billing data), plus the code, configuration and
+  operational steps each one needs.
+- **Open questions for the ADR:** the Glue federation docs require the
+  service credential's AWS Lake Formation permissions to stay available,
+  while Cerberus grants Glue access through IAM only -- check what that
+  means here; whether Free Edition can reach Cerberus's S3 at all, given
+  its restricted outbound access; and which provider resources work on a
+  Free Edition workspace with no account-level API.
+- **Out of scope:** migrating Cerberus to Databricks; Delta Lake as the
+  storage format (ADR 0017); writes from Databricks into Cerberus's
+  tables; classic compute in the Cerberus VPC; ML and AI features.
+- **Done when:** a Databricks SQL query reads Cerberus gold through the
+  federated Glue catalog with no copy, under Unity Catalog grants defined
+  in Terraform; one pipeline step runs on Databricks with its run time
+  and cost recorded beside Cerberus's numbers; and the trial is cancelled
+  with $0 of Databricks charges after it.
+- **Artifact:** a comparison page (each Cerberus component beside its
+  Databricks counterpart, with the measured numbers and what each gives
+  up), the ADR, a short demo, and Well-Architected milestone 10.
+
+### Phase 11 — Platform tooling in Go
 - **Goal:** Replace the platform's operational scripts with one Go
   command-line tool, `cerberusctl`, that runs an exercise, collects its
   metrics and runs the data-quality suite -- with real concurrency and
@@ -383,7 +457,7 @@ _Added 2026-10-09, to follow Phase 8 directly._
   still ends in the account check, and the Python and Bash versions are
   retired.
 
-### Phase 11 — Streaming ingestion
+### Phase 12 — Streaming ingestion
 - **Goal:** Add a streaming path next to the batch one: payment events
   flow through Apache Kafka into bronze continuously, and the Phase 8
   incremental silver job picks them up on its next run.
