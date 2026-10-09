@@ -87,3 +87,29 @@ resource "aws_athena_workgroup" "this" {
     }
   }
 }
+
+# 8.6: the data-quality suite's own workgroup. At 10M events bronze is
+# 4.36 GB, and the suite's full-bronze checks (counts, keys, bulk
+# duplicates and manifests) passed the 1 GiB cutoff above -- five checks
+# CANCELLED on exercise-20261009T074853Z, so the fail-closed suite failed
+# with nothing wrong in the data. A separate workgroup lifts the cutoff for
+# the suite only; serving and dbt keep the 1 GiB guardrail. Enforced,
+# unlike the shared one: the suite is plain boto3 with no dbt-athena
+# external_location problem, so the cutoff can't be overridden per query.
+# The full-bronze scans themselves are the 100M problem (about 45 GB of
+# bronze, over $1 a run): 8.9 needs cheaper bronze checks, not a bigger
+# cutoff.
+resource "aws_athena_workgroup" "data_quality" {
+  name          = "cerberus_platform_dq"
+  force_destroy = true
+
+  configuration {
+    enforce_workgroup_configuration    = true
+    bytes_scanned_cutoff_per_query     = var.dq_bytes_scanned_cutoff_bytes
+    publish_cloudwatch_metrics_enabled = true
+
+    result_configuration {
+      output_location = "s3://${aws_s3_bucket.results.bucket}/data_quality/"
+    }
+  }
+}

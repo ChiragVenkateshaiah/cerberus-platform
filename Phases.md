@@ -133,7 +133,8 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 - [ ] 8.8 Platform under load: autoscaler, Spot node pool, Spark dynamic
       allocation, a Spot-interruption test
 - [ ] 8.9 100M events: full orchestrated run, SLOs under load, cost per
-      million events at each step
+      million events at each step. First: cheaper bronze data-quality
+      checks (today's full-bronze scans would cost over $1 a run at 100M)
 - [ ] 8.10 Results write-up (per-step numbers and charts) + demo video
 - [ ] 8.11 Well-Architected pass + ADR
 

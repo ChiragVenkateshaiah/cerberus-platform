@@ -32,7 +32,9 @@ import time
 import boto3
 
 REGION = "us-east-1"
-WORKGROUP = "cerberus_platform"
+# 8.6: the suite's own workgroup (10 GiB cutoff); serving and dbt keep
+# cerberus_platform's 1 GiB. See terraform/modules/athena/main.tf.
+WORKGROUP = "cerberus_platform_dq"
 DATABASE = "cerberus_platform"
 QUERY_PROFILE = "cerberus-transform"
 

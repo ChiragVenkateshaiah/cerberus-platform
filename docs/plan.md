@@ -285,6 +285,16 @@ layered on top of a platform that already works.
   on 2026-08-18 no longer applies. $147.55 in credits remained, more than
   the whole phase budget; the Budget measures gross cost, so its alerts
   still fire while credits apply.
+- **Known need before 100M (found 2026-10-09):** the data-quality suite's
+  bronze checks scan all of bronze on every run. At 10M events bronze was
+  4.36 GB, five checks passed the workgroup's 1 GiB cutoff and were
+  cancelled (`exercise-20261009T074853Z`), so the suite moved to its own
+  workgroup with a 10 GiB cutoff. That is a stopgap: each run scans about
+  22 GB (about $0.11), and at 100M (about 45 GB of bronze) the same checks
+  would cost more than $1 a run and pass any sensible cutoff. Before 8.9,
+  the bronze checks must get cheaper -- for example, counting bronze from
+  the generator manifests and the Lambda's own files, or checking only the
+  runs since the last passing suite.
 - **Out of scope:** streaming (Kafka) and Airflow, now Phase 12 (on one
   start/stop EC2 instance, about $70/month if left running, so it follows
   the `dev-compute` spin-up/tear-down pattern); Delta Lake (ADR 0017); any

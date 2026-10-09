@@ -264,11 +264,15 @@ resource "aws_iam_role_policy" "ci_apply" {
         # The workgroup's real name is `cerberus_platform` (underscore) --
         # `aws_athena_workgroup.this.name` in terraform/modules/athena. The
         # original hyphenated pattern here never matched it, which is why
-        # the first live apply 403'd on athena:GetWorkGroup.
-        Sid      = "ManageAthena"
-        Effect   = "Allow"
-        Action   = "athena:*"
-        Resource = "arn:aws:athena:${var.region}:${var.account_id}:workgroup/cerberus_platform"
+        # the first live apply 403'd on athena:GetWorkGroup. 8.6 adds the
+        # data-quality workgroup, cerberus_platform_dq.
+        Sid    = "ManageAthena"
+        Effect = "Allow"
+        Action = "athena:*"
+        Resource = [
+          "arn:aws:athena:${var.region}:${var.account_id}:workgroup/cerberus_platform",
+          "arn:aws:athena:${var.region}:${var.account_id}:workgroup/cerberus_platform_dq",
+        ]
       },
       {
         Sid    = "ManageStandingLambdas"

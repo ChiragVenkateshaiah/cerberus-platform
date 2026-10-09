@@ -44,6 +44,11 @@ variable "athena_workgroup_name" {
   type        = string
 }
 
+variable "athena_dq_workgroup_name" {
+  description = "The data-quality suite's Athena workgroup (8.6), which cerberus-transform runs the suite in."
+  type        = string
+}
+
 variable "athena_results_bucket_arn" {
   description = "Athena query-results bucket ARN, from the athena module."
   type        = string
