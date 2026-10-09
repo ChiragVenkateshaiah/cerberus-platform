@@ -146,6 +146,8 @@ layered on top of a platform that already works.
 | 6 | Observability & data quality | CloudWatch, dbt tests | AWS CloudWatch | ✅ Complete |
 | 7 | End-to-end platform validation | synthetic payments at scale, Well-Architected review, Prometheus metrics for EKS/Spark | AWS SAA _(parallel track)_ | ✅ Complete |
 | 8 | Scale validation | Apache Iceberg, incremental processing, Spark tuning, node autoscaling + Spot, AWS Budgets | _(course gap — Iceberg and Spark docs)_ | 🔨 In progress |
+| 9 | Platform tooling in Go | Go, AWS SDK for Go v2, `cerberusctl` CLI | _(Go docs, AWS SDK for Go v2 examples)_ | ⬜ Planned |
+| 10 | Streaming ingestion | Apache Kafka (KRaft, one start/stop EC2 instance), Go producer and consumer | _(Kafka docs; KodeKloud Kafka if available)_ | ⬜ Planned |
 
 🎯 **MVP is complete at the end of Phase 1.**
 
@@ -281,15 +283,126 @@ layered on top of a platform that already works.
   on 2026-08-18 no longer applies. $147.55 in credits remained, more than
   the whole phase budget; the Budget measures gross cost, so its alerts
   still fire while credits apply.
-- **Out of scope:** streaming (Kafka) and Airflow, planned as a later phase
-  on one start/stop EC2 instance (about $70/month if left running, so it
-  follows the `dev-compute` spin-up/tear-down pattern); Delta Lake (ADR
-  0017).
+- **Out of scope:** streaming (Kafka) and Airflow, now Phase 10 (on one
+  start/stop EC2 instance, about $70/month if left running, so it follows
+  the `dev-compute` spin-up/tear-down pattern); Delta Lake (ADR 0017); any
+  language change -- 8.6–8.11 stay in Python, Spark and SQL, so the
+  Phase 8 numbers show where the real limits are before Go is introduced
+  (Phases 9 and 10).
 - **Done when:** a 100M-event run completes orchestrated, with the
   data-quality suite clean, and run time and cost per million events are
   recorded for the 1M, 10M and 100M steps.
 - **Artifact:** a results write-up with the per-step numbers and charts, a
   demo video, ADRs for each decision, and Well-Architected milestone 8.
+
+### Phase 9 — Platform tooling in Go
+- **Goal:** Replace the platform's operational scripts with one Go
+  command-line tool, `cerberusctl`, that runs an exercise, collects its
+  metrics and runs the data-quality suite -- with real concurrency and
+  stronger failure handling than Bash.
+- **Why Go here:** the work is many independent AWS calls (Athena queries,
+  S3 listings, Step Functions and EKS polling, Cost Explorer), which
+  goroutines run in parallel; one static binary has no Python environment
+  to set up (the workstation's `.venv` drift and `uv` workarounds go away);
+  and signal handling (Ctrl-C, SIGTERM, a dead pipe) is explicit code, not
+  Bash traps -- the 2026-10-07 SIGPIPE bug that could skip the destroy is
+  exactly what Bash makes easy to get wrong.
+- **Why after Phase 8:** Phase 8's tools (`exercise.sh`,
+  `collect_run_metrics.py`, `data_quality.py`) define the behaviour to
+  match, and their run records are the regression test: `cerberusctl`
+  must produce the same record for the same run.
+- **Stack:** Go (current stable), AWS SDK for Go v2, a small CLI framework
+  (standard library `flag`, or Cobra if subcommands warrant it), the
+  existing Terraform via `os/exec` for plan/apply/destroy.
+- **Scope:** `cerberusctl exercise` (preflight, apply, optional generator,
+  execution, collect, guaranteed teardown, account check), `cerberusctl
+  collect` (the metric record, `--cost-only`, `--dq-only`), `cerberusctl
+  dq` (the 17 checks, all queries in flight at once, fail-closed). The SQL
+  of the checks stays in one place that both tools read until the Python
+  versions are retired.
+- **Engineering bar:** unit tests with fakes for the AWS clients, a
+  `golangci-lint` + `go test` job in `code-ci.yml`, release binaries built
+  in CI, and an ADR for the language and layout decision.
+- **Done when:** a full exercise runs through `cerberusctl` with the same
+  record and data-quality result as the Python tools, Ctrl-C at any stage
+  still ends in the account check, and the Python and Bash versions are
+  retired.
+
+### Phase 10 — Streaming ingestion
+- **Goal:** Add a streaming path next to the batch one: payment events
+  flow through Apache Kafka into bronze continuously, and the Phase 8
+  incremental silver job picks them up on its next run.
+- **Why Go here:** a high-throughput producer and consumer is where Go's
+  goroutines and channels pay off -- many partitions in flight, batching
+  and back-pressure as plain code, a small memory footprint, and one
+  binary per service in a container. Both are new components written in Go
+  from day one, not rewrites.
+- **Stack:** Apache Kafka (KRaft mode, one broker) on one start/stop EC2
+  instance, following the `dev-compute` spin-up/tear-down pattern; a Go
+  producer (synthetic payment events, same schema as ADR 0003) and a Go
+  consumer that writes JSON Lines into bronze (a new prefix, decided by
+  ADR, next to `payments/` and `payments_bulk/`); Airflow as planned
+  earlier, if the phase's ADR still finds a job for it.
+- **Measured:** events per second end to end, consumer lag, producer and
+  consumer memory and CPU, delivery guarantees (at-least-once, with the
+  silver job's insert-only merge on `(transaction_id, event_type)` as the
+  deduplication), and cost per hour of the streaming stack.
+- **Done when:** a sustained stream lands in bronze, the silver job
+  ingests it incrementally with the data-quality suite clean (bronze →
+  silver reconciles the new prefix too), and the stack tears down to $0.
+
+## Planned later work (no phase number yet)
+
+_Agreed in discussion and kept here until each one is scheduled -- either
+folded into a phase or given its own. Nothing here is built yet._
+
+### Realistic time spread for the synthetic data
+
+_Proposed 2026-10-08, from 8.6's first measurements._
+
+- **Problem:** both producers put every event in the last 7–8 days (the
+  ingestion Lambda's 7-day creation window; the bulk generator's same
+  window). So every new batch touches the same few days that hold almost
+  all of silver, and day pruning -- correct and in place since 8.6 --
+  saves almost nothing (13.33 → 12.61 MB read in the local test). Real
+  payment data spans months and years, with a busy recent edge and a long,
+  quieter history.
+- **Plan:** give the bulk generator a configurable history -- events spread
+  across days, weeks, months and years, with realistic shapes (weekday and
+  hour-of-day patterns, month-end peaks, growth over time) -- and keep each
+  new batch landing mostly in the recent days, as real ingestion does. Same
+  schema, lifecycle rules and determinism as ADR 0018.
+- **What it unlocks:** measurements that mean what they would in
+  production -- partition pruning (a batch touches a few of hundreds of day
+  partitions), broadcast and hash-join choices (a small batch against a
+  large, spread-out history), the size of the anti-join shuffle against a
+  realistic silver, file counts and compaction per partition, and
+  Athena's pruning on time-filtered gold queries. It also makes the 10M and
+  100M steps a realistic larger load, not a denser copy of one week.
+- **Where it fits:** best before the 10M step of Phase 8, so 8.6's
+  before/after numbers are taken on the realistic shape; otherwise as the
+  first item of whichever phase picks it up.
+
+### Spark 4 and Java 17 for the Spark jobs
+
+_Proposed 2026-10-08, from 8.6's bucketing test._
+
+- **Why:** two limits found on `apache/spark:3.5.9` (Java 11). Iceberg
+  1.11+ is built for Java 17, so the platform is pinned to Iceberg 1.10.2.
+  And Spark 3.5 has no one-side storage-partitioned join
+  (`spark.sql.sources.v2.bucketing.shuffle.enabled` arrived in Spark 4.0):
+  a bucketed silver can avoid shuffling its keys only when both join sides
+  are bucketed tables, so an incoming batch can't use it.
+- **Scope:** move the transform and generator to Spark 4 on Java 17; with
+  it, Scala 2.13 artifacts, a matching `hadoop-aws`, the OpenLineage
+  listener, the Iceberg runtime (1.12+), and the Spark Operator's support
+  for Spark 4. Then re-test bucketed silver with one-side SPJ against the
+  8.6 baseline.
+- **Done when:** the orchestrated run, the generator and the data-quality
+  suite pass on the new stack, and the silver anti-join's shuffle is
+  measured with and without one-side SPJ.
+- **Its own unit of work:** every Spark dependency changes at once, so it
+  is planned and tested on its own, not mixed into a scale step.
 
 ## Existing infrastructure
 
