@@ -15,3 +15,9 @@ variable "chart_version" {
   type        = string
   default     = null
 }
+
+variable "spark_image" {
+  description = "Spark image the prepull DaemonSet caches on every node. Must match the image in transform/spark/spark-application.yaml and spark-application-generate.yaml, or the pre-pull caches the wrong image."
+  type        = string
+  default     = "apache/spark:3.5.9"
+}
