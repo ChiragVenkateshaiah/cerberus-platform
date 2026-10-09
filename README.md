@@ -105,14 +105,20 @@ gold merges only the transactions that changed. At about 1M events the
 orchestrated run appended 6,094 new events, merged exactly 2,000 gold rows
 and finished in 340 s, faster than the 39k-event full-rebuild baseline.
 
-⬜ Phase 9 (platform tooling in Go) — planned. A Go CLI, `cerberusctl`,
+⬜ Phase 9 (pipeline status & alerting) — planned. A Prometheus exporter
+for the batch pipeline, Grafana dashboards and alert rules as code, SLO
+burn-rate alerts, and a terminal status view, with no idle cost.
+⬜ Phase 10 (Databricks interoperability) — planned. Databricks reads
+Cerberus's Iceberg tables through Unity Catalog's AWS Glue federation, with
+no copy, managed in Terraform; the same workload is measured on both.
+⬜ Phase 11 (platform tooling in Go) — planned. A Go CLI, `cerberusctl`,
 replaces the exercise, metric-collection and data-quality scripts with
 concurrent AWS calls and explicit signal handling.
-⬜ Phase 10 (streaming ingestion) — planned. Apache Kafka on a
+⬜ Phase 12 (streaming ingestion) — planned. Apache Kafka on a
 start/stop EC2 instance, with a Go producer and consumer writing into
 bronze for the incremental silver job.
 
-See [docs/plan.md](docs/plan.md) for the full phased roadmap (Phases 0–10)
+See [docs/plan.md](docs/plan.md) for the full phased roadmap (Phases 0–12)
 and [Phases.md](Phases.md) for subtask-level progress.
 
 The platform models **synthetic payments data** from Phase 1 onward.

@@ -133,32 +133,64 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 - [ ] 8.8 Platform under load: autoscaler, Spot node pool, Spark dynamic
       allocation, a Spot-interruption test
 - [ ] 8.9 100M events: full orchestrated run, SLOs under load, cost per
-      million events at each step
+      million events at each step. First: cheaper bronze data-quality
+      checks (today's full-bronze scans would cost over $1 a run at 100M)
 - [ ] 8.10 Results write-up (per-step numbers and charts) + demo video
 - [ ] 8.11 Well-Architected pass + ADR
 
-## Phase 9 — Platform tooling in Go ⬜
+## Phase 9 — Pipeline status & alerting ⬜
 
-- [ ] 9.1 ADR: Go for platform tooling (module layout, CLI framework, testing)
-- [ ] 9.2 Go module, `golangci-lint` + `go test` in CI, release builds
-- [ ] 9.3 `cerberusctl dq`: the data-quality suite, all checks concurrent, fail-closed
-- [ ] 9.4 `cerberusctl collect`: the metric record, `--cost-only`, `--dq-only`
-- [ ] 9.5 `cerberusctl exercise`: preflight → apply → run → collect →
-      guaranteed teardown → account check
-- [ ] 9.6 Parity run: same record as the Python tools on one exercise; retire
-      `exercise.sh`, `collect_run_metrics.py`, `data_quality.py`
+- [ ] 9.1 ADR: where pipeline status lives while `dev-compute` is down
+      (local stack, AMP, or Grafana Cloud free tier), dashboard tooling,
+      no new idle cost
+- [ ] 9.2 Pipeline status exporter: per-run status, failed step, step
+      durations, events, data-quality result, last-success timestamps
+- [ ] 9.3 Grafana pipeline-status dashboard, provisioned as code
+- [ ] 9.4 Alerting as code: failed run, stale data, SLO burn rate;
+      `promtool test rules` in CI
+- [ ] 9.5 Terminal status view (`make status`) from the same PromQL queries
+- [ ] 9.6 Live check: one passing and one deliberately failed exercise,
+      shown correctly on the dashboard, in the terminal and as an alert
 - [ ] 9.7 Well-Architected pass + ADR
 
-## Phase 10 — Streaming ingestion ⬜
+## Phase 10 — Databricks interoperability ⬜
 
-- [ ] 10.1 ADR: streaming design (Kafka on start/stop EC2, bronze prefix,
-      delivery guarantees, Airflow or not)
-- [ ] 10.2 Terraform: start/stop Kafka (KRaft) instance, tagged, torn down to $0
-- [ ] 10.3 Go producer: synthetic payment events at a configurable rate
-- [ ] 10.4 Go consumer: batched JSON Lines into bronze, at-least-once
-- [ ] 10.5 Silver job and data-quality suite cover the streaming prefix
-- [ ] 10.6 Sustained-load test: throughput, consumer lag, cost per hour
+- [ ] 10.1 ADR: Databricks as a second engine through the catalog (Free
+      Edition vs. trial, Glue federation, Terraform scope, cost guardrails)
+- [ ] 10.2 Free Edition: port one pipeline step as a Lakeflow job or
+      pipeline with expectations; workspace objects in Terraform
+- [ ] 10.3 Trial preparation: IAM role in `dev-standing`; Terraform for the
+      service credential, connection, external location, foreign catalog
+      and grants; runbook with the cancellation steps
+- [ ] 10.4 Trial: Glue federation live; Databricks SQL reads Cerberus's
+      Iceberg gold with no copy
+- [ ] 10.5 Measured comparison: same input on both engines, run time and
+      cost per million events
+- [ ] 10.6 Comparison write-up + demo; trial cancelled, $0 confirmed
 - [ ] 10.7 Well-Architected pass + ADR
+
+## Phase 11 — Platform tooling in Go ⬜
+
+- [ ] 11.1 ADR: Go for platform tooling (module layout, CLI framework, testing)
+- [ ] 11.2 Go module, `golangci-lint` + `go test` in CI, release builds
+- [ ] 11.3 `cerberusctl dq`: the data-quality suite, all checks concurrent, fail-closed
+- [ ] 11.4 `cerberusctl collect`: the metric record, `--cost-only`, `--dq-only`
+- [ ] 11.5 `cerberusctl exercise`: preflight → apply → run → collect →
+      guaranteed teardown → account check
+- [ ] 11.6 Parity run: same record as the Python tools on one exercise; retire
+      `exercise.sh`, `collect_run_metrics.py`, `data_quality.py`
+- [ ] 11.7 Well-Architected pass + ADR
+
+## Phase 12 — Streaming ingestion ⬜
+
+- [ ] 12.1 ADR: streaming design (Kafka on start/stop EC2, bronze prefix,
+      delivery guarantees, Airflow or not)
+- [ ] 12.2 Terraform: start/stop Kafka (KRaft) instance, tagged, torn down to $0
+- [ ] 12.3 Go producer: synthetic payment events at a configurable rate
+- [ ] 12.4 Go consumer: batched JSON Lines into bronze, at-least-once
+- [ ] 12.5 Silver job and data-quality suite cover the streaming prefix
+- [ ] 12.6 Sustained-load test: throughput, consumer lag, cost per hour
+- [ ] 12.7 Well-Architected pass + ADR
 
 ---
 

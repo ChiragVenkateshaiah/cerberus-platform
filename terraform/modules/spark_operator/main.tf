@@ -44,8 +44,12 @@ resource "helm_release" "spark_operator" {
 # it's protecting. In the operator namespace, not the jobs one: the jobs
 # namespace is scraped for Spark metrics and counted by Grafana's pod-phase
 # panel, while the operator namespace's scrape keeps only annotated pods.
-# wait_for_rollout (the default) makes apply wait until every node has
-# the image, so the pull happens before the pipeline starts.
+# Apply does NOT wait for the pull: on exercise-20261009T062108Z the
+# DaemonSet reported "Creation complete after 1s" and the image arrived in
+# the background while the Prometheus/Grafana charts installed -- still
+# well before the execution started (both pods logged "already present
+# on machine", RunTransform 178.3 -> 159.0 s). A run started right after
+# an apply could still pull for itself: slower, not a failure.
 resource "kubernetes_daemon_set_v1" "spark_image_prepull" {
   metadata {
     name      = "spark-image-prepull"

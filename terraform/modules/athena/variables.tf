@@ -14,3 +14,9 @@ variable "bytes_scanned_cutoff_bytes" {
   type        = number
   default     = 1073741824 # 1 GiB
 }
+
+variable "dq_bytes_scanned_cutoff_bytes" {
+  description = "Per-query bytes-scanned cutoff for the data-quality workgroup. Sized for the 10M step (bronze 4.36 GB) with headroom; not meant to stretch to 100M -- see the workgroup's comment."
+  type        = number
+  default     = 10737418240 # 10 GiB
+}

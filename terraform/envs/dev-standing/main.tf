@@ -52,6 +52,7 @@ module "iam" {
   glue_bronze_table_names   = values(module.glue_catalog.bronze_table_names)
 
   athena_workgroup_name     = module.athena.workgroup_name
+  athena_dq_workgroup_name  = module.athena.dq_workgroup_name
   athena_results_bucket_arn = module.athena.results_bucket_arn
 
   eks_cluster_name = local.eks_cluster_name

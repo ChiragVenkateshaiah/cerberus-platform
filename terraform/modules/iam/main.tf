@@ -48,7 +48,8 @@ locals {
     "arn:aws:glue:${var.region}:${var.account_id}:table/${var.glue_database_name}/${name}"
   ]
 
-  athena_workgroup_arn = "arn:aws:athena:${var.region}:${var.account_id}:workgroup/${var.athena_workgroup_name}"
+  athena_workgroup_arn    = "arn:aws:athena:${var.region}:${var.account_id}:workgroup/${var.athena_workgroup_name}"
+  athena_dq_workgroup_arn = "arn:aws:athena:${var.region}:${var.account_id}:workgroup/${var.athena_dq_workgroup_name}"
 
   eks_cluster_arn = "arn:aws:eks:${var.region}:${var.account_id}:cluster/${var.eks_cluster_name}"
 }
@@ -236,10 +237,12 @@ resource "aws_iam_role_policy" "transform" {
         ]
       },
       {
+        # 8.6: plus the data-quality workgroup -- observability/scale/
+        # data_quality.py runs the suite as this role.
         Sid      = "RunAthenaQueries"
         Effect   = "Allow"
         Action   = ["athena:StartQueryExecution", "athena:GetQueryExecution", "athena:GetQueryResults", "athena:StopQueryExecution", "athena:GetWorkGroup"]
-        Resource = local.athena_workgroup_arn
+        Resource = [local.athena_workgroup_arn, local.athena_dq_workgroup_arn]
       },
       {
         Sid      = "WriteAthenaResults"
