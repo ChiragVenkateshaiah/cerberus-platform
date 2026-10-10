@@ -95,6 +95,12 @@ def parse_args():
         help="run only the data-quality suite into an existing record, leaving the rest",
     )
     parser.add_argument(
+        "--dq-full",
+        action="store_true",
+        help="run the suite's --full audit (every bronze key, about 49 GB at 19M events) -- "
+        "before a milestone",
+    )
+    parser.add_argument(
         "--events-processed",
         type=int,
         help="events this run processed; defaults to what silver's Iceberg snapshots "
@@ -364,12 +370,13 @@ def parse_generator_log(path):
     }
 
 
-def add_data_quality(record):
+def add_data_quality(record, full=False):
     generator = record.get("generator") or {}
     record["data_quality"] = data_quality.run_suite(
         boto3.Session(profile_name=QUERY_PROFILE, region_name=REGION),
         generator_run_id=generator.get("run_id"),
         generator_manifest=generator.get("per_dt"),
+        full=full,
     )
 
 
@@ -407,7 +414,7 @@ def main():
         record = json.loads(out.read_text())
         if generator:
             record["generator"] = generator
-        add_data_quality(record)
+        add_data_quality(record, full=args.dq_full)
         out.write_text(json.dumps(record, indent=2) + "\n")
         print(f"{args.execution}: data quality refreshed in {out.name}")
         data_quality.print_suite(record["data_quality"])
@@ -474,7 +481,7 @@ def main():
     }
 
     if not args.no_dq:
-        add_data_quality(record)
+        add_data_quality(record, full=args.dq_full)
     if args.cost:
         add_cost(record, admin)
 

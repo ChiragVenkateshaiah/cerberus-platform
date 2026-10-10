@@ -169,3 +169,53 @@ resource "aws_glue_catalog_table" "bronze_payments_bulk" {
     }
   }
 }
+
+# 8.6: the same files, one run at a time. Partition projection with both keys
+# "injected" means Athena builds the S3 path from the query's own
+# `run_id = '...' AND dt = '...'` and reads only that directory -- and
+# refuses a query without both, so the expensive whole-prefix scan can't
+# happen here by accident. Nothing to register after a run. The suite checks
+# each new run here, one dt per query; bronze_payments_bulk above stays for
+# the --full audit. Only the key columns: the JSON SerDe ignores the rest,
+# and Athena reads whole JSON files either way.
+resource "aws_glue_catalog_table" "bronze_payments_bulk_by_run" {
+  name          = "bronze_payments_bulk_by_run"
+  database_name = aws_glue_catalog_database.this.name
+  table_type    = "EXTERNAL_TABLE"
+
+  parameters = {
+    classification              = "json"
+    "projection.enabled"        = "true"
+    "projection.run_id.type"    = "injected"
+    "projection.dt.type"        = "injected"
+    "storage.location.template" = "s3://${var.bronze_bucket_name}/payments_bulk/run_id=$${run_id}/dt=$${dt}/"
+  }
+
+  partition_keys {
+    name = "run_id"
+    type = "string"
+  }
+  partition_keys {
+    name = "dt"
+    type = "string"
+  }
+
+  storage_descriptor {
+    location      = "s3://${var.bronze_bucket_name}/payments_bulk/"
+    input_format  = "org.apache.hadoop.mapred.TextInputFormat"
+    output_format = "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat"
+
+    ser_de_info {
+      serialization_library = "org.openx.data.jsonserde.JsonSerDe"
+    }
+
+    columns {
+      name = "transaction_id"
+      type = "string"
+    }
+    columns {
+      name = "event_type"
+      type = "string"
+    }
+  }
+}
