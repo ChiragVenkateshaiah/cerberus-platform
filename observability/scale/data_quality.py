@@ -392,7 +392,12 @@ def runs_without_manifest(ledger, files):
 def ledger_checks(ledger, objects):
     """The bronze total and catch-up checks, from the ledger and the listing."""
     ledger_events = sum(m["events"] for m in ledger.values())
-    file_ms = ", ".join(str(o["ms"]) for o in objects) or ""
+    # VALUES, not ARRAY[...]: an array constructor takes at most 254
+    # arguments, and bronze has more files than that.
+    if objects:
+        files = "SELECT ms FROM (VALUES " + ", ".join(str(o["ms"]) for o in objects) + ") AS t (ms)"
+    else:
+        files = "SELECT CAST(NULL AS bigint) AS ms WHERE false"
     return [
         {
             "name": "bronze_to_silver_count",
@@ -419,7 +424,7 @@ WITH watermark AS (
     SELECT max(CAST(summary['cerberus.bronze_watermark'] AS bigint)) AS ms
     FROM "payments_events$snapshots"
 ),
-files AS (SELECT ms FROM UNNEST(CAST(ARRAY[{file_ms}] AS ARRAY(BIGINT))) AS t (ms))
+files AS ({files})
 SELECT count_if(f.ms > coalesce(w.ms, -1)) AS violations,
        cast(count(*) AS varchar) || ' bronze files, watermark '
        || coalesce(cast(from_unixtime(arbitrary(w.ms) / 1000) AS varchar), 'none') AS detail
