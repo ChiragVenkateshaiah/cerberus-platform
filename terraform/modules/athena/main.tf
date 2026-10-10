@@ -90,10 +90,12 @@ resource "aws_athena_workgroup" "this" {
 
 # 8.6: the data-quality suite's own workgroup. At 10M events bronze is
 # 4.36 GB, and the suite's full-bronze checks (counts, keys, bulk
-# duplicates and manifests) passed the 1 GiB cutoff above -- five checks
-# CANCELLED on exercise-20261009T074853Z, so the fail-closed suite failed
-# with nothing wrong in the data. A separate workgroup lifts the cutoff for
-# the suite only; serving and dbt keep the 1 GiB guardrail. Enforced,
+# duplicates and manifests) passed the then 1 GiB cutoff above -- five
+# checks CANCELLED on exercise-20261009T074853Z, so the fail-closed suite
+# failed with nothing wrong in the data. A separate workgroup lifted the
+# cutoff for the suite only. (The next run's dbt merge passed 1 GiB too, so
+# the shared cutoff is now 10 GiB as well; the suite keeps its own,
+# enforced workgroup so its scans stay separate from dbt and serving.) Enforced,
 # unlike the shared one: the suite is plain boto3 with no dbt-athena
 # external_location problem, so the cutoff can't be overridden per query.
 # The full-bronze scans themselves are the 100M problem (about 45 GB of
