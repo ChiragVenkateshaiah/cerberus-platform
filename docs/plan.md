@@ -294,7 +294,12 @@ layered on top of a platform that already works.
   would cost more than $1 a run and pass any sensible cutoff. Before 8.9,
   the bronze checks must get cheaper -- for example, counting bronze from
   the generator manifests and the Lambda's own files, or checking only the
-  runs since the last passing suite.
+  runs since the last passing suite. The same day's 10M "after" run
+  (`exercise-20261009T101830Z`) showed dbt has the same problem: the
+  incremental `fct_transactions` merge passed the shared workgroup's 1 GiB
+  cutoff (raised to 10 GiB), because every batch has events in all of the
+  last 7–8 days and the merge can skip none of them. The realistic time
+  spread (Planned later work) is what lets these scans prune.
 - **Out of scope:** streaming (Kafka) and Airflow, now Phase 12 (on one
   start/stop EC2 instance, about $70/month if left running, so it follows
   the `dev-compute` spin-up/tear-down pattern); Delta Lake (ADR 0017); any

@@ -10,9 +10,9 @@ variable "results_expiration_days" {
 }
 
 variable "bytes_scanned_cutoff_bytes" {
-  description = "Per-query bytes-scanned cutoff for the workgroup -- a cost guardrail, not a real constraint at this data volume."
+  description = "Per-query bytes-scanned cutoff for the shared workgroup (dbt, serving, the collector) -- a cost guardrail. 1 GiB until 8.6, when dbt's incremental fct_transactions merge passed it at about 19M silver events (exercise-20261009T101830Z). At 10 GiB the worst single query costs about $0.05."
   type        = number
-  default     = 1073741824 # 1 GiB
+  default     = 10737418240 # 10 GiB
 }
 
 variable "dq_bytes_scanned_cutoff_bytes" {
