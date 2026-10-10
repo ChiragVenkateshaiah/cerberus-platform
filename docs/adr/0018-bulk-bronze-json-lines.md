@@ -166,3 +166,30 @@ s3://cerberus-platform-bronze-<account>/payments_bulk/run_id=<run_id>/dt=YYYY-MM
   file once at commit time; the "magic" committer avoids that but needs the
   `spark-hadoop-cloud` package), executor sizing, and Spot. Those are 8.6
   and 8.7 decisions, made against measurements from this generator.
+
+## Amendment (2026-10-09): each run ends with a `_manifest.json`
+
+Every generator run now writes `payments_bulk/run_id=<id>/_manifest.json`
+after its data: per dt, the event count and the data files' count and
+total bytes, as listed right after the write. It is part of the bronze
+format from here on.
+
+- **Why:** the data-quality suite (8.4) re-read all of `payments_bulk/` on
+  every run. At 10M events that was 49 GB per suite, and at 100M it would
+  cost over $1 a run and pass the per-query cutoff. Since bronze is
+  append-only (ADR 0002), the suite now checks each run once, in full,
+  when it is new, and afterwards treats the manifests as a ledger: their
+  sum is the bulk event total, and a free S3 listing compares every run's
+  files and bytes with its manifest, so a deleted or rewritten old run
+  still fails.
+- **Written last:** a run without a manifest is unfinished; the suite
+  reports it as such (`bulk_runs_without_manifest`).
+- **Kept out of the data:** the leading underscore keeps the file out of
+  Athena's tables and the silver job's `run_id=*/dt=*/*.json` glob, the
+  same way Spark's `_SUCCESS` marker is.
+- **Runs before this amendment:** `backfill_bulk_manifests.py` wrote their
+  manifests from the run records whose per-run count check had passed.
+- **Per-run reads:** `bronze_payments_bulk_by_run`, a partition-projected
+  Glue table over the same files (`run_id` and `dt` both injected), lets
+  the suite read one run's dt at a time; the unpartitioned
+  `bronze_payments_bulk` stays for the suite's `--full` audit.

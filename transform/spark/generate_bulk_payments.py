@@ -27,6 +27,7 @@ The image runs Python 3.10, so this file avoids 3.11+ features.
 
 import argparse
 import calendar
+import json
 import math
 import time
 
@@ -344,11 +345,54 @@ def main():
     total = sum(row["count"] for row in counts)
     for row in counts:
         print(f"[generate] dt={row['dt']} events={row['count']}")
+    manifest = write_manifest(spark, args.output, args.run_id, args.now, counts)
+    print(f"[generate] manifest {manifest}")
     print(
         f"[generate] done run_id={args.run_id} events={total} partitions={len(counts)} "
         f"write_seconds={elapsed:.1f} events_per_second={total / elapsed:.0f}"
     )
     spark.stop()
+
+
+def write_manifest(spark, output: str, run_id: str, now: str, counts) -> str:
+    """Write run_id=<id>/_manifest.json: the run's ledger entry (8.6).
+
+    Per dt: the event count, plus the data files' count and total bytes as
+    listed right after the write. The data-quality suite adds the counts up
+    instead of re-scanning every run, and compares the files and bytes with
+    a fresh listing on every run, so a deleted or rewritten old run still
+    fails the suite. Written last, so it also marks the run as complete. The
+    leading underscore keeps it out of Athena's table and the silver job's
+    `*.json` glob.
+    """
+    jvm = spark.sparkContext._jvm
+    conf = spark.sparkContext._jsc.hadoopConfiguration()
+    run_dir = jvm.org.apache.hadoop.fs.Path(f"{output.rstrip('/')}/run_id={run_id}")
+    fs = run_dir.getFileSystem(conf)
+    per_dt = {}
+    for row in counts:
+        files = [
+            f
+            for f in fs.listStatus(jvm.org.apache.hadoop.fs.Path(run_dir, f"dt={row['dt']}"))
+            if f.getPath().getName().startswith("part-")
+        ]
+        per_dt[row["dt"]] = {
+            "events": row["count"],
+            "objects": len(files),
+            "bytes": sum(f.getLen() for f in files),
+        }
+    body = {
+        "run_id": run_id,
+        "now": now,
+        "events": sum(v["events"] for v in per_dt.values()),
+        "per_dt": per_dt,
+        "source": "generate_bulk_payments.py",
+    }
+    path = jvm.org.apache.hadoop.fs.Path(run_dir, "_manifest.json")
+    stream = fs.create(path, True)
+    stream.write(bytearray(json.dumps(body, sort_keys=True).encode("utf-8")))
+    stream.close()
+    return str(path)
 
 
 if __name__ == "__main__":

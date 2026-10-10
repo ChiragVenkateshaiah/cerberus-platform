@@ -20,5 +20,7 @@ output "bronze_table_names" {
   value = {
     bronze_payments_raw  = aws_glue_catalog_table.bronze_payments_raw.name
     bronze_payments_bulk = aws_glue_catalog_table.bronze_payments_bulk.name
+    # 8.6: per-run, partition-projected view of the same files.
+    bronze_payments_bulk_by_run = aws_glue_catalog_table.bronze_payments_bulk_by_run.name
   }
 }

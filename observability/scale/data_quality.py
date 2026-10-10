@@ -12,7 +12,7 @@ with no cluster: the collector calls run_suite() after each run, and it also
 runs on its own:
 
     uv run --no-project --with boto3 python observability/scale/data_quality.py \\
-        [--generator-run-id ID --generator-manifest dt=COUNT ...]
+        [--generator-run-id ID [--generator-manifest dt=COUNT ...]] [--full]
 
 All queries start at once and are polled together, so the suite takes about
 as long as its slowest query.
@@ -20,12 +20,33 @@ as long as its slowest query.
 Since 8.5 silver is an incremental Iceberg table built from both bronze
 prefixes, so bronze -> silver reconciles `payments/` and `payments_bulk/`
 together, and `silver_caught_up` checks that no bronze object is newer than
-the watermark in silver's own snapshots. `payments_bulk/` keeps its own
-per-run manifest and duplicate checks too.
+the watermark in silver's own snapshots.
+
+Since 8.6 bronze is checked as a ledger instead of re-scanned on every run
+(at 10M events the full scans read 49 GB, and at 100M they would cost over
+$1 a run). Bronze is append-only, so each generator run is checked once, in
+full, when it is new: one query per dt against its `_manifest.json` (event
+count, duplicates, keys present in silver), through the partition-projected
+`bronze_payments_bulk_by_run`. From then on:
+
+- the bronze event total is the sum of the manifests plus a count of the
+  Lambda's small `payments/` prefix (`bronze_to_silver_count`, still exact);
+- a free S3 listing compares every run's files and bytes with its manifest,
+  so a deleted or rewritten old run still fails (`bulk_ledger_integrity`);
+- data files in a run with no manifest fail on their own
+  (`bulk_runs_without_manifest`), instead of as a silver count mismatch;
+- `silver_caught_up` takes object times from the same listing.
+
+What this no longer sees on every run is a silver change that keeps the
+count and key uniqueness -- some rows lost and as many wrong rows gained.
+`--full` adds back the whole-bronze key and duplicate checks for that; run it
+before each milestone. Wrong values under correct keys are not covered by
+either mode (a follow-up after Phase 8, docs/plan.md).
 """
 
 import argparse
 import json
+import re
 import sys
 import time
 
@@ -37,6 +58,9 @@ REGION = "us-east-1"
 WORKGROUP = "cerberus_platform_dq"
 DATABASE = "cerberus_platform"
 QUERY_PROFILE = "cerberus-transform"
+BRONZE_BUCKET = "cerberus-platform-bronze-131715059025"
+BULK_PREFIX = "payments_bulk/"
+MANIFEST = "_manifest.json"
 
 # Which bronze prefixes silver is built from (both since 8.5, ADR 0017/0018).
 SILVER_SOURCES = ("payments", "payments_bulk")
@@ -75,32 +99,6 @@ lifecycle AS (
 
 CHECKS = [
     # --- Reconciliation across layers ------------------------------------
-    {
-        "name": "bronze_to_silver_count",
-        "severity": "error",
-        "about": "silver holds exactly as many events as bronze, both prefixes (no bronze key "
-        "repeats, so the job's dedup removes nothing)",
-        "sql": f"""
-WITH {BRONZE_PAYMENTS}
-SELECT abs(b.n - s.n) AS violations,
-       'bronze ' || cast(b.n AS varchar) || ', silver ' || cast(s.n AS varchar) AS detail
-FROM (SELECT count(*) AS n FROM bronze_payments) b,
-     (SELECT count(*) AS n FROM payments_events) s""",
-    },
-    {
-        "name": "bronze_to_silver_keys",
-        "severity": "error",
-        "about": "every bronze (transaction_id, event_type) is in silver, and nothing else is",
-        "sql": f"""
-WITH {BRONZE_PAYMENTS},
-b AS (SELECT DISTINCT transaction_id, event_type FROM bronze_payments),
-s AS (SELECT DISTINCT transaction_id, event_type FROM payments_events)
-SELECT count_if(s.transaction_id IS NULL) + count_if(b.transaction_id IS NULL) AS violations,
-       cast(count_if(s.transaction_id IS NULL) AS varchar) || ' only in bronze, '
-       || cast(count_if(b.transaction_id IS NULL) AS varchar) || ' only in silver' AS detail
-FROM b FULL OUTER JOIN s
-  ON b.transaction_id = s.transaction_id AND b.event_type = s.event_type""",
-    },
     {
         "name": "silver_to_gold_transactions",
         "severity": "error",
@@ -190,27 +188,6 @@ FROM lifecycle""",
     },
     # --- Placement, nulls and values ------------------------------------------
     {
-        "name": "silver_caught_up",
-        "severity": "error",
-        "about": "no bronze object is newer than the bronze watermark in silver's snapshots "
-        "(the incremental job missed nothing)",
-        "sql": """
-WITH watermark AS (
-    SELECT max(CAST(summary['cerberus.bronze_watermark'] AS bigint)) AS ms
-    FROM "payments_events$snapshots"
-),
-bronze_files AS (
-    SELECT DISTINCT "$path" AS path, to_unixtime("$file_modified_time") * 1000 AS ms
-    FROM bronze_payments_raw
-    UNION ALL
-    SELECT DISTINCT "$path", to_unixtime("$file_modified_time") * 1000 FROM bronze_payments_bulk
-)
-SELECT count_if(b.ms > coalesce(w.ms, -1)) AS violations,
-       cast(count(*) AS varchar) || ' bronze files, watermark '
-       || coalesce(cast(from_unixtime(arbitrary(w.ms) / 1000) AS varchar), 'none') AS detail
-FROM bronze_files b CROSS JOIN watermark w""",
-    },
-    {
         "name": "silver_key_nulls",
         "severity": "error",
         "about": "no nulls in the columns every event must carry",
@@ -294,7 +271,27 @@ SELECT count(DISTINCT payment_method_token) AS violations,
 FROM payments_events
 WHERE regexp_like(payment_method_token, '[0-9]{13,}')""",
     },
-    # --- payments_bulk/ (ADR 0018): its own checks, on top of the reconciliation -
+]
+
+
+# --full only: today's whole-bronze checks, for the gap the ledger leaves (a
+# silver change that keeps the count and key uniqueness). About 49 GB at 19M
+# events -- before a milestone, not on every run.
+FULL_CHECKS = [
+    {
+        "name": "bronze_to_silver_keys",
+        "severity": "error",
+        "about": "every bronze (transaction_id, event_type) is in silver, and nothing else is",
+        "sql": f"""
+WITH {BRONZE_PAYMENTS},
+b AS (SELECT DISTINCT transaction_id, event_type FROM bronze_payments),
+s AS (SELECT DISTINCT transaction_id, event_type FROM payments_events)
+SELECT count_if(s.transaction_id IS NULL) + count_if(b.transaction_id IS NULL) AS violations,
+       cast(count_if(s.transaction_id IS NULL) AS varchar) || ' only in bronze, '
+       || cast(count_if(b.transaction_id IS NULL) AS varchar) || ' only in silver' AS detail
+FROM b FULL OUTER JOIN s
+  ON b.transaction_id = s.transaction_id AND b.event_type = s.event_type""",
+    },
     {
         "name": "bulk_duplicate_keys",
         "severity": "error",
@@ -308,39 +305,234 @@ FROM (SELECT count(*) AS n FROM bronze_payments_bulk
 ]
 
 
-def bulk_run_check(run_id, manifest):
-    """Per-dt event counts for one generator run against its [generate] manifest."""
-    expected = " UNION ALL ".join(
-        f"SELECT '{dt}' AS dt, {int(count)} AS n" for dt, count in sorted(manifest.items())
-    )
+def list_bronze(s3):
+    """Every data object under both bronze prefixes, plus the bulk manifests.
+
+    Data objects exclude names starting with _ or . -- the same files Athena
+    and the silver job's globs skip (_SUCCESS, _manifest.json, staging).
+    """
+    objects, manifests = [], {}
+    for prefix in SILVER_SOURCES:
+        pages = s3.get_paginator("list_objects_v2").paginate(
+            Bucket=BRONZE_BUCKET, Prefix=f"{prefix}/"
+        )
+        for page in pages:
+            for obj in page.get("Contents", []):
+                name = obj["Key"].rsplit("/", 1)[-1]
+                if name == MANIFEST and prefix == "payments_bulk":
+                    run_id = re.search(r"run_id=([^/]+)/", obj["Key"]).group(1)
+                    manifests[run_id] = obj["Key"]
+                elif not name.startswith(("_", ".")):
+                    objects.append(
+                        {
+                            "key": obj["Key"],
+                            "bytes": obj["Size"],
+                            "ms": int(obj["LastModified"].timestamp() * 1000),
+                        }
+                    )
+    return objects, manifests
+
+
+def read_ledger(s3, manifest_keys):
+    """run_id -> the parsed _manifest.json."""
     return {
-        "name": "bulk_run_counts",
-        "severity": "error",
-        "about": f"payments_bulk/run_id={run_id}/ holds exactly the generator's per-dt counts",
-        "sql": f"""
-WITH expected AS ({expected}),
-actual AS (
-    SELECT regexp_extract("$path", 'dt=([0-9-]{{10}})', 1) AS dt, count(*) AS n
-    FROM bronze_payments_bulk
-    WHERE "$path" LIKE '%/run_id={run_id}/%'
-    GROUP BY 1
-)
-SELECT count_if(coalesce(e.n, -1) <> coalesce(a.n, -1)) AS violations,
-       cast(coalesce(sum(a.n), 0) AS varchar) || ' written, '
-       || cast(coalesce(sum(e.n), 0) AS varchar) || ' in the manifest' AS detail
-FROM expected e FULL OUTER JOIN actual a ON e.dt = a.dt""",
+        run_id: json.loads(s3.get_object(Bucket=BRONZE_BUCKET, Key=key)["Body"].read())
+        for run_id, key in sorted(manifest_keys.items())
     }
 
 
-def run_suite(session=None, generator_run_id=None, generator_manifest=None):
+def bulk_files(objects):
+    """(run_id, dt) -> {"objects", "bytes"} from the listing."""
+    files = {}
+    for obj in objects:
+        m = re.match(rf"{BULK_PREFIX}run_id=([^/]+)/dt=([0-9-]{{10}})/", obj["key"])
+        if m:
+            entry = files.setdefault(m.groups(), {"objects": 0, "bytes": 0})
+            entry["objects"] += 1
+            entry["bytes"] += obj["bytes"]
+    return files
+
+
+def ledger_integrity(ledger, files, generator_run_id=None, generator_manifest=None):
+    """Every run's dt= directories match its manifest's files and bytes."""
+    problems = []
+    for run_id, manifest in ledger.items():
+        listed = {dt: v for (run, dt), v in files.items() if run == run_id}
+        for dt in sorted(set(manifest["per_dt"]) | set(listed)):
+            want = manifest["per_dt"].get(dt)
+            have = listed.get(dt)
+            if not want or not have:
+                problems.append(f"{run_id} dt={dt} {'not in manifest' if have else 'missing'}")
+            elif (want["objects"], want["bytes"]) != (have["objects"], have["bytes"]):
+                problems.append(
+                    f"{run_id} dt={dt} {have['objects']} files/{have['bytes']} B, "
+                    f"manifest {want['objects']}/{want['bytes']}"
+                )
+    if generator_run_id and generator_manifest:
+        stored = ledger.get(generator_run_id, {}).get("per_dt", {})
+        logged = {dt: int(n) for dt, n in generator_manifest.items()}
+        if {dt: v["events"] for dt, v in stored.items()} != logged:
+            problems.append(f"{generator_run_id}: _manifest.json differs from the generator log")
+    events = sum(m["events"] for m in ledger.values())
+    detail = f"{len(ledger)} runs, {events} events" + (
+        "; " + "; ".join(problems[:3]) if problems else ", files and bytes match"
+    )
+    return {"violations": len(problems), "detail": detail}
+
+
+def runs_without_manifest(ledger, files):
+    """Bulk data under a run_id= with no _manifest.json (an unfinished run)."""
+    orphans = sorted({run for run, _ in files} - set(ledger))
+    return {
+        "violations": len(orphans),
+        "detail": ("runs " + ", ".join(orphans)) if orphans else "every run has a manifest",
+    }
+
+
+def ledger_checks(ledger, objects):
+    """The bronze total and catch-up checks, from the ledger and the listing."""
+    ledger_events = sum(m["events"] for m in ledger.values())
+    file_ms = ", ".join(str(o["ms"]) for o in objects) or ""
+    return [
+        {
+            "name": "bronze_to_silver_count",
+            "severity": "error",
+            "about": "silver holds exactly as many events as bronze: the bulk manifests plus "
+            "the Lambda's payments/ (no bronze key repeats, so the job's dedup removes nothing)",
+            "sql": f"""
+WITH raw AS (
+    SELECT count(*) AS n FROM bronze_payments_raw
+    CROSS JOIN UNNEST(CAST(json_parse(line) AS ARRAY(JSON))) AS t (e)
+)
+SELECT abs({ledger_events} + r.n - s.n) AS violations,
+       'bronze ' || cast({ledger_events} + r.n AS varchar) || ' (manifests {ledger_events}, '
+       || 'payments/ ' || cast(r.n AS varchar) || '), silver ' || cast(s.n AS varchar) AS detail
+FROM raw r, (SELECT count(*) AS n FROM payments_events) s""",
+        },
+        {
+            "name": "silver_caught_up",
+            "severity": "error",
+            "about": "no bronze object is newer than the bronze watermark in silver's snapshots "
+            "(the incremental job missed nothing); object times from an S3 listing",
+            "sql": f"""
+WITH watermark AS (
+    SELECT max(CAST(summary['cerberus.bronze_watermark'] AS bigint)) AS ms
+    FROM "payments_events$snapshots"
+),
+files AS (SELECT ms FROM UNNEST(CAST(ARRAY[{file_ms}] AS ARRAY(BIGINT))) AS t (ms))
+SELECT count_if(f.ms > coalesce(w.ms, -1)) AS violations,
+       cast(count(*) AS varchar) || ' bronze files, watermark '
+       || coalesce(cast(from_unixtime(arbitrary(w.ms) / 1000) AS varchar), 'none') AS detail
+FROM files f CROSS JOIN watermark w""",
+        },
+        {
+            "name": "lambda_keys_in_silver",
+            "severity": "error",
+            "about": "every payments/ (transaction_id, event_type) is in silver",
+            "sql": """
+WITH b AS (
+    SELECT DISTINCT
+        json_extract_scalar(e, '$.transaction_id') AS transaction_id,
+        json_extract_scalar(e, '$.event_type') AS event_type
+    FROM bronze_payments_raw
+    CROSS JOIN UNNEST(CAST(json_parse(line) AS ARRAY(JSON))) AS t (e)
+),
+s AS (SELECT DISTINCT transaction_id, event_type FROM payments_events)
+SELECT count_if(s.transaction_id IS NULL) AS violations,
+       cast(count(*) AS varchar) || ' payments/ keys, '
+       || cast(count_if(s.transaction_id IS NULL) AS varchar) || ' not in silver' AS detail
+FROM b LEFT JOIN s ON b.transaction_id = s.transaction_id AND b.event_type = s.event_type""",
+        },
+    ]
+
+
+def new_run_checks(run_id, manifest):
+    """The one full check of a new generator run: one query per dt, each
+    reading only run_id=<id>/dt=<dt>/ and one day of silver."""
+    if manifest is None:
+        return [
+            {
+                "name": "new_run",
+                "severity": "error",
+                "about": f"payments_bulk/run_id={run_id}/ checked against its manifest",
+                "result": {"violations": 1, "detail": "no _manifest.json for this run"},
+            }
+        ]
+    checks = []
+    for dt, want in sorted(manifest["per_dt"].items()):
+        checks.append(
+            {
+                "name": f"new_run[dt={dt}]",
+                "severity": "error",
+                "about": f"payments_bulk/run_id={run_id}/dt={dt}/: the manifest's event count, "
+                "no duplicate keys, every key in silver",
+                "sql": f"""
+WITH s AS (
+    SELECT DISTINCT transaction_id, event_type FROM payments_events
+    WHERE event_timestamp >= TIMESTAMP '{dt} 00:00:00'
+      AND event_timestamp < TIMESTAMP '{dt} 00:00:00' + INTERVAL '1' DAY
+),
+t AS (
+    SELECT count(*) AS n,
+           count(DISTINCT b.transaction_id || ':' || b.event_type) AS k,
+           count_if(s.transaction_id IS NULL) AS m
+    FROM bronze_payments_bulk_by_run b
+    LEFT JOIN s ON b.transaction_id = s.transaction_id AND b.event_type = s.event_type
+    WHERE b.run_id = '{run_id}' AND b.dt = '{dt}'
+)
+SELECT abs(n - {int(want["events"])}) + (n - k) + m AS violations,
+       cast(n AS varchar) || ' events (manifest {int(want["events"])}), '
+       || cast(n - k AS varchar) || ' duplicated, ' || cast(m AS varchar) || ' not in silver'
+       AS detail
+FROM t""",
+            }
+        )
+    return checks
+
+
+def run_suite(session=None, generator_run_id=None, generator_manifest=None, full=False):
     session = session or boto3.Session(profile_name=QUERY_PROFILE, region_name=REGION)
     athena = session.client("athena")
-    checks = list(CHECKS)
-    if generator_run_id and generator_manifest:
-        checks.append(bulk_run_check(generator_run_id, generator_manifest))
-
+    s3 = session.client("s3")
     started = time.time()
+
+    # The ledger: a listing and the manifests, a few S3 calls. If it can't be
+    # read, the checks built on it fail -- the suite fails closed.
+    try:
+        objects, manifest_keys = list_bronze(s3)
+        ledger = read_ledger(s3, manifest_keys)
+        files = bulk_files(objects)
+        checks = [
+            {
+                "name": "bulk_ledger_integrity",
+                "severity": "error",
+                "about": "every generator run's files and bytes match its _manifest.json",
+                "result": ledger_integrity(ledger, files, generator_run_id, generator_manifest),
+            },
+            {
+                "name": "bulk_runs_without_manifest",
+                "severity": "error",
+                "about": "no payments_bulk/ run has data but no _manifest.json",
+                "result": runs_without_manifest(ledger, files),
+            },
+        ] + ledger_checks(ledger, objects)
+        if generator_run_id:
+            checks += new_run_checks(generator_run_id, ledger.get(generator_run_id))
+    except Exception as exc:  # noqa: BLE001 -- any ledger failure fails the suite
+        ledger = {}
+        checks = [
+            {
+                "name": "bronze_ledger",
+                "severity": "error",
+                "about": "the bronze listing and manifests the ledger checks are built on",
+                "result": {"violations": None, "detail": f"unreadable: {exc}"[:300]},
+            }
+        ]
+    checks += [dict(c) for c in CHECKS] + ([dict(c) for c in FULL_CHECKS] if full else [])
+
     for check in checks:
+        if "sql" not in check:
+            continue
         check["query_id"] = athena.start_query_execution(
             QueryString=check["sql"],
             WorkGroup=WORKGROUP,
@@ -348,7 +540,13 @@ def run_suite(session=None, generator_run_id=None, generator_manifest=None):
         )["QueryExecutionId"]
 
     results, scanned = [], 0
-    pending = list(checks)
+    for check in checks:
+        if "result" in check:
+            result = {"name": check["name"], "severity": check["severity"], "about": check["about"]}
+            violations = check["result"]["violations"]
+            result.update(check["result"], passed=violations == 0)
+            results.append(result)
+    pending = [check for check in checks if "sql" in check]
     while pending:
         time.sleep(1)
         for check in list(pending):
@@ -386,6 +584,12 @@ def run_suite(session=None, generator_run_id=None, generator_manifest=None):
         "bytes_scanned": scanned,
         "seconds": round(time.time() - started, 1),
         "silver_sources": list(SILVER_SOURCES),
+        "mode": "full" if full else "ledger",
+        "ledger": {
+            "runs": len(ledger),
+            "events": sum(m["events"] for m in ledger.values()),
+            "new_run": generator_run_id,
+        },
     }
 
 
@@ -410,10 +614,18 @@ def main():
         metavar="dt=COUNT",
         help="the generator's per-dt counts, as printed in its [generate] lines",
     )
+    parser.add_argument(
+        "--full",
+        action="store_true",
+        help="also re-check every bronze key and duplicate (about 49 GB at 19M events) -- "
+        "before a milestone, not every run",
+    )
     parser.add_argument("--json", action="store_true", help="print the result as JSON")
     args = parser.parse_args()
     manifest = dict(item.split("=", 1) for item in args.generator_manifest)
-    suite = run_suite(generator_run_id=args.generator_run_id, generator_manifest=manifest)
+    suite = run_suite(
+        generator_run_id=args.generator_run_id, generator_manifest=manifest, full=args.full
+    )
     if args.json:
         print(json.dumps(suite, indent=2))
     else:

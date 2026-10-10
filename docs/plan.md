@@ -548,6 +548,32 @@ _Proposed 2026-10-08, from 8.6's bucketing test._
 - **Its own unit of work:** every Spark dependency changes at once, so it
   is planned and tested on its own, not mixed into a scale step.
 
+### Value-level reconciliation (a row checksum) for the data-quality suite
+
+_Proposed 2026-10-09, from 8.6's ledger design. A follow-up after Phase 8._
+
+- **The gap:** the suite reconciles bronze and silver by **keys** --
+  counts, key presence, uniqueness. A silver row whose `amount`,
+  timestamp, currency or party fields changed, but whose
+  `(transaction_id, event_type)` key stayed the same, passes every check.
+  This is not new with 8.6's ledger: the whole-bronze checks before it
+  never compared values either. `amount_range_and_stability` covers only
+  part of it.
+- **Plan:** a checksum per row, computed the same way on both sides --
+  for example `xxhash64` over the canonical value columns (amount as a
+  fixed-scale decimal, timestamps in UTC milliseconds, nested parties
+  flattened in a fixed order) -- then compared per key, or summed per
+  `(run_id, dt)` and per day of silver so a mismatch is found cheaply and
+  then narrowed down. In the suite's `--full` audit, since it reads all of
+  bronze; possibly also in the one-time check of each new generator run,
+  which already reads that run.
+- **Questions for its design:** a canonical form both Spark-written JSON
+  and the Lambda's JSON produce identically; whether the generator should
+  write per-dt checksums into `_manifest.json` so new runs need no extra
+  scan; how a mismatch is reported (count plus a few example keys).
+- **Fits with:** Phase 9, where data-quality results become dashboard
+  metrics and alerts.
+
 ## Existing infrastructure
 
 Live AWS resources, all created by hand during Phase 0 and reused from Phase 1
