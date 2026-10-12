@@ -7,7 +7,7 @@ set -euo pipefail
 # costs money.
 #
 #   orchestration/exercise.sh [--yes] [--generate EVENTS] [--executor-nodes N]
-#                             [--name PREFIX] [--keep]
+#                             [--interrupt-spot] [--name PREFIX] [--keep]
 #   orchestration/exercise.sh --check
 #
 #   --check           preflight only: identity, empty dev-compute state, no
@@ -20,6 +20,12 @@ set -euo pipefail
 #                     1): 4 vCPU / 16 GiB each, four 1-core executors per
 #                     node. Ready before the run; Cluster Autoscaler can add
 #                     more, never fewer.
+#   --interrupt-spot  8.8 step 4: once the silver job has 2 executors
+#                     running, start the FIS experiment that interrupts one
+#                     Spot executor node (terraform/modules/
+#                     spot_interruption_test). The job must still succeed
+#                     and data quality must still pass. FIS bills about
+#                     $0.10 per action-minute.
 #   --name PREFIX     execution name prefix (default: exercise).
 #   --keep            skip the destroy. For a debugging session only; the
 #                     cluster costs about $0.40/hour until
@@ -61,6 +67,7 @@ TF="${TF_BIN:-terraform}"
 FLUSH_SECONDS="${FLUSH_SECONDS:-60}"
 
 YES=false CHECK=false KEEP=false GENERATE="" PREFIX="exercise" EXECUTOR_NODES=1
+INTERRUPT_SPOT=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --yes) YES=true ;;
@@ -68,6 +75,7 @@ while [[ $# -gt 0 ]]; do
     --keep) KEEP=true ;;
     --generate) GENERATE="$2"; shift ;;
     --executor-nodes) EXECUTOR_NODES="$2"; shift ;;
+    --interrupt-spot) INTERRUPT_SPOT=true ;;
     --name) PREFIX="$2"; shift ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
@@ -189,6 +197,10 @@ capture_spark_logs() {
   mkdir -p "$dir"
   kubectl get sparkapplications -n spark-jobs -o yaml >"$dir/sparkapplications.yaml" 2>&1 || true
   kubectl get events -n spark-jobs --sort-by=.lastTimestamp -o wide >"$dir/events-spark-jobs.txt" 2>&1 || true
+  # Node events (cordon, drain, scale-up/down) live outside spark-jobs.
+  kubectl get events -A --sort-by=.lastTimestamp -o wide >"$dir/events-all.txt" 2>&1 || true
+  kubectl get nodes -L eks.amazonaws.com/capacityType,node.kubernetes.io/instance-type \
+    >"$dir/nodes.txt" 2>&1 || true
   for pod in $(kubectl get pods -n spark-operator -o name 2>/dev/null || true); do
     kubectl logs -n spark-operator "$pod" --all-containers --timestamps \
       >"$dir/operator-${pod#pod/}.log" 2>&1 || true
@@ -254,10 +266,50 @@ if [[ -n "$GENERATE" ]]; then
   log "generator took $((SECONDS - gen_start))s (run_id $run_id)"
 fi
 
+# 8.8 step 4: runs in the background next to the execution. Waits for the
+# silver job's executors, so the interruption lands mid-job, not during the
+# generator or dbt. Best-effort: a failure here is logged, never fatal --
+# the execution's own result is what the test checks.
+interrupt_spot() {
+  local template deadline experiment state instance
+  template="$(tf output -raw spot_interruption_template_id)" || {
+    log "spot interruption: no template in dev-compute's outputs -- not started"; return 0; }
+  deadline=$((SECONDS + 1200))
+  until [[ "$(kubectl get pods -n spark-jobs \
+      -l spark-app-name=cerberus-promote-payments,spark-role=executor \
+      --field-selector=status.phase=Running --no-headers 2>/dev/null | wc -l)" -ge 2 ]]; do
+    if (( SECONDS > deadline )); then
+      log "spot interruption: the silver job's executors never ran -- not started"; return 0
+    fi
+    sleep 5
+  done
+  experiment="$(aws_ fis start-experiment --experiment-template-id "$template" \
+    --tags "Project=cerberus-platform,Execution=$EXECUTION_NAME" \
+    --query experiment.id --output text)" || {
+    log "spot interruption: start-experiment failed"; return 0; }
+  log "spot interruption: experiment $experiment started"
+  kubectl get pods -n spark-jobs -o wide --no-headers 2>/dev/null \
+    | awk '{print "  pod " $1 " " $3 " on " $7}' || true
+  state="pending"
+  while [[ "$state" =~ ^(pending|initiating|running)$ ]]; do
+    sleep 15
+    state="$(aws_ fis get-experiment --id "$experiment" --query experiment.state.status \
+      --output text)" || state="unknown"
+  done
+  instance="$(aws_ fis list-experiment-resolved-targets --experiment-id "$experiment" \
+    --query 'resolvedTargets[0].targetInformation' --output json 2>/dev/null | tr -d ' \n' || echo "?")"
+  log "spot interruption: experiment $experiment $state (instance $instance)"
+}
+
 log "starting execution $EXECUTION_NAME"
 run_start=$SECONDS
 execution_arn="$(aws_ stepfunctions start-execution --state-machine-arn "$STATE_MACHINE" \
   --name "$EXECUTION_NAME" --query executionArn --output text)"
+interrupt_pid=""
+if [[ "$INTERRUPT_SPOT" == true ]]; then
+  interrupt_spot &
+  interrupt_pid=$!
+fi
 status="RUNNING"
 while [[ "$status" == "RUNNING" ]]; do
   sleep 15
@@ -265,6 +317,12 @@ while [[ "$status" == "RUNNING" ]]; do
     --query status --output text)"
 done
 log "execution $status after $((SECONDS - run_start))s"
+if [[ -n "$interrupt_pid" ]]; then
+  # Normally long finished; if the job never reached its executors, stop
+  # the waiter rather than hold the teardown.
+  kill "$interrupt_pid" 2>/dev/null || true
+  wait "$interrupt_pid" 2>/dev/null || true
+fi
 capture_spark_logs
 
 log "collecting metrics"

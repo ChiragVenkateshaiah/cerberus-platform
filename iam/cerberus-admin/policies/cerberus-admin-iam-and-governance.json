@@ -47,7 +47,8 @@
             "ecs-tasks.amazonaws.com",
             "states.amazonaws.com",
             "scheduler.amazonaws.com",
-            "eks.amazonaws.com"
+            "eks.amazonaws.com",
+            "fis.amazonaws.com"
           ]
         }
       }
