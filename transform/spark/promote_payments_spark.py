@@ -316,6 +316,16 @@ def flatten(df, loaded_at):
 
 
 def latest_snapshot(spark, table):
+    # Both 10M runs (8.6) logged the snapshot from BEFORE their own append:
+    # exercise-20261009T074853Z printed the previous run's compaction
+    # snapshot, and exercise-20261009T101830Z printed "silver now 10081387"
+    # after an append that took silver to 19087262. The 1M runs logged
+    # correctly, and the local Hadoop catalog doesn't reproduce it, so it
+    # looks like the Glue catalog's cached table going stale. REFRESH TABLE
+    # drops that cache entry; the next 10M run confirms the fix. Logging
+    # only -- the data, the watermark commit and the run records (Athena)
+    # were correct.
+    spark.sql(f"REFRESH TABLE {table}")
     return spark.sql(
         f"SELECT snapshot_id, summary['added-records'] AS added, "
         f"summary['total-records'] AS total, summary['{WATERMARK}'] AS watermark "

@@ -153,6 +153,88 @@ stand as the baseline without a new exercise.
   with `tag_specifications`) belongs with the node group changes in
   8.7/8.8.
 
+## 8.6 at 10M: what the measurements show
+
+Four timed exercises on 2026-10-08 and 2026-10-09, each changing one thing.
+Driver logs, Spark stage timings and Iceberg metadata, not estimates.
+
+### Fixed overhead first
+
+| Change | Run | RunTransform | Effect |
+|---|---|---|---|
+| none (baseline, 1M silver, 6k new events) | `exercise-20261008T160759Z` | 178.3 s | -- |
+| Spark image pre-pulled by a DaemonSet (#76) | `exercise-20261009T062108Z` | 159.0 s | **-19.3 s**; driver and executor log "already present on machine" |
+
+The ECS Fargate wrapper around the job costs a fixed ~50 s per run (25 s to
+start, 25 s to stop) in every run measured; ADR 0019 keeps it, with stated
+triggers to replace it.
+
+### The 10M pair: executor sizing
+
+| | Before (`exercise-20261009T074853Z`) | After (`exercise-20261009T101830Z`) |
+|---|---|---|
+| Executors | 1 x 1 core x 1 GB | 2 x 1 core x 2 GB (#77) |
+| New events | 9,005,590 | 9,005,875 |
+| Silver read by the anti-join | ~1.1M rows | ~10.1M rows |
+| **RunTransform** | 323.3 s | **241.6 s (-25%)** |
+| Run cost | $0.137 | $0.175 |
+| Cost per million events | $0.02 | $0.02 |
+
+The "after" run was faster while its anti-join read a silver table twice as
+large. Its RunDbt failed for an unrelated reason (below), so it has no clean
+RunDbt number.
+
+### Where the 10M "after" run's Spark time went
+
+About 2 minutes of data work inside the 242 s step:
+
+| Stage | Tasks | Wall time | Work |
+|---|---|---|---|
+| 2 | 34 | 58.7 s | read 4.4 GB of bronze JSON, flatten, de-duplicate (map side) |
+| 3 | 20 | 71.9 s (in parallel with 2) | read silver's keys for the anti-join |
+| 6 | 30 | 25.7 s | the shuffle: de-duplication and the anti-join |
+| 10 | 8 | 14.8 s | the Iceberg write, one task per event day |
+
+What that says about the four 8.6 levers:
+
+- **Partition sizing:** the read splits 4.4 GB into 34 tasks (128 MB
+  input splits) for 2 task slots, so slots, not splits, are the limit.
+  Stage 2 is 117 s of task time on 2 cores: JSON parsing is CPU-bound.
+- **AQE:** already on (Spark 3.5's default). The shuffle ran 30 tasks
+  instead of the default 200 -- AQE coalescing small partitions. Nothing
+  to switch on.
+- **Skew:** mild, and from the data's shape rather than hot keys. Task
+  times vary about 2x (event days hold 0.5M to 1.3M events); no task waits
+  on a straggler, and the anti-join is not skew-bound.
+- **Compaction:** not needed yet. Silver holds 19,087,262 rows in 54 files
+  (1.23 GB) over 35 days; the busy days have 3 files of 50-60 MB, and the
+  maintenance step correctly compacted nothing (`min-input-files` 5).
+
+So 8.6 found no setting worth changing at 10M: the job is CPU-bound on two
+cores. The next lever is more cores -- the autoscaler, Spot and dynamic
+allocation in 8.7/8.8 -- not configuration. Day pruning for the anti-join
+(written on 2026-10-08) ships with the next runner-image rebuild; with
+every batch spanning the same 7-8 days it saves little until the
+realistic time spread (Planned later work, docs/plan.md).
+
+### What 10M broke outside Spark
+
+- **Athena's 1 GiB per-query cutoff**, set as a guardrail in Phase 1,
+  stopped two things in turn: five data-quality checks
+  (`CANCELLED: Bytes scanned limit was exceeded`, run 1) and dbt's
+  incremental `fct_transactions` merge (run 2, all three attempts; gold
+  2,955,241 transactions behind until a manual `dbt build` caught it up
+  exactly). The suite moved to its own workgroup (#81) and the shared
+  cutoff went to 10 GiB (#83).
+- **The data-quality suite's cost:** re-reading all of bronze cost 49 GB
+  per run at 19M events. It now checks bronze as a manifest ledger (#85,
+  ADR 0018 amendment): 8.1 GB per run, 12.5 GB with a new 10M run, with a
+  `--full` audit (25.1 GB) before milestones.
+- **A stale log line:** both 10M runs' "appended ... (silver now ...)" line
+  printed the snapshot from before their own append (the Glue catalog's
+  cached table); the data and the run records were right. A
+  `REFRESH TABLE` before the read is the fix, confirmed on the next 10M run.
+
 ## Data-quality suite
 
 Added in 8.4. [`observability/scale/data_quality.py`](../observability/scale/data_quality.py)
