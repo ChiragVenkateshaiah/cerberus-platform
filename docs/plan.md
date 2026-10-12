@@ -353,14 +353,28 @@ _Added 2026-10-09, to follow Phase 8 directly._
   free tier. The ADR also decides dashboard tooling (provisioned JSON as
   in 7.7, or Grafonnet/Jsonnet) and whether the exporter uses the
   OpenTelemetry metrics SDK.
+- **Known gap it also closes -- lineage on exercise runs (found
+  2026-10-12):** the OpenLineage collector's route is unauthenticated only
+  while `pipeline_active = true` (7.5 narrowed ADR 0013's open ingress to
+  exercise windows). Since 8.3, `make exercise` starts executions by hand
+  and leaves `pipeline_active = false`, so every exercise since
+  2026-10-07 posted its lineage to a closed route: dbt-ol logged 348
+  `403 Forbidden` responses (2026-10-07 to 10-09) and the runs finished
+  normally with no lineage. Run status and lineage answer the same
+  question -- what did the last run do -- so this phase decides how a
+  hand-started exercise reaches the collector: opening the route for the
+  exercise's own window, signing the producers' requests (SigV4, which
+  dbt-ol and the Spark listener don't do out of the box), or moving
+  lineage behind the same status stack.
 - **Out of scope:** log aggregation (Loki) -- the exercise already saves
   the Spark logs; a Go rewrite of the exporter or the terminal view --
   `cerberusctl status` belongs to Phase 11.
 - **Done when:** after a successful run and a deliberately failed one,
   the dashboard and `make status` show each run's status, failed step,
   step timings, events and data-quality result; the failed run fires an
-  alert; the alert rules pass `promtool test rules` in CI; and the stack
-  costs $0 when idle.
+  alert; the alert rules pass `promtool test rules` in CI; a hand-started
+  exercise's lineage reaches the collector; and the stack costs $0 when
+  idle.
 - **Artifact:** a short video of the dashboard and terminal view across
   one passing and one failing run, the ADR, and Well-Architected
   milestone 9.
