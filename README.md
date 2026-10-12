@@ -104,6 +104,19 @@ incremental processing: each run reads only new bronze files, once, and
 gold merges only the transactions that changed. At about 1M events the
 orchestrated run appended 6,094 new events, merged exactly 2,000 gold rows
 and finished in 340 s, faster than the 39k-event full-rebuild baseline.
+8.6 took the pipeline to 10M new events per run and measured each change
+alone: pre-pulling the Spark image cut 19 s, and two 2 GB executors cut the
+transform step by 25% at 10M ($0.02 per million events); the job is now
+CPU-bound, with no Spark setting left worth changing. 10M also outgrew two
+guardrails, so Athena's per-query limits were raised and the data-quality
+suite now checks bronze as a ledger of per-run manifests, cutting its scan
+from 49 GB to 8 GB per run
+([ADR 0018](docs/adr/0018-bulk-bronze-json-lines.md), amended).
+[ADR 0019](docs/adr/0019-spark-submission-ecs-wrapper-vs-native-eks.md)
+keeps the ECS wrapper around the Spark job, and
+[ADR 0020](docs/adr/0020-dev-compute-node-autoscaling-and-spot.md) (8.7)
+gives `dev-compute` an On-Demand system node group, a Spot executor group
+and Cluster Autoscaler for the 100M step.
 
 ⬜ Phase 9 (pipeline status & alerting) — planned. A Prometheus exporter
 for the batch pipeline, Grafana dashboards and alert rules as code, SLO
@@ -259,7 +272,8 @@ constraints behind this diagram, see
 │                         #   provisioned into the EKS Grafana (7.7);
 │                         #   scale/ -- the Phase 8 metric collector, its
 │                         #   per-run records (8.3) and the cross-layer
-│                         #   data-quality suite (8.4)
+│                         #   data-quality suite (8.4; manifest-ledger
+│                         #   mode and backfill_bulk_manifests.py, 8.6)
 ├── lineage/              # collector/handler.py -- the OpenLineage event
 │                         #   collector Lambda behind an API Gateway HTTP
 │                         #   API, writing events to S3 (6.4b, ADR 0013);
@@ -321,8 +335,8 @@ git config pull.rebase true
   how every caller authenticates, and the residual risks accepted on purpose
 - [docs/scale-metrics.md](docs/scale-metrics.md) — the Phase 8 metric set
   (8.3): what each scale step measures, where every number comes from, the
-  cost method, the baseline at today's volume, and the data-quality suite
-  (8.4)
+  cost method, the baseline at today's volume, the data-quality suite
+  (8.4), and 8.6's measured results at 10M events
 - [docs/adr/](docs/adr/) — architecture decision records
 - [docs/courses-map-to-phases.md](docs/courses-map-to-phases.md) — which
   courses (if any) map to each phase, and where no course exists

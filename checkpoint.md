@@ -120,53 +120,73 @@ million events per step. $20/month, six weeks from 2026-10-06.
     `Makefile` defaults `AWS_PROFILE` to `cerberus-admin` (#68); the
     collector flags a partly posted Cost Explorer day (#63).
 
-- **8.6** — 🔨 in progress (2026-10-08, second session): measured before
-  changing anything. Of RunTransform's 178 s, data work is 28 s and
-  maintenance 10 s; the rest is fixed overhead (ECS task start/stop ~50 s,
-  Spark image pulls on fresh nodes ~20 s, Ivy ~8 s, JVM/executor start-up,
-  catalog + listing 16 s). The anti-join was tuned locally: day pruning
-  kept (branch `phase-8-6-prune-anti-join`, small gain on today's data);
-  broadcast, bucketing/SPJ and a hash-key join measured and rejected.
-  `make exercise` now saves the Spark operator/driver logs (#74).
+- **8.6** — 10M events, done 2026-10-12 (PRs #76–#88): measured, one
+  change at a time.
+  - **Spark image pre-pull** (DaemonSet, #76): RunTransform 178.3 → 159.0 s
+    (−19.3 s); both pods "already present on machine".
+  - **10M pair**, 9.0M new events each: one 1 GB executor → two 2 GB
+    executors (#77): RunTransform **323.3 → 241.6 s (−25%)** while the
+    anti-join read a silver table twice as large. $0.02 per million events.
+  - **The four levers:** no setting worth changing. The job is CPU-bound on
+    two cores (JSON parse); AQE is already on (shuffle 200 → 30 tasks);
+    skew is mild (day sizes); silver is 54 files / 1.23 GB for 19M rows, so
+    nothing to compact. Day-pruned anti-join merged (#88). Write-up:
+    docs/scale-metrics.md, "8.6 at 10M".
+  - **What 10M broke outside Spark:** Athena's 1 GiB cutoff stopped five
+    data-quality checks, then dbt's `fct_transactions` merge (gold caught up
+    with one manual `dbt build`, exactly 2,955,241 rows). The suite got its
+    own workgroup `cerberus_platform_dq` (#81, root policy change); the
+    shared cutoff went to 10 GiB (#83). The suite now checks bronze as a
+    **manifest ledger** (#85, ADR 0018 amendment): 49.2 → 8.1 GB per run,
+    `--full` audit for milestones.
+  - **ADR 0019 Accepted:** keep the ECS wrapper (fixed ~50 s, 15–32% of
+    RunTransform, shrinking with scale); four triggers to revisit.
+- **8.7** — ADR 0020 **Accepted** (2026-10-12, #91): an On-Demand `system`
+  node group (operator, monitoring, the Spark driver), a tainted Spot
+  `executors` group from min 0 sized per exercise, Cluster Autoscaler, and
+  launch templates that tag instances. Karpenter not chosen (its nodes live
+  outside Terraform state, which breaks the destroy-leaves-nothing
+  contract); EKS Auto Mode not chosen (~12% fee, new node model).
 
 ## Next up
 
 Start with `git switch main && git pull`. Run `make exercise` **in your
 own terminal** (a `!` command in Claude Code has no keyboard for the
-`[y/N]` question; there use `make exercise ARGS="--yes"`).
+`[y/N]` question; there use `make exercise ARGS="--yes"`). Applies,
+merges and S3 deletes are blocked in auto mode: save plans with `-out`
+and have the user apply them (see Notes).
 
-1. **Open PRs to review and merge first:**
-   - **#72** — ADR 0002 amendment: serving stays on Athena; Redshift
-     Serverless is pluggable through the Glue catalog (not adopted, for
-     cost and maintenance). Docs only.
-   - **#73** — plan: Phase 9 (Go `cerberusctl`), Phase 10 (Kafka streaming
-     with a Go producer/consumer), and "Planned later work": a realistic
-     time spread for the synthetic data, and Spark 4 / Java 17. Updates
-     `Phases.md`, `docs/plan.md`, `README.md`. Docs only.
-2. **8.6 — cut RunTransform's fixed overhead, in measured steps** (numbers
-   in today's entry):
-   - **Pre-pull the Spark image** while `dev-compute` is created (a small
-     DaemonSet in `eks_observability` or `spark_operator`), so driver and
-     executor don't each pull `apache/spark:3.5.9` (~10 s each) at run
-     time. Expected: ~20 s per run. `dev-compute` only, so no runner-image
-     rebuild.
-   - **ADR first, then maybe build:** submit and watch the Spark job from
-     Step Functions' native EKS integration instead of the ECS Fargate
-     wrapper (~25 s start + ~24 s stop per run, and RunDbt pays the start
-     too). The trade-offs: kubectl/RBAC from Step Functions, the
-     `entrypoint_transform.sh` logic, retries.
-   - The day-pruning branch `phase-8-6-prune-anti-join` joins whichever
-     change next rebuilds the runner image (one `make standing-apply`).
-3. **Then the 10M step:** `make exercise ARGS="--generate 9000000"` —
-   check executor sizing first (2 × 1 core × 2 GB on two m7i-flex.large).
-   Consider the realistic time spread (in #73's plan) before it, so the
-   10M numbers reflect a production-like shape.
-4. **Costs, once days have fully posted:** `--cost-only` for
-   `exercise-20261007T145442Z` and the four 2026-10-08 runs
-   (`…T085728Z`, `…T095905Z`, `…T115807Z`, `…T160759Z`); commit only
-   without the "not fully posted" warning.
-5. **Small follow-ups:** `use_lockfile`; orphaned Hive data
-   (`silver/payments/`, `gold/fct_transactions/`, `gold/dim_*/`).
+1. **8.8 — build ADR 0020, then load it** (in this order):
+   - **Terraform** (`terraform/modules/eks`, `dev-compute`): split the node
+     group into `system` (On-Demand, fixed) and `executors` (Spot, several
+     same-size types, `min 0`, a taint, desired size from a per-exercise
+     variable); launch templates with `tag_specifications`; Cluster
+     Autoscaler (Helm + IRSA, auto-discovery tags). Check whether the 7.3
+     `cerberus-admin` policies cover the new EC2/ASG/launch-template calls
+     before the first apply (expect a root-console update).
+   - **Spark manifests** (both): driver `nodeSelector`
+     `eks.amazonaws.com/capacityType: ON_DEMAND`; executors select `SPOT`
+     and tolerate the taint; the pre-pull DaemonSet tolerates it too. Then
+     dynamic allocation with shuffle tracking, and executor decommissioning
+     (verify on Spark 3.5.9). `promote_payments_spark.py` and
+     `spark-application.yaml` are in the runner image: local apply first.
+   - **First exercise on the new layout** at 1M, no generator: placement,
+     tags (collector can then scope cost by `Project`), scale-down to 0.
+     Confirms #88's `REFRESH TABLE` log fix only on a 10M run.
+   - **Spot interruption test** with AWS FIS
+     (`aws:ec2:send-spot-instance-interruptions`) mid-run; the run and the
+     data-quality suite must pass. FIS permissions likely need root.
+2. **Before the next 10M+ generator run:** per-query bronze scans grow by
+   ~4.4 GB per 10M batch. Ledger mode reads only the new run (fine), but
+   `--full` reads all of bronze in one query and will pass the
+   data-quality workgroup's 10 GiB cutoff after one more 10M batch.
+3. **8.9 — 100M:** executor count from 8.8; the transform's 20-minute poll
+   limit (`entrypoint_transform.sh`) and RunTransform's 2100 s timeout
+   likely need raising; consider the realistic time spread first (plan.md,
+   Planned later work) so pruning and dbt's merge can skip days.
+4. **Costs:** `--cost-only` for any exercise once its day has posted.
+5. **Small follow-ups:** `use_lockfile` (needs a `.tflock` grant for the
+   CI plan role and `init -reconfigure`; its own PR).
 
 **Deadline:** the ingestion Lambda's `RETIRE_ON_OR_AFTER` is
 **2026-10-30** (PR #45). The scale generator does not depend on it, but
@@ -174,25 +194,20 @@ the daily orchestrated path does.
 
 **Carried-over, not blocking (see Notes / blockers):**
 
-- **`build_and_push` CI landmine:** still deferred.
-- **Faker Lambda-layer hash churn:** still cosmetic, still present.
+- **`build_and_push` CI landmine:** still deferred. ADR 0019's "ready
+  alternative" step 5 (Spark script as an `aws_s3_object`) would remove
+  the local rebuild for script changes, and can be done on its own.
+- **Faker Lambda-layer hash churn:** still cosmetic, still present (every
+  local `dev-standing` plan replaces the layer).
+- **Lineage on hand-started exercises:** closed since 2026-10-07 by
+  design (7.5); owned by Phase 9 (plan.md, Phases.md 9.1).
 - **Follow-ups recorded in ADR 0016, not adopted:** private EKS endpoint
-  access, and a Pushgateway.
-- **Lineage page on GitHub Pages** doesn't include the 2026-10-06/07 runs
-  yet: re-render with the `dbt docs (lineage)` workflow's
-  `workflow_dispatch` when wanted.
-- **Well-Architected milestone 8** belongs to 8.11 (it will also cover
-  7.7's Prometheus evidence).
-- **New 2026-10-07:** untagged EKS node instances (8.7/8.8), stale Spark
-  labels on pod-IP reuse (Grafana driver panels), and
-  `RunServingQuery`'s ~55 s Step Functions polling floor (a latency fix
-  for SLO 3, worth only about $0.006 per run).
-- **New 2026-10-08:** the Spark job's poll limit in
-  `entrypoint_transform.sh` is 20 minutes, which the 100M step (8.9) will
-  likely need raised; and the transform task definition still receives
-  OpenLineage env only.
-- **Later phase, recorded in plan.md:** Kafka + Airflow on one start/stop
-  EC2 instance.
+  access (ADR 0019 keeps it possible), and a Pushgateway.
+- **Well-Architected milestone 8** belongs to 8.11.
+- **Value-level reconciliation** (row checksum) for the data-quality
+  suite: a follow-up after Phase 8 (plan.md, Planned later work).
+- **Stale Spark labels on pod-IP reuse** (Grafana driver panels), and
+  `RunServingQuery`'s ~55 s polling floor (SLO 3, worth ~$0.006 a run).
 
 ## Session history
 
@@ -2813,7 +2828,8 @@ partial-cost guard. PRs #63–#70._
 ### 2026-10-08 (second session)
 
 _Discussion and planning, then 8.6 measurements. PRs #71 (closed), #72,
-#73 (open), #74, #75; branch `phase-8-6-prune-anti-join`._
+#73 (merged 2026-10-09), #74, #75; branch `phase-8-6-prune-anti-join`
+(merged via #88)._
 
 - **Serving engine:** the user asked why Redshift isn't in the stack.
   Athena was never formally compared; an interactive explainer of how the
@@ -2855,6 +2871,61 @@ _Discussion and planning, then 8.6 measurements. PRs #71 (closed), #72,
   the `[y/N]` question (no stdin) before any apply.
 - **Cost:** one exercise, about $0.22 (33 cluster-minutes).
 
+### 2026-10-09 to 2026-10-12
+
+_One long session across four days. PRs #72–#91; 8.6 and 8.7 complete._
+
+- **Plan and positioning:** merged #72 (ADR 0002 note: serving stays on
+  Athena) and #73 (Go phases). Added **Phase 9 — Pipeline status &
+  alerting** (#79: exporter, dashboards and alert rules as code, SLO
+  burn-rate alerts, `make status`; a web search of 2026 sources showed
+  OpenTelemetry investment level with Prometheus, so ADR 9.1 should start
+  from OTel instrumentation) and **Phase 10 — Databricks
+  interoperability** (#80: Unity Catalog's AWS Glue federation reads
+  Cerberus's Iceberg gold with no copy, Databricks in Terraform, measured
+  comparison; Free Edition limits and the 14-day trial checked in the
+  Databricks docs). Go moved to Phase 11, streaming to Phase 12. Career
+  positioning discussed: the intersection of platform engineering at
+  Databricks customers and SA/platform roles at Databricks; keep Cerberus
+  on open parts with Databricks as the measured reference, not a
+  replacement. The user plans a short LinkedIn post now and the full
+  article after Phase 8.
+- **8.6 measurements** (details in Current phase and
+  docs/scale-metrics.md): pre-pull DaemonSet (#76, record #78); the first
+  attempt that morning failed on an EKS node-group `InternalFailure`
+  before the pipeline started (torn down cleanly). 10M "before"
+  (`exercise-20261009T074853Z`, #82) and "after"
+  (`exercise-20261009T101830Z`, #84; #77 sizing). Engineering-decision
+  discussion first (measure, size the gain at the scale you'll run, list
+  every job the current design does, reversibility, success criteria).
+- **Athena cutoffs and the data-quality ledger:** #81 (own workgroup,
+  10 GiB, root policy change for `cerberus-admin-analytics`), #83 (shared
+  10 GiB), #85 (ledger: generator writes `run_id=<id>/_manifest.json`
+  last; `bronze_payments_bulk_by_run` with injected partition projection;
+  checks `bulk_ledger_integrity`, `bulk_runs_without_manifest`,
+  `lambda_keys_in_silver`, `new_run[dt=…]`; `--full` /
+  `--dq-full`; `backfill_bulk_manifests.py` wrote the three earlier runs'
+  manifests from verified records). The four gaps the ledger could open
+  were discussed: 1–3 closed, gap 4 (wrong values under correct keys,
+  pre-existing) recorded as a row-checksum follow-up after Phase 8.
+- **ADR 0019** (Accepted, #86/#90) and **ADR 0020** (Accepted, #91).
+  For 0019 the Step Functions EKS docs showed `eks:runJob.sync` polls
+  about once a minute and the integration needs a public endpoint.
+- **8.6 code and write-up** (#88): day-pruned anti-join, `REFRESH TABLE`
+  before the snapshot log line (both 10M runs logged the pre-append
+  snapshot; not reproducible on the local Hadoop catalog), and the 10M
+  write-up. **Costs back-filled** for eight records (#87).
+- **Cleanup:** the orphaned Hive prefixes `silver/payments/` and
+  `gold/fct_transactions/` were purged permanently, all 21,571 versions
+  and delete markers (cold storage would cost more: per-object Glacier
+  overhead and transition fees on ~16 KB files of rebuildable data).
+  Silver, gold and the suite verified intact afterwards.
+- **Lineage gap found:** dbt-ol's 348 `403`s since 2026-10-07 are the 7.5
+  design (route open only while `pipeline_active`); recorded for Phase 9
+  (#89).
+- **Cost:** three exercises on 10-09 ($0.09, $0.14, $0.18 run cost; day
+  total $1.53) plus one failed apply (~$0.20 of cluster time).
+
 ## Notes / blockers
 
 - **Resolved 2026-10-05 (was: open, noted 2026-10-03):** branch
@@ -2875,7 +2946,9 @@ _Discussion and planning, then 8.6 measurements. PRs #71 (closed), #72,
   with `!` (or merge on GitHub), or add allow rules in settings. Saving a
   plan with `-out` to the scratchpad and having the user apply that file
   works well. `simulate-custom-policy`, plans, reads and opening PRs are
-  not blocked.
+  not blocked. On 2026-10-12 `aws s3 rm --recursive` was also blocked
+  ("Cloud Storage Mass Delete"); a dry-run-by-default script the user runs
+  with `--yes` worked.
 - **Saved `dev-compute` plans expire after about 15 minutes (noted
   2026-10-06).** The `kubernetes` and `helm` providers take their token
   from `data.aws_eks_cluster_auth`, and a saved plan carries that token.
@@ -2948,16 +3021,29 @@ _Discussion and planning, then 8.6 measurements. PRs #71 (closed), #72,
   now groups by Spark's `application_name` (#60). The Grafana driver panels
   (`metrics_cerberus_driver_*`) don't separate two apps on one cluster
   either; fix it when two apps first share a dashboard view (8.5+).
-- **Open, for 8.7/8.8 (noted 2026-10-07): EKS node instances are
+- **Open, decided for 8.8 (noted 2026-10-07): EKS node instances are
   untagged.** A managed node group doesn't pass the provider's
   `default_tags` to its instances, so about 40% of an exercise day misses
-  the `Project` tag. The collector scopes cost by region instead. The fix
-  is a launch template with `tag_specifications`.
+  the `Project` tag. The collector scopes cost by region instead. ADR 0020
+  decides the fix: launch templates with `tag_specifications`.
 - **Athena reads unpartitioned tables recursively (confirmed 2026-10-07).**
   `bronze_payments_bulk` points at `payments_bulk/` and returned all
   1,000,029 events from the nested `run_id=/dt=/` objects, skipping
-  `_SUCCESS`. The bulk checks scan the whole JSON every run; a Parquet copy
-  or an Iceberg table is the fix if the cost starts to matter.
+  `_SUCCESS`. Since #85 the suite reads one run at a time through
+  `bronze_payments_bulk_by_run` (injected projection: a query without
+  `run_id` and `dt` is refused); only `--full` still scans everything.
+- **Athena per-query cutoffs (noted 2026-10-09):** `cerberus_platform`
+  (dbt, serving, collector) and `cerberus_platform_dq` (the suite,
+  enforced) are both 10 GiB. A guardrail that was right at 1M events
+  became the bottleneck at 10M, twice; check them before each scale step.
+- **Local dbt needs Python 3.12 (noted 2026-10-10):** uv's default 3.14
+  fails building `mmh3` (a dbt-athena dependency). Use
+  `uv run --python 3.12 --no-project --with dbt-core==1.12.0 --with
+  dbt-athena==1.11.0 dbt build --profiles-dir .` from `transform/dbt`.
+- **Athena SQL limits met (noted 2026-10-10):** `ARRAY[...]` takes at most
+  254 arguments (use `VALUES`); an Iceberg `$files.partition` row can't be
+  cast to `varchar` (use `$partitions` with `json_format(CAST(partition AS
+  json))`). `cerberus-transform` has no `athena:ListQueryExecutions`.
 - **Never re-run an old `terraform apply` run (noted 2026-10-08).** A
   re-run applies that run's own commit; `--status failure` can return a
   days-old run when the latest one was `cancelled`. #65's guard now fails
