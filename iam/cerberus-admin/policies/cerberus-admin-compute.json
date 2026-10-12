@@ -129,6 +129,36 @@
       "Effect": "Allow",
       "Action": "ec2:RunInstances",
       "Resource": "*"
+    },
+    {
+      "Sid": "Fis",
+      "Effect": "Allow",
+      "Action": [
+        "fis:CreateExperimentTemplate",
+        "fis:GetExperimentTemplate",
+        "fis:UpdateExperimentTemplate",
+        "fis:DeleteExperimentTemplate",
+        "fis:StartExperiment",
+        "fis:GetExperiment",
+        "fis:StopExperiment",
+        "fis:ListExperimentResolvedTargets",
+        "fis:TagResource",
+        "fis:UntagResource",
+        "fis:ListTagsForResource"
+      ],
+      "Resource": "arn:aws:fis:us-east-1:131715059025:*"
+    },
+    {
+      "Sid": "FisAccount",
+      "Effect": "Allow",
+      "Action": [
+        "fis:ListExperimentTemplates",
+        "fis:ListExperiments",
+        "fis:ListActions",
+        "fis:GetAction",
+        "fis:GetTargetResourceType"
+      ],
+      "Resource": "*"
     }
   ]
 }

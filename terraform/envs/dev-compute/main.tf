@@ -66,6 +66,15 @@ module "cluster_autoscaler" {
   depends_on = [module.eks]
 }
 
+# 8.8 step 4: the Spot interruption test (FIS). Only a template and its
+# role -- nothing runs until exercise.sh --interrupt-spot starts it.
+module "spot_interruption_test" {
+  source = "../../modules/spot_interruption_test"
+
+  cluster_name             = module.eks.cluster_name
+  executor_node_group_name = module.eks.executor_node_group_name
+}
+
 module "iam_spark" {
   source = "../../modules/iam_spark"
 

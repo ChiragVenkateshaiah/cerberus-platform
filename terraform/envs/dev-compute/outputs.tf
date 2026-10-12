@@ -42,3 +42,8 @@ output "grafana_role_arn" {
   description = "7.7: cerberus-grafana IRSA role ARN, for reference/verification."
   value       = module.eks_observability.grafana_role_arn
 }
+
+output "spot_interruption_template_id" {
+  description = "8.8: FIS experiment template that interrupts one Spot executor node (exercise.sh --interrupt-spot)."
+  value       = module.spot_interruption_test.template_id
+}

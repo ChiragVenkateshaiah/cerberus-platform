@@ -37,3 +37,8 @@ output "executor_taint_key" {
   description = "Taint key on the Spot executor nodes."
   value       = var.executor_taint_key
 }
+
+output "executor_node_group_name" {
+  description = "The Spot executor node group's name -- EKS tags its instances eks:nodegroup-name with it (the FIS Spot interruption test targets that tag)."
+  value       = aws_eks_node_group.executors.node_group_name
+}

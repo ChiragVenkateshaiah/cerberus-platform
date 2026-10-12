@@ -227,7 +227,8 @@ constraints behind this diagram, see
 │   │                     #   lineage (OpenLineage collector), GitHub OIDC,
 │   │                     #   prometheus_workspace (AMP, 7.7),
 │   │                     #   eks_observability (Prometheus agent + Grafana
-│   │                     #   on EKS, 7.7))
+│   │                     #   on EKS, 7.7), cluster_autoscaler (8.8),
+│   │                     #   spot_interruption_test (FIS, 8.8))
 │   ├── envs/dev-standing/  # CI-managed root (5.1): S3/IAM/Glue/Athena/
 │   │                     #   Lambda/orchestration/observability/GitHub OIDC/
 │   │                     #   AMP workspace -- no idle cost, planned on every
