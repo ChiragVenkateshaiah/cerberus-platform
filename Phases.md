@@ -142,7 +142,8 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 
 - [ ] 9.1 ADR: where pipeline status lives while `dev-compute` is down
       (local stack, AMP, or Grafana Cloud free tier), dashboard tooling,
-      no new idle cost
+      no new idle cost, and how hand-started exercises' lineage reaches the
+      collector (closed to them since 2026-10-07)
 - [ ] 9.2 Pipeline status exporter: per-run status, failed step, step
       durations, events, data-quality result, last-success timestamps
 - [ ] 9.3 Grafana pipeline-status dashboard, provisioned as code
