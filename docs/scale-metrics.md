@@ -233,7 +233,74 @@ realistic time spread (Planned later work, docs/plan.md).
 - **A stale log line:** both 10M runs' "appended ... (silver now ...)" line
   printed the snapshot from before their own append (the Glue catalog's
   cached table); the data and the run records were right. A
-  `REFRESH TABLE` before the read is the fix, confirmed on the next 10M run.
+  `REFRESH TABLE` before the read is the fix, confirmed on 2026-10-12
+  (`exercise-20261012T111304Z` logged `silver now 28099699`, the record's
+  exact count, and its watermark moved forward).
+
+## 8.8 under load: autoscaler, Spot and dynamic allocation
+
+Two exercises on 2026-10-12 on ADR 0020's node layout: an On-Demand system
+node for the driver and the add-ons, and a tainted Spot executor group under
+Cluster Autoscaler, sized at 1 node before each run (`--executor-nodes 1`).
+
+| | First run (`exercise-20261012T075045Z`, #92) | Load test (`exercise-20261012T111304Z`, #94) |
+|---|---|---|
+| Executors | 2 fixed (1 core, 2 GB) | dynamic: 2 at start, 1-8 |
+| New events | -- (no generator) | 9,006,333 |
+| Silver before the run | -- | ~19.1M rows |
+| RunTransform | 182 s | 295.7 s |
+| RunDbt | 538.5 s (2 Glue `OperationTimeoutException` retries) | 143.5 s |
+| Data quality | passed | passed (ledger, 16.4 GB, 25.9 s) |
+
+The first run proved the layout: the driver on On-Demand, executors on Spot
+(m7i.xlarge), the pre-pull DaemonSet on both node groups, the instances
+tagged, and a clean teardown.
+
+### The load test, from a 5-second watcher and the driver log
+
+| Time (UTC) | Event |
+|---|---|
+| 11:34:14 | driver starts; 2 executors on the one Spot node |
+| 11:34:55 | backlogged tasks: dynamic allocation asks for 3, then 4, 6, 8 executors |
+| 11:35:01 | 4 executors Running, 4 Pending (the node holds four 1-core executors) |
+| ~11:35:01 | Cluster Autoscaler: `triggered scale-up: executors 1->2 (max: 4)` |
+| 11:35:46 | the new node Ready, the 4 executors creating |
+| 11:36:01 | **8 executors Running** -- ~60 s after the scale-up |
+| 11:37:23 | silver append committed |
+| 11:37:35-52 | idle executors removed after 30 s, each `gracefully decommissioned` (0 unexpectedly exited) |
+| 11:37:58 | driver ends |
+| 11:40-11:41 | the idle second node drained and removed; the planned minimum of 1 kept |
+
+The executor pods carry the `preStop` hook `/opt/decom.sh`, so a Spot node
+that is reclaimed asks its executors to decommission before they stop.
+
+### Why RunTransform was slower than the 10M "after" run
+
+295.7 s against 241.6 s is not a regression; the job did more:
+
+| | 10M "after" (2026-10-09) | Load test |
+|---|---|---|
+| Silver keys read by the anti-join | ~10.1M rows | ~19.1M rows |
+| Watermark to append | 121 s | 150 s |
+| Compaction (`min-input-files` 5) | 0 files | 25 files into 5, ~35 s |
+| Spark time (driver start to end) | 167 s | 224 s |
+
+And for ~60 s of the 150 s main stage only 4 executors ran, waiting on the
+new node. So this run proves the scaling works (scale-up, scale-down,
+graceful decommissioning); it does not measure a speed-up. A same-input
+comparison belongs to 8.9 at 100M, where the extra executors matter most.
+
+### Notes from the load test
+
+- **Data-quality cost grows with silver:** 16.4 GB scanned against 12.5 GB
+  on 2026-10-10. The silver checks read the whole table; 8.9 must allow
+  for it.
+- **A node swap before the job:** at 11:33, after the generator finished, a
+  second Spot node came up and the first one drained, with no job running.
+  Most likely an EKS managed node group Spot capacity rebalance; not
+  confirmed.
+- **Glue timeouts in RunDbt** did not recur (watch item from the first
+  run).
 
 ## Data-quality suite
 
