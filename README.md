@@ -116,7 +116,13 @@ from 49 GB to 8 GB per run
 keeps the ECS wrapper around the Spark job, and
 [ADR 0020](docs/adr/0020-dev-compute-node-autoscaling-and-spot.md) (8.7)
 gives `dev-compute` an On-Demand system node group, a Spot executor group
-and Cluster Autoscaler for the 100M step.
+and Cluster Autoscaler for the 100M step. 8.8 built that layout and loaded
+it: Spark dynamic allocation grew the silver job from 2 to 8 executors as
+Cluster Autoscaler added a Spot node in about a minute, and an AWS FIS
+Spot interruption in the middle of a 9M-event run was absorbed with no
+failure: the executors on the reclaimed node decommissioned gracefully,
+replacement nodes joined, and silver still matched bronze event for event
+(37,105,429). Next is the 100M step (8.9).
 
 ⬜ Phase 9 (pipeline status & alerting) — planned. A Prometheus exporter
 for the batch pipeline, Grafana dashboards and alert rules as code, SLO
@@ -337,7 +343,8 @@ git config pull.rebase true
 - [docs/scale-metrics.md](docs/scale-metrics.md) — the Phase 8 metric set
   (8.3): what each scale step measures, where every number comes from, the
   cost method, the baseline at today's volume, the data-quality suite
-  (8.4), and 8.6's measured results at 10M events
+  (8.4), 8.6's measured results at 10M events, and 8.8's autoscaling,
+  dynamic allocation and Spot interruption tests
 - [docs/adr/](docs/adr/) — architecture decision records
 - [docs/courses-map-to-phases.md](docs/courses-map-to-phases.md) — which
   courses (if any) map to each phase, and where no course exists

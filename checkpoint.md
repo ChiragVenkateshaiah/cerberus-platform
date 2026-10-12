@@ -147,46 +147,73 @@ million events per step. $20/month, six weeks from 2026-10-06.
   launch templates that tag instances. Karpenter not chosen (its nodes live
   outside Terraform state, which breaks the destroy-leaves-nothing
   contract); EKS Auto Mode not chosen (~12% fee, new node model).
+- **8.8** — platform under load, done 2026-10-12 (PRs #92–#96; write-up in
+  docs/scale-metrics.md, "8.8 under load"):
+  - **Node layout (#92):** `system` On-Demand (1 × m7i-flex.large, the
+    driver + add-ons) and a tainted Spot `executors` group (six 4 vCPU /
+    16 GiB types, max 4) under Cluster Autoscaler (chart 9.59.0, IRSA,
+    tag-scoped writes); launch templates tag instances, volumes and ENIs
+    `Project`. Deviation from ADR 0020: executor **min = desired =
+    `--executor-nodes`** (default 1), not min 0, so the planned node is
+    never scaled away. First run (`exercise-20261012T075045Z`): placement
+    and tags right; RunDbt hit two Glue `OperationTimeoutException`
+    retries (not seen again).
+  - **Dynamic allocation + decommissioning (#94):** 1–8 executors (2 at
+    start), shuffle tracking (300 s), idle 30 s, `spark.decommission` +
+    block migration, force-kill 90 s; `preStop /opt/decom.sh` confirmed on
+    the pods. Load test at 9M (`exercise-20261012T111304Z`): 8 executors
+    ~60 s after the autoscaler's 1→2 scale-up, graceful removals, idle node
+    gone ~2–3 min after. RunTransform 295.7 s vs 241.6 s — more work, not a
+    regression (anti-join vs ~19M silver rows, a 25→5 compaction). #88's
+    `REFRESH TABLE` log fix confirmed.
+  - **Spot interruption test (#96):** `terraform/modules/spot_interruption_test`
+    (FIS template + tag-scoped role, dev-compute only) and
+    `exercise.sh --interrupt-spot`. FIS hit the planned node mid-job
+    (`exercise-20261012T133620Z`): EKS drained it in 25 s, 4 executors
+    `gracefully decommissioned` (0 unexpectedly exited), 2 map tasks re-ran,
+    2 nodes back in ~40 s. Run **SUCCEEDED**, data quality **PASSED** (silver
+    = bronze = 37,105,429). Root policy: `Fis`/`FisAccount` +
+    `PassRole` to `fis.amazonaws.com`.
 
 ## Next up
 
-Start with `git switch main && git pull`. Run `make exercise` **in your
-own terminal** (a `!` command in Claude Code has no keyboard for the
-`[y/N]` question; there use `make exercise ARGS="--yes"`). Applies,
-merges and S3 deletes are blocked in auto mode: save plans with `-out`
-and have the user apply them (see Notes).
+**First: PR #97 (8.9 prep) is open as a draft, and its image rebuild is
+not applied yet.** Keep the checkout on `phase-8-9-prep` until it is: the
+saved plan hashes files baked into the image, and switching branches before
+the apply fails it (`filemd5 ... inconsistent result`, seen 2026-10-12). If
+the saved plan `prep89.tfplan` is gone or stale, re-plan from that branch:
+`cd terraform/envs/dev-standing && AWS_PROFILE=cerberus-admin terraform plan -out=<scratchpad>/prep89.tfplan`
+(expect 2 add / 3 change / 2 destroy: the Athena cutoff, the state machine,
+the image, Faker churn), and have the user apply it. Then mark #97 ready,
+merge, `git switch main && git pull`.
 
-1. **8.8 — build ADR 0020, then load it** (in this order):
-   - **Terraform** (`terraform/modules/eks`, `dev-compute`): split the node
-     group into `system` (On-Demand, fixed) and `executors` (Spot, several
-     same-size types, `min 0`, a taint, desired size from a per-exercise
-     variable); launch templates with `tag_specifications`; Cluster
-     Autoscaler (Helm + IRSA, auto-discovery tags). Check whether the 7.3
-     `cerberus-admin` policies cover the new EC2/ASG/launch-template calls
-     before the first apply (expect a root-console update).
-   - **Spark manifests** (both): driver `nodeSelector`
-     `eks.amazonaws.com/capacityType: ON_DEMAND`; executors select `SPOT`
-     and tolerate the taint; the pre-pull DaemonSet tolerates it too. Then
-     dynamic allocation with shuffle tracking, and executor decommissioning
-     (verify on Spark 3.5.9). `promote_payments_spark.py` and
-     `spark-application.yaml` are in the runner image: local apply first.
-   - **First exercise on the new layout** at 1M, no generator: placement,
-     tags (collector can then scope cost by `Project`), scale-down to 0.
-     Confirms #88's `REFRESH TABLE` log fix only on a 10M run.
-   - **Spot interruption test** with AWS FIS
-     (`aws:ec2:send-spot-instance-interruptions`) mid-run; the run and the
-     data-quality suite must pass. FIS permissions likely need root.
-2. **Before the next 10M+ generator run:** per-query bronze scans grow by
-   ~4.4 GB per 10M batch. Ledger mode reads only the new run (fine), but
-   `--full` reads all of bronze in one query and will pass the
-   data-quality workgroup's 10 GiB cutoff after one more 10M batch.
-3. **8.9 — 100M:** executor count from 8.8; the transform's 20-minute poll
-   limit (`entrypoint_transform.sh`) and RunTransform's 2100 s timeout
-   likely need raising; consider the realistic time spread first (plan.md,
-   Planned later work) so pruning and dbt's merge can skip days.
-4. **Costs:** `--cost-only` for any exercise once its day has posted.
+1. **8.9 — 100M** (decided 2026-10-12: keep the 37M rows and land 100M on
+   top; shared Athena cutoff 10 → 25 GiB, in #97). #97 also raises the
+   runner's Spark wait to 60 min, RunTransform to 4500 s / 1 retry, RunDbt
+   to 2700 s, `maxExecutors` to 16, `spark.sql.shuffle.partitions` to 800,
+   executor node disks to 60 GiB gp3, and adds
+   `--generator-executors`. The run (user's OK first, ~$2–3, ~1.5 h):
+   `make exercise ARGS="--yes --generate 100000000 --generator-executors 8 --executor-nodes 2"`.
+   Watch: executor count and Spot nodes (the 8.8 5-second watcher pattern),
+   node disk pressure, the dbt merge's bytes (projected ~12 GiB), the
+   largest data-quality check (projected ~7.6 GiB of the DQ workgroup's
+   10 GiB), RunTransform against the runner's 60-minute bound.
+   Then the write-up: run time, events/s and cost per million events for
+   the 1M, 10M and 100M steps; SLOs under load.
+2. **Data-quality cost grows with silver:** 12.5 → 16.4 → 20.5 GB per run
+   as silver grew 19M → 28M → 37M rows (the silver checks read the whole
+   table). Fine for 8.9; make the silver checks incremental (or partition-
+   pruned by the time spread) before more 100M runs.
+3. **8.10** results write-up + demo video; **8.11** Well-Architected pass +
+   ADR (milestone 8).
+4. **Costs:** `--cost-only` for `exercise-20261012T075045Z`,
+   `exercise-20261012T111304Z` and `exercise-20261012T133620Z` once
+   2026-10-12 has posted.
 5. **Small follow-ups:** `use_lockfile` (needs a `.tflock` grant for the
-   CI plan role and `init -reconfigure`; its own PR).
+   CI plan role and `init -reconfigure`; its own PR); per-check bytes in
+   the data-quality record (today only the total; per-check numbers came
+   from Athena's history, one `GetQueryExecution` each —
+   `BatchGetQueryExecution` is not in `cerberus-admin`'s policy).
 
 **Deadline:** the ingestion Lambda's `RETIRE_ON_OR_AFTER` is
 **2026-10-30** (PR #45). The scale generator does not depend on it, but
@@ -2926,6 +2953,40 @@ _One long session across four days. PRs #72–#91; 8.6 and 8.7 complete._
 - **Cost:** three exercises on 10-09 ($0.09, $0.14, $0.18 run cost; day
   total $1.53) plus one failed apply (~$0.20 of cluster time).
 
+### 2026-10-12 (second session)
+
+_8.8 complete (PRs #92–#96); 8.9 prepared (#97)._
+
+- **8.8 built and tested in four steps** (details in Current phase and
+  docs/scale-metrics.md, "8.8 under load"): ADR 0020's node groups and
+  Cluster Autoscaler (#92, first-run record #93), dynamic allocation and
+  decommissioning (#94), the 9M load test (record #95), and the FIS Spot
+  interruption test with its record (#96). Three exercises, all
+  SUCCEEDED with data quality PASSED; teardown clean each time.
+- **Method:** a 5-second watcher (scratchpad script, not in the repo)
+  recorded executor pods and Spot nodes during the load test; its first
+  version stopped early (it took a not-yet-created namespace for teardown)
+  and was fixed mid-run. `exercise.sh` now saves cluster-wide events and
+  the node list itself (#96), which covered the interruption test.
+- **A Spot node swap with no job running** (11:33 on the load test, after
+  the generator): most likely an EKS Spot capacity rebalance; not
+  confirmed.
+- **8.9 started:** found every limit a 100M run would hit (runner's
+  20-minute Spark wait, Step Functions timeouts, dbt merge bytes vs the
+  10 GiB cutoff, default 20 GiB node disks, `maxExecutors` 8, the
+  generator's 2 executors), from per-query bytes in Athena's history at
+  37M silver rows. **Decision:** keep the 37M rows, land 100M on top, raise
+  the shared cutoff to 25 GiB (not a reset; not the time spread first).
+  All in draft #97; `docs/plan.md`'s known-need bullet carries the status.
+- **Mistakes and fixes:** the first #94 image apply failed because the
+  checkout was switched to `main` after the plan was saved (`filemd5`
+  inconsistent result; the layer churn applied, the image did not) — re-
+  planned from the branch, applied. `make exercise ... -auto-approve` and
+  `... --yes` outside `ARGS="..."` went to `make` itself; `--yes` belongs
+  inside the quotes.
+- **Cost:** gross month-to-date $4.92 on 2026-10-12 (before that day's
+  three exercises posted), against the $20 budget.
+
 ## Notes / blockers
 
 - **Resolved 2026-10-05 (was: open, noted 2026-10-03):** branch
@@ -2949,6 +3010,14 @@ _One long session across four days. PRs #72–#91; 8.6 and 8.7 complete._
   not blocked. On 2026-10-12 `aws s3 rm --recursive` was also blocked
   ("Cloud Storage Mass Delete"); a dry-run-by-default script the user runs
   with `--yes` worked.
+- **Saved `dev-standing` plans that rebuild the runner image are tied to
+  the checkout (noted 2026-10-12).** `build_and_push` hashes
+  `transform/spark/*` and the runner scripts with `filemd5`; switching
+  branches between `plan -out` and `apply` changes those files and the
+  apply stops with "function returned an inconsistent result" after the
+  resources before it have applied. Keep the PR branch checked out until
+  the apply is done. Also on 2026-10-12: `gh pr merge` ran without being
+  blocked in auto mode (PRs #94–#96).
 - **Saved `dev-compute` plans expire after about 15 minutes (noted
   2026-10-06).** The `kubernetes` and `helm` providers take their token
   from `data.aws_eks_cluster_auth`, and a saved plan carries that token.

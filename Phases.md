@@ -130,7 +130,7 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 - [x] 8.6 10M events: Spark tuning (partition sizing, compaction, AQE,
       skew) with before/after measurements
 - [x] 8.7 ADR: node autoscaling + Spot for `dev-compute`
-- [ ] 8.8 Platform under load: autoscaler, Spot node pool, Spark dynamic
+- [x] 8.8 Platform under load: autoscaler, Spot node pool, Spark dynamic
       allocation, a Spot-interruption test
 - [ ] 8.9 100M events: full orchestrated run, SLOs under load, cost per
       million events at each step. First: cheaper bronze data-quality
