@@ -95,6 +95,31 @@ spec:
     # names every run. A fixed namespace keeps them stable across runs (the
     # dashboard queries metrics_cerberus_driver_*).
     spark.metrics.namespace: "cerberus"
+    # 8.8 (ADR 0020): dynamic allocation. Kubernetes has no external
+    # shuffle service, so shuffle tracking is required: an executor that
+    # still holds shuffle output isn't released until that output is no
+    # longer needed (or the tracking timeout passes). The job starts with
+    # executor.instances (below) and can grow to maxExecutors; executors it
+    # can't place make pods Pending, which is what Cluster Autoscaler scales
+    # the Spot group on. Idle executors leave after 30 s.
+    spark.dynamicAllocation.enabled: "true"
+    spark.dynamicAllocation.shuffleTracking.enabled: "true"
+    spark.dynamicAllocation.shuffleTracking.timeout: "300s"
+    spark.dynamicAllocation.minExecutors: "1"
+    spark.dynamicAllocation.initialExecutors: "2"
+    spark.dynamicAllocation.maxExecutors: "8"
+    spark.dynamicAllocation.executorIdleTimeout: "30s"
+    # 8.8: decommissioning, for Spot. When EKS drains a reclaimed Spot
+    # node, an executor that is being shut down first migrates its shuffle
+    # and cached blocks to the remaining executors, so the stages after it
+    # need not recompute them (shuffleBlocks / rddBlocks default to true).
+    # With dynamic allocation on, Spark also decommissions -- rather than
+    # kills -- the executors it releases. Best effort: blocks that don't
+    # make it in time are recomputed. No fallback storage (it would need
+    # an S3 path the job may write, and Spark never cleans it up).
+    spark.decommission.enabled: "true"
+    spark.storage.decommission.enabled: "true"
+    spark.executor.decommission.forceKillTimeout: "90s"
   # 8.6 (10M step): two 2 GB executors in place of one 1 GB executor --
   # the "after" of the 10M before/after pair. Same requests as
   # spark-application-generate.yaml: driver 500m and executors 800m CPU,
@@ -116,7 +141,7 @@ spec:
   executor:
     cores: 1
     coreRequest: "800m"
-    instances: 2
+    instances: 2  # 8.8: the starting count; dynamic allocation then runs 1-8
     memory: "2g"
     labels:
       version: "3.5.9"
