@@ -6,7 +6,8 @@ set -euo pipefail
 # terraform/envs/dev-compute/main.tf -- the only steps where the cluster
 # costs money.
 #
-#   orchestration/exercise.sh [--yes] [--generate EVENTS] [--executor-nodes N]
+#   orchestration/exercise.sh [--yes] [--generate EVENTS] [--generator-executors N]
+#                             [--executor-nodes N]
 #                             [--interrupt-spot] [--name PREFIX] [--keep]
 #   orchestration/exercise.sh --check
 #
@@ -15,6 +16,9 @@ set -euo pipefail
 #   --yes             skip the one confirmation before the apply.
 #   --generate EVENTS run generate_bulk.sh with EVENTS before the
 #                     orchestrated run (8.3+: the scale ladder).
+#   --generator-executors N
+#                     the generator's fixed executor count (default 2, as
+#                     generate_bulk.sh). 8.9: 8 for 100M, about 4x faster.
 #   --executor-nodes N
 #                     Spot executor nodes for this run (ADR 0020; default
 #                     1): 4 vCPU / 16 GiB each, four 1-core executors per
@@ -67,6 +71,7 @@ TF="${TF_BIN:-terraform}"
 FLUSH_SECONDS="${FLUSH_SECONDS:-60}"
 
 YES=false CHECK=false KEEP=false GENERATE="" PREFIX="exercise" EXECUTOR_NODES=1
+GENERATOR_EXECUTORS=2
 INTERRUPT_SPOT=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -74,6 +79,7 @@ while [[ $# -gt 0 ]]; do
     --check) CHECK=true ;;
     --keep) KEEP=true ;;
     --generate) GENERATE="$2"; shift ;;
+    --generator-executors) GENERATOR_EXECUTORS="$2"; shift ;;
     --executor-nodes) EXECUTOR_NODES="$2"; shift ;;
     --interrupt-spot) INTERRUPT_SPOT=true ;;
     --name) PREFIX="$2"; shift ;;
@@ -258,7 +264,8 @@ if [[ -n "$GENERATE" ]]; then
   log "generator: $GENERATE events"
   gen_start=$SECONDS
   gen_log="$(mktemp)"
-  "$REPO/transform/spark/generate_bulk.sh" "$GENERATE" | tee "$gen_log"
+  EXECUTORS="$GENERATOR_EXECUTORS" "$REPO/transform/spark/generate_bulk.sh" "$GENERATE" \
+    | tee "$gen_log"
   run_id="$(sed -n 's/.*RUN_ID=\([^ ]*\).*/\1/p' "$gen_log" | head -1)"
   # The log carries the generator's [generate] manifest, which the
   # collector records and the data-quality suite checks against bronze.

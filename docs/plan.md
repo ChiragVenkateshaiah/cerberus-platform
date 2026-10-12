@@ -299,7 +299,12 @@ layered on top of a platform that already works.
   incremental `fct_transactions` merge passed the shared workgroup's 1 GiB
   cutoff (raised to 10 GiB), because every batch has events in all of the
   last 7–8 days and the merge can skip none of them. The realistic time
-  spread (Planned later work) is what lets these scans prune.
+  spread (Planned later work) is what lets these scans prune. Status
+  before 8.9 (2026-10-12): the bronze checks became a manifest ledger
+  (#85); dbt's merge scanned 3.18 GiB at 37M silver events, ~12 GiB
+  projected at the ~137M the 100M step lands on, so the shared cutoff
+  went to 25 GiB (decided: keep the 37M and land 100M on top, rather than
+  reset or build the time spread first).
 - **Out of scope:** streaming (Kafka) and Airflow, now Phase 12 (on one
   start/stop EC2 instance, about $70/month if left running, so it follows
   the `dev-compute` spin-up/tear-down pattern); Delta Lake (ADR 0017); any

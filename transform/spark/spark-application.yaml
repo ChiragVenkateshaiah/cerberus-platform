@@ -107,8 +107,15 @@ spec:
     spark.dynamicAllocation.shuffleTracking.timeout: "300s"
     spark.dynamicAllocation.minExecutors: "1"
     spark.dynamicAllocation.initialExecutors: "2"
-    spark.dynamicAllocation.maxExecutors: "8"
+    spark.dynamicAllocation.maxExecutors: "16"
     spark.dynamicAllocation.executorIdleTimeout: "30s"
+    # 8.9 (100M): 16 executors = the executor group's max of 4 nodes x 4
+    # (8 until 8.9). And more shuffle partitions to start from: at 100M the
+    # shuffle is ~36 GB (3.3 GB at 9M), ~180 MB a partition at the default
+    # 200. AQE coalesces small partitions but never splits large ones, so
+    # start at 800 (~45 MB) and let it coalesce -- at 9M it still ends near
+    # the ~30 partitions 8.6 measured.
+    spark.sql.shuffle.partitions: "800"
     # 8.8: decommissioning, for Spot. When EKS drains a reclaimed Spot
     # node, an executor that is being shut down first migrates its shuffle
     # and cached blocks to the remaining executors, so the stages after it
@@ -141,7 +148,7 @@ spec:
   executor:
     cores: 1
     coreRequest: "800m"
-    instances: 2  # 8.8: the starting count; dynamic allocation then runs 1-8
+    instances: 2  # 8.8: the starting count; dynamic allocation then runs 1-16
     memory: "2g"
     labels:
       version: "3.5.9"
