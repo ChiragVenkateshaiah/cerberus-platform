@@ -21,3 +21,8 @@ variable "spark_image" {
   type        = string
   default     = "apache/spark:3.5.9"
 }
+
+variable "executor_taint_key" {
+  description = "Taint key on dev-compute's Spot executor nodes (ADR 0020). The image pre-pull DaemonSet tolerates it, so the Spark image is cached where the executors run."
+  type        = string
+}

@@ -108,6 +108,11 @@ spec:
     serviceAccount: cerberus-spark
     labels:
       version: "3.5.9"
+    # ADR 0020: the driver stays on On-Demand -- losing it loses the run.
+    # (It can't land on the Spot nodes anyway: it doesn't tolerate their
+    # taint. The selector says so explicitly.)
+    nodeSelector:
+      eks.amazonaws.com/capacityType: ON_DEMAND
   executor:
     cores: 1
     coreRequest: "800m"
@@ -115,3 +120,10 @@ spec:
     memory: "2g"
     labels:
       version: "3.5.9"
+    # ADR 0020: executors run on the Spot executor nodes, and only there.
+    nodeSelector:
+      eks.amazonaws.com/capacityType: SPOT
+    tolerations:
+      - key: cerberus/spot
+        operator: Exists
+        effect: NoSchedule

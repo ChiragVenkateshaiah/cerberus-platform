@@ -6,7 +6,8 @@ set -euo pipefail
 # terraform/envs/dev-compute/main.tf -- the only steps where the cluster
 # costs money.
 #
-#   orchestration/exercise.sh [--yes] [--generate EVENTS] [--name PREFIX] [--keep]
+#   orchestration/exercise.sh [--yes] [--generate EVENTS] [--executor-nodes N]
+#                             [--name PREFIX] [--keep]
 #   orchestration/exercise.sh --check
 #
 #   --check           preflight only: identity, empty dev-compute state, no
@@ -14,6 +15,11 @@ set -euo pipefail
 #   --yes             skip the one confirmation before the apply.
 #   --generate EVENTS run generate_bulk.sh with EVENTS before the
 #                     orchestrated run (8.3+: the scale ladder).
+#   --executor-nodes N
+#                     Spot executor nodes for this run (ADR 0020; default
+#                     1): 4 vCPU / 16 GiB each, four 1-core executors per
+#                     node. Ready before the run; Cluster Autoscaler can add
+#                     more, never fewer.
 #   --name PREFIX     execution name prefix (default: exercise).
 #   --keep            skip the destroy. For a debugging session only; the
 #                     cluster costs about $0.40/hour until
@@ -54,13 +60,14 @@ TF="${TF_BIN:-terraform}"
 # checked pending samples = 0 before destroy by hand).
 FLUSH_SECONDS="${FLUSH_SECONDS:-60}"
 
-YES=false CHECK=false KEEP=false GENERATE="" PREFIX="exercise"
+YES=false CHECK=false KEEP=false GENERATE="" PREFIX="exercise" EXECUTOR_NODES=1
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --yes) YES=true ;;
     --check) CHECK=true ;;
     --keep) KEEP=true ;;
     --generate) GENERATE="$2"; shift ;;
+    --executor-nodes) EXECUTOR_NODES="$2"; shift ;;
     --name) PREFIX="$2"; shift ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
@@ -225,7 +232,8 @@ trap 'exit 130' INT TERM
 PLAN="$(mktemp -d)/dev-compute.tfplan"
 CLUSTER_UP=$SECONDS
 apply_start=$SECONDS
-tf plan -input=false -out="$PLAN" >/dev/null
+log "spot executor nodes: $EXECUTOR_NODES"
+tf plan -input=false -var "executor_nodes=$EXECUTOR_NODES" -out="$PLAN" >/dev/null
 tf apply -input=false "$PLAN"
 log "apply took $((SECONDS - apply_start))s"
 

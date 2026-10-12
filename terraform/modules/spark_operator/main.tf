@@ -79,6 +79,14 @@ resource "kubernetes_daemon_set_v1" "spark_image_prepull" {
           }
         }
 
+        # ADR 0020: run on the tainted Spot executor nodes too -- that is
+        # where the executors pull the image.
+        toleration {
+          key      = var.executor_taint_key
+          operator = "Exists"
+          effect   = "NoSchedule"
+        }
+
         termination_grace_period_seconds = 0
       }
     }

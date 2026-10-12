@@ -47,6 +47,23 @@ module "eks" {
 
   cluster_name       = local.eks_cluster_name
   private_subnet_ids = data.terraform_remote_state.standing.outputs.private_subnet_ids
+
+  # ADR 0020: the Spot executor group's size for this exercise.
+  executor_desired_size = var.executor_nodes
+}
+
+# ADR 0020 (8.8): grows the Spot executor group for dynamic allocation and
+# shrinks it back to the planned size.
+module "cluster_autoscaler" {
+  source = "../../modules/cluster_autoscaler"
+
+  cluster_name          = module.eks.cluster_name
+  kubernetes_version    = module.eks.kubernetes_version
+  eks_oidc_provider_arn = module.eks.oidc_provider_arn
+  eks_oidc_issuer_url   = module.eks.oidc_issuer_url
+
+  # No pods before nodes exist, same as spark_operator.
+  depends_on = [module.eks]
 }
 
 module "iam_spark" {
@@ -59,6 +76,10 @@ module "iam_spark" {
 
 module "spark_operator" {
   source = "../../modules/spark_operator"
+
+  # The image pre-pull DaemonSet tolerates the Spot executor nodes' taint,
+  # so executors find the Spark image already there.
+  executor_taint_key = module.eks.executor_taint_key
 
   # Waits for the whole eks module -- cluster and node group both -- so the
   # operator's controller/webhook pods aren't scheduled before any node
