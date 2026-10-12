@@ -302,6 +302,57 @@ comparison belongs to 8.9 at 100M, where the extra executors matter most.
 - **Glue timeouts in RunDbt** did not recur (watch item from the first
   run).
 
+### Spot interruption test (`exercise-20261012T133620Z`, #96)
+
+`exercise.sh --interrupt-spot` started the AWS FIS experiment
+`EXPqsCtFGsYV5mbxKc` (`aws:ec2:send-spot-instance-interruptions`, PT2M)
+once the silver job had 2 executors running. It hit the planned Spot node,
+`i-0b29379f1257004c9` (ip-10-0-18-248), which by then held 4 of the job's
+executors.
+
+| Time (UTC) | Event |
+|---|---|
+| 13:55:04 | silver job driver starts (On-Demand system node) |
+| 13:55:36 | FIS experiment starts: rebalance recommendation + 2-minute notice |
+| 13:56:01 | EKS cordons the node; the drain evicts executors 2, 4, 6, 8, each running `/opt/decom.sh` |
+| 13:56:31 | all 4 `gracefully decommissioned` (after 13.5-29.9 s); 2 shuffle map tasks resubmitted |
+| 13:56:42 | dynamic allocation re-requests executors; Cluster Autoscaler `executors 1->2 (max: 4)` |
+| 13:57:18-23 | two new Spot nodes Ready (the Auto Scaling group's replacement and the scale-up) |
+| 13:57:38 | the interrupted node removed |
+| 13:58:51 | silver append committed: 9,005,730 events, `silver now 37105429` |
+| 13:59:34-14:01:04 | Cluster Autoscaler removes the two empty extra nodes; 1 Spot node left |
+
+Result: **the execution SUCCEEDED and data quality PASSED** -- silver
+37,105,429 = bronze 37,105,429, every new-run key in silver, no duplicate
+keys, gold matches silver. The driver's executor-removal statistics:
+`gracefully decommissioned: 4, decommision unfinished: 0, driver killed: 0,
+unexpectedly exited: 0`.
+
+| | Load test (no interruption) | Interruption test |
+|---|---|---|
+| Silver before the run | ~19.1M rows | ~28.1M rows |
+| Watermark to append | 150 s | 188 s |
+| Compaction | 25 files into 5, ~35 s | 0 files |
+| Spark time (driver start to end) | 224 s | 238 s |
+| RunTransform | 295.7 s | 314.1 s |
+
+The interruption cost the job tens of seconds, not a failure or a retry:
+two map tasks re-ran, and the 4 lost executors were back in about a minute.
+The two runs differ in silver size and compaction, so the exact cost is not
+isolated.
+
+What it shows for ADR 0020: executors on Spot are safe for this job. The
+driver stays on On-Demand, EKS drains on the rebalance signal well inside
+the 2-minute notice, Spark's decommissioning finishes before the 90 s
+force-kill timeout, and the data comes out exact.
+
+- **Data-quality scan keeps growing:** 20.5 GB this run (12.5 -> 16.4 ->
+  20.5 GB as silver grew 19M -> 28M -> 37M rows). The silver checks read
+  the whole table; at 100M rows a single check may pass the 10 GiB cutoff.
+  8.9 must make the silver checks incremental or size the cutoff first.
+- The one data-quality warning is the known `token_digit_runs` (97 legacy
+  hex tokens from before #50).
+
 ## Data-quality suite
 
 Added in 8.4. [`observability/scale/data_quality.py`](../observability/scale/data_quality.py)
