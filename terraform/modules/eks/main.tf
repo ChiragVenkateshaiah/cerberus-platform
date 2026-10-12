@@ -88,24 +88,129 @@ resource "aws_eks_cluster" "this" {
   ]
 }
 
-# --- Node group --------------------------------------------------------------
+# --- Node groups (ADR 0020, 8.8) --------------------------------------------
+# Two managed node groups instead of 3.2's one:
+#
+# - system: On-Demand, fixed size. The Spark Operator, the monitoring stack,
+#   Cluster Autoscaler, CoreDNS -- and the Spark driver, which must not be
+#   on Spot (losing it loses the run). Nothing needs a selector to land
+#   here: the executor group's taint keeps everything that doesn't
+#   tolerate it on these nodes.
+# - executors: Spot, several instance types of the same size (the EKS
+#   guide's rule for Cluster Autoscaler with mixed types), tainted so only
+#   Spark executors (which tolerate the taint and select SPOT) and the
+#   DaemonSets run there. Its size is set per exercise
+#   (var.executor_desired_size) as both min and desired, so the nodes are
+#   Ready before the run and Cluster Autoscaler can't remove them while the
+#   apply is still installing charts (an empty node is "unneeded" after 2
+#   minutes; the apply takes ~15). ADR 0020 said min 0; for a cluster
+#   destroyed right after its one job, scaling to zero buys nothing, and
+#   min 0 would cost a 3-4 minute scale-up inside RunTransform. The
+#   autoscaler still grows the group for dynamic allocation and shrinks it
+#   back to the planned size; the Auto Scaling group itself replaces an
+#   interrupted node to keep the minimum.
+#
+# Both use a launch template so tag_specifications reach the instances,
+# volumes and network interfaces -- a managed node group doesn't pass the
+# provider's default_tags to what its Auto Scaling group launches (the
+# untagged-instances gap, 2026-10-07). No instance type, AMI, subnet or
+# instance profile in the template: EKS rejects those with a launch
+# template plus instance types on the node group.
 
-resource "aws_eks_node_group" "this" {
+locals {
+  # The provider's default_tags don't reach these; repeat the Project tag
+  # here so cost can be scoped by tag, not just by region.
+  node_tags = { Project = "cerberus-platform", Phase = "8" }
+}
+
+resource "aws_launch_template" "node" {
+  for_each = toset(["system", "executors"])
+
+  name = "${var.cluster_name}-${each.key}"
+
+  # IMDSv2 only; hop limit 2 so a pod (not just the node) can reach the
+  # metadata service -- the EKS guide's setting for launch templates.
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 2
+  }
+
+  dynamic "tag_specifications" {
+    for_each = ["instance", "volume", "network-interface"]
+    content {
+      resource_type = tag_specifications.value
+      tags          = merge(local.node_tags, { Name = "${var.cluster_name}-${each.key}" })
+    }
+  }
+
+  tags = { Phase = "8" }
+}
+
+resource "aws_eks_node_group" "system" {
   cluster_name    = aws_eks_cluster.this.name
-  node_group_name = "cerberus-platform-eks-nodes"
+  node_group_name = "cerberus-platform-eks-system"
   node_role_arn   = aws_iam_role.node.arn
   subnet_ids      = var.private_subnet_ids
 
   capacity_type  = "ON_DEMAND"
-  instance_types = var.node_instance_types
+  instance_types = var.system_instance_types
 
-  scaling_config {
-    desired_size = var.node_desired_size
-    min_size     = var.node_min_size
-    max_size     = var.node_max_size
+  launch_template {
+    id      = aws_launch_template.node["system"].id
+    version = aws_launch_template.node["system"].latest_version
   }
 
-  tags = { Phase = "3" }
+  scaling_config {
+    desired_size = var.system_node_count
+    min_size     = var.system_node_count
+    max_size     = var.system_node_count
+  }
+
+  labels = { "cerberus/role" = "system" }
+
+  tags = { Phase = "8" }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.node,
+  ]
+}
+
+resource "aws_eks_node_group" "executors" {
+  cluster_name    = aws_eks_cluster.this.name
+  node_group_name = "cerberus-platform-eks-executors"
+  node_role_arn   = aws_iam_role.node.arn
+  subnet_ids      = var.private_subnet_ids
+
+  capacity_type  = "SPOT"
+  instance_types = var.executor_instance_types
+
+  launch_template {
+    id      = aws_launch_template.node["executors"].id
+    version = aws_launch_template.node["executors"].latest_version
+  }
+
+  scaling_config {
+    desired_size = var.executor_desired_size
+    min_size     = var.executor_desired_size
+    max_size     = var.executor_max_size
+  }
+
+  labels = { "cerberus/role" = "executors" }
+
+  taint {
+    key    = var.executor_taint_key
+    value  = "executors"
+    effect = "NO_SCHEDULE"
+  }
+
+  tags = { Phase = "8" }
+
+  # Cluster Autoscaler changes the Auto Scaling group's desired size; the
+  # value here only seeds a fresh cluster (one per exercise).
+  lifecycle {
+    ignore_changes = [scaling_config[0].desired_size]
+  }
 
   depends_on = [
     aws_iam_role_policy_attachment.node,

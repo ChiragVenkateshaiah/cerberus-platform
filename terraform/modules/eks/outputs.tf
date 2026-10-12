@@ -27,3 +27,13 @@ output "oidc_issuer_url" {
   description = "OIDC issuer URL, for 3.4/3.5's IRSA trust-policy condition."
   value       = aws_eks_cluster.this.identity[0].oidc[0].issuer
 }
+
+output "kubernetes_version" {
+  description = "The cluster's Kubernetes minor version (e.g. 1.33) -- Cluster Autoscaler's image must match it."
+  value       = aws_eks_cluster.this.version
+}
+
+output "executor_taint_key" {
+  description = "Taint key on the Spot executor nodes."
+  value       = var.executor_taint_key
+}
