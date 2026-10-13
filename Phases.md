@@ -135,7 +135,9 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 - [ ] 8.9 100M events: full orchestrated run, SLOs under load, cost per
       million events at each step. First: cheaper bronze data-quality
       checks (today's full-bronze scans would cost over $1 a run at 100M)
-      -- done 2026-10-10 as the suite's manifest ledger (#85)
+      -- done 2026-10-10 as the suite's manifest ledger (#85). 100M run done
+      2026-10-13 (742 s, data quality passed, draft #98); cost per million
+      events and SLOs under load still to add
 - [ ] 8.10 Results write-up (per-step numbers and charts) + demo video
 - [ ] 8.11 Well-Architected pass + ADR
 
