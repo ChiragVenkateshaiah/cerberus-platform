@@ -1,0 +1,340 @@
+{
+  "execution": "exercise-20261013T055859Z",
+  "status": "SUCCEEDED",
+  "start": "2026-10-13T06:35:02.004000+00:00",
+  "end": "2026-10-13T06:47:23.981000+00:00",
+  "run_seconds": 742.0,
+  "events_processed": 100008511,
+  "events_per_second": 134787,
+  "silver": {
+    "events": 137113940,
+    "transactions": 44991746
+  },
+  "states": [
+    {
+      "state": "InvokeIngestion",
+      "seconds": 4.2,
+      "events_per_second": 23721184,
+      "athena": {
+        "queries": 0,
+        "bytes_scanned": 0,
+        "bytes_billed": 0,
+        "usd": 0.0
+      }
+    },
+    {
+      "state": "RunTransform",
+      "seconds": 511.6,
+      "events_per_second": 195500,
+      "athena": {
+        "queries": 0,
+        "bytes_scanned": 0,
+        "bytes_billed": 0,
+        "usd": 0.0
+      }
+    },
+    {
+      "state": "RunDbt",
+      "seconds": 167.9,
+      "events_per_second": 595672,
+      "athena": {
+        "queries": 33,
+        "bytes_scanned": 15833997227,
+        "bytes_billed": 16111370240,
+        "usd": 0.080557
+      }
+    },
+    {
+      "state": "RunServingQuery",
+      "seconds": 58.3,
+      "events_per_second": 1716649,
+      "athena": {
+        "queries": 1,
+        "bytes_scanned": 143047001,
+        "bytes_billed": 143654912,
+        "usd": 0.000718
+      }
+    }
+  ],
+  "athena_totals": {
+    "queries": 34,
+    "bytes_scanned": 15977044228,
+    "bytes_billed": 16255025152
+  },
+  "prometheus": {
+    "peak_active_series": 10370,
+    "spark": {
+      "cerberus-promote-payments": {
+        "spark_input_bytes": 52624362642,
+        "spark_shuffle_write_bytes": 32190740562
+      }
+    }
+  },
+  "storage_snapshot": {
+    "bronze_payments": {
+      "objects": 279,
+      "bytes": 52163676
+    },
+    "bronze_payments_bulk": {
+      "objects": 722,
+      "bytes": 59267380967
+    },
+    "silver_payments": {
+      "objects": 0,
+      "bytes": 0
+    },
+    "gold": {
+      "objects": 84,
+      "bytes": 1745838564
+    },
+    "generator_run": {
+      "objects": 516,
+      "bytes": 43261265435
+    }
+  },
+  "generator": {
+    "run_id": "e100000000-20261013T061245Z",
+    "events": 100002421,
+    "partitions": 8,
+    "write_seconds": 1253.0,
+    "events_per_second": 79810,
+    "per_dt": {
+      "2026-10-06": 7505925,
+      "2026-10-07": 11426931,
+      "2026-10-08": 12913021,
+      "2026-10-09": 14021075,
+      "2026-10-10": 14095423,
+      "2026-10-11": 14113156,
+      "2026-10-12": 14128470,
+      "2026-10-13": 11798420
+    }
+  },
+  "data_quality": {
+    "passed": true,
+    "errors": 0,
+    "warnings": 1,
+    "checks": [
+      {
+        "name": "bulk_ledger_integrity",
+        "severity": "error",
+        "about": "every generator run's files and bytes match its _manifest.json",
+        "violations": 0,
+        "detail": "6 runs, 137001598 events, files and bytes match",
+        "passed": true
+      },
+      {
+        "name": "bulk_runs_without_manifest",
+        "severity": "error",
+        "about": "no payments_bulk/ run has data but no _manifest.json",
+        "violations": 0,
+        "detail": "every run has a manifest",
+        "passed": true
+      },
+      {
+        "name": "bronze_to_silver_count",
+        "severity": "error",
+        "about": "silver holds exactly as many events as bronze: the bulk manifests plus the Lambda's payments/ (no bronze key repeats, so the job's dedup removes nothing)",
+        "violations": 0,
+        "detail": "bronze 137113940 (manifests 137001598, payments/ 112342), silver 137113940",
+        "passed": true
+      },
+      {
+        "name": "silver_caught_up",
+        "severity": "error",
+        "about": "no bronze object is newer than the bronze watermark in silver's snapshots (the incremental job missed nothing); object times from an S3 listing",
+        "violations": 0,
+        "detail": "995 bronze files, watermark 2026-10-13 06:35:06.000",
+        "passed": true
+      },
+      {
+        "name": "lambda_keys_in_silver",
+        "severity": "error",
+        "about": "every payments/ (transaction_id, event_type) is in silver",
+        "violations": 0,
+        "detail": "112342 payments/ keys, 0 not in silver",
+        "passed": true
+      },
+      {
+        "name": "new_run[dt=2026-10-06]",
+        "severity": "error",
+        "about": "payments_bulk/run_id=e100000000-20261013T061245Z/dt=2026-10-06/: the manifest's event count, no duplicate keys, every key in silver",
+        "violations": 0,
+        "detail": "7505925 events (manifest 7505925), 0 duplicated, 0 not in silver",
+        "passed": true
+      },
+      {
+        "name": "new_run[dt=2026-10-07]",
+        "severity": "error",
+        "about": "payments_bulk/run_id=e100000000-20261013T061245Z/dt=2026-10-07/: the manifest's event count, no duplicate keys, every key in silver",
+        "violations": 0,
+        "detail": "11426931 events (manifest 11426931), 0 duplicated, 0 not in silver",
+        "passed": true
+      },
+      {
+        "name": "new_run[dt=2026-10-08]",
+        "severity": "error",
+        "about": "payments_bulk/run_id=e100000000-20261013T061245Z/dt=2026-10-08/: the manifest's event count, no duplicate keys, every key in silver",
+        "violations": 0,
+        "detail": "12913021 events (manifest 12913021), 0 duplicated, 0 not in silver",
+        "passed": true
+      },
+      {
+        "name": "new_run[dt=2026-10-09]",
+        "severity": "error",
+        "about": "payments_bulk/run_id=e100000000-20261013T061245Z/dt=2026-10-09/: the manifest's event count, no duplicate keys, every key in silver",
+        "violations": 0,
+        "detail": "14021075 events (manifest 14021075), 0 duplicated, 0 not in silver",
+        "passed": true
+      },
+      {
+        "name": "new_run[dt=2026-10-10]",
+        "severity": "error",
+        "about": "payments_bulk/run_id=e100000000-20261013T061245Z/dt=2026-10-10/: the manifest's event count, no duplicate keys, every key in silver",
+        "violations": 0,
+        "detail": "14095423 events (manifest 14095423), 0 duplicated, 0 not in silver",
+        "passed": true
+      },
+      {
+        "name": "new_run[dt=2026-10-11]",
+        "severity": "error",
+        "about": "payments_bulk/run_id=e100000000-20261013T061245Z/dt=2026-10-11/: the manifest's event count, no duplicate keys, every key in silver",
+        "violations": 0,
+        "detail": "14113156 events (manifest 14113156), 0 duplicated, 0 not in silver",
+        "passed": true
+      },
+      {
+        "name": "new_run[dt=2026-10-12]",
+        "severity": "error",
+        "about": "payments_bulk/run_id=e100000000-20261013T061245Z/dt=2026-10-12/: the manifest's event count, no duplicate keys, every key in silver",
+        "violations": 0,
+        "detail": "14128470 events (manifest 14128470), 0 duplicated, 0 not in silver",
+        "passed": true
+      },
+      {
+        "name": "new_run[dt=2026-10-13]",
+        "severity": "error",
+        "about": "payments_bulk/run_id=e100000000-20261013T061245Z/dt=2026-10-13/: the manifest's event count, no duplicate keys, every key in silver",
+        "violations": 0,
+        "detail": "11798420 events (manifest 11798420), 0 duplicated, 0 not in silver",
+        "passed": true
+      },
+      {
+        "name": "silver_to_gold_transactions",
+        "severity": "error",
+        "about": "fct_transactions has one row per silver transaction, and no others",
+        "violations": 0,
+        "detail": "0 missing from gold, 0 only in gold",
+        "passed": true
+      },
+      {
+        "name": "gold_status_matches_lifecycle",
+        "severity": "error",
+        "about": "fct_transactions.status is the transaction's last lifecycle state",
+        "violations": 0,
+        "detail": "e.g. -",
+        "passed": true
+      },
+      {
+        "name": "silver_duplicate_keys",
+        "severity": "error",
+        "about": "(transaction_id, event_type) is unique in silver (ADR 0017's MERGE key)",
+        "violations": 0,
+        "detail": "0 duplicated keys",
+        "passed": true
+      },
+      {
+        "name": "lifecycle_created_authorized",
+        "severity": "error",
+        "about": "every transaction has exactly one created and one authorized event",
+        "violations": 0,
+        "detail": "44991746 transactions",
+        "passed": true
+      },
+      {
+        "name": "lifecycle_one_terminal",
+        "severity": "error",
+        "about": "every transaction ends in exactly one of settled or failed",
+        "violations": 0,
+        "detail": "2251905 failed, 42739841 settled",
+        "passed": true
+      },
+      {
+        "name": "lifecycle_refunds",
+        "severity": "error",
+        "about": "a refund only follows a settle, at most once",
+        "violations": 0,
+        "detail": "2138702 refunded",
+        "passed": true
+      },
+      {
+        "name": "lifecycle_order",
+        "severity": "error",
+        "about": "created <= authorized <= settled/failed <= refunded in time",
+        "violations": 0,
+        "detail": "equal timestamps allowed (the clamp to now)",
+        "passed": true
+      },
+      {
+        "name": "silver_key_nulls",
+        "severity": "error",
+        "about": "no nulls in the columns every event must carry",
+        "violations": 0,
+        "detail": "137113940 events",
+        "passed": true
+      },
+      {
+        "name": "amount_range_and_stability",
+        "severity": "error",
+        "about": "amount in [1.00, 999.99]; amount, currency, merchant, customer and token fixed per transaction",
+        "violations": 0,
+        "detail": "0 unstable transactions",
+        "passed": true
+      },
+      {
+        "name": "roster",
+        "severity": "error",
+        "about": "at most 15 merchants and 75 customers, each id with one name",
+        "violations": 0,
+        "detail": "15 merchants, 75 customers",
+        "passed": true
+      },
+      {
+        "name": "masking",
+        "severity": "error",
+        "about": "emails @example.com; cards carry brand + 4-digit last4; other methods carry neither",
+        "violations": 0,
+        "detail": "95980340 card events",
+        "passed": true
+      },
+      {
+        "name": "token_format",
+        "severity": "error",
+        "about": "tokens are tok_ + 16 letters, or the legacy tok_ + 16 hex from before #50",
+        "violations": 0,
+        "detail": "137074718 letter tokens, 39222 legacy hex",
+        "passed": true
+      },
+      {
+        "name": "token_digit_runs",
+        "severity": "warn",
+        "about": "tokens with a 13+ digit run (a DLP scanner reads them as card numbers); legacy hex tokens only, accepted since #50 (bronze is append-only)",
+        "violations": 97,
+        "detail": "all in legacy hex tokens: true",
+        "passed": false
+      }
+    ],
+    "bytes_scanned": 105900636636,
+    "seconds": 28.8,
+    "silver_sources": [
+      "payments",
+      "payments_bulk"
+    ],
+    "mode": "ledger",
+    "ledger": {
+      "runs": 6,
+      "events": 137001598,
+      "new_run": "e100000000-20261013T061245Z"
+    }
+  },
+  "collected_at": "2026-10-13T06:48:27+00:00"
+}

@@ -353,6 +353,75 @@ force-kill timeout, and the data comes out exact.
 - The one data-quality warning is the known `token_digit_runs` (97 legacy
   hex tokens from before #50).
 
+## 8.9 at 100M: the full orchestrated run
+
+One exercise on 2026-10-13 (`exercise-20261013T055859Z`, run record in
+`observability/scale/runs/`), started with
+`make exercise ARGS="--yes --generate 100000000 --generator-executors 8 --executor-nodes 2"`
+on the limits raised in #97. The generator landed 100,002,421 events in
+bronze; the orchestrated run then promoted 100,008,511 new events (the
+Lambda's few thousand included) on top of 37.1M, taking silver to
+137,113,940 events and 44,991,746 transactions. Status SUCCEEDED, 742 s;
+data quality passed. Teardown left EKS 0, NAT 0, EIP 0, running instances 0.
+Cluster time was 3,773 s in total (63 min).
+
+| Step | Seconds | Notes |
+|---|---|---|
+| Generator (outside the state machine) | 1,325 wall, 1,253 write | 8 executors, 79,810 events/s |
+| InvokeIngestion | 4.2 | |
+| RunTransform | 511.6 | 100M events, about 195k events/s |
+| RunDbt | 167.9 | Athena $0.081 |
+| RunServingQuery | 58.3 | |
+| Data-quality suite | 28.8 | 26 checks, 105.9 GB scanned |
+
+### Against the 10M step
+
+| | 10M "after" (2026-10-09) | 100M |
+|---|---|---|
+| New events | ~9.0M | 100.0M |
+| Silver before | ~10M | 37.1M |
+| RunTransform | 241.6 s | 511.6 s |
+| Events per second in RunTransform | ~37k | ~195k |
+
+Eleven times the events took 2.1 times as long, so the per-event time fell
+by more than five times. Dynamic allocation did that: the 10M run used two
+2 GB executors, this run up to 16.
+
+### Autoscaler and Spark at 100M
+
+- Spark asked for 16 executors within seconds of the stage starting
+  (`maxExecutors` 16, #97). The planned two Spot nodes held about 8; the
+  autoscaler set the group to 4 nodes, its maximum, which is 16 vCPU of the
+  32 vCPU Spot quota. Later stages asked again ("Requesting 15 new
+  executors") as idle executors were released and work came back.
+- Watermark to append: about 305 s (06:36:26 to 06:41:31). Compaction then
+  merged 80 files into 22 (about 96 s) before the driver ended.
+- Idle nodes were removed by `ScaleDown` after the job; two Spot nodes and
+  the system node were left at the last snapshot.
+- The speed-up from extra executors is not isolated here: silver was 3.7
+  times larger and the executor count changed together, so this run shows
+  the platform absorbing 100M, not the gain from any one setting.
+
+### What to note
+
+- **Generator slower than planned.** #97 expected about 8-10 min with 8
+  executors; it took 22 min (1,325 s). The generator, not the pipeline, is
+  now the longest step. The cause is not measured.
+- **Data-quality scan grew faster than projected.** 105.9 GB against 20.5 GB
+  at 37M rows, about 5.2 times for 3.7 times the silver rows; the
+  projection was about 76 GB. At $5 per TB that is about $0.53 a run. Every
+  check passed under the 10 GiB cutoff; per-check bytes are not recorded
+  (the Athena records for that workgroup are readable only by
+  `cerberus-transform`), so the largest check is unknown.
+- **Prometheus peak:** 10,370 active series, just over ADR 0016's ~10k
+  estimate.
+- **No Glue timeouts** in RunDbt, and no retries.
+- **Cost per million events** per step is not in the record yet: Cost
+  Explorer posts the day's cost the next day. Run
+  `collect_run_metrics.py --execution exercise-20261013T055859Z --cost-only`
+  and add it here.
+- The one data-quality warning is the known `token_digit_runs`.
+
 ## Data-quality suite
 
 Added in 8.4. [`observability/scale/data_quality.py`](../observability/scale/data_quality.py)
