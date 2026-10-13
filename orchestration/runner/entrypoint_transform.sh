@@ -40,11 +40,12 @@ APP_NAME="${APP_NAME:-cerberus-promote-payments}"
 # forever with no way for the loop to ever exit. Unlike the original
 # submit_job.sh, run interactively where a human could Ctrl-C, this runs
 # unattended inside a Step Functions execution -- an unbounded hang here
-# burns real Fargate cost with no automatic failure. 5s * 240 = 20
-# minutes for the Spark job. (8.5 removed the second loop, which waited on
+# burns real Fargate cost with no automatic failure. 5s * 720 = 60
+# minutes for the Spark job (20 until 8.9: the 9M-event runs of 8.8 took
+# ~4 minutes of Spark, and 100M is ~10x that on up to twice the executors). (8.5 removed the second loop, which waited on
 # an MSCK REPAIR: silver is an Iceberg table now, and the job's own commit
 # makes new data queryable. GLUE_DATABASE/ATHENA_WORKGROUP went with it.)
-SPARK_POLL_MAX_ATTEMPTS=240
+SPARK_POLL_MAX_ATTEMPTS=720
 
 log "uploading promote_payments_spark.py to s3://$SILVER_BUCKET/$SCRIPT_S3_KEY"
 aws s3 cp /opt/spark/promote_payments_spark.py \

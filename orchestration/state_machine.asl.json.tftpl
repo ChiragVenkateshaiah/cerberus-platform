@@ -1,5 +1,5 @@
 {
-  "Comment": "Cerberus 4.2/4.3 -- full ingest -> transform -> dbt -> serve orchestration (ADR 0009). Each state's own Comment explains its Retry policy's reasoning -- InvokeIngestion deliberately has none (ADR 0005: retrying would regenerate and duplicate unseeded data), RunTransform/RunDbt retry twice (both are idempotent end to end). TimeoutSeconds on every state is the outer safety net against an ECS task hanging past its own internal poll-loop bound (see entrypoint_transform.sh's SPARK_POLL_MAX_ATTEMPTS/REPAIR_POLL_MAX_ATTEMPTS) or a native integration never returning. Execution-level visibility (CloudWatch Logs, X-Ray) is configured on the aws_sfn_state_machine resource itself, not in this definition.",
+  "Comment": "Cerberus 4.2/4.3 -- full ingest -> transform -> dbt -> serve orchestration (ADR 0009). Each state's own Comment explains its Retry policy's reasoning -- InvokeIngestion deliberately has none (ADR 0005: retrying would regenerate and duplicate unseeded data), RunTransform retries once and RunDbt twice (both are idempotent end to end; see each state's Comment). TimeoutSeconds on every state is the outer safety net against an ECS task hanging past its own internal poll-loop bound (see entrypoint_transform.sh's SPARK_POLL_MAX_ATTEMPTS/REPAIR_POLL_MAX_ATTEMPTS) or a native integration never returning. Execution-level visibility (CloudWatch Logs, X-Ray) is configured on the aws_sfn_state_machine resource itself, not in this definition.",
   "StartAt": "InvokeIngestion",
   "States": {
     "InvokeIngestion": {
@@ -36,13 +36,13 @@
         }
       },
       "ResultPath": "$.transform",
-      "TimeoutSeconds": 2100,
-      "Comment": "MaxAttempts 2 (4.3): safe to retry the whole task, not just tolerated -- entrypoint_transform.sh deletes any prior SparkApplication before resubmitting, silver's day-partition Parquet files are overwritten deterministically on rebuild (1.7), and MSCK REPAIR TABLE is idempotent. A retry cleanly redoes the step, not a partial/duplicated one.",
+      "TimeoutSeconds": 4500,
+      "Comment": "TimeoutSeconds 4500 (8.9): above the runner's own 60-minute Spark bound (SPARK_POLL_MAX_ATTEMPTS) plus the ECS task's start and stop. MaxAttempts 1 (8.9; 2 since 4.3): a retry is safe -- entrypoint_transform.sh deletes any prior SparkApplication before resubmitting, and the job's anti-join on (transaction_id, event_type) skips events an earlier attempt already committed to silver (ADR 0017) -- but at 100M an attempt runs about half an hour, so one retry covers a transient failure and a second would mostly repeat a deterministic one.",
       "Retry": [
         {
           "ErrorEquals": ["States.ALL"],
           "IntervalSeconds": 30,
-          "MaxAttempts": 2,
+          "MaxAttempts": 1,
           "BackoffRate": 2.0
         }
       ],
@@ -71,7 +71,7 @@
         }
       },
       "ResultPath": "$.dbt",
-      "TimeoutSeconds": 900,
+      "TimeoutSeconds": 2700,
       "Comment": "MaxAttempts 2 (4.3): dbt's own +materialized: table config (1.9) does a full rebuild every run, same idempotency property RunTransform's comment above describes -- a retry is a clean redo, not a partial/duplicated one.",
       "Retry": [
         {

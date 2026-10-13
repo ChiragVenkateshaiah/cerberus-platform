@@ -121,6 +121,12 @@ locals {
   # The provider's default_tags don't reach these; repeat the Project tag
   # here so cost can be scoped by tag, not just by region.
   node_tags = { Project = "cerberus-platform", Phase = "8" }
+
+  # Root volume per group, GiB. 8.9: the executors' shuffle files and
+  # spilled data live on the node's disk, ~36 GB of shuffle at 100M spread
+  # over up to 4 nodes, beside the ~1 GB Spark image -- the AMI's default
+  # 20 GiB leaves too little. The system node keeps 20.
+  root_volume_gib = { system = 20, executors = 60 }
 }
 
 resource "aws_launch_template" "node" {
@@ -134,6 +140,17 @@ resource "aws_launch_template" "node" {
     http_endpoint               = "enabled"
     http_tokens                 = "required"
     http_put_response_hop_limit = 2
+  }
+
+  # /dev/xvda: the root device of the EKS-optimized Amazon Linux AMIs.
+  block_device_mappings {
+    device_name = "/dev/xvda"
+    ebs {
+      volume_size           = local.root_volume_gib[each.key]
+      volume_type           = "gp3"
+      encrypted             = true
+      delete_on_termination = true
+    }
   }
 
   dynamic "tag_specifications" {
