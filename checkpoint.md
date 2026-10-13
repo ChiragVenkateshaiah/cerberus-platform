@@ -196,7 +196,20 @@ million events per step. $20/month, six weeks from 2026-10-06.
     ~10k). The extra-executor speed-up is not isolated from the larger
     silver table.
 
+- **9.1** — ADR 0021 (pipeline status and alerting) written and merged
+  as **Proposed** (PR #99); 9.1 stays unchecked until the user accepts it.
+  Proposes: the existing AMP workspace as the store, with AMP's ruler and
+  Alertmanager (SNS) as Terraform so alerts fire while the laptop is off;
+  local Docker Compose Grafana reading AMP; one run-end publisher writing
+  `cerberus_*` series by remote-write (no scrape, no Pushgateway; queries
+  use `last_over_time(...[30d])`); lineage events written to a file and
+  uploaded post-run. Unverified, left as 9.2 spikes: the Python
+  OpenTelemetry remote-write exporter, file transport in dbt-ol and the
+  Spark listener, AMP rule-evaluation billing.
+
 ## Next up
+
+**Two things for 2026-10-14: the cost run below (Sonnet 5.5 is fine), then the ADR 0021 review with Opus 5.5 (item 2, first bullet).**
 
 **Run this first, from 2026-10-14 (Cost Explorer posts a day late).** From
 the repo root, in the user's terminal:
@@ -212,8 +225,9 @@ Do the same for `exercise-20261012T075045Z`, `exercise-20261012T111304Z`
 and `exercise-20261012T133620Z` if their records have no cost yet. Then
 finish 8.9 (item 1).
 
-The checkout may be on `phase-8-9-100m-run` (draft PR #98); run
-`git switch main && git pull` before new work.
+The checkout may be on a feature branch; run `git fetch && git switch
+main && git pull` before new work. Draft PR #98 (8.9 record) is the only
+open PR.
 
 1. **8.9 — close it out (needs 2026-10-13 to post, i.e. from 2026-10-14):**
    `observability/scale/collect_run_metrics.py --execution exercise-20261013T055859Z --cost-only`
@@ -223,10 +237,15 @@ The checkout may be on `phase-8-9-100m-run` (draft PR #98); run
    and merge. Also back-fill `--cost-only` for the three 2026-10-12
    exercises (`…T075045Z`, `…T111304Z`, `…T133620Z`) if not done.
 2. **Independent of 8.9 (candidates, user to pick):**
-   - **9.1 — the Phase 9 ADR** (where pipeline status lives while
-     `dev-compute` is down; start from OpenTelemetry instrumentation, per
-     the 2026-10-09 search). It is ADR work: `/start-day` renders the
-     Well-Architected reference. Needs no cluster and no spend.
+   - **9.1 — review ADR 0021 with Opus 5.5, then accept it:** merged as
+     Proposed (#99). **Reminder for `/start-day` on 2026-10-14: tell the
+     user to switch to Opus 5.5 (`/model`) for this review** (design
+     judgment, not execution), after the `--cost-only` run. Review points:
+     local-only Grafana, file-based lineage, the two written weaknesses.
+     On acceptance flip `Proposed` to `Accepted` and check off
+     9.1. Then **9.2** starts with the three spikes (OTel remote-write
+     exporter, file transport for dbt-ol and the Spark listener, AMP rule
+     billing). 9.2 needs no cluster and almost no spend.
    - **Phase 8 follow-ups that need no cost data:** make the silver
      data-quality checks incremental (scan 20.5 → 105.9 GB per run);
      record per-check bytes in the data-quality record; find why the
@@ -3037,6 +3056,27 @@ _8.9's 100M run done and recorded (draft #98); 8.9 itself still open._
   failed-run diagnosis, 8.10 and the 8.11 Well-Architected pass.
 - **Cost:** gross month-to-date was $4.92 before 2026-10-12's exercises;
   the 100M run posts 2026-10-14 (budget $20).
+
+### 2026-10-13 (second session)
+
+_9.1 ADR 0021 written and merged as Proposed (#99); 9.1 still open._
+
+- **ADR 0021** (`docs/adr/0021-pipeline-status-and-alerting.md`): AMP as
+  the status store plus ruler/Alertmanager as Terraform (the deciding point
+  is alerts that fire while `dev-compute` and the laptop are off); local
+  Compose Grafana (Grafana Cloud free keeps 14 days, below the 30-day SLO
+  window; Managed Grafana $9/mo rejected); run-end remote-write publisher;
+  lineage files uploaded post-run. Weaknesses written into it: a run that
+  dies before publishing leaves no series, and a stale-data alert fits a
+  pipeline that runs only in exercise windows.
+- **Unverified, carried to 9.2 as spikes:** Python OTel remote-write
+  exporter (search found nothing), file transport in dbt-ol and the Spark
+  listener, AMP rule-evaluation billing.
+- **Done:** committed the 2026-10-13 checkpoint to main, recorded the
+  `--cost-only` command at the top of "Next up", merged #99 on the user's
+  request ("keep the ADR proposed").
+- **Left mid-flight:** #98 (waits for cost data); the `--cost-only` run
+  and the 8.9 close-out on 2026-10-14.
 
 ## Notes / blockers
 

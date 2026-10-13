@@ -131,6 +131,9 @@ Cost per million events and SLOs under load are still to be added.
 ⬜ Phase 9 (pipeline status & alerting) — planned. A Prometheus exporter
 for the batch pipeline, Grafana dashboards and alert rules as code, SLO
 burn-rate alerts, and a terminal status view, with no idle cost.
+[ADR 0021](docs/adr/0021-pipeline-status-and-alerting.md) (9.1, proposed)
+puts status in the existing AMP workspace, with AMP-evaluated alerts and
+a local Grafana.
 ⬜ Phase 10 (Databricks interoperability) — planned. Databricks reads
 Cerberus's Iceberg tables through Unity Catalog's AWS Glue federation, with
 no copy, managed in Terraform; the same workload is measured on both.
