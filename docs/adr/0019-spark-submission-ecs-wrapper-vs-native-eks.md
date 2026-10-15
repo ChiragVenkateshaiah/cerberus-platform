@@ -105,7 +105,7 @@ when any of these becomes true:
 2. **The data stops growing:** the wrapper's share of `RunTransform` stays
    above 25% at the platform's steady-state volume (after the scale ladder).
 3. **Frequency:** the pipeline runs much more often than daily (for example
-   micro-batches after Phase 12's streaming ingestion), so the fixed cost is
+   micro-batches after Phase 13's streaming ingestion), so the fixed cost is
    paid many times an hour.
 4. **The wrapper itself becomes the problem:** the runner image or
    `entrypoint_transform.sh` turns into a maintenance burden for reasons

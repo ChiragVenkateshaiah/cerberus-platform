@@ -8,7 +8,7 @@ Proposed
 
 ## Context
 
-Phase 9 ([plan.md](../plan.md#phase-9--pipeline-status--alerting)) exists
+Phase 10 ([plan.md](../plan.md#phase-10--pipeline-status--alerting)) exists
 to answer one question at any time: did the last run pass, and if not,
 which step failed? Today the answer is spread over the Step Functions
 console, CloudWatch, an exercise log and a JSON run record in
@@ -90,7 +90,7 @@ Terraform in `dev-standing` (`aws_prometheus_rule_group_namespace`,
 SNS topic. `promtool test rules` runs in `code-ci.yml` over the same rule
 files. Grafana runs **locally** from a Docker Compose file with
 provisioned datasource and dashboards, reading AMP with SigV4. Nothing runs
-when nobody is looking. The Phase 9 terminal view, `make status`, runs the
+when nobody is looking. The Phase 10 terminal view, `make status`, runs the
 same PromQL as the dashboard through the signing client the collector
 already has.
 
@@ -116,7 +116,7 @@ the fix for a failed run is exactly when it should still be there.
 
 *Instrumentation API.* The plan asked this ADR to decide whether the
 exporter uses the OpenTelemetry metrics SDK. **Yes as the API, with the
-transport left to 9.2's first spike.** OpenTelemetry is the vendor-neutral
+transport left to 10.2's first spike.** OpenTelemetry is the vendor-neutral
 instrumentation standard, and Prometheus remote write is one of its
 supported outputs. The maturity of the Python remote-write exporter, and
 whether it signs for AMP (service `aps`), was **not verified** in writing
@@ -136,7 +136,7 @@ that bucket. This keeps the 7.5 narrowing (the route stays closed outside
 a run's lineage next to its status record. **Not yet verified:** that the
 dbt-ol and Spark OpenLineage listeners can write to a file or console
 transport in the versions pinned in the runner image, and that the output
-parses with the collector's existing handling. 9.2 checks this first. If it
+parses with the collector's existing handling. 10.2 checks this first. If it
 fails, the fallback is to open the route for the exercise window with a
 `dev-standing` variable CI does not own, which is a bigger change and
 would need its own amendment.
@@ -147,7 +147,7 @@ for a file count that does not justify it. Revisit if the dashboards grow
 past about five.
 
 **Alerts, as code:** failed run (`cerberus_run_status == 0`), stale data
-(no success in N days; N chosen in 9.4), SLO burn rate over two windows
+(no success in N days; N chosen in 10.4), SLO burn rate over two windows
 (a fast and a slow one, following the multi-window method in the Google
 SRE workbook), and a run that never reported (a started execution with no
 status series after an hour).
@@ -157,7 +157,7 @@ status series after an hour).
 **Good**
 
 - One store for metrics (AMP), one place alerts arrive (SNS), one query
-  client; Phase 9 adds no always-on resource.
+  client; Phase 10 adds no always-on resource.
 - Rules are evaluated while the laptop is off, and history survives
   teardown and rebuilds.
 - Status, lineage and the run record are written by the same step, so they
@@ -171,7 +171,7 @@ status series after an hour).
   Cloud would fix it; neither is worth it for a one-person project.
 - **A run that dies before the end-of-run step publishes nothing.** The
   "never reported" alert (execution started, no series) is the safety net;
-  it needs the start to be recorded too, which 9.2 must settle (publish a
+  it needs the start to be recorded too, which 10.2 must settle (publish a
   `cerberus_run_started_timestamp_seconds` at the start).
 - **`last_over_time(...[30d])` in every query.** Easy to forget in a new
   panel; the dashboard and `make status` share the query set to limit that.
@@ -179,10 +179,10 @@ status series after an hour).
   PagerDuty route would go through an SNS subscription.
 - **A staleness alert fits a daily pipeline badly.** The pipeline runs
   only in exercise windows, so "no success in N days" would fire between
-  exercises. 9.4 either scopes it to `pipeline_active` periods or
+  exercises. 10.4 either scopes it to `pipeline_active` periods or
   uses a long N and labels it a warning.
 
-**To confirm from real runs (9.2, 9.6), not from this document**
+**To confirm from real runs (10.2, 10.6), not from this document**
 
 - The Python OpenTelemetry remote-write exporter versus a hand-written
   one (above).

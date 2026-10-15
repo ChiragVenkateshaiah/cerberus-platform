@@ -130,23 +130,27 @@ The run cost $0.50, half a cent per million events (1.8 cents for the whole
 exercise, generator and data-quality scan included), and met the 30-minute
 run-latency SLO with 2.4 times headroom.
 
-⬜ Phase 9 (pipeline status & alerting) — planned. A Prometheus exporter
+⬜ Phase 9 (demo console) — planned. A browser console on one start/stop
+EC2 instance: architecture and latest-run views, Grafana and Prometheus
+panels, and a terminal panel limited to a read-only `cerberus` command
+set, behind CloudFront and Cognito (or an SSO tunnel), with no idle cost.
+⬜ Phase 10 (pipeline status & alerting) — planned. A Prometheus exporter
 for the batch pipeline, Grafana dashboards and alert rules as code, SLO
 burn-rate alerts, and a terminal status view, with no idle cost.
-[ADR 0021](docs/adr/0021-pipeline-status-and-alerting.md) (9.1, proposed)
+[ADR 0021](docs/adr/0021-pipeline-status-and-alerting.md) (10.1, proposed)
 puts status in the existing AMP workspace, with AMP-evaluated alerts and
 a local Grafana.
-⬜ Phase 10 (Databricks interoperability) — planned. Databricks reads
+⬜ Phase 11 (Databricks interoperability) — planned. Databricks reads
 Cerberus's Iceberg tables through Unity Catalog's AWS Glue federation, with
 no copy, managed in Terraform; the same workload is measured on both.
-⬜ Phase 11 (platform tooling in Go) — planned. A Go CLI, `cerberusctl`,
+⬜ Phase 12 (platform tooling in Go) — planned. A Go CLI, `cerberusctl`,
 replaces the exercise, metric-collection and data-quality scripts with
 concurrent AWS calls and explicit signal handling.
-⬜ Phase 12 (streaming ingestion) — planned. Apache Kafka on a
+⬜ Phase 13 (streaming ingestion) — planned. Apache Kafka on a
 start/stop EC2 instance, with a Go producer and consumer writing into
 bronze for the incremental silver job.
 
-See [docs/plan.md](docs/plan.md) for the full phased roadmap (Phases 0–12)
+See [docs/plan.md](docs/plan.md) for the full phased roadmap (Phases 0–13)
 and [Phases.md](Phases.md) for subtask-level progress.
 
 The platform models **synthetic payments data** from Phase 1 onward.
