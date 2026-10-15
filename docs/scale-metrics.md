@@ -418,6 +418,29 @@ by more than five times. Dynamic allocation did that: the 10M run used two
 - **No Glue timeouts** in RunDbt, and no retries.
 - The one data-quality warning is the known `token_digit_runs`.
 
+### Milestone audit (`--full`)
+
+The 100M run's suite ran in ledger mode, the per-run default. Before
+milestone 8, `data_quality.py --full` re-checked every bronze key against
+silver on 2026-10-15, with no new data since the 100M run
+([record](../observability/scale/audits/dq-full-20261015.json)).
+
+- **Result: passed**, 20 checks, 0 errors, the one known warning
+  (`token_digit_runs`). `bronze_to_silver_keys`: 0 keys only in bronze,
+  0 only in silver. `bulk_duplicate_keys`: 0 duplicated keys across all six
+  generator runs. Bronze 137,113,940 events = silver 137,113,940.
+- **Cost:** 181.5 GB scanned in 22.9 s, about $0.91 at $5 per TB. Bronze
+  is 59.3 GB (S3 listing, 2026-10-15), and each of the two whole-bronze
+  queries reads all of it.
+- **The cutoff:** those queries pass the data-quality workgroup's 10 GiB
+  cutoff, so it was raised to 80 GiB for this one audit (#103) and put
+  back to 10 GiB with this record. Each milestone's audit will cost more
+  than the last; docs/plan.md's Planned later work has the replacement (a
+  per-run key fingerprint, "A milestone audit that does not re-read all of
+  bronze").
+- **Not covered:** values under correct keys, as in both modes (the
+  value-level checksum, also in Planned later work).
+
 ### Cost per million events
 
 Cost Explorer posted 2026-10-13 on 2026-10-15 (`--cost-only`; the day is
