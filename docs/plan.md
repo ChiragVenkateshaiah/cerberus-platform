@@ -146,10 +146,11 @@ layered on top of a platform that already works.
 | 6 | Observability & data quality | CloudWatch, dbt tests | AWS CloudWatch | ✅ Complete |
 | 7 | End-to-end platform validation | synthetic payments at scale, Well-Architected review, Prometheus metrics for EKS/Spark | AWS SAA _(parallel track)_ | ✅ Complete |
 | 8 | Scale validation | Apache Iceberg, incremental processing, Spark tuning, node autoscaling + Spot, AWS Budgets | _(course gap — Iceberg and Spark docs)_ | 🔨 In progress |
-| 9 | Pipeline status & alerting | Prometheus exporter for the batch pipeline, PromQL, Grafana dashboards as code, Alertmanager, SLO burn-rate alerts, a terminal status view | _(Prometheus and Grafana docs; Google SRE Workbook, alerting on SLOs)_ | ⬜ Planned |
-| 10 | Databricks interoperability | Unity Catalog federation to AWS Glue (Cerberus's Iceberg tables, no copy), Databricks Terraform provider, serverless SQL and jobs, Lakeflow | _(Databricks Academy; Databricks docs)_ | ⬜ Planned |
-| 11 | Platform tooling in Go | Go, AWS SDK for Go v2, `cerberusctl` CLI | _(Go docs, AWS SDK for Go v2 examples)_ | ⬜ Planned |
-| 12 | Streaming ingestion | Apache Kafka (KRaft, one start/stop EC2 instance), Go producer and consumer | _(Kafka docs; KodeKloud Kafka if available)_ | ⬜ Planned |
+| 9 | Demo console (UI + terminal) | A browser console on one start/stop EC2 instance: landing page, Grafana and Prometheus views, and a terminal panel limited to a read-only `cerberus` command set; CloudFront + Cognito (or an SSO tunnel) for access | _(CloudFront, Cognito and EC2 docs; ttyd or xterm.js docs)_ | ⬜ Planned |
+| 10 | Pipeline status & alerting | Prometheus exporter for the batch pipeline, PromQL, Grafana dashboards as code, Alertmanager, SLO burn-rate alerts, a terminal status view | _(Prometheus and Grafana docs; Google SRE Workbook, alerting on SLOs)_ | ⬜ Planned |
+| 11 | Databricks interoperability | Unity Catalog federation to AWS Glue (Cerberus's Iceberg tables, no copy), Databricks Terraform provider, serverless SQL and jobs, Lakeflow | _(Databricks Academy; Databricks docs)_ | ⬜ Planned |
+| 12 | Platform tooling in Go | Go, AWS SDK for Go v2, `cerberusctl` CLI | _(Go docs, AWS SDK for Go v2 examples)_ | ⬜ Planned |
+| 13 | Streaming ingestion | Apache Kafka (KRaft, one start/stop EC2 instance), Go producer and consumer | _(Kafka docs; KodeKloud Kafka if available)_ | ⬜ Planned |
 
 🎯 **MVP is complete at the end of Phase 1.**
 
@@ -305,19 +306,64 @@ layered on top of a platform that already works.
   projected at the ~137M the 100M step lands on, so the shared cutoff
   went to 25 GiB (decided: keep the 37M and land 100M on top, rather than
   reset or build the time spread first).
-- **Out of scope:** streaming (Kafka) and Airflow, now Phase 12 (on one
+- **Out of scope:** streaming (Kafka) and Airflow, now Phase 13 (on one
   start/stop EC2 instance, about $70/month if left running, so it follows
   the `dev-compute` spin-up/tear-down pattern); Delta Lake (ADR 0017); any
   language change -- 8.6–8.11 stay in Python, Spark and SQL, so the
   Phase 8 numbers show where the real limits are before Go is introduced
-  (Phases 11 and 12).
+  (Phases 12 and 13).
 - **Done when:** a 100M-event run completes orchestrated, with the
   data-quality suite clean, and run time and cost per million events are
   recorded for the 1M, 10M and 100M steps.
 - **Artifact:** a results write-up with the per-step numbers and charts, a
   demo video, ADRs for each decision, and Well-Architected milestone 8.
 
-### Phase 9 — Pipeline status & alerting
+### Phase 9 — Demo console (UI + terminal)
+_Added 2026-10-15, ahead of Phase 10 (pipeline status), which renumbered
+the phases after it by one._
+
+- **Goal:** Make the platform demonstrable to someone who will not read a
+  GitHub repo: a browser console that shows the architecture, the latest
+  run, the Grafana and Prometheus views, and a terminal panel where a
+  visitor runs a small set of read-only commands (`cerberus status`,
+  `runs`, `cost`, `dq`, `slo`) against the live platform.
+- **Gap it closes:** today the platform is shown through the AWS console,
+  Step Functions, a Grafana that exists only while `dev-compute` is up,
+  and JSON run records. None of that works as a 10-minute walk-through for
+  a stranger.
+- **Why this skill set:** it joins network edge, identity and compute
+  design: CloudFront and Cognito for access, an instance with a
+  least-privilege read-only role, and a terminal that is safe to expose.
+  The skill that sets an engineer apart here is designing the safe
+  boundary, not the page.
+- **Stack:** one small EC2 instance that starts and stops on demand (the
+  `dev-compute` and Kafka pattern, so it costs cents, not a monthly
+  instance fee); a web terminal (ttyd or an xterm.js front end) that runs
+  only an allowlisted `cerberus` command set, never a shell; CloudFront
+  with Cognito sign-in, or an SSO tunnel, so no port is open to the
+  internet; Grafana and Prometheus views fed by the standing AMP workspace
+  (ADR 0016) and the run records; a Python implementation of the commands
+  now, moved to `cerberusctl` in Phase 12.
+- **The central decision (its own ADR):** how a public-facing terminal
+  stays safe. The command set is an allowlist with fixed arguments, the
+  instance role is read-only, and the session has a time limit and an
+  idle auto-stop. The ADR also decides CloudFront + Cognito versus an SSO
+  tunnel, and how this console and ADR 0021's local Grafana share one
+  Grafana instead of building two.
+- **Out of scope:** a real shell, any write or run-control command (no
+  starting or stopping an exercise from the UI), user accounts beyond the
+  demo sign-in, and a rewrite in a web framework. Phase 10's pipeline
+  status data shows up on the console once Phase 10 lands; until then it
+  shows the Phase 7 views and the run records.
+- **Done when:** from a clean browser, a signed-in visitor sees the
+  architecture, the latest run and the dashboards, and runs each
+  allowlisted command in the terminal panel; the escape and injection
+  tests pass in CI; an attempt to run anything else is refused; and the
+  stack costs $0 when stopped.
+- **Artifact:** a short video of the console, the ADR, and
+  Well-Architected milestone 9.
+
+### Phase 10 — Pipeline status & alerting
 _Added 2026-10-09, to follow Phase 8 directly._
 
 - **Goal:** Make the result of every pipeline run visible at a glance --
@@ -373,7 +419,7 @@ _Added 2026-10-09, to follow Phase 8 directly._
   lineage behind the same status stack.
 - **Out of scope:** log aggregation (Loki) -- the exercise already saves
   the Spark logs; a Go rewrite of the exporter or the terminal view --
-  `cerberusctl status` belongs to Phase 11.
+  `cerberusctl status` belongs to Phase 12.
 - **Done when:** after a successful run and a deliberately failed one,
   the dashboard and `make status` show each run's status, failed step,
   step timings, events and data-quality result; the failed run fires an
@@ -382,10 +428,10 @@ _Added 2026-10-09, to follow Phase 8 directly._
   idle.
 - **Artifact:** a short video of the dashboard and terminal view across
   one passing and one failing run, the ADR, and Well-Architected
-  milestone 9.
+  milestone 10.
 
-### Phase 10 — Databricks interoperability
-_Added 2026-10-09, after Phase 9 and before the Go tooling. Feature and
+### Phase 11 — Databricks interoperability
+_Added 2026-10-09, after Phase 10 and before the Go tooling. Feature and
 cost facts below were checked against the Databricks docs on that date;
 re-check them in the phase's ADR._
 
@@ -455,9 +501,9 @@ re-check them in the phase's ADR._
   with $0 of Databricks charges after it.
 - **Artifact:** a comparison page (each Cerberus component beside its
   Databricks counterpart, with the measured numbers and what each gives
-  up), the ADR, a short demo, and Well-Architected milestone 10.
+  up), the ADR, a short demo, and Well-Architected milestone 11.
 
-### Phase 11 — Platform tooling in Go
+### Phase 12 — Platform tooling in Go
 - **Goal:** Replace the platform's operational scripts with one Go
   command-line tool, `cerberusctl`, that runs an exercise, collects its
   metrics and runs the data-quality suite -- with real concurrency and
@@ -480,7 +526,7 @@ re-check them in the phase's ADR._
   execution, collect, guaranteed teardown, account check), `cerberusctl
   collect` (the metric record, `--cost-only`, `--dq-only`), `cerberusctl
   dq` (the 17 checks, all queries in flight at once, fail-closed),
-  `cerberusctl status` (Phase 9's terminal view, same PromQL). The SQL
+  `cerberusctl status` (Phase 10's terminal view, same PromQL). The SQL
   of the checks stays in one place that both tools read until the Python
   versions are retired.
 - **Engineering bar:** unit tests with fakes for the AWS clients, a
@@ -491,7 +537,7 @@ re-check them in the phase's ADR._
   still ends in the account check, and the Python and Bash versions are
   retired.
 
-### Phase 12 — Streaming ingestion
+### Phase 13 — Streaming ingestion
 - **Goal:** Add a streaming path next to the batch one: payment events
   flow through Apache Kafka into bronze continuously, and the Phase 8
   incremental silver job picks them up on its next run.
@@ -590,7 +636,7 @@ _Proposed 2026-10-09, from 8.6's ledger design. A follow-up after Phase 8._
   and the Lambda's JSON produce identically; whether the generator should
   write per-dt checksums into `_manifest.json` so new runs need no extra
   scan; how a mismatch is reported (count plus a few example keys).
-- **Fits with:** Phase 9, where data-quality results become dashboard
+- **Fits with:** Phase 10, where data-quality results become dashboard
   metrics and alerts.
 
 ## Existing infrastructure

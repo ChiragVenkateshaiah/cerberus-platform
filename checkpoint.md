@@ -196,18 +196,26 @@ million events per step. $20/month, six weeks from 2026-10-06.
     ~10k). The extra-executor speed-up is not isolated from the larger
     silver table.
 
-- **9.1** — ADR 0021 (pipeline status and alerting) written and merged
-  as **Proposed** (PR #99); 9.1 stays unchecked until the user accepts it.
+- **10.1** — ADR 0021 (pipeline status and alerting) written and merged
+  as **Proposed** (PR #99); 10.1 stays unchecked until the user accepts it.
   Proposes: the existing AMP workspace as the store, with AMP's ruler and
   Alertmanager (SNS) as Terraform so alerts fire while the laptop is off;
   local Docker Compose Grafana reading AMP; one run-end publisher writing
   `cerberus_*` series by remote-write (no scrape, no Pushgateway; queries
   use `last_over_time(...[30d])`); lineage events written to a file and
-  uploaded post-run. Unverified, left as 9.2 spikes: the Python
+  uploaded post-run. Unverified, left as 10.2 spikes: the Python
   OpenTelemetry remote-write exporter, file transport in dbt-ol and the
   Spark listener, AMP rule-evaluation billing.
 
 ## Next up
+
+**Renumbered 2026-10-15:** a new **Phase 9 — Demo console (UI + terminal)**
+was inserted (EC2 start/stop console, CloudFront + Cognito or SSO tunnel,
+a read-only `cerberus` command set in a web terminal). The old Phases 9–12
+are now 10–13; ADR 0021 is now Phase 10's ADR (10.1). History entries
+before this note keep the old numbers. Also: the `--cost-only` command
+needs `uv run -q --no-project --with boto3 python ...`, not `.venv/bin/python`
+(no boto3 there). The 8.9 cost run was done 2026-10-15.
 
 **Two things for 2026-10-14: the cost run below (Sonnet 5.5 is fine), then the ADR 0021 review with Opus 5.5 (item 2, first bullet).**
 
@@ -237,15 +245,15 @@ open PR.
    and merge. Also back-fill `--cost-only` for the three 2026-10-12
    exercises (`…T075045Z`, `…T111304Z`, `…T133620Z`) if not done.
 2. **Independent of 8.9 (candidates, user to pick):**
-   - **9.1 — review ADR 0021 with Opus 5.5, then accept it:** merged as
+   - **10.1 — review ADR 0021 with Opus 5.5, then accept it:** merged as
      Proposed (#99). **Reminder for `/start-day` on 2026-10-14: tell the
      user to switch to Opus 5.5 (`/model`) for this review** (design
      judgment, not execution), after the `--cost-only` run. Review points:
      local-only Grafana, file-based lineage, the two written weaknesses.
      On acceptance flip `Proposed` to `Accepted` and check off
-     9.1. Then **9.2** starts with the three spikes (OTel remote-write
+     10.1. Then **10.2** starts with the three spikes (OTel remote-write
      exporter, file transport for dbt-ol and the Spark listener, AMP rule
-     billing). 9.2 needs no cluster and almost no spend.
+     billing). 10.2 needs no cluster and almost no spend.
    - **Phase 8 follow-ups that need no cost data:** make the silver
      data-quality checks incremental (scan 20.5 → 105.9 GB per run);
      record per-check bytes in the data-quality record; find why the
@@ -271,7 +279,7 @@ the daily orchestrated path does.
 - **Faker Lambda-layer hash churn:** still cosmetic, still present (every
   local `dev-standing` plan replaces the layer).
 - **Lineage on hand-started exercises:** closed since 2026-10-07 by
-  design (7.5); owned by Phase 9 (plan.md, Phases.md 9.1).
+  design (7.5); owned by Phase 10 (plan.md, Phases.md 10.1).
 - **Follow-ups recorded in ADR 0016, not adopted:** private EKS endpoint
   access (ADR 0019 keeps it possible), and a Pushgateway.
 - **Well-Architected milestone 8** belongs to 8.11.

@@ -20,7 +20,7 @@ the specific "what's next" live in [checkpoint.md](checkpoint.md)._
   own work plus an ADR. This is a real checkbox in each phase below, not an
   aspiration: architecture is built by repetition, so it is tracked like any
   other deliverable. Two parts are required to check a "Well-Architected pass
-  + ADR" subtask off (3.8, 4.5, 5.5, 6.6, 7.4, 8.11, 9.7, 10.7), not just the ADR: also save a
+  + ADR" subtask off (3.8, 4.5, 5.5, 6.6, 7.4, 8.11, 9.7, 10.7, 11.7, 12.7, 13.7), not just the ADR: also save a
   new milestone on the `cerberus-platform` AWS Well-Architected Tool workload
   (`phase-N-<slug>-complete`). See [docs/plan.md](docs/plan.md)'s
   Architecture guiding principle and [checkpoint.md](checkpoint.md)'s
@@ -141,60 +141,81 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 - [ ] 8.10 Results write-up (per-step numbers and charts) + demo video
 - [ ] 8.11 Well-Architected pass + ADR
 
-## Phase 9 — Pipeline status & alerting ⬜
+## Phase 9 — Demo console (UI + terminal) ⬜
 
-- [ ] 9.1 ADR: where pipeline status lives while `dev-compute` is down
+- [ ] 9.1 ADR: the demo console (one start/stop EC2 instance vs. other
+      hosts; web terminal tool; CloudFront + Cognito vs. an SSO tunnel;
+      the read-only command set and why it is not a shell; where Grafana
+      and Prometheus data come from while `dev-compute` is down; idle cost
+      $0; how this relates to ADR 0021's local Grafana)
+- [ ] 9.2 Terraform: the console instance (start/stop, tagged, read-only
+      IAM role, no public inbound port), the CloudFront + Cognito (or SSO
+      tunnel) edge, and `make console-up` / `make console-down`
+- [ ] 9.3 The read-only command set: `cerberus status`, `runs`, `run <id>`,
+      `cost`, `dq`, `slo`; an allowlist, no shell, no write, fail-closed;
+      reads run records, Step Functions, Athena and AMP
+- [ ] 9.4 The UI outline: a landing page (architecture, phase status, the
+      latest run), Grafana and Prometheus panels, a terminal panel
+- [ ] 9.5 The terminal panel wired to the command set in the browser,
+      with a session time limit and an idle auto-stop
+- [ ] 9.6 Safety and live check: escape and injection tests for the
+      command set in CI; a demo from a clean browser; torn down to $0
+- [ ] 9.7 Well-Architected pass + ADR
+
+## Phase 10 — Pipeline status & alerting ⬜
+
+- [ ] 10.1 ADR: where pipeline status lives while `dev-compute` is down
       (local stack, AMP, or Grafana Cloud free tier), dashboard tooling,
       no new idle cost, and how hand-started exercises' lineage reaches the
       collector (closed to them since 2026-10-07)
-- [ ] 9.2 Pipeline status exporter: per-run status, failed step, step
+- [ ] 10.2 Pipeline status exporter: per-run status, failed step, step
       durations, events, data-quality result, last-success timestamps
-- [ ] 9.3 Grafana pipeline-status dashboard, provisioned as code
-- [ ] 9.4 Alerting as code: failed run, stale data, SLO burn rate;
+- [ ] 10.3 Grafana pipeline-status dashboard, provisioned as code
+- [ ] 10.4 Alerting as code: failed run, stale data, SLO burn rate;
       `promtool test rules` in CI
-- [ ] 9.5 Terminal status view (`make status`) from the same PromQL queries
-- [ ] 9.6 Live check: one passing and one deliberately failed exercise,
+- [ ] 10.5 Terminal status view (`make status`) from the same PromQL queries
+- [ ] 10.6 Live check: one passing and one deliberately failed exercise,
       shown correctly on the dashboard, in the terminal and as an alert
-- [ ] 9.7 Well-Architected pass + ADR
-
-## Phase 10 — Databricks interoperability ⬜
-
-- [ ] 10.1 ADR: Databricks as a second engine through the catalog (Free
-      Edition vs. trial, Glue federation, Terraform scope, cost guardrails)
-- [ ] 10.2 Free Edition: port one pipeline step as a Lakeflow job or
-      pipeline with expectations; workspace objects in Terraform
-- [ ] 10.3 Trial preparation: IAM role in `dev-standing`; Terraform for the
-      service credential, connection, external location, foreign catalog
-      and grants; runbook with the cancellation steps
-- [ ] 10.4 Trial: Glue federation live; Databricks SQL reads Cerberus's
-      Iceberg gold with no copy
-- [ ] 10.5 Measured comparison: same input on both engines, run time and
-      cost per million events
-- [ ] 10.6 Comparison write-up + demo; trial cancelled, $0 confirmed
 - [ ] 10.7 Well-Architected pass + ADR
 
-## Phase 11 — Platform tooling in Go ⬜
+## Phase 11 — Databricks interoperability ⬜
 
-- [ ] 11.1 ADR: Go for platform tooling (module layout, CLI framework, testing)
-- [ ] 11.2 Go module, `golangci-lint` + `go test` in CI, release builds
-- [ ] 11.3 `cerberusctl dq`: the data-quality suite, all checks concurrent, fail-closed
-- [ ] 11.4 `cerberusctl collect`: the metric record, `--cost-only`, `--dq-only`
-- [ ] 11.5 `cerberusctl exercise`: preflight → apply → run → collect →
-      guaranteed teardown → account check
-- [ ] 11.6 Parity run: same record as the Python tools on one exercise; retire
-      `exercise.sh`, `collect_run_metrics.py`, `data_quality.py`
+- [ ] 11.1 ADR: Databricks as a second engine through the catalog (Free
+      Edition vs. trial, Glue federation, Terraform scope, cost guardrails)
+- [ ] 11.2 Free Edition: port one pipeline step as a Lakeflow job or
+      pipeline with expectations; workspace objects in Terraform
+- [ ] 11.3 Trial preparation: IAM role in `dev-standing`; Terraform for the
+      service credential, connection, external location, foreign catalog
+      and grants; runbook with the cancellation steps
+- [ ] 11.4 Trial: Glue federation live; Databricks SQL reads Cerberus's
+      Iceberg gold with no copy
+- [ ] 11.5 Measured comparison: same input on both engines, run time and
+      cost per million events
+- [ ] 11.6 Comparison write-up + demo; trial cancelled, $0 confirmed
 - [ ] 11.7 Well-Architected pass + ADR
 
-## Phase 12 — Streaming ingestion ⬜
+## Phase 12 — Platform tooling in Go ⬜
 
-- [ ] 12.1 ADR: streaming design (Kafka on start/stop EC2, bronze prefix,
-      delivery guarantees, Airflow or not)
-- [ ] 12.2 Terraform: start/stop Kafka (KRaft) instance, tagged, torn down to $0
-- [ ] 12.3 Go producer: synthetic payment events at a configurable rate
-- [ ] 12.4 Go consumer: batched JSON Lines into bronze, at-least-once
-- [ ] 12.5 Silver job and data-quality suite cover the streaming prefix
-- [ ] 12.6 Sustained-load test: throughput, consumer lag, cost per hour
+- [ ] 12.1 ADR: Go for platform tooling (module layout, CLI framework, testing)
+- [ ] 12.2 Go module, `golangci-lint` + `go test` in CI, release builds
+- [ ] 12.3 `cerberusctl dq`: the data-quality suite, all checks concurrent, fail-closed
+- [ ] 12.4 `cerberusctl collect`: the metric record, `--cost-only`, `--dq-only`
+- [ ] 12.5 `cerberusctl exercise`: preflight → apply → run → collect →
+      guaranteed teardown → account check
+- [ ] 12.6 Parity run: same record as the Python tools on one exercise; retire
+      `exercise.sh`, `collect_run_metrics.py`, `data_quality.py`
 - [ ] 12.7 Well-Architected pass + ADR
+
+## Phase 13 — Streaming ingestion ⬜
+
+- [ ] 13.1 ADR: streaming design (Kafka on start/stop EC2, bronze prefix,
+      delivery guarantees, Airflow or not)
+- [ ] 13.2 Terraform: start/stop Kafka (KRaft) instance, tagged, torn down to $0
+- [ ] 13.3 Go producer: synthetic payment events at a configurable rate
+- [ ] 13.4 Go consumer: batched JSON Lines into bronze, at-least-once
+- [ ] 13.5 Silver job and data-quality suite cover the streaming prefix
+- [ ] 13.6 Sustained-load test: throughput, consumer lag, cost per hour
+- [ ] 13.7 Well-Architected pass + ADR
 
 ---
 
