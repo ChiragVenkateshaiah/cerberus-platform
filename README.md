@@ -135,7 +135,7 @@ set, behind CloudFront and Cognito (or an SSO tunnel), with no idle cost.
 ⬜ Phase 10 (pipeline status & alerting) — planned. A Prometheus exporter
 for the batch pipeline, Grafana dashboards and alert rules as code, SLO
 burn-rate alerts, and a terminal status view, with no idle cost.
-[ADR 0021](docs/adr/0021-pipeline-status-and-alerting.md) (10.1, proposed)
+[ADR 0021](docs/adr/0021-pipeline-status-and-alerting.md) (10.1, accepted)
 puts status in the existing AMP workspace, with AMP-evaluated alerts and
 a local Grafana.
 ⬜ Phase 11 (Databricks interoperability) — planned. Databricks reads

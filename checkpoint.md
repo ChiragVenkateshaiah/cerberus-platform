@@ -196,9 +196,8 @@ million events per step. $20/month, six weeks from 2026-10-06.
     ~10k). The extra-executor speed-up is not isolated from the larger
     silver table.
 
-- **10.1** — ADR 0021 (pipeline status and alerting) written and merged
-  as **Proposed** (PR #99); 10.1 stays unchecked until the user accepts it.
-  Proposes: the existing AMP workspace as the store, with AMP's ruler and
+- **10.1** — ADR 0021 (pipeline status and alerting) **Accepted with changes** on 2026-10-15 after an Opus review (first draft merged Proposed in #99).
+  (First draft) proposed: the existing AMP workspace as the store, with AMP's ruler and
   Alertmanager (SNS) as Terraform so alerts fire while the laptop is off;
   local Docker Compose Grafana reading AMP; one run-end publisher writing
   `cerberus_*` series by remote-write (no scrape, no Pushgateway; queries
@@ -245,15 +244,14 @@ open PR.
    and merge. Also back-fill `--cost-only` for the three 2026-10-12
    exercises (`…T075045Z`, `…T111304Z`, `…T133620Z`) if not done.
 2. **Independent of 8.9 (candidates, user to pick):**
-   - **10.1 — review ADR 0021 with Opus 5.5, then accept it:** merged as
-     Proposed (#99). **Reminder for `/start-day` on 2026-10-14: tell the
-     user to switch to Opus 5.5 (`/model`) for this review** (design
-     judgment, not execution), after the `--cost-only` run. Review points:
-     local-only Grafana, file-based lineage, the two written weaknesses.
-     On acceptance flip `Proposed` to `Accepted` and check off
-     10.1. Then **10.2** starts with the three spikes (OTel remote-write
-     exporter, file transport for dbt-ol and the Spark listener, AMP rule
-     billing). 10.2 needs no cluster and almost no spend.
+   - **10.1 — ADR 0021 accepted with changes (2026-10-15, Opus review).**
+     Changes: lineage goes out through the console transport (Spark driver
+     log, dbt CloudWatch Logs), not files; no AMP stale-data alert for
+     exercises; error-budget alert over runs instead of multi-window burn
+     rate; latest-run series have no `execution` label; Grafana host left
+     to Phase 9's ADR. Next: **10.2** starts with the spikes (OTel
+     remote-write exporter and SigV4, console-transport lineage events,
+     AMP rule billing), but Phase 9 (the console) comes first.
    - **Phase 8 follow-ups that need no cost data:** make the silver
      data-quality checks incremental (scan 20.5 → 105.9 GB per run);
      record per-check bytes in the data-quality record; find why the
