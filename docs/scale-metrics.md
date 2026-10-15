@@ -24,7 +24,7 @@ screenshots.
 | **Spark bytes read** | Sum over executors of each executor's peak `metrics_executor_totalInputBytes_bytes_total` inside the run window, per `spark_app` | AMP (Prometheus), SigV4 query API | `cerberus-admin` (`aps:QueryMetrics`) |
 | **Spark shuffle bytes** | Same method with `metrics_executor_totalShuffleWrite_bytes_total` | AMP | `cerberus-admin` |
 | **Bytes stored** | Object count and bytes under bronze `payments/`, bronze `payments_bulk/` (and one generator `run_id`), silver `payments/`, and gold | S3 `ListObjectsV2`, a snapshot at collection time | `cerberus-admin` |
-| **Athena bytes** | Per state: query count, bytes scanned, and bytes billed (each query billed at least 10 MB, rounded up to the MB) | `GetQueryExecution` for each query in the `cerberus_platform` workgroup submitted inside the state's window | `cerberus-admin` |
+| **Athena bytes and time** | Per state: query count, bytes scanned, bytes billed (each query billed at least 10 MB, rounded up to the MB), and the summed engine time and queue time (`engine_seconds`, `queue_seconds`; since 2026-10-15, back-filled into every record). Queue time is Athena waiting for capacity before a query starts, so a state's seconds minus its queue time is the part our work controls | `GetQueryExecution` for each query in the `cerberus_platform` workgroup submitted inside the state's window | `cerberus-admin` |
 | **Peak active series** | The highest count of series with a sample at any 15 s step during the run | AMP: `max_over_time(count({__name__=~".+"})[<run>:15s])` | `cerberus-admin` |
 | **Cost per million events** | Run cost ÷ (events processed ÷ 1M), where run cost = the day's non-Athena platform cost per EKS cluster-hour × run hours + the run's Athena billed cost | Cost Explorer, one request (see the cost method below) | `cerberus-admin` |
 | **Data quality** | Pass/fail per check across bronze → silver → gold, including the bronze → silver reconciliation ADR 0017 requires (see [Data-quality suite](#data-quality-suite)) | [`data_quality.py`](../observability/scale/data_quality.py): one Athena query per check, run by the collector | `cerberus-transform` |
@@ -510,13 +510,15 @@ spot-check, not a budget statement):
 | 1 | Pipeline success | SUCCEEDED, no retries, no failed states |
 | 2 | Gold freshness (< 24 h) | Met: gold was written by RunDbt during the run |
 | 3 | Run latency (< 30 min) | **Met: 742 s (12.4 min), 41% of the limit.** The 45 min alarm would fire at 3.6 times this |
-| 4 | Serving query (< 30 s) | The state took 58.3 s, over 30 s. Most of that is the ~55 s polling floor; the Athena query time is not in the record, so this is not shown met |
+| 4 | Serving query (< 30 s) | **Met: 3.2 s of Athena engine time** (0.1 s queued; back-filled 2026-10-15). The state took 58.3 s, almost all of it the ~55 s polling floor |
 | 5 | Data quality (hard gate) | dbt build passed; the 26-check suite passed with one known warning |
 | 6 | Observer freshness | Not load-related; not measured here |
 
-Latency at 100M has headroom of 2.4 times. Objective 4 needs the query's
-own `EngineExecutionTime` recorded to be judged under load: add it to the
-collector (follow-up).
+Latency at 100M has headroom of 2.4 times. Objective 4 is judged on the
+query's own engine time, which the collector records since 2026-10-15
+(`engine_seconds`, back-filled into every record): 0.7–5.0 s in every
+run from 40k to 138M silver events, so the serving query has not grown
+near its limit.
 
 ## Data-quality suite
 

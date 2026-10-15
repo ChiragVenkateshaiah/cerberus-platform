@@ -164,8 +164,18 @@ def athena_by_state(queries, states):
             "bytes_scanned": scanned,
             "bytes_billed": billed,
             "usd": round(billed / 1e12 * ATHENA_USD_PER_TB, 6),
+            # Summed over the state's queries. Queue time is Athena waiting
+            # for capacity before a query starts -- not our work, and on
+            # 2026-10-15 it was 230 s of a 287 s RunDbt (dbt's 2 threads, far
+            # below any quota). Engine time is SLO 4's serving-query time.
+            "engine_seconds": statistic_seconds(mine, "EngineExecutionTimeInMillis"),
+            "queue_seconds": statistic_seconds(mine, "QueryQueueTimeInMillis"),
         }
     return result
+
+
+def statistic_seconds(queries, key):
+    return round(sum(q["Statistics"].get(key, 0) for q in queries) / 1000, 1)
 
 
 class Amp:
@@ -488,6 +498,10 @@ def main():
         "athena_totals": {
             key: sum(a[key] for a in athena.values())
             for key in ("queries", "bytes_scanned", "bytes_billed")
+        }
+        | {
+            key: round(sum(a[key] for a in athena.values()), 1)
+            for key in ("engine_seconds", "queue_seconds")
         },
         "prometheus": prometheus,
         "storage_snapshot": storage,

@@ -19,7 +19,9 @@
         "queries": 0,
         "bytes_scanned": 0,
         "bytes_billed": 0,
-        "usd": 0.0
+        "usd": 0.0,
+        "engine_seconds": 0.0,
+        "queue_seconds": 0.0
       }
     },
     {
@@ -30,7 +32,9 @@
         "queries": 0,
         "bytes_scanned": 0,
         "bytes_billed": 0,
-        "usd": 0.0
+        "usd": 0.0,
+        "engine_seconds": 0.0,
+        "queue_seconds": 0.0
       }
     },
     {
@@ -41,7 +45,9 @@
         "queries": 33,
         "bytes_scanned": 15296462332,
         "bytes_billed": 15572402176,
-        "usd": 0.077862
+        "usd": 0.077862,
+        "engine_seconds": 57.9,
+        "queue_seconds": 230.5
       }
     },
     {
@@ -52,14 +58,18 @@
         "queries": 1,
         "bytes_scanned": 144428522,
         "bytes_billed": 144703488,
-        "usd": 0.000724
+        "usd": 0.000724,
+        "engine_seconds": 5.0,
+        "queue_seconds": 0.1
       }
     }
   ],
   "athena_totals": {
     "queries": 34,
     "bytes_scanned": 15440890854,
-    "bytes_billed": 15717105664
+    "bytes_billed": 15717105664,
+    "engine_seconds": 62.9,
+    "queue_seconds": 230.6
   },
   "prometheus": {
     "peak_active_series": 9053,
