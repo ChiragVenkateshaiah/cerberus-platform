@@ -164,7 +164,7 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 
 ## Phase 10 — Pipeline status & alerting ⬜
 
-- [ ] 10.1 ADR: where pipeline status lives while `dev-compute` is down
+- [x] 10.1 ADR: where pipeline status lives while `dev-compute` is down
       (local stack, AMP, or Grafana Cloud free tier), dashboard tooling,
       no new idle cost, and how hand-started exercises' lineage reaches the
       collector (closed to them since 2026-10-07)

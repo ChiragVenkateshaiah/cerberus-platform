@@ -384,8 +384,9 @@ _Added 2026-10-09, to follow Phase 8 directly._
   and alerting on SLOs and error budgets rather than raw thresholds. This
   phase builds those on the six SLOs from 6.5, so it extends the existing
   stack instead of adding a second one.
-- **Stack:** a small Prometheus exporter for the batch pipeline (Python
-  `prometheus_client`, reusing what `collect_run_metrics.py` already reads
+- **Stack:** a small publisher for the batch pipeline (the OpenTelemetry
+  metrics SDK as the API and remote write to AMP, per ADR 0021;
+  `prometheus_client` cannot remote-write; reusing what `collect_run_metrics.py` already reads
   from Step Functions and the data-quality suite), following the
   Prometheus batch-job pattern -- last-run status and a last-success
   timestamp per step, not a scrape of a process that has already exited;
