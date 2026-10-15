@@ -640,6 +640,33 @@ _Proposed 2026-10-09, from 8.6's ledger design. A follow-up after Phase 8._
 - **Fits with:** Phase 10, where data-quality results become dashboard
   metrics and alerts.
 
+### A milestone audit that does not re-read all of bronze
+
+_Proposed 2026-10-15, from the milestone-8 `--full` audit. A follow-up
+after Phase 8._
+
+- **Problem:** `data_quality.py` says to run `--full` before each
+  milestone, to catch the gap the ledger leaves (a silver change that keeps
+  the count and key uniqueness). `--full` re-reads all of bronze in each of
+  its two whole-bronze queries: 59.3 GB at 137M events, past the
+  data-quality workgroup's 10 GiB cutoff. Milestone 8 needed the cutoff
+  raised for one run. Bronze only grows, so each milestone's audit costs
+  more than the last.
+- **Plan:** a key fingerprint per generator run, written once -- for
+  example an order-independent sum of `xxhash64(transaction_id,
+  event_type)` per dt, stored in `_manifest.json` by the generator (or by
+  the one-time new-run check, which already reads that run) -- then
+  compared with the same aggregate over silver's keys: in total, or per
+  group if silver keeps a column that maps to the bronze run and dt (a
+  design question). Silver's key columns are a small Parquet read, so the audit costs a
+  fraction of today's and stays under the 10 GiB cutoff. A mismatch is
+  narrowed to one run and dt, then to keys, by a targeted scan.
+- **Then:** change the docstring rule from "run `--full` before each
+  milestone" to the fingerprint check, and keep `--full` for narrowing a
+  mismatch only.
+- **Fits with:** the value-level checksum above -- the same per-dt
+  manifest field could carry both, so the two are best designed together.
+
 ## Existing infrastructure
 
 Live AWS resources, all created by hand during Phase 0 and reused from Phase 1
