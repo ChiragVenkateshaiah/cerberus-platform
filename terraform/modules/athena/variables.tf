@@ -16,7 +16,7 @@ variable "bytes_scanned_cutoff_bytes" {
 }
 
 variable "dq_bytes_scanned_cutoff_bytes" {
-  description = "Per-query bytes-scanned cutoff for the data-quality workgroup. Sized for the 10M step (bronze 4.36 GB) with headroom; not meant to stretch to 100M -- see the workgroup's comment."
+  description = "Per-query bytes-scanned cutoff for the data-quality workgroup. Sized for the 10M step (bronze 4.36 GB) with headroom; not meant to stretch to 100M -- see the workgroup's comment. TEMPORARY, 2026-10-15: 80 GiB for one `data_quality.py --full` audit before milestone 8 (each whole-bronze query reads all 59.3 GB of bronze at 137M events, about $0.43 at most per query). Back to 10 GiB in the PR that records the audit's result."
   type        = number
-  default     = 10737418240 # 10 GiB
+  default     = 85899345920 # 80 GiB -- temporary, see the description
 }
