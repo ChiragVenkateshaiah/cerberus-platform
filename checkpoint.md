@@ -126,7 +126,7 @@ million events per step. $20/month, six weeks from 2026-10-06.
     (−19.3 s); both pods "already present on machine".
   - **10M pair**, 9.0M new events each: one 1 GB executor → two 2 GB
     executors (#77): RunTransform **323.3 → 241.6 s (−25%)** while the
-    anti-join read a silver table twice as large. $0.02 per million events.
+    anti-join read a silver table twice as large. $0.011–0.015 per million events (re-priced 2026-10-15).
   - **The four levers:** no setting worth changing. The job is CPU-bound on
     two cores (JSON parse); AQE is already on (shuffle 200 → 30 tasks);
     skew is mild (day sizes); silver is 54 files / 1.23 GB for 19M rows, so

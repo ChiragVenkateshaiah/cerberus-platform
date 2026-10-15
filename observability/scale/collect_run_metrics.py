@@ -321,7 +321,6 @@ def day_cost(session, day):
         "usd": total,
         "by_service": dict(sorted(by_service.items(), key=lambda kv: -kv[1])),
         "eks_cluster_hours": round(cluster_hours, 3),
-        "usd_per_cluster_hour": round(total / cluster_hours, 4) if cluster_hours else None,
         # Cost Explorer posts a day in pieces, and `Estimated` stays true until
         # the month closes, so it can't tell a partial day from a whole one.
         # On 2026-10-08 a day-old exercise showed 0.26 of ~1.2 cluster-hours
@@ -333,18 +332,35 @@ def day_cost(session, day):
     }
 
 
-def add_cost(record, admin):
-    start = datetime.fromisoformat(record["start"])
-    cost = day_cost(admin, start.date())
+def price_run(record, cost):
+    """Run cost from a day's cost: the day's non-Athena cost per EKS
+    cluster-hour times the run's hours, plus the run's own Athena bytes.
+
+    Athena is taken out of the rate because it is billed per query, not per
+    cluster-hour, and the run's own queries are added back from their
+    billed bytes. Before 2026-10-15 the rate used the whole day total, so
+    the run's Athena was counted twice (and the day's data-quality scans
+    were spread over every cluster-hour).
+    """
+    hours = cost["eks_cluster_hours"]
+    athena_day = cost["by_service"].get("Amazon Athena", 0.0)
+    rate = (cost["usd"] - athena_day) / hours if hours else None
+    cost["usd_per_cluster_hour"] = round(rate, 4) if rate is not None else None
+    cost["rate_excludes"] = "Amazon Athena"
     athena_usd = sum(state["athena"]["usd"] for state in record["states"])
-    rate = cost["usd_per_cluster_hour"]
     run_usd = rate * record["run_seconds"] / 3600 + athena_usd if rate else None
     cost["run_usd"] = round(run_usd, 4) if run_usd is not None else None
     cost["usd_per_million_events"] = (
-        round(run_usd / (record["events_processed"] / 1e6), 2)
+        round(run_usd / (record["events_processed"] / 1e6), 4)
         if run_usd is not None and record["events_processed"]
         else None
     )
+    return cost
+
+
+def add_cost(record, admin):
+    start = datetime.fromisoformat(record["start"])
+    cost = price_run(record, day_cost(admin, start.date()))
     cost["collected_at"] = datetime.now(UTC).isoformat(timespec="seconds")
     record["cost"] = cost
 
