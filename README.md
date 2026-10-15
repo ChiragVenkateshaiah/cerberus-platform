@@ -122,11 +122,20 @@ Cluster Autoscaler added a Spot node in about a minute, and an AWS FIS
 Spot interruption in the middle of a 9M-event run was absorbed with no
 failure: the executors on the reclaimed node decommissioned gracefully,
 replacement nodes joined, and silver still matched bronze event for event
-(37,105,429). Next is the 100M step (8.9).
+(37,105,429). The 100M step (8.9) has run: 100M new events on top of 37M
+went through the orchestrated pipeline in 742 s with data quality passing,
+the transform step taking 2.1 times as long as at 10M for 11 times the
+events as Cluster Autoscaler grew the Spot group to its four-node maximum.
+The run cost $0.50, half a cent per million events (1.8 cents for the whole
+exercise, generator and data-quality scan included), and met the 30-minute
+run-latency SLO with 2.4 times headroom.
 
 ⬜ Phase 9 (pipeline status & alerting) — planned. A Prometheus exporter
 for the batch pipeline, Grafana dashboards and alert rules as code, SLO
 burn-rate alerts, and a terminal status view, with no idle cost.
+[ADR 0021](docs/adr/0021-pipeline-status-and-alerting.md) (9.1, proposed)
+puts status in the existing AMP workspace, with AMP-evaluated alerts and
+a local Grafana.
 ⬜ Phase 10 (Databricks interoperability) — planned. Databricks reads
 Cerberus's Iceberg tables through Unity Catalog's AWS Glue federation, with
 no copy, managed in Terraform; the same workload is measured on both.
@@ -344,7 +353,7 @@ git config pull.rebase true
   (8.3): what each scale step measures, where every number comes from, the
   cost method, the baseline at today's volume, the data-quality suite
   (8.4), 8.6's measured results at 10M events, and 8.8's autoscaling,
-  dynamic allocation and Spot interruption tests
+  dynamic allocation and Spot interruption tests, and 8.9's 100M-event run
 - [docs/adr/](docs/adr/) — architecture decision records
 - [docs/courses-map-to-phases.md](docs/courses-map-to-phases.md) — which
   courses (if any) map to each phase, and where no course exists

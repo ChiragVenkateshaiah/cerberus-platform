@@ -175,45 +175,89 @@ million events per step. $20/month, six weeks from 2026-10-06.
     = bronze = 37,105,429). Root policy: `Fis`/`FisAccount` +
     `PassRole` to `fis.amazonaws.com`.
 
+- **8.9** — 100M events, run done 2026-10-13; **not complete** (cost and
+  SLOs open). #97 (limits raised) was merged and its image rebuild applied
+  first. `exercise-20261013T055859Z` (draft PR #98, write-up in
+  docs/scale-metrics.md, "8.9 at 100M"):
+  - **Result:** 100,008,511 new events on top of 37.1M; silver
+    137,113,940 events / 44,991,746 transactions. SUCCEEDED in 742 s, data
+    quality **passed**, teardown clean (cluster up 3,773 s).
+  - **Steps:** generator 1,325 s (8 executors; planned 8–10 min, cause not
+    found), InvokeIngestion 4.2 s, **RunTransform 511.6 s** (10M: 241.6 s;
+    11× the events in 2.1× the time, ~195k events/s vs ~37k), RunDbt
+    167.9 s ($0.081), RunServingQuery 58.3 s. No Glue timeouts, no retries.
+  - **Scaling:** Spark asked for 16 executors; Cluster Autoscaler took the
+    Spot group 2 → 4 nodes (its max); watermark → append ~305 s, then
+    compaction 80 → 22 files (~96 s); idle nodes scaled down.
+  - **Surprises:** the data-quality scan was 105.9 GB (projected ~76 GB;
+    5.2× the 37M-row scan for 3.7× the silver rows, ~$0.53 a run), largest
+    single check unknown (`cerberus-admin` cannot read the DQ workgroup's
+    query records); Prometheus peak 10,370 series (ADR 0016 estimated
+    ~10k). The extra-executor speed-up is not isolated from the larger
+    silver table.
+
+- **9.1** — ADR 0021 (pipeline status and alerting) written and merged
+  as **Proposed** (PR #99); 9.1 stays unchecked until the user accepts it.
+  Proposes: the existing AMP workspace as the store, with AMP's ruler and
+  Alertmanager (SNS) as Terraform so alerts fire while the laptop is off;
+  local Docker Compose Grafana reading AMP; one run-end publisher writing
+  `cerberus_*` series by remote-write (no scrape, no Pushgateway; queries
+  use `last_over_time(...[30d])`); lineage events written to a file and
+  uploaded post-run. Unverified, left as 9.2 spikes: the Python
+  OpenTelemetry remote-write exporter, file transport in dbt-ol and the
+  Spark listener, AMP rule-evaluation billing.
+
 ## Next up
 
-**First: PR #97 (8.9 prep) is open as a draft, and its image rebuild is
-not applied yet.** Keep the checkout on `phase-8-9-prep` until it is: the
-saved plan hashes files baked into the image, and switching branches before
-the apply fails it (`filemd5 ... inconsistent result`, seen 2026-10-12). If
-the saved plan `prep89.tfplan` is gone or stale, re-plan from that branch:
-`cd terraform/envs/dev-standing && AWS_PROFILE=cerberus-admin terraform plan -out=<scratchpad>/prep89.tfplan`
-(expect 2 add / 3 change / 2 destroy: the Athena cutoff, the state machine,
-the image, Faker churn), and have the user apply it. Then mark #97 ready,
-merge, `git switch main && git pull`.
+**Two things for 2026-10-14: the cost run below (Sonnet 5.5 is fine), then the ADR 0021 review with Opus 5.5 (item 2, first bullet).**
 
-1. **8.9 — 100M** (decided 2026-10-12: keep the 37M rows and land 100M on
-   top; shared Athena cutoff 10 → 25 GiB, in #97). #97 also raises the
-   runner's Spark wait to 60 min, RunTransform to 4500 s / 1 retry, RunDbt
-   to 2700 s, `maxExecutors` to 16, `spark.sql.shuffle.partitions` to 800,
-   executor node disks to 60 GiB gp3, and adds
-   `--generator-executors`. The run (user's OK first, ~$2–3, ~1.5 h):
-   `make exercise ARGS="--yes --generate 100000000 --generator-executors 8 --executor-nodes 2"`.
-   Watch: executor count and Spot nodes (the 8.8 5-second watcher pattern),
-   node disk pressure, the dbt merge's bytes (projected ~12 GiB), the
-   largest data-quality check (projected ~7.6 GiB of the DQ workgroup's
-   10 GiB), RunTransform against the runner's 60-minute bound.
-   Then the write-up: run time, events/s and cost per million events for
-   the 1M, 10M and 100M steps; SLOs under load.
-2. **Data-quality cost grows with silver:** 12.5 → 16.4 → 20.5 GB per run
-   as silver grew 19M → 28M → 37M rows (the silver checks read the whole
-   table). Fine for 8.9; make the silver checks incremental (or partition-
-   pruned by the time spread) before more 100M runs.
+**Run this first, from 2026-10-14 (Cost Explorer posts a day late).** From
+the repo root, in the user's terminal:
+
+```
+AWS_PROFILE=cerberus-admin .venv/bin/python observability/scale/collect_run_metrics.py --execution exercise-20261013T055859Z --cost-only
+```
+
+(`.venv` is the project's virtualenv. If the Makefile has a wrapper, use
+that; `exercise.sh` prints the same command without the prefix.) It adds
+the cost fields to `observability/scale/runs/exercise-20261013T055859Z.json`.
+Do the same for `exercise-20261012T075045Z`, `exercise-20261012T111304Z`
+and `exercise-20261012T133620Z` if their records have no cost yet. Then
+finish 8.9 (item 1).
+
+The checkout may be on a feature branch; run `git fetch && git switch
+main && git pull` before new work. Draft PR #98 (8.9 record) is the only
+open PR.
+
+1. **8.9 — close it out (needs 2026-10-13 to post, i.e. from 2026-10-14):**
+   `observability/scale/collect_run_metrics.py --execution exercise-20261013T055859Z --cost-only`
+   (the log prints the same command), add cost per million events per step
+   to docs/scale-metrics.md "8.9 at 100M", write the SLOs-under-load notes
+   (docs/slo.md targets vs this run), then check off 8.9, mark #98 ready
+   and merge. Also back-fill `--cost-only` for the three 2026-10-12
+   exercises (`…T075045Z`, `…T111304Z`, `…T133620Z`) if not done.
+2. **Independent of 8.9 (candidates, user to pick):**
+   - **9.1 — review ADR 0021 with Opus 5.5, then accept it:** merged as
+     Proposed (#99). **Reminder for `/start-day` on 2026-10-14: tell the
+     user to switch to Opus 5.5 (`/model`) for this review** (design
+     judgment, not execution), after the `--cost-only` run. Review points:
+     local-only Grafana, file-based lineage, the two written weaknesses.
+     On acceptance flip `Proposed` to `Accepted` and check off
+     9.1. Then **9.2** starts with the three spikes (OTel remote-write
+     exporter, file transport for dbt-ol and the Spark listener, AMP rule
+     billing). 9.2 needs no cluster and almost no spend.
+   - **Phase 8 follow-ups that need no cost data:** make the silver
+     data-quality checks incremental (scan 20.5 → 105.9 GB per run);
+     record per-check bytes in the data-quality record; find why the
+     generator took 22 min.
+   - **8.10 prep:** charts and the demo-video script (the numbers for 1M,
+     10M and 100M exist; cost per million events does not for 100M yet).
 3. **8.10** results write-up + demo video; **8.11** Well-Architected pass +
    ADR (milestone 8).
-4. **Costs:** `--cost-only` for `exercise-20261012T075045Z`,
-   `exercise-20261012T111304Z` and `exercise-20261012T133620Z` once
-   2026-10-12 has posted.
-5. **Small follow-ups:** `use_lockfile` (needs a `.tflock` grant for the
-   CI plan role and `init -reconfigure`; its own PR); per-check bytes in
-   the data-quality record (today only the total; per-check numbers came
-   from Athena's history, one `GetQueryExecution` each —
-   `BatchGetQueryExecution` is not in `cerberus-admin`'s policy).
+4. **Small follow-ups:** `use_lockfile` (needs a `.tflock` grant for the
+   CI plan role and `init -reconfigure`; its own PR); `BatchGetQueryExecution`
+   is not in `cerberus-admin`'s policy (per-check numbers need one
+   `GetQueryExecution` each, and only for the caller's own queries).
 
 **Deadline:** the ingestion Lambda's `RETIRE_ON_OR_AFTER` is
 **2026-10-30** (PR #45). The scale generator does not depend on it, but
@@ -2986,6 +3030,53 @@ _8.8 complete (PRs #92–#96); 8.9 prepared (#97)._
   inside the quotes.
 - **Cost:** gross month-to-date $4.92 on 2026-10-12 (before that day's
   three exercises posted), against the $20 budget.
+
+### 2026-10-13
+
+_8.9's 100M run done and recorded (draft #98); 8.9 itself still open._
+
+- **Merged #97, applied the rebuild, ran 100M.** The `dev-standing` apply
+  (saved plan: 2 add / 2 change / 2 destroy: runner image, state machine
+  timeouts, Faker layer churn) was made from `main` after the merge; a
+  first apply attempt failed only because the user's shell lacked
+  `AWS_PROFILE`. The run (`make exercise ARGS="--yes --generate 100000000
+  --generator-executors 8 --executor-nodes 2"`, about $2–3) SUCCEEDED with
+  data quality passed. Numbers and surprises: Current phase, 8.9.
+- **Write-up:** docs/scale-metrics.md "8.9 at 100M", the run record, draft
+  PR #98. 8.9 stays unchecked until cost per million events (Cost Explorer
+  posts the next day) and the SLO notes are added.
+- **Mistakes:** the session started from a stale local checkout and
+  re-did a catch-up checkpoint that had already been pushed on 2026-10-12
+  (`/start-day` read the local file without fetching). Conflicts on stash
+  pop; resolved by restoring main's versions (nothing was lost). Lesson:
+  `git fetch` before trusting the checkpoint. Also: auto mode blocked
+  `gh pr merge` and `git checkout -- <files>`; the user ran the merge.
+- **Model split:** the user asked about Opus 5.5 for planning and Sonnet
+  5.5 for execution. Decision: Sonnet for runs and write-ups; Opus for a
+  failed-run diagnosis, 8.10 and the 8.11 Well-Architected pass.
+- **Cost:** gross month-to-date was $4.92 before 2026-10-12's exercises;
+  the 100M run posts 2026-10-14 (budget $20).
+
+### 2026-10-13 (second session)
+
+_9.1 ADR 0021 written and merged as Proposed (#99); 9.1 still open._
+
+- **ADR 0021** (`docs/adr/0021-pipeline-status-and-alerting.md`): AMP as
+  the status store plus ruler/Alertmanager as Terraform (the deciding point
+  is alerts that fire while `dev-compute` and the laptop are off); local
+  Compose Grafana (Grafana Cloud free keeps 14 days, below the 30-day SLO
+  window; Managed Grafana $9/mo rejected); run-end remote-write publisher;
+  lineage files uploaded post-run. Weaknesses written into it: a run that
+  dies before publishing leaves no series, and a stale-data alert fits a
+  pipeline that runs only in exercise windows.
+- **Unverified, carried to 9.2 as spikes:** Python OTel remote-write
+  exporter (search found nothing), file transport in dbt-ol and the Spark
+  listener, AMP rule-evaluation billing.
+- **Done:** committed the 2026-10-13 checkpoint to main, recorded the
+  `--cost-only` command at the top of "Next up", merged #99 on the user's
+  request ("keep the ADR proposed").
+- **Left mid-flight:** #98 (waits for cost data); the `--cost-only` run
+  and the 8.9 close-out on 2026-10-14.
 
 ## Notes / blockers
 
