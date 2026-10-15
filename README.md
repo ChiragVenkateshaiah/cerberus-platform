@@ -128,7 +128,9 @@ the transform step taking 2.1 times as long as at 10M for 11 times the
 events as Cluster Autoscaler grew the Spot group to its four-node maximum.
 The run cost $0.37, 0.37 cents per million events (1.8 cents for the whole
 exercise, generator and data-quality scan included), and met the 30-minute
-run-latency SLO with 2.4 times headroom.
+run-latency SLO with 2.4 times headroom. Before milestone 8, a full
+data-quality audit re-checked every bronze key against silver: all
+137,113,940 events matched.
 
 ⬜ Phase 9 (demo console) — planned. A browser console on one start/stop
 EC2 instance: architecture and latest-run views, Grafana and Prometheus
@@ -293,7 +295,10 @@ constraints behind this diagram, see
 │                         #   scale/ -- the Phase 8 metric collector, its
 │                         #   per-run records (8.3) and the cross-layer
 │                         #   data-quality suite (8.4; manifest-ledger
-│                         #   mode and backfill_bulk_manifests.py, 8.6)
+│                         #   mode and backfill_bulk_manifests.py, 8.6);
+│                         #   scale/exercises/ -- exercise logs;
+│                         #   scale/audits/ -- milestone `--full`
+│                         #   data-quality audit records (8.9)
 ├── lineage/              # collector/handler.py -- the OpenLineage event
 │                         #   collector Lambda behind an API Gateway HTTP
 │                         #   API, writing events to S3 (6.4b, ADR 0013);
@@ -358,6 +363,7 @@ git config pull.rebase true
   cost method, the baseline at today's volume, the data-quality suite
   (8.4), 8.6's measured results at 10M events, and 8.8's autoscaling,
   dynamic allocation and Spot interruption tests, and 8.9's 100M-event run
+  with its cost per step and the milestone `--full` data-quality audit
 - [docs/adr/](docs/adr/) — architecture decision records
 - [docs/courses-map-to-phases.md](docs/courses-map-to-phases.md) — which
   courses (if any) map to each phase, and where no course exists

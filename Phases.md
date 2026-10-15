@@ -136,8 +136,10 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
       million events at each step. First: cheaper bronze data-quality
       checks (today's full-bronze scans would cost over $1 a run at 100M)
       -- done 2026-10-10 as the suite's manifest ledger (#85). 100M run done
-      2026-10-13 (742 s, data quality passed, $0.0050 per million events for
-      the run, $0.0178 for the whole exercise; #98)
+      2026-10-13 (742 s, data quality passed, $0.0037 per million events for
+      the run as re-priced 2026-10-15 (#102), $0.0178 for the whole
+      exercise; #98). Milestone `--full` data-quality audit passed
+      2026-10-15 (#103, #104)
 - [ ] 8.10 Results write-up (per-step numbers and charts) + demo video
 - [ ] 8.11 Well-Architected pass + ADR
 

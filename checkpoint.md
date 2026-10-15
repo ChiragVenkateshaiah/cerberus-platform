@@ -175,10 +175,13 @@ million events per step. $20/month, six weeks from 2026-10-06.
     = bronze = 37,105,429). Root policy: `Fis`/`FisAccount` +
     `PassRole` to `fis.amazonaws.com`.
 
-- **8.9** — 100M events, run done 2026-10-13; **not complete** (cost and
-  SLOs open). #97 (limits raised) was merged and its image rebuild applied
-  first. `exercise-20261013T055859Z` (draft PR #98, write-up in
-  docs/scale-metrics.md, "8.9 at 100M"):
+- **8.9** — 100M events, **done 2026-10-15** (run 2026-10-13; cost and
+  SLOs added 2026-10-15). #97 (limits raised) was merged and its image
+  rebuild applied first. `exercise-20261013T055859Z` (PR #98, write-up in
+  docs/scale-metrics.md, "8.9 at 100M"). Cost (re-priced 2026-10-15, #102):
+  run $0.37, **$0.0037 per million events**; whole exercise $1.78
+  ($0.0178). Milestone `--full` data-quality audit passed 2026-10-15
+  (#103/#104). The run:
   - **Result:** 100,008,511 new events on top of 37.1M; silver
     137,113,940 events / 44,991,746 transactions. SUCCEEDED in 742 s, data
     quality **passed**, teardown clean (cluster up 3,773 s).
@@ -208,62 +211,62 @@ million events per step. $20/month, six weeks from 2026-10-06.
 
 ## Next up
 
-**Renumbered 2026-10-15:** a new **Phase 9 — Demo console (UI + terminal)**
-was inserted (EC2 start/stop console, CloudFront + Cognito or SSO tunnel,
-a read-only `cerberus` command set in a web terminal). The old Phases 9–12
-are now 10–13; ADR 0021 is now Phase 10's ADR (10.1). History entries
-before this note keep the old numbers. Also: the `--cost-only` command
-needs `uv run -q --no-project --with boto3 python ...`, not `.venv/bin/python`
-(no boto3 there). The 8.9 cost run was done 2026-10-15.
+**Numbering:** Phase 9 is now the demo console (inserted 2026-10-15); old
+Phases 9–12 are 10–13. History entries before 2026-10-15 keep the old
+numbers. **Model:** Opus 5.5 for 8.10 and 8.11.
 
-**Two things for 2026-10-14: the cost run below (Sonnet 5.5 is fine), then the ADR 0021 review with Opus 5.5 (item 2, first bullet).**
+Run `git fetch && git switch main && git pull` first; check `gh pr list`.
 
-**Run this first, from 2026-10-14 (Cost Explorer posts a day late).** From
-the repo root, in the user's terminal:
+1. **The clean ~1M exercise -- the user runs it on 2026-10-15, after
+   this /end-day, in their own terminal** (about 45 min of cluster time,
+   about $0.50–1; from `main`, so the collect step uses the #102 pricing):
 
-```
-AWS_PROFILE=cerberus-admin .venv/bin/python observability/scale/collect_run_metrics.py --execution exercise-20261013T055859Z --cost-only
-```
+   ```
+   AWS_PROFILE=cerberus-admin make exercise ARGS="--yes --generate 1000000"
+   ```
 
-(`.venv` is the project's virtualenv. If the Makefile has a wrapper, use
-that; `exercise.sh` prints the same command without the prefix.) It adds
-the cost fields to `observability/scale/runs/exercise-20261013T055859Z.json`.
-Do the same for `exercise-20261012T075045Z`, `exercise-20261012T111304Z`
-and `exercise-20261012T133620Z` if their records have no cost yet. Then
-finish 8.9 (item 1).
+   One exercise per UTC day (the cost rate is a day average). Today's
+   Athena also holds the $0.91 `--full` audit; that does not change the
+   cluster-hour rate (Athena is excluded since #102), but it is in the day
+   total. If the run did not happen on 2026-10-15, run it on a clean day
+   and shift step 2 by one day.
+2. **2026-10-16: `--cost-only` on that execution** (Cost Explorer posts a
+   day late; the exercise log prints the execution name):
 
-The checkout may be on a feature branch; run `git fetch && git switch
-main && git pull` before new work. Draft PR #98 (8.9 record) is the only
-open PR.
+   ```
+   AWS_PROFILE=cerberus-admin uv run -q --no-project --with boto3 python observability/scale/collect_run_metrics.py --execution <exercise-name> --cost-only
+   ```
 
-1. **8.9 — close it out (needs 2026-10-13 to post, i.e. from 2026-10-14):**
-   `observability/scale/collect_run_metrics.py --execution exercise-20261013T055859Z --cost-only`
-   (the log prints the same command), add cost per million events per step
-   to docs/scale-metrics.md "8.9 at 100M", write the SLOs-under-load notes
-   (docs/slo.md targets vs this run), then check off 8.9, mark #98 ready
-   and merge. Also back-fill `--cost-only` for the three 2026-10-12
-   exercises (`…T075045Z`, `…T111304Z`, `…T133620Z`) if not done.
-2. **Independent of 8.9 (candidates, user to pick):**
-   - **10.1 — ADR 0021 accepted with changes (2026-10-15, Opus review).**
-     Changes: lineage goes out through the console transport (Spark driver
-     log, dbt CloudWatch Logs), not files; no AMP stale-data alert for
-     exercises; error-budget alert over runs instead of multi-window burn
-     rate; latest-run series have no `execution` label; Grafana host left
-     to Phase 9's ADR. Next: **10.2** starts with the spikes (OTel
-     remote-write exporter and SigV4, console-transport lineage events,
-     AMP rule billing), but Phase 9 (the console) comes first.
-   - **Phase 8 follow-ups that need no cost data:** make the silver
-     data-quality checks incremental (scan 20.5 → 105.9 GB per run);
-     record per-check bytes in the data-quality record; find why the
-     generator took 22 min.
-   - **8.10 prep:** charts and the demo-video script (the numbers for 1M,
-     10M and 100M exist; cost per million events does not for 100M yet).
-3. **8.10** results write-up + demo video; **8.11** Well-Architected pass +
-   ADR (milestone 8).
-4. **Small follow-ups:** `use_lockfile` (needs a `.tflock` grant for the
-   CI plan role and `init -reconfigure`; its own PR); `BatchGetQueryExecution`
-   is not in `cerberus-admin`'s policy (per-check numbers need one
-   `GetQueryExecution` each, and only for the caller's own queries).
+   `.venv/bin/python` has no boto3; use the `uv` form.
+3. **8.10 -- results write-up + demo video** (Opus):
+   - one table for 1M / 10M / 100M with run IDs: the new 1M run, clean
+     10M `exercise-20261009T074853Z` ("before" in 8.6), 100M
+     `exercise-20261013T055859Z`;
+   - three charts: run time per state, cost per million events on a log
+     scale, RunTransform events/s vs executors;
+   - a "what was not isolated" note (extra executors vs larger silver; the
+     day-average cost rule; EKS hours 0.875 vs 1.05);
+   - the demo video script, then the recording.
+4. **8.11 -- Well-Architected pass + ADR 0022** (Opus): Phase 8's pass, WA
+   Tool milestone 8 (`phase-8-scale-validation-complete`; last tracked
+   23 HIGH / 19 MEDIUM, verified 2026-09-07); confirm the ADR 0018/0020
+   amendments; cite the `--full` audit
+   (`observability/scale/audits/dq-full-20261015.json`).
+5. **Then Phase 9**, starting with **9.1** (the console ADR); it must
+   settle the shared Grafana with ADR 0021.
+
+**Open from the 2026-10-15 review, not blocking 8.10:** SLO 4 needs
+Athena EngineExecutionTime in the collector; bytes written are not
+measured; Athena computed vs posted ($0.61 vs $0.574, TB vs TiB
+unverified); ~1,706 s of apply/destroy time not attributed.
+
+**Later:** 10.2 spikes (OTel remote-write exporter and SigV4,
+console-transport lineage, AMP rule billing); Phase 8 follow-ups
+(incremental silver data-quality checks, per-check bytes, the slow
+generator); the cheaper milestone audit and the value checksum (plan.md,
+Planned later work); `use_lockfile` (needs a `.tflock` grant for the CI
+plan role and `init -reconfigure`); `BatchGetQueryExecution` is not in
+`cerberus-admin`'s policy.
 
 **Deadline:** the ingestion Lambda's `RETIRE_ON_OR_AFTER` is
 **2026-10-30** (PR #45). The scale generator does not depend on it, but
@@ -274,15 +277,12 @@ the daily orchestrated path does.
 - **`build_and_push` CI landmine:** still deferred. ADR 0019's "ready
   alternative" step 5 (Spark script as an `aws_s3_object`) would remove
   the local rebuild for script changes, and can be done on its own.
-- **Faker Lambda-layer hash churn:** still cosmetic, still present (every
-  local `dev-standing` plan replaces the layer).
+- **Faker Lambda-layer hash churn:** still cosmetic, still present (CI
+  applies replace the layer even when a local plan doesn't show it).
 - **Lineage on hand-started exercises:** closed since 2026-10-07 by
   design (7.5); owned by Phase 10 (plan.md, Phases.md 10.1).
 - **Follow-ups recorded in ADR 0016, not adopted:** private EKS endpoint
   access (ADR 0019 keeps it possible), and a Pushgateway.
-- **Well-Architected milestone 8** belongs to 8.11.
-- **Value-level reconciliation** (row checksum) for the data-quality
-  suite: a follow-up after Phase 8 (plan.md, Planned later work).
 - **Stale Spark labels on pod-IP reuse** (Grafana driver panels), and
   `RunServingQuery`'s ~55 s polling floor (SLO 3, worth ~$0.006 a run).
 
@@ -3084,6 +3084,58 @@ _9.1 ADR 0021 written and merged as Proposed (#99); 9.1 still open._
 - **Left mid-flight:** #98 (waits for cost data); the `--cost-only` run
   and the 8.9 close-out on 2026-10-14.
 
+### 2026-10-15
+
+_8.9 closed; Phase 9 (demo console) inserted; ADR 0021 accepted with
+changes; a Phase 8 close-out review fixed the cost method and ran the
+milestone `--full` audit. PRs #98, #100–#104. Model switched to Opus 5.5
+mid-session._
+
+- **8.9 closed (#98):** `--cost-only` for `exercise-20261013T055859Z` and
+  the three 2026-10-12 exercises; cost per step and "SLOs under load" in
+  docs/scale-metrics.md; README cost line. (No session on 2026-10-14.)
+- **Phase 9 inserted (#100):** "Demo console (UI + terminal)", 9.1–9.7:
+  one start/stop EC2 instance, CloudFront + Cognito or an SSO tunnel
+  (user's choice of the two), a read-only allowlisted `cerberus` command
+  set (status, runs, run, cost, dq, slo) in a web terminal, idle cost $0.
+  Old 9–12 → 10–13; plan.md, Phases.md, README, ADRs 0019/0021 renumbered.
+- **ADR 0021 accepted with changes (#101)** after an Opus review; the
+  changes are listed in Current phase (10.1) and Next up.
+- **Phase 8 close-out review (Opus subagent, at the user's request) found
+  deviations not discussed before.** Fixed today:
+  - **Cost method double-counted Athena (#102):** the cluster-hour rate
+    was the whole day's cost over EKS hours, Athena included, and each
+    step then added its Athena bytes again. `price_run` in
+    `collect_run_metrics.py` now takes Athena out of the rate
+    (`usd_per_cluster_hour`, `rate_excludes`), $/M events to 4 decimals;
+    all 13 records re-priced offline from their stored days. 100M run
+    $0.50 → **$0.37, $0.0037 per million events**; clean 10M ($0.0112) and
+    "after" ($0.0147). docs/scale-metrics.md corrected and dated.
+  - **ADR 0020 amended (#102):** executor min = `--executor-nodes`, not 0
+    (a build-time choice, recorded now); cost still scoped by region; the
+    Spot fallback was not measured. **ADR 0018:** ladder text as run.
+  - **`--full` audit (#103, #104):** the docstring rule says run `--full`
+    before each milestone; at 137M events (bronze 59.3 GB) its two
+    whole-bronze queries pass the DQ workgroup's 10 GiB cutoff. User chose
+    to raise the cutoff for one run (80 GiB, #103), run it, and put it back
+    (#104, applied, verified `10737418240`). **Passed**: 20 checks, 0
+    errors, known `token_digit_runs` warning, 0 keys only in bronze / only
+    in silver, 0 duplicates; 181.5 GB, about $0.91. Record:
+    `observability/scale/audits/dq-full-20261015.json`. Follow-up added to
+    plan.md: "A milestone audit that does not re-read all of bronze".
+- **User decisions from the review:** run one clean ~1M increment (there
+  is none: `…20261007T145442Z` had 45,304 events, `…20261008T085728Z`
+  1.05M but failed at RunDbt, later "1M" runs ~6k); one 8.10 table for
+  1M/10M/100M with run IDs.
+- **Still open from the review (not fixed today):** SLO 4 needs Athena
+  EngineExecutionTime in the collector; bytes written not measured; Athena
+  doesn't reconcile ($0.61 computed vs $0.574 posted, TB vs TiB
+  unverified); ~1,706 s of apply/destroy time not attributed; the
+  day-average rule broken on 10-08, 10-09, 10-12 (noted in the doc); EKS
+  cluster-hours 0.875 vs 1.05 h observed.
+- **Mistake:** my first `--full` estimate (350 GB, $1.75) was wrong; the
+  S3 listing gave 59.3 GB of bronze and the run scanned 181.5 GB.
+
 ## Notes / blockers
 
 - **Resolved 2026-10-05 (was: open, noted 2026-10-03):** branch
@@ -3288,7 +3340,10 @@ _9.1 ADR 0021 written and merged as Proposed (#99); 9.1 still open._
   to the 2026-08-22/23 IAM fixes. Worth a real fix eventually (pin the
   layer's build to something reproducible, or accept-and-document it more
   formally) but not urgent — it's noise in the plan output, not a
-  functional problem.
+  functional problem. **2026-10-15:** a local `dev-standing` plan can omit
+  it (the local build was already current) while the CI apply still does
+  it: #103's local plan showed 1 change, its CI apply 1 add / 2 change / 1
+  destroy (layer version 54). Read CI's plan, not only the local one.
 - **Resolved 2026-08-18:** `spark-application.yaml`'s `apache/spark` image
   tag and `hadoop-aws` pairing were verified live against Docker Hub before
   the live pass — see the 2026-08-18 session entry. `3.5.9` (latest patch
