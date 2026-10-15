@@ -26,7 +26,7 @@ screenshots.
 | **Bytes stored** | Object count and bytes under bronze `payments/`, bronze `payments_bulk/` (and one generator `run_id`), silver `payments/`, and gold | S3 `ListObjectsV2`, a snapshot at collection time | `cerberus-admin` |
 | **Athena bytes** | Per state: query count, bytes scanned, and bytes billed (each query billed at least 10 MB, rounded up to the MB) | `GetQueryExecution` for each query in the `cerberus_platform` workgroup submitted inside the state's window | `cerberus-admin` |
 | **Peak active series** | The highest count of series with a sample at any 15 s step during the run | AMP: `max_over_time(count({__name__=~".+"})[<run>:15s])` | `cerberus-admin` |
-| **Cost per million events** | Run cost ÷ (events processed ÷ 1M), where run cost = the day's platform cost per EKS cluster-hour × run hours + the run's Athena billed cost | Cost Explorer, one request (see the cost method below) | `cerberus-admin` |
+| **Cost per million events** | Run cost ÷ (events processed ÷ 1M), where run cost = the day's non-Athena platform cost per EKS cluster-hour × run hours + the run's Athena billed cost | Cost Explorer, one request (see the cost method below) | `cerberus-admin` |
 | **Data quality** | Pass/fail per check across bronze → silver → gold, including the bronze → silver reconciliation ADR 0017 requires (see [Data-quality suite](#data-quality-suite)) | [`data_quality.py`](../observability/scale/data_quality.py): one Athena query per check, run by the collector | `cerberus-transform` |
 
 The generator (`transform/spark/generate_bulk.sh`) is measured separately,
@@ -52,14 +52,24 @@ post about a day later, and they are daily. The method works with both.
 - **Cost Explorer's own charge is excluded.** Each API request costs
   $0.01, and that charge shows up as an `AWS Cost Explorer` service line.
   The collector makes exactly one request, and only with `--cost`.
-- **Day → run.** The day's cost divided by that day's EKS cluster-hours
-  (usage type `AmazonEKS-Hours:perCluster`) gives a platform cost per
-  cluster-hour, which covers nodes, NAT, the EKS control plane, AMP and
-  the rest together. Run cost is that rate × the run's hours, plus the
-  run's Athena billed bytes at $5/TB. The day's total is recorded too, as
-  the "all-in" exercise cost.
+- **Day → run.** The day's cost **minus Athena**, divided by that day's
+  EKS cluster-hours (usage type `AmazonEKS-Hours:perCluster`), gives a
+  platform cost per cluster-hour, which covers nodes, NAT, the EKS control
+  plane, AMP and the rest together. Run cost is that rate × the run's
+  hours, plus the run's Athena billed bytes at $5/TB. The day's total is
+  recorded too, as the "all-in" exercise cost.
+- **Corrected 2026-10-15.** Until then the rate used the whole day total,
+  Athena included, and the run's own Athena was then added again: Athena
+  was counted twice, and the day's data-quality scans were spread over
+  every cluster-hour. `price_run` in the collector now takes Athena out of
+  the rate, rounds cost per million events to 4 decimals (2 decimals
+  showed every 10M run as $0.02), and every record in `runs/` was
+  re-priced from its stored Cost Explorer day, with no new request. The
+  figures in this document are the corrected ones.
 - **One exercise per UTC day** keeps the attribution clean. Two different
-  ladder steps on one day would share one rate.
+  ladder steps on one day would share one rate. This rule was not kept on
+  2026-10-08, 2026-10-09 and 2026-10-12 (three exercises each), so those
+  runs' rates are day averages.
 - **Collect `--cost-only` the day after** for the posted number. The
   record keeps Cost Explorer's `Estimated` flag either way, but that flag
   stays `true` until the month closes, so it can't show a partly posted
@@ -177,12 +187,14 @@ triggers to replace it.
 | New events | 9,005,590 | 9,005,875 |
 | Silver read by the anti-join | ~1.1M rows | ~10.1M rows |
 | **RunTransform** | 323.3 s | **241.6 s (-25%)** |
-| Run cost | $0.137 | $0.175 |
-| Cost per million events | $0.02 | $0.02 |
+| Run cost | $0.101 | $0.133 |
+| Cost per million events | $0.0112 | $0.0147 |
 
 The "after" run was faster while its anti-join read a silver table twice as
 large. Its RunDbt failed for an unrelated reason (below), so it has no clean
-RunDbt number.
+RunDbt number, and its run cost includes three failed RunDbt attempts. Both
+runs share 2026-10-09's rate ($0.65 per cluster-hour, a day average of
+three exercises). The clean 10M run, end to end, is the "before" run.
 
 ### Where the 10M "after" run's Spark time went
 
@@ -384,8 +396,10 @@ Cluster time was 3,773 s in total (63 min).
 | Events per second in RunTransform | ~37k | ~195k |
 
 Eleven times the events took 2.1 times as long, so the per-event time fell
-by more than five times. Dynamic allocation did that: the 10M run used two
-2 GB executors, this run up to 16.
+by more than five times. The executor count changed with it (two 2 GB
+executors at 10M, up to 16 here), but so did the silver size, so this run
+does not show how much of the gain is the executors (see below). The 10M
+column is the "after" run, whose RunDbt failed; its RunTransform is clean.
 
 ### Autoscaler and Spark at 100M
 
@@ -446,36 +460,45 @@ silver on 2026-10-15, with no new data since the 100M run
 Cost Explorer posted 2026-10-13 on 2026-10-15 (`--cost-only`; the day is
 `complete`, flagged `Estimated` until the month closes). The day cost
 $1.78, all of it this exercise (EC2 other $0.74, Athena $0.57, EC2 compute
-$0.24, S3 $0.13, EKS $0.09). At $2.0355 per cluster-hour, the cost per
-step is the step's seconds × that rate, plus its Athena bytes at $5/TB.
-Events are the 100,008,511 the run promoted.
+$0.24, S3 $0.13, EKS $0.09). Without Athena that is $1.21 over 0.875
+cluster-hours, $1.3801 per cluster-hour. Each step's cost is its seconds ×
+that rate, plus its Athena bytes at $5/TB. Events are the 100,008,511 the
+run promoted.
 
 | Step | Seconds | Cluster $ | Athena $ | Total $ | $ per M events |
 |---|---|---|---|---|---|
-| InvokeIngestion | 4.2 | 0.0024 | 0 | 0.0024 | 0.00002 |
-| RunTransform | 511.6 | 0.2893 | 0 | 0.2893 | 0.0029 |
-| RunDbt | 167.9 | 0.0949 | 0.0806 | 0.1755 | 0.0018 |
-| RunServingQuery | 58.3 | 0.0330 | 0.0007 | 0.0337 | 0.0003 |
-| **State machine** | 742 | 0.4195 | 0.0813 | **0.5008** | **0.0050** |
-| Data-quality suite (outside the run) | 28.8 | 0 | about 0.53 | about 0.53 | 0.0053 |
-| Generator (outside the run) | 1,325 | 0.7491 | 0 | 0.7491 | 0.0075 |
+| InvokeIngestion | 4.2 | 0.0016 | 0 | 0.0016 | 0.00002 |
+| RunTransform | 511.6 | 0.1961 | 0 | 0.1961 | 0.0020 |
+| RunDbt | 167.9 | 0.0644 | 0.0806 | 0.1449 | 0.0014 |
+| RunServingQuery | 58.3 | 0.0224 | 0.0007 | 0.0231 | 0.0002 |
+| **State machine** | 742 | 0.2845 | 0.0813 | **0.3657** | **0.0037** |
+| Data-quality suite (outside the run) | 28.8 | 0.0110 | 0.4927 | 0.5037 | 0.0050 |
+| Generator (outside the run) | 1,325 | 0.5080 | 0 | 0.5080 | 0.0051 |
 | **Whole exercise (day total)** | 3,773 cluster | | | **1.78** | **0.0178** |
 
-- The orchestrated run costs half a cent per million events. The whole
+- The orchestrated run costs 0.37 cents per million events. The whole
   exercise costs 1.8 cents, because the generator (22 min of cluster time)
-  and the data-quality scan cost more than the run itself. Neither is
-  pipeline cost in production; both are cost of the test harness.
-- The 10M step cost about $0.02 per million events for RunTransform alone
-  (8.6). The 100M run is cheaper per event even with 16 executors, because
-  the cluster-hour rate is fixed and the work per hour grew 5 times.
-- RunTransform is 58% of the run's cost; RunDbt is 35%, and its Athena
-  bytes (15.8 GB scanned, 33 queries) are 46% of that step.
+  and the data-quality scan each cost more than the run itself. Neither is
+  pipeline cost in production; both are cost of the test harness. The rest
+  of the day (about $0.40) is cluster time for apply, waits and destroy.
+- The clean 10M run cost $0.0112 per million events for the whole run
+  (`exercise-20261009T074853Z`). The 100M run is three times cheaper per
+  event: the cluster-hour cost is close to fixed and the events per hour
+  grew more than five times.
+- RunTransform is 54% of the run's cost and RunDbt 40%; Athena bytes
+  (15.8 GB scanned, 33 queries) are 56% of RunDbt.
+- **Data-quality Athena is the posted remainder:** the day's Athena
+  ($0.574) minus the run's own queries ($0.081). Computed from scanned
+  bytes at $5 per 10^12 bytes it would be $0.53, about 7% higher. That gap
+  is close to the TB/TiB ratio (10%), so Athena may bill per 2^40 bytes;
+  not verified. The collector's per-state Athena figures use 10^12.
 - **Unexplained:** Cost Explorer shows 0.875 EKS cluster-hours, but the
-  cluster was up 3,773 s (1.05 h). The per-hour rate is therefore about
-  20% higher than the true rate if the 1.05 h is the right count. The
-  total is the posted number and does not change.
-- The three 2026-10-12 exercises also have cost now: $0.25 (the first Spot-layout run,
-  almost no events), $0.16 (9M load test) and $0.17 (Spot interruption test).
+  cluster was up 3,773 s (1.05 h). If 1.05 h is the right count, the true
+  rate is about 17% lower. The day total is the posted number and does not
+  change.
+- The three 2026-10-12 exercises, re-priced: $0.21 (the first Spot-layout
+  run, almost no events), $0.13 (9M load test) and $0.14 (Spot
+  interruption test), at a day-average rate.
 
 ### SLOs under load
 

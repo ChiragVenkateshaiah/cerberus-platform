@@ -106,7 +106,7 @@ orchestrated run appended 6,094 new events, merged exactly 2,000 gold rows
 and finished in 340 s, faster than the 39k-event full-rebuild baseline.
 8.6 took the pipeline to 10M new events per run and measured each change
 alone: pre-pulling the Spark image cut 19 s, and two 2 GB executors cut the
-transform step by 25% at 10M ($0.02 per million events); the job is now
+transform step by 25% at 10M (about $0.01 per million events for the run); the job is now
 CPU-bound, with no Spark setting left worth changing. 10M also outgrew two
 guardrails, so Athena's per-query limits were raised and the data-quality
 suite now checks bronze as a ledger of per-run manifests, cutting its scan
@@ -126,7 +126,7 @@ replacement nodes joined, and silver still matched bronze event for event
 went through the orchestrated pipeline in 742 s with data quality passing,
 the transform step taking 2.1 times as long as at 10M for 11 times the
 events as Cluster Autoscaler grew the Spot group to its four-node maximum.
-The run cost $0.50, half a cent per million events (1.8 cents for the whole
+The run cost $0.37, 0.37 cents per million events (1.8 cents for the whole
 exercise, generator and data-quality scan included), and met the 30-minute
 run-latency SLO with 2.4 times headroom.
 

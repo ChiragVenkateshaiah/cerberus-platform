@@ -263,10 +263,11 @@
       "CloudWatch Events": 0.0
     },
     "eks_cluster_hours": 1.59,
-    "usd_per_cluster_hour": 0.7316,
+    "usd_per_cluster_hour": 0.6835,
     "complete": true,
-    "run_usd": 0.0713,
-    "usd_per_million_events": 11.7,
-    "collected_at": "2026-10-10T10:59:41+00:00"
+    "run_usd": 0.0668,
+    "usd_per_million_events": 10.9538,
+    "collected_at": "2026-10-10T10:59:41+00:00",
+    "rate_excludes": "Amazon Athena"
   }
 }

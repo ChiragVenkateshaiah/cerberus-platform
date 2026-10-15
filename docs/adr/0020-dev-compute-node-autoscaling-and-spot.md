@@ -172,3 +172,31 @@ run, which must end with the data-quality suite passing.
   Spark 3.5.9 in 8.8) can move shuffle blocks off a draining node first.
 - **Cost reporting improves:** with tagged instances the collector can
   scope cost by `Project` instead of by region.
+
+## Amendment (2026-10-15): what was built differs in three places
+
+Recorded at the Phase 8 close-out review, so the ADR matches the code
+(`terraform/modules/eks/main.tf`) and the measurements (docs/scale-metrics.md).
+
+- **Executor group minimum is `--executor-nodes`, not 0.** The group runs
+  with `min_size = desired_size = var.executor_desired_size` (default 1,
+  set by `exercise.sh --executor-nodes`). The reason (checkpoint, 2026-10-12): with
+  `min 0`, Cluster Autoscaler may remove an idle planned node before the
+  Spark job starts, and the job would then pay the ~1 min scale-up again.
+  This was a build-time choice, not something observed. Pinning the minimum keeps the
+  planned nodes; the nodes above it still scale up and down. The cost is
+  the planned nodes' idle minutes between apply and the job, a few cents
+  per exercise. Scale-to-zero (Decision 2, Sustainability) is therefore
+  not true inside an exercise; it is still true between exercises, when
+  `dev-compute` is destroyed.
+- **Cost is still scoped by region, not by `Project`.** The instances,
+  volumes and ENIs are now tagged, as decided. But the collector keeps the
+  region filter (`day_cost` in `collect_run_metrics.py`), so that every
+  record in `observability/scale/runs/`, including the ones from before
+  the tags, is priced the same way. The platform is still the only
+  workload in us-east-1. The "cost reporting improves" consequence is
+  available, not taken.
+- **"Falls back to fewer executors" was not measured.** Spot capacity was
+  available in every 8.8 and 8.9 run. The interruption test (8.8) showed
+  that the run survives losing a node; a run that starts with no Spot
+  capacity has not been seen. Treat it as expected, not verified.

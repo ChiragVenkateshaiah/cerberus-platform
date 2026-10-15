@@ -104,8 +104,11 @@ s3://cerberus-platform-bronze-<account>/payments_bulk/run_id=<run_id>/dt=YYYY-MM
   A re-run therefore replaces its own output and never doubles it, and no
   other run or the daily feed is touched. Transaction IDs are derived from
   the same hash, so they are unique across runs.
-- **The ladder is cumulative.** Each step adds a new `run_id` (about 1M,
-  then 9M, then 90M events) instead of deleting and regenerating. Bronze
+- **The ladder is cumulative.** Each step adds a new `run_id` instead of
+  deleting and regenerating. (Planned: about 1M, then 9M, then 90M events.
+  Run, by 2026-10-13: 1M, four runs of +9M across 8.6 and 8.8, then
+  +100M for 8.9, landing on the 37M already there, by decision on
+  2026-10-12.) Bronze
   only grows, as ADR 0002 requires, and 8.5's incremental path gets
   genuinely new data at each step.
 - **Files of about 128 MB.** The job sets the output partition count from
