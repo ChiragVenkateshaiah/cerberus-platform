@@ -126,7 +126,9 @@ replacement nodes joined, and silver still matched bronze event for event
 went through the orchestrated pipeline in 742 s with data quality passing,
 the transform step taking 2.1 times as long as at 10M for 11 times the
 events as Cluster Autoscaler grew the Spot group to its four-node maximum.
-Cost per million events and SLOs under load are still to be added.
+The run cost $0.50, half a cent per million events (1.8 cents for the whole
+exercise, generator and data-quality scan included), and met the 30-minute
+run-latency SLO with 2.4 times headroom.
 
 ⬜ Phase 9 (pipeline status & alerting) — planned. A Prometheus exporter
 for the batch pipeline, Grafana dashboards and alert rules as code, SLO
