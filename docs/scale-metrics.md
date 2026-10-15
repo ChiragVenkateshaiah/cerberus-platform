@@ -416,11 +416,61 @@ by more than five times. Dynamic allocation did that: the 10M run used two
 - **Prometheus peak:** 10,370 active series, just over ADR 0016's ~10k
   estimate.
 - **No Glue timeouts** in RunDbt, and no retries.
-- **Cost per million events** per step is not in the record yet: Cost
-  Explorer posts the day's cost the next day. Run
-  `collect_run_metrics.py --execution exercise-20261013T055859Z --cost-only`
-  and add it here.
 - The one data-quality warning is the known `token_digit_runs`.
+
+### Cost per million events
+
+Cost Explorer posted 2026-10-13 on 2026-10-15 (`--cost-only`; the day is
+`complete`, flagged `Estimated` until the month closes). The day cost
+$1.78, all of it this exercise (EC2 other $0.74, Athena $0.57, EC2 compute
+$0.24, S3 $0.13, EKS $0.09). At $2.0355 per cluster-hour, the cost per
+step is the step's seconds × that rate, plus its Athena bytes at $5/TB.
+Events are the 100,008,511 the run promoted.
+
+| Step | Seconds | Cluster $ | Athena $ | Total $ | $ per M events |
+|---|---|---|---|---|---|
+| InvokeIngestion | 4.2 | 0.0024 | 0 | 0.0024 | 0.00002 |
+| RunTransform | 511.6 | 0.2893 | 0 | 0.2893 | 0.0029 |
+| RunDbt | 167.9 | 0.0949 | 0.0806 | 0.1755 | 0.0018 |
+| RunServingQuery | 58.3 | 0.0330 | 0.0007 | 0.0337 | 0.0003 |
+| **State machine** | 742 | 0.4195 | 0.0813 | **0.5008** | **0.0050** |
+| Data-quality suite (outside the run) | 28.8 | 0 | about 0.53 | about 0.53 | 0.0053 |
+| Generator (outside the run) | 1,325 | 0.7491 | 0 | 0.7491 | 0.0075 |
+| **Whole exercise (day total)** | 3,773 cluster | | | **1.78** | **0.0178** |
+
+- The orchestrated run costs half a cent per million events. The whole
+  exercise costs 1.8 cents, because the generator (22 min of cluster time)
+  and the data-quality scan cost more than the run itself. Neither is
+  pipeline cost in production; both are cost of the test harness.
+- The 10M step cost about $0.02 per million events for RunTransform alone
+  (8.6). The 100M run is cheaper per event even with 16 executors, because
+  the cluster-hour rate is fixed and the work per hour grew 5 times.
+- RunTransform is 58% of the run's cost; RunDbt is 35%, and its Athena
+  bytes (15.8 GB scanned, 33 queries) are 46% of that step.
+- **Unexplained:** Cost Explorer shows 0.875 EKS cluster-hours, but the
+  cluster was up 3,773 s (1.05 h). The per-hour rate is therefore about
+  20% higher than the true rate if the 1.05 h is the right count. The
+  total is the posted number and does not change.
+- The three 2026-10-12 exercises also have cost now: $0.25 (the first Spot-layout run,
+  almost no events), $0.16 (9M load test) and $0.17 (Spot interruption test).
+
+### SLOs under load
+
+[docs/slo.md](slo.md) targets against this run (a single run, so a
+spot-check, not a budget statement):
+
+| # | Objective | Result at 100M |
+|---|---|---|
+| 1 | Pipeline success | SUCCEEDED, no retries, no failed states |
+| 2 | Gold freshness (< 24 h) | Met: gold was written by RunDbt during the run |
+| 3 | Run latency (< 30 min) | **Met: 742 s (12.4 min), 41% of the limit.** The 45 min alarm would fire at 3.6 times this |
+| 4 | Serving query (< 30 s) | The state took 58.3 s, over 30 s. Most of that is the ~55 s polling floor; the Athena query time is not in the record, so this is not shown met |
+| 5 | Data quality (hard gate) | dbt build passed; the 26-check suite passed with one known warning |
+| 6 | Observer freshness | Not load-related; not measured here |
+
+Latency at 100M has headroom of 2.4 times. Objective 4 needs the query's
+own `EngineExecutionTime` recorded to be judged under load: add it to the
+collector (follow-up).
 
 ## Data-quality suite
 
