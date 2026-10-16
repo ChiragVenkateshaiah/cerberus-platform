@@ -336,9 +336,11 @@ def day_cost(session, day):
         # On 2026-10-08 a day-old exercise showed 0.26 of ~1.2 cluster-hours
         # and $0 of EC2 compute. Node instances bill whenever EKS does, so
         # EKS hours with no EC2 compute means the day hasn't fully posted.
-        "complete": not (
-            cluster_hours > 0 and by_service.get("Amazon Elastic Compute Cloud - Compute", 0) == 0
-        ),
+        # And this is only ever asked for a run's day, and every run uses
+        # the cluster, so no EKS hours at all means the same: on 2026-10-16
+        # the 1M exercise's day showed $0.011 (S3, ECR) and 0 cluster-hours.
+        "complete": cluster_hours > 0
+        and by_service.get("Amazon Elastic Compute Cloud - Compute", 0) > 0,
     }
 
 
@@ -414,7 +416,7 @@ def print_cost(cost):
     )
     if not cost.get("complete", True):
         print(
-            "  WARNING: the day has not fully posted (EKS hours but no EC2 compute yet). "
+            "  WARNING: the day has not fully posted (no EKS hours, or no EC2 compute yet). "
             "Don't commit this cost; re-run --cost-only later."
         )
 
