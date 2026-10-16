@@ -46,6 +46,16 @@ permissions:
   id-token: write
   contents: read
 
+# One apply at a time, queued in order. On 2026-10-15 GitHub delivered two
+# push events for #103's merge commit, 52 s apart; they happened not to
+# overlap, but two overlapping applies would fail the second on the state
+# lock. cancel-in-progress stays false: cancelling an apply mid-run can
+# leave a half-applied stack and a stuck lock. (A queued run that is not
+# for main's head still stops at the head check below.)
+concurrency:
+  group: terraform-apply-dev-standing
+  cancel-in-progress: false
+
 jobs:
   apply:
     runs-on: ubuntu-latest
