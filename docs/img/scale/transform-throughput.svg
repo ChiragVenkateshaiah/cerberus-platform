@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="394" viewBox="0 0 760 394" role="img" aria-label="RunTransform input throughput against executors">
+<title>RunTransform input throughput against executors</title>
+<style>
+  .surface { fill: #fcfcfb; }
+  .ink { fill: #0b0b0b; }
+  .ink2 { fill: #52514e; }
+  .muted { fill: #898781; }
+  .grid { stroke: #e1e0d9; }
+  .axis { stroke: #c3c2b7; }
+  .s1 { fill: #2a78d6; } .s2 { fill: #eb6834; } .s3 { fill: #1baf7a; } .s4 { fill: #eda100; }
+  .gap { stroke: #fcfcfb; }
+  @media (prefers-color-scheme: dark) {
+    .surface { fill: #1a1a19; }
+    .ink { fill: #f0efec; }
+    .ink2 { fill: #c3c2b7; }
+    .grid { stroke: #2c2c2a; }
+    .axis { stroke: #383835; }
+    .s1 { fill: #3987e5; } .s2 { fill: #d95926; } .s3 { fill: #199e70; } .s4 { fill: #c98500; }
+    .gap { stroke: #1a1a19; }
+  }
+  text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .t { font-size: 15px; font-weight: 600; }
+  .st { font-size: 12px; }
+  .l { font-size: 12px; }
+  .tick { font-size: 11px; font-variant-numeric: tabular-nums; }
+</style>
+<rect class="surface" fill="#fcfcfb" width="760" height="394" rx="8"/>
+<text class="t ink" fill="#0b0b0b" x="20" y="28">RunTransform input throughput against executors</text>
+<text class="st ink2" fill="#52514e" x="20" y="47">Spark input bytes per second of the step. Throughput follows the input size more than the executor count.</text>
+<line class="grid" stroke="#e1e0d9" x1="70" y1="344.0" x2="560" y2="344.0" stroke-width="1"/>
+<text class="tick muted" fill="#898781" x="62" y="348.0" text-anchor="end">0</text>
+<line class="grid" stroke="#e1e0d9" x1="70" y1="300.7" x2="560" y2="300.7" stroke-width="1"/>
+<text class="tick muted" fill="#898781" x="62" y="304.7" text-anchor="end">20</text>
+<line class="grid" stroke="#e1e0d9" x1="70" y1="257.3" x2="560" y2="257.3" stroke-width="1"/>
+<text class="tick muted" fill="#898781" x="62" y="261.3" text-anchor="end">40</text>
+<line class="grid" stroke="#e1e0d9" x1="70" y1="214.0" x2="560" y2="214.0" stroke-width="1"/>
+<text class="tick muted" fill="#898781" x="62" y="218.0" text-anchor="end">60</text>
+<line class="grid" stroke="#e1e0d9" x1="70" y1="170.7" x2="560" y2="170.7" stroke-width="1"/>
+<text class="tick muted" fill="#898781" x="62" y="174.7" text-anchor="end">80</text>
+<line class="grid" stroke="#e1e0d9" x1="70" y1="127.3" x2="560" y2="127.3" stroke-width="1"/>
+<text class="tick muted" fill="#898781" x="62" y="131.3" text-anchor="end">100</text>
+<line class="grid" stroke="#e1e0d9" x1="70" y1="84.0" x2="560" y2="84.0" stroke-width="1"/>
+<text class="tick muted" fill="#898781" x="62" y="88.0" text-anchor="end">120</text>
+<text class="tick muted" fill="#898781" x="70.0" y="362" text-anchor="middle">0</text>
+<text class="tick muted" fill="#898781" x="124.4" y="362" text-anchor="middle">2</text>
+<text class="tick muted" fill="#898781" x="178.9" y="362" text-anchor="middle">4</text>
+<text class="tick muted" fill="#898781" x="233.3" y="362" text-anchor="middle">6</text>
+<text class="tick muted" fill="#898781" x="287.8" y="362" text-anchor="middle">8</text>
+<text class="tick muted" fill="#898781" x="342.2" y="362" text-anchor="middle">10</text>
+<text class="tick muted" fill="#898781" x="396.7" y="362" text-anchor="middle">12</text>
+<text class="tick muted" fill="#898781" x="451.1" y="362" text-anchor="middle">14</text>
+<text class="tick muted" fill="#898781" x="505.6" y="362" text-anchor="middle">16</text>
+<text class="tick muted" fill="#898781" x="560.0" y="362" text-anchor="middle">18</text>
+<line class="axis" stroke="#c3c2b7" x1="70" y1="344" x2="560" y2="344" stroke-width="1"/>
+<text class="tick muted" fill="#898781" x="560" y="380" text-anchor="end">executors registered by the silver job</text>
+<text class="tick muted" fill="#898781" x="62" y="72" text-anchor="end">MB/s</text>
+<circle class="s1" fill="#2a78d6" cx="97.2" cy="317.7" r="5"/>
+<circle cx="97.2" cy="317.7" r="5" fill="none" class="gap" stroke-width="2"/>
+<text class="tick ink2" fill="#52514e" x="107.2" y="321.7">10M, 1 × 1 GB executor · 12 MB/s</text>
+<circle class="s1" fill="#2a78d6" cx="124.4" cy="306.3" r="5"/>
+<circle cx="124.4" cy="306.3" r="5" fill="none" class="gap" stroke-width="2"/>
+<text class="tick ink2" fill="#52514e" x="134.4" y="302.3">10M, 2 × 2 GB · 17 MB/s</text>
+<circle class="s1" fill="#2a78d6" cx="287.8" cy="303.3" r="5"/>
+<circle cx="287.8" cy="303.3" r="5" fill="none" class="gap" stroke-width="2"/>
+<text class="tick ink2" fill="#52514e" x="297.8" y="307.3">9M load test · 19 MB/s</text>
+<circle class="s1" fill="#2a78d6" cx="396.7" cy="309.8" r="5"/>
+<circle cx="396.7" cy="309.8" r="5" fill="none" class="gap" stroke-width="2"/>
+<text class="tick ink2" fill="#52514e" x="406.7" y="331.8">9M Spot interruption · 16 MB/s</text>
+<circle class="s1" fill="#2a78d6" cx="505.6" cy="121.1" r="5"/>
+<circle cx="505.6" cy="121.1" r="5" fill="none" class="gap" stroke-width="2"/>
+<text class="tick ink2" fill="#52514e" x="515.6" y="125.1">100M · 103 MB/s</text>
+<circle class="s1" fill="#2a78d6" cx="505.6" cy="305.8" r="5"/>
+<circle cx="505.6" cy="305.8" r="5" fill="none" class="gap" stroke-width="2"/>
+<text class="tick ink2" fill="#52514e" x="515.6" y="297.8">1M on 137M silver · 18 MB/s</text>
+</svg>

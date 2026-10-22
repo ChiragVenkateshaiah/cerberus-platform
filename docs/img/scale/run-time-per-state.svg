@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="346" viewBox="0 0 760 346" role="img" aria-label="Run time per state">
+<title>Run time per state</title>
+<style>
+  .surface { fill: #fcfcfb; }
+  .ink { fill: #0b0b0b; }
+  .ink2 { fill: #52514e; }
+  .muted { fill: #898781; }
+  .grid { stroke: #e1e0d9; }
+  .axis { stroke: #c3c2b7; }
+  .s1 { fill: #2a78d6; } .s2 { fill: #eb6834; } .s3 { fill: #1baf7a; } .s4 { fill: #eda100; }
+  .gap { stroke: #fcfcfb; }
+  @media (prefers-color-scheme: dark) {
+    .surface { fill: #1a1a19; }
+    .ink { fill: #f0efec; }
+    .ink2 { fill: #c3c2b7; }
+    .grid { stroke: #2c2c2a; }
+    .axis { stroke: #383835; }
+    .s1 { fill: #3987e5; } .s2 { fill: #d95926; } .s3 { fill: #199e70; } .s4 { fill: #c98500; }
+    .gap { stroke: #1a1a19; }
+  }
+  text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .t { font-size: 15px; font-weight: 600; }
+  .st { font-size: 12px; }
+  .l { font-size: 12px; }
+  .tick { font-size: 11px; font-variant-numeric: tabular-nums; }
+</style>
+<rect class="surface" fill="#fcfcfb" width="760" height="346" rx="8"/>
+<text class="t ink" fill="#0b0b0b" x="20" y="28">Run time per state</text>
+<text class="st ink2" fill="#52514e" x="20" y="47">The clean run at each step of the ladder. Each run starts on a larger silver table: 1.1M, 37.1M, 137.1M events.</text>
+<rect class="s1" fill="#2a78d6" x="175" y="66" width="12" height="12" rx="2"/>
+<text class="l ink2" fill="#52514e" x="192" y="76">InvokeIngestion</text>
+<rect class="s2" fill="#eb6834" x="319" y="66" width="12" height="12" rx="2"/>
+<text class="l ink2" fill="#52514e" x="336" y="76">RunTransform</text>
+<rect class="s3" fill="#1baf7a" x="442" y="66" width="12" height="12" rx="2"/>
+<text class="l ink2" fill="#52514e" x="459" y="76">RunDbt</text>
+<rect class="s4" fill="#eda100" x="523" y="66" width="12" height="12" rx="2"/>
+<text class="l ink2" fill="#52514e" x="540" y="76">RunServingQuery</text>
+<line class="grid" stroke="#e1e0d9" x1="175.0" y1="102" x2="175.0" y2="280" stroke-width="1"/>
+<text class="tick muted" fill="#898781" x="175.0" y="298" text-anchor="middle">0</text>
+<line class="grid" stroke="#e1e0d9" x1="244.4" y1="102" x2="244.4" y2="280" stroke-width="1"/>
+<text class="tick muted" fill="#898781" x="244.4" y="298" text-anchor="middle">100</text>
+<line class="grid" stroke="#e1e0d9" x1="313.8" y1="102" x2="313.8" y2="280" stroke-width="1"/>
+<text class="tick muted" fill="#898781" x="313.8" y="298" text-anchor="middle">200</text>
+<line class="grid" stroke="#e1e0d9" x1="383.1" y1="102" x2="383.1" y2="280" stroke-width="1"/>
+<text class="tick muted" fill="#898781" x="383.1" y="298" text-anchor="middle">300</text>
+<line class="grid" stroke="#e1e0d9" x1="452.5" y1="102" x2="452.5" y2="280" stroke-width="1"/>
+<text class="tick muted" fill="#898781" x="452.5" y="298" text-anchor="middle">400</text>
+<line class="grid" stroke="#e1e0d9" x1="521.9" y1="102" x2="521.9" y2="280" stroke-width="1"/>
+<text class="tick muted" fill="#898781" x="521.9" y="298" text-anchor="middle">500</text>
+<line class="grid" stroke="#e1e0d9" x1="591.2" y1="102" x2="591.2" y2="280" stroke-width="1"/>
+<text class="tick muted" fill="#898781" x="591.2" y="298" text-anchor="middle">600</text>
+<line class="grid" stroke="#e1e0d9" x1="660.6" y1="102" x2="660.6" y2="280" stroke-width="1"/>
+<text class="tick muted" fill="#898781" x="660.6" y="298" text-anchor="middle">700</text>
+<line class="grid" stroke="#e1e0d9" x1="730.0" y1="102" x2="730.0" y2="280" stroke-width="1"/>
+<text class="tick muted" fill="#898781" x="730.0" y="298" text-anchor="middle">800</text>
+<text class="tick muted" fill="#898781" x="730" y="316" text-anchor="end">seconds</text>
+<text class="l ink" fill="#0b0b0b" x="20" y="121">1M new events</text>
+<text class="tick muted" fill="#898781" x="20" y="136">20261015T145812Z</text>
+<rect class="s1" fill="#2a78d6" x="175.0" y="110" width="2.6" height="24"/>
+<rect class="s2" fill="#eb6834" x="177.6" y="110" width="162.5" height="24"/>
+<line class="gap" stroke="#fcfcfb" x1="177.6" y1="110" x2="177.6" y2="134" stroke-width="2"/>
+<text class="tick" x="258.9" y="126" text-anchor="middle" fill="#0b0b0b">234</text>
+<rect class="s3" fill="#1baf7a" x="340.2" y="110" width="198.9" height="24"/>
+<line class="gap" stroke="#fcfcfb" x1="340.2" y1="110" x2="340.2" y2="134" stroke-width="2"/>
+<text class="tick" x="439.6" y="126" text-anchor="middle" fill="#0b0b0b">287</text>
+<path class="s4" fill="#eda100" d="M539.1,110 h35.1 a4,4 0 0 1 4,4 v16 a4,4 0 0 1 -4,4 h-35.1 z"/>
+<line class="gap" stroke="#fcfcfb" x1="539.1" y1="110" x2="539.1" y2="134" stroke-width="2"/>
+<text class="l ink" fill="#0b0b0b" x="586.1" y="126">581 s</text>
+<text class="tick ink2" fill="#52514e" x="340.2" y="148">↑ RunDbt includes 230 s of Athena queue time</text>
+<text class="l ink" fill="#0b0b0b" x="20" y="183">10M new events</text>
+<text class="tick muted" fill="#898781" x="20" y="198">20261009T074853Z</text>
+<rect class="s1" fill="#2a78d6" x="175.0" y="172" width="3.0" height="24"/>
+<rect class="s2" fill="#eb6834" x="178.0" y="172" width="224.3" height="24"/>
+<line class="gap" stroke="#fcfcfb" x1="178.0" y1="172" x2="178.0" y2="196" stroke-width="2"/>
+<text class="tick" x="290.1" y="188" text-anchor="middle" fill="#0b0b0b">323</text>
+<rect class="s3" fill="#1baf7a" x="402.3" y="172" width="92.1" height="24"/>
+<line class="gap" stroke="#fcfcfb" x1="402.3" y1="172" x2="402.3" y2="196" stroke-width="2"/>
+<text class="tick" x="448.3" y="188" text-anchor="middle" fill="#0b0b0b">133</text>
+<path class="s4" fill="#eda100" d="M494.4,172 h39.2 a4,4 0 0 1 4,4 v16 a4,4 0 0 1 -4,4 h-39.2 z"/>
+<line class="gap" stroke="#fcfcfb" x1="494.4" y1="172" x2="494.4" y2="196" stroke-width="2"/>
+<text class="l ink" fill="#0b0b0b" x="545.6" y="188">523 s</text>
+<text class="l ink" fill="#0b0b0b" x="20" y="245">100M new events</text>
+<text class="tick muted" fill="#898781" x="20" y="260">20261013T055859Z</text>
+<rect class="s1" fill="#2a78d6" x="175.0" y="234" width="2.9" height="24"/>
+<rect class="s2" fill="#eb6834" x="177.9" y="234" width="354.9" height="24"/>
+<line class="gap" stroke="#fcfcfb" x1="177.9" y1="234" x2="177.9" y2="258" stroke-width="2"/>
+<text class="tick" x="355.4" y="250" text-anchor="middle" fill="#0b0b0b">512</text>
+<rect class="s3" fill="#1baf7a" x="532.8" y="234" width="116.5" height="24"/>
+<line class="gap" stroke="#fcfcfb" x1="532.8" y1="234" x2="532.8" y2="258" stroke-width="2"/>
+<text class="tick" x="591.1" y="250" text-anchor="middle" fill="#0b0b0b">168</text>
+<path class="s4" fill="#eda100" d="M649.3,234 h36.4 a4,4 0 0 1 4,4 v16 a4,4 0 0 1 -4,4 h-36.4 z"/>
+<line class="gap" stroke="#fcfcfb" x1="649.3" y1="234" x2="649.3" y2="258" stroke-width="2"/>
+<text class="l ink" fill="#0b0b0b" x="697.8" y="250">742 s</text>
+</svg>

@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="276" viewBox="0 0 760 276" role="img" aria-label="Cost per million events, orchestrated run">
+<title>Cost per million events, orchestrated run</title>
+<style>
+  .surface { fill: #fcfcfb; }
+  .ink { fill: #0b0b0b; }
+  .ink2 { fill: #52514e; }
+  .muted { fill: #898781; }
+  .grid { stroke: #e1e0d9; }
+  .axis { stroke: #c3c2b7; }
+  .s1 { fill: #2a78d6; } .s2 { fill: #eb6834; } .s3 { fill: #1baf7a; } .s4 { fill: #eda100; }
+  .gap { stroke: #fcfcfb; }
+  @media (prefers-color-scheme: dark) {
+    .surface { fill: #1a1a19; }
+    .ink { fill: #f0efec; }
+    .ink2 { fill: #c3c2b7; }
+    .grid { stroke: #2c2c2a; }
+    .axis { stroke: #383835; }
+    .s1 { fill: #3987e5; } .s2 { fill: #d95926; } .s3 { fill: #199e70; } .s4 { fill: #c98500; }
+    .gap { stroke: #1a1a19; }
+  }
+  text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .t { font-size: 15px; font-weight: 600; }
+  .st { font-size: 12px; }
+  .l { font-size: 12px; }
+  .tick { font-size: 11px; font-variant-numeric: tabular-nums; }
+</style>
+<rect class="surface" fill="#fcfcfb" width="760" height="276" rx="8"/>
+<text class="t ink" fill="#0b0b0b" x="20" y="28">Cost per million events, orchestrated run</text>
+<text class="st ink2" fill="#52514e" x="20" y="47">The run costs $0.10–0.37 at every step, so the cost per event falls about 80 times from 1M to 100M.</text>
+<line class="grid" stroke="#e1e0d9" x1="175.0" y1="70" x2="175.0" y2="222" stroke-width="1"/>
+<text class="tick muted" fill="#898781" x="175.0" y="238" text-anchor="middle">$0.001</text>
+<line class="grid" stroke="#e1e0d9" x1="356.7" y1="70" x2="356.7" y2="222" stroke-width="1"/>
+<text class="tick muted" fill="#898781" x="356.7" y="238" text-anchor="middle">$0.01</text>
+<line class="grid" stroke="#e1e0d9" x1="538.3" y1="70" x2="538.3" y2="222" stroke-width="1"/>
+<text class="tick muted" fill="#898781" x="538.3" y="238" text-anchor="middle">$0.10</text>
+<line class="grid" stroke="#e1e0d9" x1="720.0" y1="70" x2="720.0" y2="222" stroke-width="1"/>
+<text class="tick muted" fill="#898781" x="720.0" y="238" text-anchor="middle">$1</text>
+<text class="tick muted" fill="#898781" x="720" y="254" text-anchor="end">per million events, log scale</text>
+<text class="l ink" fill="#0b0b0b" x="20" y="84">1M new events</text>
+<line class="axis" stroke="#c3c2b7" x1="175" y1="80" x2="623.1" y2="80" stroke-width="2"/>
+<circle class="s1" fill="#2a78d6" cx="623.1" cy="80" r="6"/>
+<circle cx="623.1" cy="80" r="6" fill="none" class="gap" stroke-width="2"/>
+<text class="l ink" fill="#0b0b0b" x="623.1" y="69" text-anchor="end">$0.2928 per M · run $0.29</text>
+<text class="l ink" fill="#0b0b0b" x="20" y="136">10M new events</text>
+<line class="axis" stroke="#c3c2b7" x1="175" y1="132" x2="365.6" y2="132" stroke-width="2"/>
+<circle class="s1" fill="#2a78d6" cx="365.6" cy="132" r="6"/>
+<circle cx="365.6" cy="132" r="6" fill="none" class="gap" stroke-width="2"/>
+<text class="l ink" fill="#0b0b0b" x="365.6" y="121" text-anchor="end">$0.0112 per M · run $0.10</text>
+<text class="l ink" fill="#0b0b0b" x="20" y="188">100M new events</text>
+<line class="axis" stroke="#c3c2b7" x1="175" y1="184" x2="278.2" y2="184" stroke-width="2"/>
+<circle class="s1" fill="#2a78d6" cx="278.2" cy="184" r="6"/>
+<circle cx="278.2" cy="184" r="6" fill="none" class="gap" stroke-width="2"/>
+<text class="l ink" fill="#0b0b0b" x="278.2" y="173" text-anchor="end">$0.0037 per M · run $0.37</text>
+</svg>

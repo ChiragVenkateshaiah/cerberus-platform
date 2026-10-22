@@ -235,7 +235,8 @@ constraints behind this diagram, see
 │                         #   lineage.md (6.4), slo.md (6.5),
 │                         #   cost-security-summary.md (7.5),
 │                         #   scale-metrics.md (8.3); docs/pages/ =
-│                         #   the Pages landing page
+│                         #   the Pages landing page; docs/img/scale/ =
+│                         #   the Phase 8 results charts (8.10)
 ├── articles/             # weekly engineering articles (see article.md)
 ├── terraform/
 │   ├── bootstrap/        # state backend as code (S3 + DynamoDB lock)
@@ -297,6 +298,7 @@ constraints behind this diagram, see
 │                         #   data-quality suite (8.4; manifest-ledger
 │                         #   mode and backfill_bulk_manifests.py, 8.6);
 │                         #   scale/exercises/ -- exercise logs;
+│                         #   scale/charts.py -- renders the 8.10 charts;
 │                         #   scale/audits/ -- milestone `--full`
 │                         #   data-quality audit records (8.9)
 ├── lineage/              # collector/handler.py -- the OpenLineage event
@@ -363,7 +365,8 @@ git config pull.rebase true
   cost method, the baseline at today's volume, the data-quality suite
   (8.4), 8.6's measured results at 10M events, and 8.8's autoscaling,
   dynamic allocation and Spot interruption tests, and 8.9's 100M-event run
-  with its cost per step and the milestone `--full` data-quality audit
+  with its cost per step and the milestone `--full` data-quality audit;
+  8.10's results table and charts for 1M, 10M and 100M are at the top
 - [docs/adr/](docs/adr/) — architecture decision records
 - [docs/courses-map-to-phases.md](docs/courses-map-to-phases.md) — which
   courses (if any) map to each phase, and where no course exists
