@@ -199,6 +199,28 @@ million events per step. $20/month, six weeks from 2026-10-06.
     ~10k). The extra-executor speed-up is not isolated from the larger
     silver table.
 
+- **8.10** — results write-up **done in draft PR #107 (2026-10-22); the
+  demo video is still to record**, so 8.10 stays unchecked. Clean 1M run
+  `exercise-20261015T145812Z` (#105): 1,000,029 new events on top of
+  137.1M, SUCCEEDED in 581.2 s, data quality passed, $0.2945 for the run,
+  **$0.2928 per million events**. The ladder (1M / 10M / 100M, runs
+  `…20261015T145812Z` / `…20261009T074853Z` / `…20261013T055859Z`):
+  $0.2928 / $0.0112 / $0.0037 per million events; run cost $0.10–0.37 at
+  every step. New section "Results: 1M, 10M and 100M (8.10)" at the top
+  of docs/scale-metrics.md: one table, three SVG charts
+  (`docs/img/scale/`, rendered by `observability/scale/charts.py` from the
+  run records), throughput table, "What the ladder shows", "What was not
+  isolated", and a 6-shot, ~3-minute demo video script.
+  - **RunDbt at 1M was slower than at 100M (286.7 s vs 167.9 s): Athena
+    queue time**, 230.5 s, nearly all on two small source tests (63.7 s,
+    132.6 s). Engine time 57.9 s, flat vs 10M (57.6 s). Every other run
+    queued 1.9–5.4 s. The collector now records `engine_seconds` and
+    `queue_seconds` per state (#105, back-filled into all 14 records).
+  - **SLO 4 is met:** 0.7–5.0 s of Athena engine time in every run.
+  - **RunTransform throughput:** 12–19 MB/s for 4–6 GB inputs with any
+    executor count (1–16); 103 MB/s at 52.6 GB. Dynamic allocation asked
+    for 16 executors even at 1M, with almost no speed-up.
+
 - **10.1** — ADR 0021 (pipeline status and alerting) **Accepted with changes** on 2026-10-15 after an Opus review (first draft merged Proposed in #99).
   (First draft) proposed: the existing AMP workspace as the store, with AMP's ruler and
   Alertmanager (SNS) as Terraform so alerts fire while the laptop is off;
@@ -217,53 +239,36 @@ numbers. **Model:** Opus 5.5 for 8.10 and 8.11.
 
 Run `git fetch && git switch main && git pull` first; check `gh pr list`.
 
-1. **The clean ~1M exercise -- the user runs it on 2026-10-15, after
-   this /end-day, in their own terminal** (about 45 min of cluster time,
-   about $0.50–1; from `main`, so the collect step uses the #102 pricing):
-
-   ```
-   AWS_PROFILE=cerberus-admin make exercise ARGS="--yes --generate 1000000"
-   ```
-
-   One exercise per UTC day (the cost rate is a day average). Today's
-   Athena also holds the $0.91 `--full` audit; that does not change the
-   cluster-hour rate (Athena is excluded since #102), but it is in the day
-   total. If the run did not happen on 2026-10-15, run it on a clean day
-   and shift step 2 by one day.
-2. **2026-10-16: `--cost-only` on that execution** (Cost Explorer posts a
-   day late; the exercise log prints the execution name):
-
-   ```
-   AWS_PROFILE=cerberus-admin uv run -q --no-project --with boto3 python observability/scale/collect_run_metrics.py --execution <exercise-name> --cost-only
-   ```
-
-   `.venv/bin/python` has no boto3; use the `uv` form.
-3. **8.10 -- results write-up + demo video** (Opus):
-   - one table for 1M / 10M / 100M with run IDs: the new 1M run, clean
-     10M `exercise-20261009T074853Z` ("before" in 8.6), 100M
-     `exercise-20261013T055859Z`;
-   - three charts: run time per state, cost per million events on a log
-     scale, RunTransform events/s vs executors;
-   - a "what was not isolated" note (extra executors vs larger silver; the
-     day-average cost rule; EKS hours 0.875 vs 1.05);
-   - the demo video script, then the recording.
-4. **8.11 -- Well-Architected pass + ADR 0022** (Opus): Phase 8's pass, WA
+1. **8.10 -- the demo video (the user records it).** The script is in
+   docs/scale-metrics.md, "Demo video script (8.10)": 6 shots, about 3 min,
+   from the repo and the AWS console with no cluster up ($0). Check the
+   three charts in draft PR #107 on GitHub in light and dark mode first
+   (they were only checked as ImageMagick renders; headless Firefox
+   screenshots failed). When the user gives the video's location: link it
+   in the 8.10 section, check off 8.10 in Phases.md, mark #107 ready and
+   merge it (`--merge`).
+2. **8.11 -- Well-Architected pass + ADR 0022** (Opus): Phase 8's pass, WA
    Tool milestone 8 (`phase-8-scale-validation-complete`; last tracked
    23 HIGH / 19 MEDIUM, verified 2026-09-07); confirm the ADR 0018/0020
    amendments; cite the `--full` audit
-   (`observability/scale/audits/dq-full-20261015.json`).
-5. **Then Phase 9**, starting with **9.1** (the console ADR); it must
+   (`observability/scale/audits/dq-full-20261015.json`) and the 8.10
+   results. Closing 8.11 (with 8.10) completes Phase 8: flip Phases.md,
+   plan.md's roadmap row and README.
+3. **Then Phase 9**, starting with **9.1** (the console ADR); it must
    settle the shared Grafana with ADR 0021.
 
-**Open from the 2026-10-15 review, not blocking 8.10:** SLO 4 needs
-Athena EngineExecutionTime in the collector; bytes written are not
-measured; Athena computed vs posted ($0.61 vs $0.574, TB vs TiB
-unverified); ~1,706 s of apply/destroy time not attributed.
+**Open from the 2026-10-15 review, not blocking 8.11** (listed in 8.10's
+"What was not isolated"): bytes written are not measured; Athena computed
+vs posted ($0.61 vs $0.574, TB vs TiB unverified); ~1,706 s of apply,
+waits and destroy not attributed; EKS cluster-hours read low (17–29%
+below observed up time; 1M day 0.489 h vs 0.69 h up). SLO 4 is closed
+(#105).
 
 **Later:** 10.2 spikes (OTel remote-write exporter and SigV4,
 console-transport lineage, AMP rule billing); Phase 8 follow-ups
 (incremental silver data-quality checks, per-check bytes, the slow
-generator); the cheaper milestone audit and the value checksum (plan.md,
+generator; dynamic allocation sized to the input, since 16 executors
+gave 1M almost no speed-up); the cheaper milestone audit and the value checksum (plan.md,
 Planned later work); `use_lockfile` (needs a `.tflock` grant for the CI
 plan role and `init -reconfigure`); `BatchGetQueryExecution` is not in
 `cerberus-admin`'s policy.
@@ -3135,6 +3140,43 @@ mid-session._
   cluster-hours 0.875 vs 1.05 h observed.
 - **Mistake:** my first `--full` estimate (350 GB, $1.75) was wrong; the
   S3 listing gave 59.3 GB of bronze and the run scanned 181.5 GB.
+
+### 2026-10-15 (second session) to 2026-10-22
+
+_The clean 1M run, the RunDbt slowdown traced to Athena queue time, the
+collector's engine/queue time and completeness fixes, a CI concurrency
+group, and the 8.10 results write-up. PRs #105–#107. Sessions on
+2026-10-15/16 and 2026-10-22 (none in between)._
+
+- **Clean 1M exercise** (user-run, 2026-10-15): `exercise-20261015T145812Z`,
+  1,000,029 new events on 137.1M, 581.2 s, data quality passed. Record in
+  `observability/scale/runs/`. Its `--cost-only` ran on 2026-10-22 once
+  Cost Explorer posted the day in full: run $0.2945, $0.2928 per million
+  events, $1.3374 per cluster-hour; day $1.85, of which Athena $1.20
+  (about $0.91 of it the `--full` audit).
+- **RunDbt slowdown investigated** (286.7 s at 1M vs 167.9 s at 100M):
+  230.5 s of Athena queue time, almost all on two small source tests;
+  engine time flat. Glue calls and merge size ruled out. Written into
+  docs/scale-metrics.md.
+- **Collector (#105):** per-state `engine_seconds` and `queue_seconds`
+  (Athena `EngineExecutionTimeInMillis` / `QueryQueueTimeInMillis`),
+  back-filled into all 14 run records with query counts and bytes
+  asserted unchanged; SLO 4 row now "Met: 3.2 s of Athena engine time".
+  A day's cost is `complete` only with EKS cluster-hours > 0 and EC2
+  compute posted: an early `--cost-only` had returned $0.011 with 0 hours
+  marked complete (removed twice by hand before the fix).
+- **CI (#106):** `terraform-apply.yml` got a `concurrency` group
+  (`terraform-apply-dev-standing`, `cancel-in-progress: false`) after #103's
+  merge produced two push events 52 s apart (cause unexplained).
+- **8.10 write-up (draft #107):** the results section, three charts and
+  the demo video script (see Current phase, 8.10). Charts: standard
+  library SVG with light/dark CSS plus light presentation attributes;
+  the dataviz palette (blue, orange, aqua, yellow) passed the validator;
+  the light-mode contrast WARN is covered by direct labels and tables.
+  Three label collisions fixed after ImageMagick renders.
+- **Mistake:** the first "not isolated" draft said "1,706 s apply and
+  destroy alone"; corrected to "apply, waits and destroy" (3,773 − 1,325
+  − 742 s).
 
 ## Notes / blockers
 

@@ -140,7 +140,10 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
       the run as re-priced 2026-10-15 (#102), $0.0178 for the whole
       exercise; #98). Milestone `--full` data-quality audit passed
       2026-10-15 (#103, #104)
-- [ ] 8.10 Results write-up (per-step numbers and charts) + demo video
+- [ ] 8.10 Results write-up (per-step numbers and charts) + demo video.
+      Clean 1M run done 2026-10-15 (#105, $0.2928 per million events);
+      write-up, charts and video script in #107 (2026-10-22); the video is
+      still to record
 - [ ] 8.11 Well-Architected pass + ADR
 
 ## Phase 9 — Demo console (UI + terminal) ⬜
