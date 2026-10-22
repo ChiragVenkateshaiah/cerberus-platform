@@ -164,8 +164,18 @@ def athena_by_state(queries, states):
             "bytes_scanned": scanned,
             "bytes_billed": billed,
             "usd": round(billed / 1e12 * ATHENA_USD_PER_TB, 6),
+            # Summed over the state's queries. Queue time is Athena waiting
+            # for capacity before a query starts -- not our work, and on
+            # 2026-10-15 it was 230 s of a 287 s RunDbt (dbt's 2 threads, far
+            # below any quota). Engine time is SLO 4's serving-query time.
+            "engine_seconds": statistic_seconds(mine, "EngineExecutionTimeInMillis"),
+            "queue_seconds": statistic_seconds(mine, "QueryQueueTimeInMillis"),
         }
     return result
+
+
+def statistic_seconds(queries, key):
+    return round(sum(q["Statistics"].get(key, 0) for q in queries) / 1000, 1)
 
 
 class Amp:
@@ -326,9 +336,11 @@ def day_cost(session, day):
         # On 2026-10-08 a day-old exercise showed 0.26 of ~1.2 cluster-hours
         # and $0 of EC2 compute. Node instances bill whenever EKS does, so
         # EKS hours with no EC2 compute means the day hasn't fully posted.
-        "complete": not (
-            cluster_hours > 0 and by_service.get("Amazon Elastic Compute Cloud - Compute", 0) == 0
-        ),
+        # And this is only ever asked for a run's day, and every run uses
+        # the cluster, so no EKS hours at all means the same: on 2026-10-16
+        # the 1M exercise's day showed $0.011 (S3, ECR) and 0 cluster-hours.
+        "complete": cluster_hours > 0
+        and by_service.get("Amazon Elastic Compute Cloud - Compute", 0) > 0,
     }
 
 
@@ -404,7 +416,7 @@ def print_cost(cost):
     )
     if not cost.get("complete", True):
         print(
-            "  WARNING: the day has not fully posted (EKS hours but no EC2 compute yet). "
+            "  WARNING: the day has not fully posted (no EKS hours, or no EC2 compute yet). "
             "Don't commit this cost; re-run --cost-only later."
         )
 
@@ -488,6 +500,10 @@ def main():
         "athena_totals": {
             key: sum(a[key] for a in athena.values())
             for key in ("queries", "bytes_scanned", "bytes_billed")
+        }
+        | {
+            key: round(sum(a[key] for a in athena.values()), 1)
+            for key in ("engine_seconds", "queue_seconds")
         },
         "prometheus": prometheus,
         "storage_snapshot": storage,
