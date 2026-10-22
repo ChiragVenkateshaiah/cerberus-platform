@@ -130,7 +130,11 @@ The run cost $0.37, 0.37 cents per million events (1.8 cents for the whole
 exercise, generator and data-quality scan included), and met the 30-minute
 run-latency SLO with 2.4 times headroom. Before milestone 8, a full
 data-quality audit re-checked every bronze key against silver: all
-137,113,940 events matched.
+137,113,940 events matched. For 8.10, a clean 1M run completed the
+ladder: the run cost stayed between $0.10 and $0.37 at every step, so the
+cost per million events fell from $0.29 at 1M to $0.0037 at 100M; the
+results table and charts are in
+[docs/scale-metrics.md](docs/scale-metrics.md).
 
 ⬜ Phase 9 (demo console) — planned. A browser console on one start/stop
 EC2 instance: architecture and latest-run views, Grafana and Prometheus
