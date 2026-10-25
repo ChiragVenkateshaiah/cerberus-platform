@@ -238,7 +238,7 @@ Leave 8.11 as is (now ADR 0023). Steps 1–6 cost $0 and come before any cluster
 - Large panels, 15 s refresh, range `now-30m`, laid out for an about 864×1080 browser window.
 - PromQL is checked against the 2026-10-13 window before commit:
   - Executors: `count by (spark_app) (metrics_executor_activeTasks{executor_id!="driver"})`.
-  - Nodes: `count by (label_eks_amazonaws_com_capacityType) (kube_node_labels)`. It returns data only after step 6's label change, so for the history check use `count(kube_node_info)`.
+  - Nodes: `count by (label_eks_amazonaws_com_capacity_type) (kube_node_labels)`. It returns data only after step 6's label change, so for the history check use `count(kube_node_info)`.
   - Executor pods: `count(kube_pod_info{namespace="spark-jobs",pod=~".*-exec-.*"})`.
   - Input read so far: per-executor peak of `metrics_executor_totalInputBytes_bytes_total`, summed.
   - Input bytes/s, active tasks, node CPU busy: as in today's dashboard.

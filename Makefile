@@ -79,6 +79,10 @@ grafana-down: ## stop and remove the local Grafana container (keeps the data vol
 grafana-logs: ## follow the local Grafana logs
 	AMP_URL=unused $(GRAFANA_COMPOSE) logs -f grafana
 
+.PHONY: demo-forward
+demo-forward: ## port-forward the agent UI (:9090) and the current Spark driver UI (:4040) to localhost (ADR 0022)
+	@observability/demo/forward.sh
+
 .PHONY: fmt
 fmt: ## terraform fmt across the whole terraform/ tree
 	$(TF_BIN) fmt -recursive terraform/

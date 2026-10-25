@@ -253,8 +253,8 @@
             "type": "grafana-amazonprometheus-datasource",
             "uid": "amp"
           },
-          "expr": "count by (label_eks_amazonaws_com_capacityType) (kube_node_labels)",
-          "legendFormat": "{{label_eks_amazonaws_com_capacityType}}",
+          "expr": "count by (label_eks_amazonaws_com_capacity_type) (kube_node_labels)",
+          "legendFormat": "{{label_eks_amazonaws_com_capacity_type}}",
           "refId": "A",
           "range": true
         },
