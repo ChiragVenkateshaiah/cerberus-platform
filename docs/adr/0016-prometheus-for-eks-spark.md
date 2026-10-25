@@ -6,6 +6,10 @@ Date: 2026-10-02
 
 Accepted
 
+Viewing amended by [ADR 0022](0022-live-observability-for-a-recorded-run.md)
+(2026-10-25): a local Grafana is the primary viewer; the in-cluster Grafana
+stays until 9.1 decides.
+
 ## Context
 
 Phase 7 was extended on 2026-10-02 ([plan.md](../plan.md#phase-7--end-to-end-platform-validation))

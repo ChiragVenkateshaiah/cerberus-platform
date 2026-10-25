@@ -4,7 +4,7 @@ Date: 2026-10-24
 
 ## Status
 
-Proposed. Amends [ADR 0016](0016-prometheus-for-eks-spark.md) (the "Viewing: Grafana in-cluster" point of its
+Accepted (2026-10-25). Amends [ADR 0016](0016-prometheus-for-eks-spark.md) (the "Viewing: Grafana in-cluster" point of its
 Decision) and implements the dev loop of [ADR 0021](0021-pipeline-status-and-alerting.md)
 early. The build steps are in
 [the plan](../plans/2026-10-24-live-100m-run-observability.md).
