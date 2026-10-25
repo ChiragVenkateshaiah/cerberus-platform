@@ -1,0 +1,25 @@
+# Same uids and settings as the in-cluster datasources
+# (terraform/modules/eks_observability/main.tf), so one dashboard JSON works
+# in both. Credentials come from the AWS profile mounted in compose.yaml.
+# ${AMP_URL} is set by `make grafana-up` (the workspace's query endpoint).
+apiVersion: 1
+datasources:
+  - name: Amazon Managed Prometheus
+    uid: amp
+    type: grafana-amazonprometheus-datasource
+    url: ${AMP_URL}
+    access: proxy
+    isDefault: true
+    jsonData:
+      httpMethod: POST
+      sigV4Auth: true
+      sigV4AuthType: default
+      sigV4Region: us-east-1
+      sigv4Service: aps
+  - name: CloudWatch
+    uid: cloudwatch
+    type: cloudwatch
+    access: proxy
+    jsonData:
+      authType: default
+      defaultRegion: us-east-1

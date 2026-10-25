@@ -61,3 +61,6 @@ get-docker.sh
 # 8.3: orchestration/exercise.sh run logs (the metric records in
 # observability/scale/runs/ are committed; the raw logs are not).
 observability/scale/exercises/
+
+# Local Grafana (ADR 0022): admin password
+observability/grafana/.env
