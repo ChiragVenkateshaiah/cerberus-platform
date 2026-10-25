@@ -141,6 +141,9 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
       exercise; #98). Milestone `--full` data-quality audit passed
       2026-10-15 (#103, #104)
 - [ ] 8.10 Results write-up (per-step numbers and charts) + demo video.
+      ADR 0022 (live observability: local Grafana, native Prometheus/Spark
+      UIs); DQ cutoff 20 GiB; dress rehearsal at 1M; live 100M run
+      recorded.
       Clean 1M run done 2026-10-15 (#105, $0.2928 per million events);
       write-up, charts and video script in #107 (2026-10-22); the video is
       still to record
