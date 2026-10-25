@@ -148,7 +148,14 @@ locals {
   # Shared relabeling for both Spark jobs: driver pods only (Spark labels
   # them spark-role=driver), on the Spark UI port, which serves both the
   # PrometheusServlet sink and the executor summary endpoint.
+  #
+  # The phase rule keeps only Running pods. On 2026-10-13 the Completed
+  # generator driver pod was still listed by pod discovery, and the silver
+  # driver reused the generator driver's pod IP (commit aa9ec4a), so that
+  # IP:4040 was scraped twice with both pods' labels (found in ADR 0022
+  # step 5). UNVERIFIED until the 1M rehearsal shows one series per executor.
   spark_driver_relabel = [
+    { source_labels = ["__meta_kubernetes_pod_phase"], regex = "Running", action = "keep" },
     { source_labels = ["__meta_kubernetes_pod_label_spark_role"], regex = "driver", action = "keep" },
     { source_labels = ["__meta_kubernetes_pod_container_port_number"], regex = "4040", action = "keep" },
     { source_labels = ["__meta_kubernetes_namespace"], target_label = "namespace" },
@@ -258,6 +265,16 @@ resource "helm_release" "prometheus" {
     # as a follow-up).
     alertmanager             = { enabled = false }
     "prometheus-pushgateway" = { enabled = false }
+
+    # kube-state-metrics (subchart 8.6.0 in prometheus 29.35.0) drops node
+    # labels by default. Allow the capacity type so kube_node_labels carries
+    # label_eks_amazonaws_com_capacity_type (kube-state-metrics snake_cases
+    # label names), for Spot vs on-demand node counts on the run dashboard
+    # (ADR 0022). The chart joins this list with commas into
+    # --metric-labels-allowlist.
+    "kube-state-metrics" = {
+      metricLabelsAllowlist = ["nodes=[eks.amazonaws.com/capacityType]"]
+    }
 
     # The chart injects its default jobs (apiserver, nodes, cAdvisor, every
     # annotated pod/service, ...) from this separate map, *in addition to*
