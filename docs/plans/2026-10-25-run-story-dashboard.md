@@ -56,6 +56,7 @@ How can the 100M video show live, real progress that everyone can read: payments
 - The day total was $1.781607, of which Athena was $0.574015. The cluster was observed up for 3,773 s.
 - Non-Athena cost per observed hour: ($1.781607 − $0.574015) ÷ 1.048 h = **$1.15/h**. This is derived here; the repo does not contain it.
 - The record's `usd_per_cluster_hour` 1.3801 uses EKS cluster-hours, which checkpoint flags as 17–29% low.
+- **Erratum (6d, 2026-10-25):** the $1.15/h above divides by the 3,773 s exercise time, which includes apply and destroy. Against node time it is about 28% low. Corrected rate: $1.207592 non-Athena (run record cost block) ÷ 0.704 h (first node 06:09:24 to last scrape 06:51:38) = **$1.72/h**. The tile uses `(max(timestamp(kube_node_info)) - min(kube_node_created)) / 3600 * 1.72`.
 
 **Where `exercise.sh` knows each result** (`orchestration/exercise.sh`):
 - The collector exit code: 0 = DQ passed, 3 = DQ failed (record written), anything else = collector failed. See the `case "$collector_rc"`, about L343.
@@ -198,6 +199,14 @@ Why:
 - (a) The source is stages only. SQL node metrics are empty while the execution is RUNNING.
 - (b) "New payments read" is the lowest-stageId stage with `inputRecords` > 0 in the first `append at` job. No log line has this number, so the end check is that it is at least `appended N`. It is equal when bronze has no duplicates or Lambda events.
 - (c) Pick the write stage by `outputRecords`, since all stages in a job share one name.
+
+**Erratum (6d, 2026-10-25)**, from the review of `cerberus-run-story.json`:
+- Cost tile: the rate is $1.72/h, not $1.15/h (see section 2). The label reads "estimate at $1.72 an hour, Athena not included".
+- Result tiles are two full-width panels, "Data quality result" and "Clean-up result", filtered by the tags `cerberus-dq` and `cerberus-teardown`.
+- **Input for 6e:** at apply, `exercise.sh` and `--replay` post two placeholders, "Quality checks: not finished yet" (tag `cerberus-dq`) and "Clean-up: not started yet" (tag `cerberus-teardown`), without the `cerberus` tag. Real verdicts carry `cerberus`, `dq` or `teardown`, and `cerberus-dq` or `cerberus-teardown`.
+- Journey failures use `ExecutionsFailed` of the state machine (the states retry), not per-integration failed counts. The Teardown row is a constant "See Clean-up result".
+- `requested` is a hidden textbox variable, so `?var-requested=1000000` works for the 1M rehearsal.
+- "Run log" moved to `cerberus-run-live.json`. The story layout keeps 864×1080 CSS pixels. For a sharper export, record at 1080×1350 with browser zoom 1.25. The 6f URL adds `&kiosk&_dash.hideTimePicker&_dash.hideVariables&_dash.hideLinks`.
 
 **Story dashboard layout** (4:5, kiosk, about 864×1080 or 1080×1350; 15 s refresh; an absolute `from=<take start>&to=now` in the URL, because `RUNNING_SUM` needs the run start inside the range):
 

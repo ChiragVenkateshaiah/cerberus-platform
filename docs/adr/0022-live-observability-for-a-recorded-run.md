@@ -314,6 +314,9 @@ The user accepted it on 2026-10-25 (step 6a).
 - **Cost tile.** "Cost so far" is a labelled estimate: elapsed x $1.15/h.
   The rate is derived here from the 2026-10-13 run record: ($1.781607 -
   $0.574015) / 1.048 h. The repo does not contain it.
+  Erratum (6d, 2026-10-25): the rate is corrected to $1.72/h. The $1.15/h rate
+  divided by the 3,773 s exercise time, which includes apply and destroy;
+  $1.207592 over 0.704 h of node time gives $1.72/h.
 - Rejected: J2 (Grafana Live, memory only) and J3 (ADR 0021's publisher
   built early; Phase 10, and it needs an ADR 0021 change).
 - Build steps 6a-6f go between steps 6 and 7. Steps 7-10 keep their numbers.

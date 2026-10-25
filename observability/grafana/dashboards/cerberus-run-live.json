@@ -115,7 +115,7 @@
           "decimals": 1,
           "color": {
             "mode": "fixed",
-            "fixedColor": "green"
+            "fixedColor": "blue"
           },
           "noValue": "0 B"
         },
@@ -460,6 +460,21 @@
           {
             "matcher": {
               "id": "byName",
+              "options": "Started"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
               "options": "Succeeded"
             },
             "properties": [
@@ -576,6 +591,49 @@
           "label": "Failed"
         }
       ]
+    },
+    {
+      "id": 8,
+      "title": "Run log",
+      "type": "annolist",
+      "datasource": {
+        "type": "datasource",
+        "uid": "grafana"
+      },
+      "targets": [],
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 24,
+        "h": 8
+      },
+      "description": "Every step the run script reported, with its time (tag cerberus). Needs the dashboard range to include the run.",
+      "options": {
+        "onlyFromThisDashboard": false,
+        "onlyInTimeRange": true,
+        "tags": [
+          "cerberus"
+        ],
+        "limit": 20,
+        "showUser": false,
+        "showTime": true,
+        "showTags": false,
+        "navigateToPanel": false,
+        "navigateBefore": "5m",
+        "navigateAfter": "5m"
+      }
+    }
+  ],
+  "links": [
+    {
+      "title": "For everyone →",
+      "type": "link",
+      "url": "/d/cerberus-run-story",
+      "icon": "dashboard",
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "tooltip": "Plain-English view of the run"
     }
   ]
 }
