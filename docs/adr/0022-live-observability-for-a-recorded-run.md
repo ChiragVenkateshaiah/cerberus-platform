@@ -9,6 +9,8 @@ Decision) and implements the dev loop of [ADR 0021](0021-pipeline-status-and-ale
 early. The build steps are in
 [the plan](../plans/2026-10-24-live-100m-run-observability.md).
 
+Amended 2026-10-25: story dashboard, Spark progress exporter and run annotations (see Amendment below).
+
 ## Context
 
 The last open part of Phase 8 is the 8.10 demo video: a public, sped-up
@@ -254,9 +256,9 @@ numbers. The 8.11 Well-Architected ADR becomes **ADR 0023**; this ADR takes 0022
 
 ## Amendment (2026-10-25): story dashboard, Spark progress exporter and run annotations
 
-Status: Proposed (amendment; ADR 0022 itself stays Accepted). The plan is
+Status: Accepted (2026-10-25). The plan is
 [2026-10-25-run-story-dashboard.md](../plans/2026-10-25-run-story-dashboard.md).
-It becomes Accepted when the user accepts it (step 6a).
+The user accepted it on 2026-10-25 (step 6a).
 
 ### Context
 
