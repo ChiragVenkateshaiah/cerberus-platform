@@ -1,0 +1,582 @@
+{
+  "capturedAt": "2026-10-25T08:38:18.799Z",
+  "applications": [
+    {
+      "id": "local-1792917483887",
+      "name": "cerberus-generate-bulk-payments",
+      "completed": false
+    }
+  ],
+  "jobs": [
+    {
+      "jobId": 5,
+      "name": "collect at /opt/jobs/generate_bulk_payments.py:344",
+      "status": "RUNNING",
+      "numTasks": 6,
+      "numActiveTasks": 0,
+      "numCompletedTasks": 0,
+      "stageIds": [
+        9,
+        10,
+        8
+      ]
+    },
+    {
+      "jobId": 4,
+      "name": "collect at /opt/jobs/generate_bulk_payments.py:344",
+      "status": "SUCCEEDED",
+      "numTasks": 5,
+      "numActiveTasks": 0,
+      "numCompletedTasks": 1,
+      "stageIds": [
+        6,
+        7
+      ]
+    },
+    {
+      "jobId": 3,
+      "name": "collect at /opt/jobs/generate_bulk_payments.py:344",
+      "status": "SUCCEEDED",
+      "numTasks": 5,
+      "numActiveTasks": 0,
+      "numCompletedTasks": 1,
+      "stageIds": [
+        5,
+        4
+      ]
+    },
+    {
+      "jobId": 2,
+      "name": "collect at /opt/jobs/generate_bulk_payments.py:344",
+      "status": "SUCCEEDED",
+      "numTasks": 4,
+      "numActiveTasks": 0,
+      "numCompletedTasks": 4,
+      "stageIds": [
+        3
+      ]
+    },
+    {
+      "jobId": 1,
+      "name": "json at NativeMethodAccessorImpl.java:0",
+      "status": "SUCCEEDED",
+      "numTasks": 12,
+      "numActiveTasks": 0,
+      "numCompletedTasks": 8,
+      "stageIds": [
+        1,
+        2
+      ]
+    },
+    {
+      "jobId": 0,
+      "name": "json at NativeMethodAccessorImpl.java:0",
+      "status": "SUCCEEDED",
+      "numTasks": 4,
+      "numActiveTasks": 0,
+      "numCompletedTasks": 4,
+      "stageIds": [
+        0
+      ]
+    }
+  ],
+  "stages": [
+    {
+      "stageId": 10,
+      "attemptId": 0,
+      "name": "collect at /opt/jobs/generate_bulk_payments.py:344",
+      "status": "ACTIVE",
+      "numTasks": 1,
+      "numActiveTasks": 0,
+      "numCompleteTasks": 0,
+      "inputRecords": 0,
+      "outputRecords": 0,
+      "shuffleReadRecords": 0,
+      "shuffleWriteRecords": 0,
+      "inputBytes": 0,
+      "outputBytes": 0,
+      "submissionTime": "2026-10-25T08:38:18.726GMT",
+      "completionTime": null
+    },
+    {
+      "stageId": 9,
+      "attemptId": 0,
+      "name": "collect at /opt/jobs/generate_bulk_payments.py:344",
+      "status": "PENDING",
+      "numTasks": 1,
+      "numActiveTasks": 0,
+      "numCompleteTasks": 0,
+      "inputRecords": 0,
+      "outputRecords": 0,
+      "shuffleReadRecords": 0,
+      "shuffleWriteRecords": 0,
+      "inputBytes": 0,
+      "outputBytes": 0,
+      "submissionTime": null,
+      "completionTime": null
+    },
+    {
+      "stageId": 8,
+      "attemptId": 0,
+      "name": "collect at /opt/jobs/generate_bulk_payments.py:344",
+      "status": "PENDING",
+      "numTasks": 4,
+      "numActiveTasks": 0,
+      "numCompleteTasks": 0,
+      "inputRecords": 0,
+      "outputRecords": 0,
+      "shuffleReadRecords": 0,
+      "shuffleWriteRecords": 0,
+      "inputBytes": 0,
+      "outputBytes": 0,
+      "submissionTime": null,
+      "completionTime": null
+    },
+    {
+      "stageId": 7,
+      "attemptId": 0,
+      "name": "collect at /opt/jobs/generate_bulk_payments.py:344",
+      "status": "COMPLETE",
+      "numTasks": 1,
+      "numActiveTasks": 0,
+      "numCompleteTasks": 1,
+      "inputRecords": 0,
+      "outputRecords": 0,
+      "shuffleReadRecords": 32,
+      "shuffleWriteRecords": 8,
+      "inputBytes": 0,
+      "outputBytes": 0,
+      "submissionTime": "2026-10-25T08:38:18.534GMT",
+      "completionTime": "2026-10-25T08:38:18.654GMT"
+    },
+    {
+      "stageId": 6,
+      "attemptId": 0,
+      "name": "collect at /opt/jobs/generate_bulk_payments.py:344",
+      "status": "SKIPPED",
+      "numTasks": 4,
+      "numActiveTasks": 0,
+      "numCompleteTasks": 0,
+      "inputRecords": 0,
+      "outputRecords": 0,
+      "shuffleReadRecords": 0,
+      "shuffleWriteRecords": 0,
+      "inputBytes": 0,
+      "outputBytes": 0,
+      "submissionTime": null,
+      "completionTime": null
+    },
+    {
+      "stageId": 5,
+      "attemptId": 0,
+      "name": "collect at /opt/jobs/generate_bulk_payments.py:344",
+      "status": "COMPLETE",
+      "numTasks": 1,
+      "numActiveTasks": 0,
+      "numCompleteTasks": 1,
+      "inputRecords": 0,
+      "outputRecords": 0,
+      "shuffleReadRecords": 32,
+      "shuffleWriteRecords": 0,
+      "inputBytes": 0,
+      "outputBytes": 0,
+      "submissionTime": "2026-10-25T08:38:18.423GMT",
+      "completionTime": "2026-10-25T08:38:18.513GMT"
+    },
+    {
+      "stageId": 4,
+      "attemptId": 0,
+      "name": "collect at /opt/jobs/generate_bulk_payments.py:344",
+      "status": "SKIPPED",
+      "numTasks": 4,
+      "numActiveTasks": 0,
+      "numCompleteTasks": 0,
+      "inputRecords": 0,
+      "outputRecords": 0,
+      "shuffleReadRecords": 0,
+      "shuffleWriteRecords": 0,
+      "inputBytes": 0,
+      "outputBytes": 0,
+      "submissionTime": null,
+      "completionTime": null
+    },
+    {
+      "stageId": 3,
+      "attemptId": 0,
+      "name": "collect at /opt/jobs/generate_bulk_payments.py:344",
+      "status": "COMPLETE",
+      "numTasks": 4,
+      "numActiveTasks": 0,
+      "numCompleteTasks": 4,
+      "inputRecords": 98442,
+      "outputRecords": 0,
+      "shuffleReadRecords": 0,
+      "shuffleWriteRecords": 32,
+      "inputBytes": 0,
+      "outputBytes": 0,
+      "submissionTime": "2026-10-25T08:38:17.433GMT",
+      "completionTime": "2026-10-25T08:38:18.239GMT"
+    },
+    {
+      "stageId": 2,
+      "attemptId": 0,
+      "name": "json at NativeMethodAccessorImpl.java:0",
+      "status": "COMPLETE",
+      "numTasks": 8,
+      "numActiveTasks": 0,
+      "numCompleteTasks": 8,
+      "inputRecords": 0,
+      "outputRecords": 300023,
+      "shuffleReadRecords": 300023,
+      "shuffleWriteRecords": 0,
+      "inputBytes": 0,
+      "outputBytes": 129795487,
+      "submissionTime": "2026-10-25T08:38:13.925GMT",
+      "completionTime": "2026-10-25T08:38:16.837GMT"
+    },
+    {
+      "stageId": 1,
+      "attemptId": 0,
+      "name": "json at NativeMethodAccessorImpl.java:0",
+      "status": "SKIPPED",
+      "numTasks": 4,
+      "numActiveTasks": 0,
+      "numCompleteTasks": 0,
+      "inputRecords": 0,
+      "outputRecords": 0,
+      "shuffleReadRecords": 0,
+      "shuffleWriteRecords": 0,
+      "inputBytes": 0,
+      "outputBytes": 0,
+      "submissionTime": null,
+      "completionTime": null
+    },
+    {
+      "stageId": 0,
+      "attemptId": 0,
+      "name": "json at NativeMethodAccessorImpl.java:0",
+      "status": "COMPLETE",
+      "numTasks": 4,
+      "numActiveTasks": 0,
+      "numCompleteTasks": 4,
+      "inputRecords": 98442,
+      "outputRecords": 0,
+      "shuffleReadRecords": 0,
+      "shuffleWriteRecords": 300023,
+      "inputBytes": 0,
+      "outputBytes": 0,
+      "submissionTime": "2026-10-25T08:38:10.984GMT",
+      "completionTime": "2026-10-25T08:38:13.456GMT"
+    }
+  ],
+  "sql": [
+    {
+      "id": 0,
+      "status": "COMPLETED",
+      "description": "json at NativeMethodAccessorImpl.java:0",
+      "runningJobIds": [],
+      "successJobIds": [
+        0,
+        1
+      ],
+      "nodes": [
+        {
+          "nodeName": "Range",
+          "metrics": [
+            {
+              "name": "number of output rows",
+              "value": "98,442"
+            }
+          ]
+        },
+        {
+          "nodeName": "Filter",
+          "metrics": [
+            {
+              "name": "number of output rows",
+              "value": "98,442"
+            }
+          ]
+        },
+        {
+          "nodeName": "Project",
+          "metrics": []
+        },
+        {
+          "nodeName": "Generate",
+          "metrics": [
+            {
+              "name": "number of output rows",
+              "value": "492,210"
+            }
+          ]
+        },
+        {
+          "nodeName": "Filter",
+          "metrics": [
+            {
+              "name": "number of output rows",
+              "value": "300,023"
+            }
+          ]
+        },
+        {
+          "nodeName": "Project",
+          "metrics": []
+        },
+        {
+          "nodeName": "WholeStageCodegen (1)",
+          "metrics": [
+            {
+              "name": "duration",
+              "value": "total (min, med, max (stageId: taskId))\n7.0 s (1.6 s, 1.8 s, 1.9 s (stage 0.0: task 3))"
+            }
+          ]
+        },
+        {
+          "nodeName": "Exchange",
+          "metrics": [
+            {
+              "name": "shuffle records written",
+              "value": "300,023"
+            },
+            {
+              "name": "local merged chunks fetched",
+              "value": "0"
+            },
+            {
+              "name": "shuffle write time",
+              "value": "total (min, med, max (stageId: taskId))\n173 ms (36 ms, 38 ms, 61 ms (stage 0.0: task 3))"
+            },
+            {
+              "name": "remote merged bytes read",
+              "value": "0.0 B"
+            },
+            {
+              "name": "local merged blocks fetched",
+              "value": "0"
+            },
+            {
+              "name": "corrupt merged block chunks",
+              "value": "0"
+            },
+            {
+              "name": "remote merged reqs duration",
+              "value": "0 ms"
+            },
+            {
+              "name": "remote merged blocks fetched",
+              "value": "0"
+            },
+            {
+              "name": "records read",
+              "value": "300,023"
+            },
+            {
+              "name": "local bytes read",
+              "value": "total (min, med, max (stageId: taskId))\n33.1 MiB (4.9 MiB, 6.2 MiB, 17.0 MiB (stage 2.0: task 5))"
+            },
+            {
+              "name": "fetch wait time",
+              "value": "total (min, med, max (stageId: taskId))\n0 ms (0 ms, 0 ms, 0 ms (stage 2.0: task 7))"
+            },
+            {
+              "name": "remote bytes read",
+              "value": "0.0 B"
+            },
+            {
+              "name": "merged fetch fallback count",
+              "value": "0"
+            },
+            {
+              "name": "local blocks read",
+              "value": "16"
+            },
+            {
+              "name": "remote merged chunks fetched",
+              "value": "0"
+            },
+            {
+              "name": "remote blocks read",
+              "value": "0"
+            },
+            {
+              "name": "data size",
+              "value": "total (min, med, max (stageId: taskId))\n124.3 MiB (31.1 MiB, 31.1 MiB, 31.1 MiB (stage 0.0: task 1))"
+            },
+            {
+              "name": "local merged bytes read",
+              "value": "0.0 B"
+            },
+            {
+              "name": "number of partitions",
+              "value": "8"
+            },
+            {
+              "name": "remote reqs duration",
+              "value": "0 ms"
+            },
+            {
+              "name": "remote bytes read to disk",
+              "value": "0.0 B"
+            },
+            {
+              "name": "shuffle bytes written",
+              "value": "total (min, med, max (stageId: taskId))\n33.1 MiB (8.3 MiB, 8.3 MiB, 8.3 MiB (stage 0.0: task 1))"
+            }
+          ]
+        },
+        {
+          "nodeName": "Project",
+          "metrics": []
+        },
+        {
+          "nodeName": "Sort",
+          "metrics": [
+            {
+              "name": "sort time",
+              "value": "total (min, med, max (stageId: taskId))\n775 ms (0 ms, 46 ms, 451 ms (stage 2.0: task 5))"
+            },
+            {
+              "name": "peak memory",
+              "value": "total (min, med, max (stageId: taskId))\n184.2 MiB (64.0 KiB, 33.0 MiB, 84.0 MiB (stage 2.0: task 5))"
+            },
+            {
+              "name": "spill size",
+              "value": "total (min, med, max (stageId: taskId))\n0.0 B (0.0 B, 0.0 B, 0.0 B (stage 2.0: task 7))"
+            }
+          ]
+        },
+        {
+          "nodeName": "WholeStageCodegen (2)",
+          "metrics": [
+            {
+              "name": "duration",
+              "value": "total (min, med, max (stageId: taskId))\n7.7 s (15 ms, 1.5 s, 2.6 s (stage 2.0: task 5))"
+            }
+          ]
+        },
+        {
+          "nodeName": "WriteFiles",
+          "metrics": []
+        },
+        {
+          "nodeName": "Execute InsertIntoHadoopFsRelationCommand",
+          "metrics": [
+            {
+              "name": "task commit time",
+              "value": "total (min, med, max (stageId: taskId))\n50 ms (0 ms, 1 ms, 22 ms (stage 2.0: task 7))"
+            },
+            {
+              "name": "number of written files",
+              "value": "8"
+            },
+            {
+              "name": "job commit time",
+              "value": "26 ms"
+            },
+            {
+              "name": "number of output rows",
+              "value": "300,023"
+            },
+            {
+              "name": "number of dynamic part",
+              "value": "8"
+            },
+            {
+              "name": "written output",
+              "value": "123.8 MiB"
+            }
+          ]
+        },
+        {
+          "nodeName": "AdaptiveSparkPlan",
+          "metrics": []
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "status": "RUNNING",
+      "description": "collect at /opt/jobs/generate_bulk_payments.py:344",
+      "runningJobIds": [
+        5
+      ],
+      "successJobIds": [
+        2,
+        3,
+        4
+      ],
+      "nodes": [
+        {
+          "nodeName": "Range",
+          "metrics": []
+        },
+        {
+          "nodeName": "Filter",
+          "metrics": []
+        },
+        {
+          "nodeName": "Project",
+          "metrics": []
+        },
+        {
+          "nodeName": "Generate",
+          "metrics": []
+        },
+        {
+          "nodeName": "Filter",
+          "metrics": []
+        },
+        {
+          "nodeName": "Project",
+          "metrics": []
+        },
+        {
+          "nodeName": "HashAggregate",
+          "metrics": []
+        },
+        {
+          "nodeName": "WholeStageCodegen (1)",
+          "metrics": []
+        },
+        {
+          "nodeName": "Exchange",
+          "metrics": []
+        },
+        {
+          "nodeName": "AQEShuffleRead",
+          "metrics": []
+        },
+        {
+          "nodeName": "HashAggregate",
+          "metrics": []
+        },
+        {
+          "nodeName": "WholeStageCodegen (2)",
+          "metrics": []
+        },
+        {
+          "nodeName": "Exchange",
+          "metrics": []
+        },
+        {
+          "nodeName": "AQEShuffleRead",
+          "metrics": []
+        },
+        {
+          "nodeName": "Sort",
+          "metrics": []
+        },
+        {
+          "nodeName": "WholeStageCodegen (3)",
+          "metrics": []
+        },
+        {
+          "nodeName": "AdaptiveSparkPlan",
+          "metrics": []
+        }
+      ]
+    }
+  ]
+}

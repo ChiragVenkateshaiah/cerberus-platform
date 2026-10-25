@@ -64,3 +64,4 @@ observability/scale/exercises/
 
 # Local Grafana (ADR 0022): admin password
 observability/grafana/.env
+observability/spark_progress/scratch/
