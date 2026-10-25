@@ -155,13 +155,20 @@ decoration. A recognisable stack used correctly beats a wide one.
 4. Local Grafana stack (Compose, provisioning files, make targets).
 5. Run dashboard `cerberus-run-live.json`, checked on the 2026-10-13 window.
 6. `make demo-forward` and the node label; check the agent-mode UI.
+   The 2026-10-25 amendment (below) inserts steps 6a-6f after this step:
+   - 6a. Amendment, plan file, Phases.md and the checkpoint note.
+   - 6b. Local Spark capture at $0 (`observability/spark_progress/capture.sh`, fixtures).
+   - 6c. Exporter (`exporter.py`, pytest) and Terraform in `eks_observability/main.tf`.
+   - 6d. Story dashboard `cerberus-run-story.json`, checked on the 2026-10-13 history.
+   - 6e. Run annotations (`orchestration/annotate.sh`, `make grafana-token`) and their $0 test.
+   - 6f. Runbook input, folded into step 7.
 7. Recording runbook, `docs/demo-recording.md`.
 8. Dress rehearsal at 1M.
 9. The 100M recording run.
 10. Edit and publish; link the video in 8.10.
 
-Steps 1-6 cost $0 and come before any cluster. The 8.11 Well-Architected
-ADR becomes **ADR 0023**; this ADR takes 0022.
+Steps 1-6 cost $0 and come before any cluster. Steps 7-10 keep their
+numbers. The 8.11 Well-Architected ADR becomes **ADR 0023**; this ADR takes 0022.
 
 ## Consequences
 
@@ -187,7 +194,7 @@ ADR becomes **ADR 0023**; this ADR takes 0022.
 - Datasource auth differs in two places (Terraform values vs a provisioning
   file), a small drift risk.
 - No live "events processed" counter exists. The event total comes from the
-  collector at the end.
+  collector at the end. (Superseded by the 2026-10-25 amendment below.)
 - Cost per million comes a day later (`--cost-only`).
 
 **Laptop load (measured 2026-10-25)**
@@ -244,3 +251,89 @@ ADR becomes **ADR 0023**; this ADR takes 0022.
 
 - 9.1 picks a host that cannot read the provisioned files.
 - The DQ checks become incremental (then lower the cutoff again).
+
+## Amendment (2026-10-25): story dashboard, Spark progress exporter and run annotations
+
+Status: Proposed (amendment; ADR 0022 itself stays Accepted). The plan is
+[2026-10-25-run-story-dashboard.md](../plans/2026-10-25-run-story-dashboard.md).
+It becomes Accepted when the user accepts it (step 6a).
+
+### Context
+
+- The audience now includes non-engineers (finance, product, leadership).
+  They need to read the 100M video without Spark knowledge.
+- No records metric exists in AMP. A read-only `label/__name__/values` call
+  over 2026-10-13 05:55-06:50Z returned 1,224 names, and none is a Spark
+  records metric. The Spark status REST API on the driver's `:4040` is live.
+- The bytes proxy overshoots. The silver job read 52,624,362,642 bytes and
+  the generator wrote 43,261,265,435 bytes, so bytes read ends near 122%.
+  The generator reads 0 bytes. Its commit (`FileFormatWriter` elapsed
+  875397 ms, 14.6 minutes with no Spark job running) has no progress
+  signal. The cause (S3A rename) is inferred, not verified.
+- Step Functions per-integration metrics exist in CloudWatch
+  (`ServiceIntegrationsStarted/Succeeded/Failed`) but lag 1-3 minutes
+  (unverified). CloudWatch keeps the 2026-10-13 1-minute data only until
+  about 2026-10-28.
+- The data-quality verdict and the account-wide teardown check live only in
+  `orchestration/exercise.sh`.
+- Grafana 13.2 offers organization annotations (`POST /api/annotations`), an
+  Annotations list panel and annotation display on state timelines.
+- The generator wrote 100,002,421 events. Silver added 100,008,511, which
+  includes 6,090 Lambda events from `payments/`
+  (`observability/scale/runs/exercise-20261013T055859Z.json`).
+- Changing the job code or the transform YAML means rebuilding the runner
+  image (`orchestration/runner/entrypoint_transform.sh`). That puts the
+  once-only run at risk.
+
+### Decision
+
+- **Exporter (R1).** A stdlib-Python exporter in `dev-compute` (namespace
+  `monitoring`) reads the Spark status REST API and serves a small fixed set
+  of `cerberus_spark_*` series. A new agent scrape job reuses
+  `spark_driver_relabel`. It needs no job, YAML or image change. The
+  fallback (R4) is a labelled proxy: "Data read so far (GB)" and "Spark
+  tasks finished".
+- **Story dashboard.** A new `cerberus-run-story.json`, with live colours
+  from existing metrics (J1): AMP pod phase and CloudWatch metric math on the
+  three integration ARNs. `cerberus-run-live.json` stays the engineers' view.
+- **Run annotations (J5).** `exercise.sh` posts annotations to the local
+  Grafana for the DQ verdict (from the collector exit code and the run
+  record), the account-wide teardown check, and step start and end times
+  (apply, generator, Step Functions states from the execution history,
+  destroy).
+- **J5 is fail-open.** Localhost only, a 3 s timeout, one warning line per
+  run, always returns 0, and `--no-annotate` turns it off. It does not change
+  the run's success logic.
+- **Credentials.** A Grafana service account with the Editor role and a
+  30-day token, made by `make grafana-token` and stored in the git-ignored
+  `observability/grafana/.env`. `exercise.sh` reads only that key. The admin
+  password is not used. Editor as the least allowed role is unverified; step
+  6e checks it.
+- **Cost tile.** "Cost so far" is a labelled estimate: elapsed x $1.15/h.
+  The rate is derived here from the 2026-10-13 run record: ($1.781607 -
+  $0.574015) / 1.048 h. The repo does not contain it.
+- Rejected: J2 (Grafana Live, memory only) and J3 (ADR 0021's publisher
+  built early; Phase 10, and it needs an ADR 0021 change).
+- Build steps 6a-6f go between steps 6 and 7. Steps 7-10 keep their numbers.
+
+### Consequences
+
+- The "No live events processed counter" line above is replaced by: a
+  live counter from Spark's status API, updated per finished task; none
+  during the generator commit; first proven in the 1M rehearsal (step 8).
+- The DQ verdict and the clean-up check now appear on Grafana as
+  annotations. The terminal and the run record stay authoritative.
+- Step Functions steps get exact times without the CloudWatch delay.
+- Given up:
+  - one more in-cluster component;
+  - a small fail-open change to `exercise.sh`;
+  - annotations live in the Grafana volume, not in git;
+  - an Editor-scoped token on disk (git-ignored, 30-day expiry);
+  - the cost tile is an estimate.
+- The "extra dashboards are decoration" line in Context is answered: this is
+  a front page for another audience, and every number on it is sourced.
+- Phase 10.2's publisher may later replace the verdict annotation with
+  `cerberus_dq_passed` in AMP, and 10.3 may move the journey to
+  `cerberus_step_duration_seconds`.
+- With Phase 10's two dashboards, the local stack reaches about five
+  dashboards, which is ADR 0021's revisit point.
