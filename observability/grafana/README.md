@@ -20,8 +20,21 @@ file is deleted. To drop the volume as well, run:
 
 The first start downloads the AMP plugin (about one minute) before Grafana serves; later starts reuse it from the volume.
 
+## Run annotations
+
+`orchestration/exercise.sh` posts step times, the data-quality verdict and the
+account-wide teardown check to this Grafana as annotations (ADR 0022
+amendment). Run `make grafana-token` once after `make grafana-up`, and again
+before the 30-day token expires. It creates the service account
+`cerberus-exercise` (Editor) and writes `GRAFANA_ANNOTATE_TOKEN` into `.env`
+(mode 600). The script reads only that key. Without a token, or with Grafana
+down, the run prints one `annotation skipped` line and carries on;
+`--no-annotate` turns it off. `orchestration/annotate.sh --replay EXECUTION`
+posts the annotations of a finished run again.
+
 ## Security
 
 - Grafana binds to `127.0.0.1` only, and anonymous access is off.
 - `~/.aws` is mounted read-only, and the container runs as your uid.
+- `GRAFANA_ANNOTATE_TOKEN` in `.env` is an Editor service-account token (30-day expiry, mode 600). Revoke it in Administration → Service accounts, or re-run `make grafana-token`.
 - Keep your keys private: `chmod 700 ~/.aws && chmod 600 ~/.aws/credentials ~/.aws/config`. The container still reads them.
