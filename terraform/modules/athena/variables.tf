@@ -16,7 +16,7 @@ variable "bytes_scanned_cutoff_bytes" {
 }
 
 variable "dq_bytes_scanned_cutoff_bytes" {
-  description = "Per-query bytes-scanned cutoff for the data-quality workgroup. Sized for the 10M step (bronze 4.36 GB) with headroom; not meant to stretch to 100M -- see the workgroup's comment. Raised to 80 GiB on 2026-10-15 for one `data_quality.py --full` audit before milestone 8 (#103; each whole-bronze query reads all 59.3 GB of bronze at 137M events) and put back after it (docs/scale-metrics.md, Milestone audit)."
+  description = "Per-query bytes-scanned cutoff for the data-quality workgroup. Sized for the 10M step (bronze 4.36 GB) with headroom; not meant to stretch to 100M -- see the workgroup's comment. Raised to 80 GiB on 2026-10-15 for one `data_quality.py --full` audit before milestone 8 (#103; each whole-bronze query reads all 59.3 GB of bronze at 137M events) and put back after it (docs/scale-metrics.md, Milestone audit). Raised to 20 GiB on 2026-10-25 for the recorded 100M run (ADR 0022): at 137M silver the two largest suite checks scanned 7.81 and 6.98 GiB, and they grow linearly, so about 13.5 and 12.1 GiB at about 237M after a new 100M, above 10 GiB. 20 GiB holds about one more 100M step (about 19.2 GiB at 337M). Making these checks incremental is the long-term fix."
   type        = number
-  default     = 10737418240 # 10 GiB
+  default     = 21474836480 # 20 GiB
 }
