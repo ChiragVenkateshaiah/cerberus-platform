@@ -73,3 +73,9 @@ variable "amp_plugin_version" {
   type        = string
   default     = "3.2.0"
 }
+
+variable "spark_progress_image" {
+  description = "Image for the Spark progress exporter (6c). The Spark image already used for jobs: it ships python3 3.10, and the exporter is stdlib only. Same tag as spark_operator's spark_image."
+  type        = string
+  default     = "apache/spark:3.5.9"
+}
