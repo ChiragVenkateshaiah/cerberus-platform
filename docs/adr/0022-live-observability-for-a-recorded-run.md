@@ -189,14 +189,41 @@ ADR becomes **ADR 0023**; this ADR takes 0022.
 - No live "events processed" counter exists. The event total comes from the
   collector at the end.
 - Cost per million comes a day later (`--cost-only`).
-- Laptop limits: 4 cores and 7 GB shared by OBS, Firefox and Grafana.
+
+**Laptop load (measured 2026-10-25)**
+
+- *Laptop:* Intel i5-7300HQ (4 cores, 4 threads, up to 3.5 GHz), 7.1 GiB
+  RAM (5.1 GiB available with no browser open; desktop, terminal and Claude
+  use about 2.0 GiB), 16 GiB swap on NVMe. GPUs: NVIDIA GTX 1050 Ti (driver
+  580.178.04) and Intel HD 630. ffmpeg has `h264_nvenc`, `h264_qsv` and
+  `h264_vaapi`.
+- *Grafana:* `grafana/grafana:13.2.3` with
+  `GF_PLUGINS_PREINSTALL=grafana-amazonprometheus-datasource@3.2.0`, on
+  `127.0.0.1`, no datasources or dashboards. The plugin directory lists
+  `grafana-amazonprometheus-datasource`, so the preinstall works. The image
+  is 1.94 GB on disk and is ready in about 2 s. Over about a minute of repeated page and API
+  loads (12 `docker stats` samples) it used 346-364 MiB of RAM (slowly
+  rising) and 1.7-2.1% of one core. RAM with live AMP queries every 15 s
+  is not measured.
+- *Encoder:* a 30 s test of 1080x1350 at 30 fps (ffmpeg `testsrc2`). With
+  `libx264 veryfast` it used 18.7 CPU-seconds (about 0.6 of a core, about
+  14% of the CPU). With `h264_nvenc` it used 3.3 CPU-seconds (about 0.06 of
+  a core after the roughly 1.5 CPU-second test source, about 1.5% of the
+  CPU). The recording runbook (step 7) sets OBS to NVENC.
+- *Estimated total while recording (estimate, not measured):* desktop about
+  2.0 GiB (measured) + Firefox with 5 tabs about 1.5-2.5 GiB (guess) + OBS
+  with NVENC about 0.3-0.5 GiB (guess) + Grafana about 0.35 GiB (measured,
+  no datasources) = about 4.2-5.4 GiB of 7.1 GiB.
+- *Conclusion:* a local Grafana does not noticeably slow the laptop. An EC2
+  host would move only the Grafana container (about 0.35 GiB), because
+  Firefox and OBS stay local. So EC2 is not needed for the recording. A
+  hosted public demo stays Phase 9's question (9.1, 9.2).
 
 **Unverified, each checked in a build step**
 
 - The Prometheus 3 agent-mode web UI serves a Targets page (step 6).
 - Grafana 13 in a container picks up the mounted `~/.aws` profile through
-  the plugin's `default` auth, and `GF_PLUGINS_PREINSTALL` installs the
-  plugin (step 4).
+  the plugin's `default` auth (step 4).
 - OBS global hotkeys are limited on Wayland; the runbook avoids depending on
   them (step 8).
 - The 1M rehearsal cost (above).
