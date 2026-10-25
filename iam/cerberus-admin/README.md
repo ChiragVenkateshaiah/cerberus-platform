@@ -118,3 +118,13 @@ across all three roots (`bootstrap`, `dev-standing`, `dev-compute`) with
   workspace is this account's only AMP resource. Nothing was orphaned: the 403 came before any
   workspace existed. `cerberus-ci-apply` got the same grant in
   `terraform/modules/github_oidc`.
+- **2026-10-25 (8.10):** `cerberus-admin-orchestration` gained
+  `CloudwatchMetricsRead` (`cloudwatch:GetMetricData`,
+  `cloudwatch:GetMetricStatistics`, `cloudwatch:ListMetrics`), read-only,
+  for the local Grafana's Step Functions panel
+  ([ADR 0022](../../docs/adr/0022-live-observability-for-a-recorded-run.md)).
+  On `*` because these three actions do not support resource-level
+  permissions. Pushed as a new default policy version from the root
+  console, the path described above. Verified live afterwards:
+  `list-metrics` on `AWS/States` and `get-metric-data` (the Grafana
+  panel's call) succeeded where they had returned AccessDenied.

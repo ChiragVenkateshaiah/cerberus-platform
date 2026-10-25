@@ -99,6 +99,16 @@
       "Resource": "*"
     },
     {
+      "Sid": "CloudwatchMetricsRead",
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:GetMetricData",
+        "cloudwatch:GetMetricStatistics",
+        "cloudwatch:ListMetrics"
+      ],
+      "Resource": "*"
+    },
+    {
       "Sid": "Logs",
       "Effect": "Allow",
       "Action": [
