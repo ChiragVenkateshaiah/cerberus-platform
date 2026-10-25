@@ -133,3 +133,9 @@ first-run fixtures.
   the rules above.
 - No compaction in the first run; it needs 5 files per partition (here, after 4
   rounds).
+
+## Known limits
+
+- Rows can undercount after a stage retry. Spark re-runs only the missing
+  partitions, and the exporter keeps the newest attempt of each stage. Unverified:
+  check for `attemptId > 0` in the 1M rehearsal.

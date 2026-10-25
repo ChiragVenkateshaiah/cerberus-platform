@@ -27,6 +27,13 @@ locals {
   grafana_service_account    = "grafana"
 
   dashboards_dir = "${path.module}/../../../observability/grafana/dashboards"
+
+  # 6c (ADR 0022 amendment): the Spark progress exporter. Its source stays
+  # in git under observability/spark_progress and is mounted from a
+  # ConfigMap, so there is no image to build or push.
+  spark_progress_dir  = "${path.module}/../../../observability/spark_progress"
+  spark_progress_name = "spark-progress-exporter"
+  spark_progress_port = 9101
 }
 
 resource "kubernetes_namespace" "monitoring" {
@@ -192,6 +199,23 @@ locals {
       relabel_configs       = local.spark_driver_relabel
     },
     {
+      # 6c: Prometheus multi-target pattern. Each Running driver is
+      # discovered as before, but the scrape goes to the exporter's /probe
+      # with the driver's IP:4040 as ?target=. The exporter reads the
+      # driver's status REST API and returns the cerberus_spark_* series.
+      # instance is reset to the driver address so the series join with the
+      # spark-driver job on namespace, pod and spark_app.
+      job_name              = "spark-progress"
+      metrics_path          = "/probe"
+      scrape_timeout        = "10s"
+      kubernetes_sd_configs = [{ role = "pod", namespaces = { names = [var.spark_jobs_namespace] } }]
+      relabel_configs = concat(local.spark_driver_relabel, [
+        { source_labels = ["__meta_kubernetes_pod_ip"], regex = "(.+)", replacement = "$1:4040", target_label = "__param_target" },
+        { source_labels = ["__param_target"], target_label = "instance" },
+        { target_label = "__address__", replacement = "${local.spark_progress_name}.${var.namespace}.svc:${local.spark_progress_port}" },
+      ])
+    },
+    {
       # The operator chart annotates its controller pod with
       # prometheus.io/scrape and exposes /metrics on the "metrics" port.
       job_name              = "spark-operator"
@@ -303,6 +327,135 @@ resource "helm_release" "prometheus" {
       }
     }
   })]
+}
+
+# --- Spark progress exporter (6c) ----------------------------------------
+# Reads each Spark driver's status REST API and serves a few cerberus_spark_*
+# series (rows made, rows read, rows added, current activity) for the story
+# dashboard. Stdlib Python on the Spark image already pulled on the nodes.
+# UNVERIFIED on EKS until the 1M rehearsal: the file passes pytest against
+# fixtures from a local Spark run only.
+
+resource "kubernetes_config_map" "spark_progress" {
+  metadata {
+    name      = local.spark_progress_name
+    namespace = kubernetes_namespace.monitoring.metadata[0].name
+  }
+
+  data = {
+    "exporter.py" = file("${local.spark_progress_dir}/exporter.py")
+  }
+}
+
+resource "kubernetes_deployment_v1" "spark_progress" {
+  metadata {
+    name      = local.spark_progress_name
+    namespace = kubernetes_namespace.monitoring.metadata[0].name
+    labels    = { app = local.spark_progress_name }
+  }
+
+  spec {
+    replicas = 1
+
+    selector {
+      match_labels = { app = local.spark_progress_name }
+    }
+
+    template {
+      metadata {
+        labels = { app = local.spark_progress_name }
+        # Roll the pod when the script changes (a ConfigMap edit alone does
+        # not restart it).
+        annotations = {
+          "cerberus/exporter-sha256" = filesha256("${local.spark_progress_dir}/exporter.py")
+        }
+      }
+
+      spec {
+        automount_service_account_token = false
+
+        security_context {
+          run_as_non_root = true
+          run_as_user     = 185 # the spark user in apache/spark
+          seccomp_profile {
+            type = "RuntimeDefault"
+          }
+        }
+
+        container {
+          name    = "exporter"
+          image   = var.spark_progress_image
+          command = ["python3", "/app/exporter.py", tostring(local.spark_progress_port)]
+
+          env {
+            name  = "PYTHONDONTWRITEBYTECODE"
+            value = "1"
+          }
+
+          port {
+            name           = "http"
+            container_port = local.spark_progress_port
+          }
+
+          readiness_probe {
+            http_get {
+              path = "/healthz"
+              port = "http"
+            }
+            period_seconds = 10
+          }
+
+          resources {
+            requests = { cpu = "10m", memory = "32Mi" }
+            limits   = { memory = "64Mi" }
+          }
+
+          security_context {
+            allow_privilege_escalation = false
+            read_only_root_filesystem  = true
+            capabilities {
+              drop = ["ALL"]
+            }
+          }
+
+          volume_mount {
+            name       = "app"
+            mount_path = "/app"
+            read_only  = true
+          }
+        }
+
+        volume {
+          name = "app"
+          config_map {
+            name = kubernetes_config_map.spark_progress.metadata[0].name
+          }
+        }
+      }
+    }
+  }
+
+  timeouts {
+    create = "5m"
+  }
+}
+
+resource "kubernetes_service_v1" "spark_progress" {
+  metadata {
+    name      = local.spark_progress_name
+    namespace = kubernetes_namespace.monitoring.metadata[0].name
+  }
+
+  spec {
+    type     = "ClusterIP"
+    selector = { app = local.spark_progress_name }
+
+    port {
+      name        = "http"
+      port        = local.spark_progress_port
+      target_port = "http"
+    }
+  }
 }
 
 # --- Grafana ------------------------------------------------------------

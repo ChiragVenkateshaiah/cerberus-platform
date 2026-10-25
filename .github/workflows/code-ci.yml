@@ -39,6 +39,25 @@ jobs:
       - name: ruff format --check
         run: ruff format --check .
 
+  # 6c (ADR 0022 amendment): the Spark progress exporter, tested against the
+  # fixtures captured from a real local Spark run (observability/spark_progress).
+  # The exporter itself is stdlib only and runs on the Spark image's Python 3.10;
+  # CI uses 3.10 to match the image. No AWS access.
+  exporter-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dev requirements
+        run: pip install --quiet -r requirements-dev.txt
+
+      - name: pytest
+        run: pytest observability/spark_progress
+
   dbt-validate:
     runs-on: ubuntu-latest
     defaults:
