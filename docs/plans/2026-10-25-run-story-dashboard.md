@@ -194,6 +194,11 @@ Why:
 | Silver | "Added to the clean table" | `append` ResultStage `outputRecords` | `appended N` and the collector's `events_processed` |
 | Silver | "Tidying files" | stages `save at SparkBinPackFileRewriteRunner…`, left out of the counts | — |
 
+**Erratum (6b, 2026-10-25)**, evidence in `observability/spark_progress/CAPTURE.md`:
+- (a) The source is stages only. SQL node metrics are empty while the execution is RUNNING.
+- (b) "New payments read" is the lowest-stageId stage with `inputRecords` > 0 in the first `append at` job. No log line has this number, so the end check is that it is at least `appended N`. It is equal when bronze has no duplicates or Lambda events.
+- (c) Pick the write stage by `outputRecords`, since all stages in a job share one name.
+
 **Story dashboard layout** (4:5, kiosk, about 864×1080 or 1080×1350; 15 s refresh; an absolute `from=<take start>&to=now` in the URL, because `RUNNING_SUM` needs the run start inside the range):
 
 1. A full-width bar gauge, "Payments processed: 63.4 M of 100 M". The max is a constant variable labelled "requested". Under it, a stat "Now: Reading new payments" from the exporter.
