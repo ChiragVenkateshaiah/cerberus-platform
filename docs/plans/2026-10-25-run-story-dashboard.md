@@ -208,6 +208,10 @@ Why:
 - `requested` is a hidden textbox variable, so `?var-requested=1000000` works for the 1M rehearsal.
 - "Run log" moved to `cerberus-run-live.json`. The story layout keeps 864×1080 CSS pixels. For a sharper export, record at 1080×1350 with browser zoom 1.25. The 6f URL adds `&kiosk&_dash.hideTimePicker&_dash.hideVariables&_dash.hideLinks`.
 
+**Erratum (6e, 2026-10-25)**, from the replay and the review of `annotate.sh`:
+- §7 6e item 5: "PASSED (17 checks …)" becomes "PASSED (26 checks, 0 errors, 1 warning)". The count depends on the run, because `new_run[dt=…]` adds one check per generated day. 17 came from `exercise-20261007T145442Z` (checkpoint.md:2839).
+- RunTransform is 06:35:06.243–06:43:37.796 in the history, shown as 06:43:37 or 06:43:38 depending on rounding.
+
 **Story dashboard layout** (4:5, kiosk, about 864×1080 or 1080×1350; 15 s refresh; an absolute `from=<take start>&to=now` in the URL, because `RUNNING_SUM` needs the run start inside the range):
 
 1. A full-width bar gauge, "Payments processed: 63.4 M of 100 M". The max is a constant variable labelled "requested". Under it, a stat "Now: Reading new payments" from the exporter.

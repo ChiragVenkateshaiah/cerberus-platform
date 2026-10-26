@@ -60,7 +60,7 @@ exercise: ## one-command compute exercise: apply -> run -> collect -> destroy (o
 exercise-check: ## read-only preflight for an exercise: no cluster, empty dev-compute state, nothing running
 	orchestration/exercise.sh --check
 
-.PHONY: grafana-up grafana-down grafana-logs
+.PHONY: grafana-up grafana-down grafana-logs grafana-token
 # The AMP query endpoint is read from AWS (read-only); override with AMP_URL=...
 GRAFANA_COMPOSE := docker compose -f observability/grafana/compose.yaml --env-file observability/grafana/.env
 grafana-up: ## start the local Grafana on 127.0.0.1:3000 (ADR 0022; needs observability/grafana/.env)
@@ -78,6 +78,9 @@ grafana-down: ## stop and remove the local Grafana container (keeps the data vol
 
 grafana-logs: ## follow the local Grafana logs
 	AMP_URL=unused $(GRAFANA_COMPOSE) logs -f grafana
+
+grafana-token: ## make the Grafana service account and its 30-day annotation token (needs grafana-up)
+	@observability/grafana/token.sh
 
 .PHONY: demo-forward
 demo-forward: ## port-forward the agent UI (:9090) and the current Spark driver UI (:4040) to localhost (ADR 0022)
