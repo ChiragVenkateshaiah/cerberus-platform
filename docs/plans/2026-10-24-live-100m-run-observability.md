@@ -297,6 +297,8 @@ Leave 8.11 as is (now ADR 0023). Steps 1–6 cost $0 and come before any cluster
   - End card: events, run time and data quality from the run record. Add cost per million only after `--cost-only` the next day.
 - Verify: the runbook is followed end to end in step 8.
 
+**Erratum (7, 2026-10-26)**, from writing `docs/demo-recording.md`: (a) the only active screen is 1920x1080, so a 1080x1350 viewport needs the monitor in portrait, with Firefox `layout.css.devPixelsPerPx` = 1.25 (Firefox has no 125% zoom step); (b) tabs are 1 Step Functions, 2 story, 3 `cerberus-run-live`, 4 Explore, 5 Targets, 6 Spark UI; (c) the terminal strip becomes a separate OBS scene that shows a masked `tail` of the log, never `make exercise` itself, which prints the account ID; (d) speeds are per segment (60x apply and destroy, 15x generator write, about 30x commit, about 10x RunTransform), not a flat 30x/15x; (e) the rehearsal uses the take's flags (`--generator-executors 8 --executor-nodes 2`); (f) the video is the live run only.
+
 **8. Dress rehearsal at 1M** (about $0.9–1.2, an estimate).
 - Command: `make exercise ARGS="--yes --generate 1000000 --name rehearsal"`, recorded with OBS per the runbook.
 - Verify:

@@ -360,6 +360,8 @@ All steps are under **Phases.md 8.10**. Add to its text: "story dashboard, Spark
 - A planned fail-open check: stop Grafana for one minute mid-run. The run carries on and one warning line appears.
 - **Decision point:** if the exporter fails, switch to the R4 panel (prepared in 6d) and check it again before step 9.
 
+**Erratum (7, 2026-10-26):** the run record has no `state_timings` field (that is the collector's variable name). Compare the J5 regions with `states[].seconds` and the execution history. Also add: no retake after the generator starts (the dbt merge would pass 25 GiB at about 339M silver).
+
 **Checks at $0 against the 2026-10-13 history:**
 - the J1 journey;
 - servers, elapsed time, the cost estimate, data read, executors;
