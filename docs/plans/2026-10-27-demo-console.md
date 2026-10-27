@@ -265,6 +265,8 @@ If the 9.2 spike measures more than 20 minutes up, or a teardown that is not rel
    - `iam/cerberus-admin/policies/cerberus-admin-console.json`, a new seventh policy (F16 headroom): CloudFront distribution, VPC origin and OAC; Cognito pool and admin users; EC2 run, terminate and describe-images; `ssm:GetParameter` on the AMI alias; `ec2:DescribeManagedPrefixLists`; PassRole for the instance profile. Plus README history.
    - `github_oidc` statements for the standing CloudFront, Cognito, site bucket, workgroup and Lambda.
    - Verify: the user pastes the policy at root. The previously denied F19 reads now succeed. A local `standing-plan` shows the CI role diff.
+   - Changed in [the 9.2 IAM plan](2026-10-27-console-iam-prerequisites.md): two admin files (`cerberus-admin-console-edge`, `cerberus-admin-console-host`), not one seventh policy. The counted size of the existing policies is 4,068 at most, not the 5,954 bytes with whitespace.
+   - Changed there too: the CI grants are a managed policy, `cerberus-ci-apply-console`, not statements in the inline policy, which is 7,060 of 10,240 characters.
 3. **9.2. Spike, about $0.10.** A minimal `envs/dev-console`: t4g.nano running nginx "hello" in the console subnet, plus NAT, VPC origin and distribution.
    - Measure apply time, destroy time, the WebSocket upgrade, HTTP to the origin, and leftover ENIs or SGs.
    - Verify: timings are recorded in the plan. The account check returns zero. If it takes more than 20 minutes, raise Open question 1 again.
@@ -276,6 +278,7 @@ If the 9.2 spike measures more than 20 minutes up, or a teardown that is not rel
    - Verify: tests pass, including refusals and output sanitising. A local read-only run of every command works as `cerberus-console-cli`, assumed.
 7. **9.2. The standing edge.** S3, CloudFront, Cognito, HTTP API, Lambda from step 6, and the workgroup. First apply local, then CI.
    - Verify: an unauthenticated `/api` call returns 401. A signed-in token call to `runs` returns rows. The CI plan is clean.
+   - Open: the account Lambda concurrency limit is 10 (measured 2026-10-27), so reserved concurrency of 2 will be rejected. Choose a free Service Quotas increase or API Gateway throttling alone.
 8. **9.4. Landing page.** A static build from the repo: architecture, phase status, the latest run from the records, and `docs/img/scale` charts. A CI publish step (sync plus invalidation). Cross-links with the GitHub Pages site.
    - Verify: a clean browser loads it with no sign-in. The CSP header is present.
 9. **9.5. Terminal panel.** xterm.js vendored and pinned, PKCE, a 60-minute token, a 15-minute idle drop, help, and a refusal message.
