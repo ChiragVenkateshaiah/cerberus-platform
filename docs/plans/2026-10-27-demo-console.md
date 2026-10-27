@@ -278,6 +278,7 @@ If the 9.2 spike measures more than 20 minutes up, or a teardown that is not rel
    - Verify: tests pass, including refusals and output sanitising. A local read-only run of every command works as `cerberus-console-cli`, assumed.
 7. **9.2. The standing edge.** S3, CloudFront, Cognito, HTTP API, Lambda from step 6, and the workgroup. First apply local, then CI.
    - Verify: an unauthenticated `/api` call returns 401. A signed-in token call to `runs` returns rows. The CI plan is clean.
+   - Open: the account Lambda concurrency limit is 10 (measured 2026-10-27), so reserved concurrency of 2 will be rejected. Choose a free Service Quotas increase or API Gateway throttling alone.
 8. **9.4. Landing page.** A static build from the repo: architecture, phase status, the latest run from the records, and `docs/img/scale` charts. A CI publish step (sync plus invalidation). Cross-links with the GitHub Pages site.
    - Verify: a clean browser loads it with no sign-in. The CSP header is present.
 9. **9.5. Terminal panel.** xterm.js vendored and pinned, PKCE, a 60-minute token, a 15-minute idle drop, help, and a refusal message.

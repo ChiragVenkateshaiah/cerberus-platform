@@ -152,3 +152,24 @@ larger and is not the limit.
   console, the path described above. Verified live afterwards:
   `list-metrics` on `AWS/States` and `get-metric-data` (the Grafana
   panel's call) succeeded where they had returned AccessDenied.
+- **2026-10-27 (9.2):** root created two customer-managed policies,
+  `cerberus-admin-console-edge` and `cerberus-admin-console-host`, and
+  attached both to `cerberus-admin` (now 8 of 10 managed policies). They
+  cover the demo console's standing edge and its per-session host
+  ([ADR 0024](../../docs/adr/0024-demo-console.md)). Verified live
+  afterwards. Reads that had returned AccessDenied now succeed:
+  `cloudfront list-distributions`, `cognito-idp list-user-pools`,
+  `ec2 describe-managed-prefix-lists` (CloudFront origin-facing),
+  `ec2 describe-images`, `ssm get-parameter` (the AL2023 arm64 AMI alias)
+  and `lambda get-account-settings`. `iam:simulate-principal-policy` on
+  `user/cerberus-admin` matched expectations. `CreateDistribution` and
+  `CreateVpcOrigin` are allowed with the `Project` request tag, and
+  `CreateDistribution` is denied without it. `TerminateInstances` on an
+  untagged instance is denied. `AdminCreateUser` is allowed and
+  `AdminSetUserPassword` is denied. `CreatePolicyVersion` is denied on
+  `policy/cerberus-admin-console-edge` and allowed on
+  `policy/cerberus-ci-apply-console`. `PassRole` of
+  `cerberus-console-grafana` to EC2 is allowed, and
+  `aps:UpdateWorkspaceConfiguration` on the workspace is allowed. The CI
+  role's side is recorded in the plan's outcome section
+  ([docs/plans/2026-10-27-console-iam-prerequisites.md](../../docs/plans/2026-10-27-console-iam-prerequisites.md)).

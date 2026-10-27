@@ -183,6 +183,19 @@ Result (executor, 2026-10-27): counted sizes are edge 4,216, host 2,363 and the 
 4. `ReadOnlyAccess` coverage for CloudFront/Cognito reads in `cerberus-ci-plan` is unverified; step 7's PR plan will show it.
 5. Pre-existing: `cerberus-admin` can create and assume any `cerberus-*` role (part of ADR 0023's `identities` HIGH). No new path here.
 6. `ManageConsoleIamRoles` grants `AttachRolePolicy` and `PutRolePolicy` without an `iam:PolicyARN` condition. With `PassConsoleCliRole` and `lambda:*`, CI can give a console Lambda any permissions. This is the same pattern as `ManageStandingIamRoles`. Tighten it in the 9.3 roles step.
-7. For later steps: the console subnet must not be in `us-east-1e` (`use1-az3`); ADR 0024's reserved concurrency of 2 needs enough account concurrency (read `get-account-settings` after the paste).
+7. For later steps: the console subnet must not be in `us-east-1e` (`use1-az3`); ADR 0024's reserved concurrency of 2 needs enough account concurrency. Measured 2026-10-27: the account limit is 10 (see the outcome section).
 
 Sources: IAM and STS quotas; CloudFront VPC origins; CloudFront service-linked roles; AWS Fundamentals VPCOrigin permissions; the Service Authorization Reference JSON (`servicereference.us-east-1.amazonaws.com/v1/{cloudfront,cognito-idp,ec2,ssm,iam}/*.json`).
+
+## Outcome (2026-10-27)
+
+Root created `cerberus-admin-console-edge` and `cerberus-admin-console-host` and attached them to `cerberus-admin` (8 of 10 managed policies). The pre-paste denied reads now succeed, and `simulate-principal-policy` on `user/cerberus-admin` matched every expectation (details in `iam/cerberus-admin/README.md`).
+
+Local apply of `dev-standing` as `cerberus-admin` from a saved plan: "3 added, 2 changed, 1 destroyed". That is the `cerberus-ci-apply-console` policy and its attachment created, and the inline `cerberus-ci-apply-policy` updated in place. The rest is the known Faker-layer churn: layer version 60 replaced by 61, and `cerberus-ingest-payments` moved to the new layer. A re-plan right after showed "No changes".
+
+`cerberus-ci-apply` now has the managed policy attached. Counted sizes: inline 7,206 of 10,240, managed 4,143 of 6,144. `simulate-principal-policy` on the role:
+
+- Allowed: `cloudfront:CreateDistribution` (tagged), `cognito-idp:CreateUserPoolClient`, `lambda:CreateFunction` on `cerberus-console-x`, `iam:CreateRole` on `cerberus-grafana-read`, `GetPolicy` and `ListPolicyTags` on its own console policy.
+- Denied: `cloudfront:CreateVpcOrigin`, `cognito-idp:AdminCreateUser`, `iam:CreateRole` on `cerberus-grafana`, `ec2:RunInstances`, `iam:CreatePolicyVersion` on its own console policy.
+
+New finding (replaces the unverified item in risk 7): the account Lambda concurrency limit is 10 (`ConcurrentExecutions` 10, `UnreservedConcurrentExecutions` 10). AWS requires at least 10 unreserved, so ADR 0024's reserved concurrency of 2 for the command Lambda will be rejected. The options are a Service Quotas increase (free) or relying on API Gateway throttling alone. This is to be decided at the standing-edge step.
