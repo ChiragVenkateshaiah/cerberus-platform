@@ -11,6 +11,8 @@ early. The build steps are in
 
 Amended 2026-10-25: story dashboard, Spark progress exporter and run annotations (see Amendment below).
 
+Amendment proposed by [ADR 0024](0024-demo-console.md) (2026-10-27): a read-only role replaces the mounted keys, and console annotations come from the run records.
+
 ## Context
 
 The last open part of Phase 8 is the 8.10 demo video: a public, sped-up

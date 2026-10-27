@@ -332,17 +332,16 @@ the phases after it by one._
   and JSON run records. None of that works as a 10-minute walk-through for
   a stranger.
 - **Why this skill set:** it joins network edge, identity and compute
-  design: CloudFront and Cognito for access, an instance with a
-  least-privilege read-only role, and a terminal that is safe to expose.
+  design: CloudFront and Cognito for access, least-privilege read-only
+  roles for the command Lambda and a per-session Grafana instance, and a
+  terminal that is safe to expose.
   The skill that sets an engineer apart here is designing the safe
   boundary, not the page.
-- **Stack:** one small EC2 instance that starts and stops on demand (the
-  `dev-compute` and Kafka pattern, so it costs cents, not a monthly
-  instance fee); a web terminal (ttyd or an xterm.js front end) that runs
-  only an allowlisted `cerberus` command set, never a shell; CloudFront
-  with Cognito sign-in, or an SSO tunnel, so no port is open to the
-  internet; Grafana and Prometheus views fed by the standing AMP workspace
-  (ADR 0016) and the run records; a Python implementation of the commands
+- **Stack:** a serverless read-only terminal and landing page (S3 +
+  CloudFront + Cognito + API Gateway + a command Lambda, xterm.js with a
+  structured API, never a shell), standing and $0 idle (ADR 0024); a live
+  Grafana on AMP built per session and destroyed after; the run records for
+  data while `dev-compute` is down; a Python implementation of the commands
   now, moved to `cerberusctl` in Phase 12.
 - **The central decision (its own ADR):** how a public-facing terminal
   stays safe. The command set is an allowlist with fixed arguments, the
