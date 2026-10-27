@@ -149,6 +149,7 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
       write-up, charts and video script in #107 (2026-10-22); the video is
       still to record
 - [ ] 8.11 Well-Architected pass + ADR
+      ADR 0023 Proposed (2026-10-27); milestone 8 after the 8.10 video
 
 ## Phase 9 — Demo console (UI + terminal) ⬜
 
