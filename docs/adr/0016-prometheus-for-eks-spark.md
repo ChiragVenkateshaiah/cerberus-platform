@@ -10,7 +10,7 @@ Viewing amended by [ADR 0022](0022-live-observability-for-a-recorded-run.md)
 (2026-10-25): a local Grafana is the primary viewer; the in-cluster Grafana
 stays until 9.1 decides.
 
-Amendment proposed by [ADR 0024](0024-demo-console.md) (2026-10-27): the in-cluster Grafana is removed and AMP retention goes from 90 to 400 days.
+Amended by [ADR 0024](0024-demo-console.md) (2026-10-27): the in-cluster Grafana is removed and AMP retention goes from 90 to 400 days.
 
 ## Context
 

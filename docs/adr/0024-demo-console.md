@@ -4,11 +4,11 @@ Date: 2026-10-27
 
 ## Status
 
-Proposed. Amends [ADR 0007](0007-vpc-network-design.md),
+Accepted (2026-10-27). Amends [ADR 0007](0007-vpc-network-design.md),
 [ADR 0011](0011-ci-cd-github-actions-oidc.md),
 [ADR 0016](0016-prometheus-for-eks-spark.md),
 [ADR 0021](0021-pipeline-status-and-alerting.md) and
-[ADR 0022](0022-live-observability-for-a-recorded-run.md) once accepted
+[ADR 0022](0022-live-observability-for-a-recorded-run.md)
 (see the Amends list in the Decision). The build steps and the facts behind
 this ADR are in [the plan](../plans/2026-10-27-demo-console.md).
 

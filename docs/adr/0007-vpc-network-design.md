@@ -6,7 +6,7 @@ Date: 2026-08-12
 
 Accepted
 
-Amendment proposed by [ADR 0024](0024-demo-console.md) (2026-10-27): a console subnet and a session NAT gateway.
+Amended by [ADR 0024](0024-demo-console.md) (2026-10-27): a console subnet and a session NAT gateway.
 
 ## Context
 

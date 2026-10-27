@@ -1,6 +1,6 @@
 # Plan: the demo console (Phases.md 9.1, ADR 0024)
 
-Date: 2026-10-27. Planner: Opus. Status of the ADR it produces: Proposed.
+Date: 2026-10-27. Planner: Opus. Status of the ADR it produces: Proposed; accepted 2026-10-27.
 
 **User decisions (2026-10-27):** (1) live Grafana is built per demo (`envs/dev-console`, $0 idle), not a stopped instance; (2) one invited Cognito account per visitor, created by the owner with `admin-create-user`, no emails in the repo; (3) AMP retention goes from 90 to 400 days.
 

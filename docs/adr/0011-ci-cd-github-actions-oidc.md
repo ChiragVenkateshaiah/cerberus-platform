@@ -6,7 +6,7 @@ Date: 2026-08-21
 
 Accepted
 
-Amendment proposed by [ADR 0024](0024-demo-console.md) (2026-10-27): a third Terraform root, `dev-console`, with the `dev-compute` destroy contract.
+Amended by [ADR 0024](0024-demo-console.md) (2026-10-27): a third Terraform root, `dev-console`, with the `dev-compute` destroy contract.
 
 ## Context
 
