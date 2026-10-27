@@ -270,6 +270,7 @@ If the 9.2 spike measures more than 20 minutes up, or a teardown that is not rel
 3. **9.2. Spike, about $0.10.** A minimal `envs/dev-console`: t4g.nano running nginx "hello" in the console subnet, plus NAT, VPC origin and distribution.
    - Measure apply time, destroy time, the WebSocket upgrade, HTTP to the origin, and leftover ENIs or SGs.
    - Verify: timings are recorded in the plan. The account check returns zero. If it takes more than 20 minutes, raise Open question 1 again.
+   - Done 2026-10-27 as [the VPC-origin spike](2026-10-27-vpc-origin-spike.md), with five named deviations: no NAT; a Python stdlib responder, not nginx; the existing `private-a` subnet, not the console subnet; `terraform/spikes/vpc-origin/` with local state, not `envs/dev-console`; and t4g.nano as planned. Result: the gate passed in both cycles. Wake was 11:52 and about 15:35 (at most 20 minutes), destroy about 11 minutes, and the ENIs cleared in about 1 minute. The service SG is deleted by AWS within a few minutes after the ENIs clear; only the service-linked role remains.
 4. **9.2. Read-only roles and the console subnet, plus local Grafana on short-lived credentials** (`dev-standing`, CI).
    - Verify: `make grafana-up` loads the story dashboard on the 2026-10-13 window. `docker inspect` shows no `/aws` mount. `iam simulate-principal-policy` denies writes for both roles.
 5. **9.2. AMP retention to 400 days** (one line, CI).
@@ -300,8 +301,8 @@ Proposed Phases.md wording:
 
 ## 8. Facts to verify (each in the named step)
 
-- VPC origin create and delete times in practice, and leftover service ENIs or SGs (step 3).
-- An EC2 VPC origin over HTTP in a private subnet; WebSocket through it (step 3).
+- VPC origin create and delete times in practice, and leftover service ENIs or SGs (step 3). Measured 2026-10-27: create 8:05 and 2:08, delete 6:56 and 7:02; ENIs gone after about 1 minute; the service SG is deleted a few minutes later (gone within about 2:21 in cycle 1).
+- An EC2 VPC origin over HTTP in a private subnet; WebSocket through it (step 3). Measured 2026-10-27: HTTP 200 and WebSocket 101 pass in both cycles.
 - The Grafana arm64 tarball and AMP plugin 3.2.0 have `linux_arm64` builds. If not, use t3.small at about $0.0208/h (step 10).
 - Grafana 13 `generic_oauth` with Cognito managed login, `role_attribute_path` to Viewer, and `disable_login_form` (step 10).
 - Whether Cognito Lite includes managed login; otherwise Essentials, still 10k MAU free (F22) (step 7).
@@ -311,7 +312,7 @@ Proposed Phases.md wording:
 - Raising AMP retention keeps existing samples (step 5).
 - The AMP plugin and the CloudWatch datasource read environment-variable session credentials in Compose (`GF_PLUGINS_FORWARD_HOST_ENV_VARS`) (step 4).
 - A Grafana Viewer can open Inspect → Query without Explore (step 10).
-- The AL2023 arm64 root size (needed only if Open question 1 picks A) (step 2 reads).
+- The AL2023 arm64 root size (needed only if Open question 1 picks A) (step 2 reads). Verified: 8 GiB gp3.
 - The list prices in section 2 (step 3, then Cost Explorer).
 
 ## 9. Open questions for the user
