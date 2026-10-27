@@ -544,3 +544,5 @@ else
   echo "note too long: ${#NOTE}"
 fi
 ```
+
+Run 2026-10-27 by Claude at the user's request; all 15 succeeded; result in ADR 0023 Overall.

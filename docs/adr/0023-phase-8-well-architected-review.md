@@ -4,7 +4,7 @@ Date: 2026-10-27
 
 ## Status
 
-Proposed. The build and the full note texts are in
+Accepted (2026-10-27). The build and the full note texts are in
 [the plan](../plans/2026-10-27-phase-8-well-architected-review.md).
 
 ## Context
@@ -107,14 +107,28 @@ Excellence (flow of work) favours doing the review now. Decision 2 meets both.
 
 ## What Phase 8 changed, pillar by pillar
 
-These are the answer changes this ADR proposes. They are proposed, not
-confirmed: the Tool decides the buckets. The full selected sets and note texts
-are in section 9 and section 12 of the plan.
+These are the answer changes made on 2026-10-27. The 15 `update-answer`
+commands all succeeded, so the live `UpdateAnswer` grant of `cerberus-admin`
+is verified. The Tool decides the buckets; the result below is from
+`get-lens-review`, read the same day (workload `UpdatedAt`
+2026-10-27T00:28:38Z). The full selected sets and note texts are in section 9
+and section 12 of the plan. The bucket shown in brackets in the lists below is
+the bucket before the update.
 
-**Moved a bucket:** to be filled after the user runs the updates and the
-lens review is read back.
+**Moved a bucket**
 
-### New evidence, no bucket move claimed
+- HIGH to MEDIUM: `type-size-number-resources`, `compute-hardware`,
+  `data-management`.
+- HIGH to NONE: `manage-demand-resources`, `monitor-usage`.
+- MEDIUM to NONE: `adapt-to-changes`, `process-culture`,
+  `performing-architecture`, `evolve-ops`.
+
+**Gained evidence, stayed in the same bucket:** `govern-usage` (HIGH),
+`manage-service-limits` (HIGH), `withstand-component-failures` (HIGH),
+`pricing-model` (MEDIUM). `testing-resiliency` (HIGH) and `permissions`
+(MEDIUM) got a note only.
+
+### New evidence, by pillar
 
 **Cost Optimization**
 
@@ -241,11 +255,28 @@ workload after the 8.11 answers:
 | | HIGH | MEDIUM | NONE | N/A |
 |---|---|---|---|---|
 | Milestone 7 | 23 | 19 | 10 | 5 |
-| Workload after the 8.11 answers (date to fill) | to fill | to fill | to fill | to fill |
+| Workload after the 8.11 answers (2026-10-27) | 18 | 18 | 16 | 5 |
 
-Both cells in the second row are filled from `get-lens-review` after the
-user runs the updates. Milestone 8 is not saved by this ADR. It is saved at
-close-out, after the video (Decision 2).
+By pillar, HIGH / MEDIUM after the updates (milestone 7 HIGH in brackets):
+
+| Pillar | HIGH | MEDIUM |
+|---|---|---|
+| Operational Excellence | 6 (6) | 2 |
+| Security | 5 (5) | 3 |
+| Reliability | 5 (5) | 3 |
+| Performance Efficiency | 0 (2) | 2 |
+| Cost Optimization | 2 (5) | 2 |
+| Sustainability | 0 (0) | 6 |
+
+Nine questions moved a bucket. The moves are in Cost Optimization, Performance
+Efficiency, Reliability and Operational Excellence, where Phase 8 built new
+compute, scaling and cost machinery. Security and Sustainability did not
+move.
+
+Milestone 8 (`phase-8-scale-validation-complete`) is not saved yet. It is
+saved in the close-out PR after the 8.10 video (Decision 2). The
+`UpdateAnswer` grant is verified by the run above; `CreateMilestone` has not
+been tried.
 
 ## Consequences
 
