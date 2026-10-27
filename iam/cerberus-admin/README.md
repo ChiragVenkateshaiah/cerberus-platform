@@ -5,14 +5,15 @@ shortcut._
 
 `cerberus-admin` (the human-operator IAM user created by hand in 0.2) ran
 with `AdministratorAccess` from Phase 0 through the end of Phase 6. This
-directory holds the six customer-managed policies that replace it, generated
+directory holds the six customer-managed policies that replace it (plus two
+demo-console policies added in 9.2, see Files), generated
 from this project's actual, complete CloudTrail history rather than guessed
 from the Terraform code.
 
 ## Why these aren't Terraform-managed
 
 Every other IAM resource in this project (`terraform/modules/iam`) is
-Terraform-managed. These six policies deliberately are not — managing
+Terraform-managed. These policies deliberately are not — managing
 `cerberus-admin`'s own permissions via `cerberus-admin`'s own `terraform
 apply` creates a bootstrapping risk: if a self-policy change is wrong, or an
 apply is interrupted mid-way, the identity can lock itself out of the very
@@ -41,6 +42,11 @@ created/updated via plain `aws iam create-policy` /
 action, not something the identity can do to itself. If one of these
 policies ever needs a real change, that requires the same root-console
 path used during this cutover (see checkpoint.md).
+
+Since 9.2, `cerberus-admin` holds `iam:CreatePolicy` and
+`iam:CreatePolicyVersion` on `policy/cerberus-ci-apply-*` only, for the CI
+console policy. It still cannot touch `cerberus-admin-*` policies or its own
+user.
 
 ## Methodology
 
@@ -74,6 +80,24 @@ across all three roots (`bootstrap`, `dev-standing`, `dev-compute`) with
 | `cerberus-admin-orchestration.json` | Step Functions, EventBridge Scheduler, SNS, CloudWatch, Logs |
 | `cerberus-admin-network.json` | EC2/VPC (`Resource: "*"` — most EC2 actions have no resource-level permission support) |
 | `cerberus-admin-iam-and-governance.json` | IAM role management (`role/cerberus-*` only), `PassRole`, Well-Architected Tool, budgets/cost anomaly detection, read-only Cost Explorer + tag inventory (added 7.5), CloudTrail self-audit, API Gateway |
+| `cerberus-admin-console-edge.json` | Demo console, standing edge (9.2): site bucket, workgroup `cerberus_platform_console`, `cerberus-console-*` Lambda, CloudFront (create and change only with the `Project` tag), Cognito user pools |
+| `cerberus-admin-console-host.json` | Demo console, session host (9.2): EC2 describe, tag-scoped terminate, security group ingress, AMI alias, Session Manager, instance profile and `PassRole` to EC2 for `cerberus-console-grafana*`, and `policy/cerberus-ci-apply-*` management |
+
+### Placeholder and size
+
+The two console files hold `<ACCOUNT_ID>` instead of the account ID, because
+this repo is public. Render a file before the root paste:
+
+```
+ACCT=$(AWS_PROFILE=cerberus-admin aws sts get-caller-identity --query Account --output text)
+sed "s/<ACCOUNT_ID>/$ACCT/g" iam/cerberus-admin/policies/cerberus-admin-console-edge.json > /tmp/edge.json
+sed "s/<ACCOUNT_ID>/$ACCT/g" iam/cerberus-admin/policies/cerberus-admin-console-host.json > /tmp/host.json
+```
+
+IAM limits a managed policy to 6,144 characters and does not count
+whitespace. Check the counted size with
+`jq -c . FILE | tr -d ' \n\t' | wc -c`. The file size with whitespace is
+larger and is not the limit.
 
 ## Changes since 7.3
 
