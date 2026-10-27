@@ -158,16 +158,18 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
       the read-only command set and why it is not a shell; where Grafana
       and Prometheus data come from while `dev-compute` is down; idle cost
       $0; how this relates to ADR 0021's local Grafana)
-- [ ] 9.2 Terraform: the console instance (start/stop, tagged, read-only
-      IAM role, no public inbound port), the CloudFront + Cognito (or SSO
-      tunnel) edge, and `make console-up` / `make console-down`
+- [ ] 9.2 Terraform: the standing edge (S3 + CloudFront + Cognito + API
+      Gateway + the command Lambda, read-only roles) and the per-session
+      Grafana root (`envs/dev-console`, `make console-session`); remove the
+      in-cluster Grafana after 8.10
 - [ ] 9.3 The read-only command set: `cerberus status`, `runs`, `run <id>`,
       `cost`, `dq`, `slo`; an allowlist, no shell, no write, fail-closed;
       reads run records, Step Functions, Athena and AMP
 - [ ] 9.4 The UI outline: a landing page (architecture, phase status, the
       latest run), Grafana and Prometheus panels, a terminal panel
 - [ ] 9.5 The terminal panel wired to the command set in the browser,
-      with a session time limit and an idle auto-stop
+      with a session time limit; the Grafana session self-terminates and is
+      destroyed at its limit
 - [ ] 9.6 Safety and live check: escape and injection tests for the
       command set in CI; a demo from a clean browser; torn down to $0
 - [ ] 9.7 Well-Architected pass + ADR

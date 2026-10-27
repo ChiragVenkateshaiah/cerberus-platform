@@ -10,6 +10,8 @@ all fixed below: lineage files written inside tasks that exit, a
 stale-data alert that cannot work for hand-started exercises, and a
 "revisit if" trigger that Phase 9 had already fired.
 
+Amended by [ADR 0024](0024-demo-console.md) (2026-10-27): the shared Grafana is settled (one file set, two hosts) and the datasource file is split by datasource.
+
 ## Context
 
 Phase 10 ([plan.md](../plan.md#phase-10--pipeline-status--alerting)) exists
