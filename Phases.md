@@ -162,7 +162,9 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
       Gateway + the command Lambda, read-only roles) and the per-session
       Grafana root (`envs/dev-console`, `make console-session`); remove the
       in-cluster Grafana after 8.10
-      IAM prerequisites done 2026-10-27 (#123); standing edge still to build
+      IAM prerequisites done 2026-10-27 (#123); VPC-origin spike done
+      2026-10-27 (#124): wake 12–15 min, destroy about 11 min; standing
+      edge still to build
 - [ ] 9.3 The read-only command set: `cerberus status`, `runs`, `run <id>`,
       `cost`, `dq`, `slo`; an allowlist, no shell, no write, fail-closed;
       reads run records, Step Functions, Athena and AMP

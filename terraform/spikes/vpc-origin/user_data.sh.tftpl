@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# 9.2 spike user data: no dnf, no network. AL2023 ships python3.
+set -euo pipefail
+
+# Backstop: the instance terminates itself (instance_initiated_shutdown_behavior).
+shutdown -h +${self_terminate_minutes}
+
+mkdir -p /opt/spike
+echo '${responder_b64}' | base64 -d > /opt/spike/responder.py
+
+systemd-run --unit=spike-responder --property=Restart=always \
+  /usr/bin/python3 -I /opt/spike/responder.py 80

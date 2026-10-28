@@ -65,3 +65,7 @@ observability/scale/exercises/
 # Local Grafana (ADR 0022): admin password
 observability/grafana/.env
 observability/spark_progress/scratch/
+
+# 9.2 VPC-origin spike (terraform/spikes/vpc-origin): plans and run logs.
+*.tfplan
+terraform/spikes/*/logs/
