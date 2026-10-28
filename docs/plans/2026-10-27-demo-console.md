@@ -272,8 +272,10 @@ If the 9.2 spike measures more than 20 minutes up, or a teardown that is not rel
    - Verify: timings are recorded in the plan. The account check returns zero. If it takes more than 20 minutes, raise Open question 1 again.
    - Done 2026-10-27 as [the VPC-origin spike](2026-10-27-vpc-origin-spike.md), with five named deviations: no NAT; a Python stdlib responder, not nginx; the existing `private-a` subnet, not the console subnet; `terraform/spikes/vpc-origin/` with local state, not `envs/dev-console`; and t4g.nano as planned. Result: the gate passed in both cycles. Wake was 11:52 and about 15:35 (at most 20 minutes), destroy about 11 minutes, and the ENIs cleared in about 1 minute. The service SG is deleted by AWS within a few minutes after the ENIs clear; only the service-linked role remains.
 4. **9.2. Read-only roles and the console subnet, plus local Grafana on short-lived credentials** (`dev-standing`, CI).
+   - Changed in [the read-only roles plan](2026-10-28-readonly-roles.md): step 4 is two PRs. 4a is Terraform only (roles and subnet). 4b is the local Grafana switch, merged after the 8.10 take.
    - Verify: `make grafana-up` loads the story dashboard on the 2026-10-13 window. `docker inspect` shows no `/aws` mount. `iam simulate-principal-policy` denies writes for both roles.
 5. **9.2. AMP retention to 400 days** (one line, CI).
+   - Folded into PR 4a, see [the read-only roles plan](2026-10-28-readonly-roles.md).
    - Verify: `describe-workspace-configuration`. The 2026-10-13 series still return.
 6. **9.3. The command set package**, with fixtures, pytest and ruff `S` rules. No AWS in CI.
    - Verify: tests pass, including refusals and output sanitising. A local read-only run of every command works as `cerberus-console-cli`, assumed.
