@@ -311,8 +311,8 @@ Proposed Phases.md wording:
 - The HTTP API JWT authorizer with Cognito access tokens (`client_id` rather than `aud`) (step 7).
 - Step Functions read APIs are not billed, and Standard history lasts 90 days (step 6).
 - Bytes scanned by the `status` Athena query, and the cutoff value (step 6).
-- Raising AMP retention keeps existing samples (step 5).
-- The AMP plugin and the CloudWatch datasource read environment-variable session credentials in Compose (`GF_PLUGINS_FORWARD_HOST_ENV_VARS`) (step 4).
+- Raising AMP retention keeps existing samples (step 5). Verified 2026-10-29: a SigV4 `query_range` for 2026-10-13 06:30–06:50Z returned 21 points and up to 10,370 series after the change to 400 days (see `2026-10-28-readonly-roles.md`, Outcome).
+- The AMP plugin and the CloudWatch datasource read environment-variable session credentials in Compose (`GF_PLUGINS_FORWARD_HOST_ENV_VARS`) (step 4). Verified 2026-10-29 in the PR 4b live check. The AMP plugin reads them through the forward list (`grafana-amazonprometheus-datasource`). The core CloudWatch datasource reads them without being on the list. AMP health was OK, and a 2026-10-13 06:30–06:50Z query returned 21 points. A CloudWatch metrics query (AWS/Lambda Invocations, last 3 h) returned 3 frames. The logs half of the CloudWatch "Save & test" fails with `AccessDeniedException` on `DescribeLogGroups`, because `cerberus-grafana-read` has no logs read. That is accepted: no dashboard uses CloudWatch Logs (see `2026-10-28-readonly-roles.md`, Outcome).
 - A Grafana Viewer can open Inspect → Query without Explore (step 10).
 - The AL2023 arm64 root size (needed only if Open question 1 picks A) (step 2 reads). Verified: 8 GiB gp3.
 - The list prices in section 2 (step 3, then Cost Explorer).

@@ -1,0 +1,14 @@
+# Same uid and settings as the in-cluster datasource
+# (terraform/modules/eks_observability/main.tf), so one dashboard JSON works
+# in both. Credentials come from the environment, set by `make grafana-up`
+# (short-lived cerberus-grafana-read session). The console session does not
+# mount this file (ADR 0024).
+apiVersion: 1
+datasources:
+  - name: CloudWatch
+    uid: cloudwatch
+    type: cloudwatch
+    access: proxy
+    jsonData:
+      authType: default
+      defaultRegion: us-east-1
