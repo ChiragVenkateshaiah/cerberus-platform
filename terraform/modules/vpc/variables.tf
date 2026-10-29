@@ -27,3 +27,15 @@ variable "region" {
   type        = string
   default     = "us-east-1"
 }
+
+variable "console_subnet_cidr" {
+  description = "CIDR of the demo console subnet (ADR 0024). Outside the public (10.0.0.0/24, 10.0.1.0/24) and private (/20) ranges."
+  type        = string
+  default     = "10.0.2.0/24"
+}
+
+variable "console_availability_zone" {
+  description = "AZ of the console subnet. Same AZ as public-a. Must not be use1-az3, which CloudFront VPC origins do not support (checked by a postcondition)."
+  type        = string
+  default     = "us-east-1a"
+}
