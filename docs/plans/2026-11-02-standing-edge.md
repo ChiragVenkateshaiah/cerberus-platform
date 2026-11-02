@@ -266,6 +266,7 @@ Executor verify ($0, no AWS change):
 Local plan expectation (the gate before A2). **Stop if anything else appears, and do not use `-target`:**
 - About 22 to add, all under `module.console_edge`: 6 S3 (bucket, public access block, ownership, SSE, policy, `healthz.txt`), 3 CloudFront (OAC, headers policy, distribution), 3 Cognito (pool, client, domain), 6 API (API, authorizer, integration, route, stage, access-log group), 4 Lambda (function, log group, permission, `cerberus-console-cli-logs`). The executor states the exact count in the PR.
 - 0 to change and 0 to destroy, apart from the known Faker-layer churn (layer replaced, `cerberus-ingest-payments` updated in place).
+- Measured 2026-11-02 by the reviewer (local read-only plan, `-lock=false`): `Plan: 23 to add, 1 to change, 1 to destroy` — 22 under `module.console_edge` plus the Faker churn; the zip holds 11 `cerberus_console/*.py` and 14 `runs/*.json` files, with fixed timestamps.
 
 ## 8. Exact AWS commands for the user to approve
 
@@ -279,7 +280,7 @@ TMPDIR=$HOME/.cache/tfspiketmp terraform show -no-color "$HOME/.cache/tfspiketmp
 TMPDIR=$HOME/.cache/tfspiketmp terraform apply "$HOME/.cache/tfspiketmp/edge.tfplan"
 ```
 
-**A1. Only if A2 fails on the stage with an access-log permission error.** Root console: IAM → Policies → `cerberus-admin-console-edge` → Edit → paste the rendered file with the `HttpApiLogDelivery` Sid (render with `sed "s/<ACCOUNT_ID>/$ACCT/g"` as in the IAM plan) → Save as default version. Then run A2 again from a fresh `plan -out`.
+**A1. Only if A2 fails on the stage with an access-log permission error, or on `/tags` (risk 10).** Root console: IAM → Policies → `cerberus-admin-console-edge` → Edit → paste the rendered file with the `HttpApiLogDelivery` Sid (render with `sed "s/<ACCOUNT_ID>/$ACCT/g"` as in the IAM plan) → Save as default version. Then run A2 again from a fresh `plan -out`.
 
 **A3. The owner's check account and the token check** (a Cognito write; tokens stay in shell variables; never paste them into chat or files):
 ```
@@ -309,7 +310,7 @@ Optional (option C, does not block): root console → Service Quotas → AWS Lam
 
 ## 9. Verify (agent, read-only unless marked)
 
-After A2:
+After A2 (`$API` comes from the new root output `console_api_id`):
 ```
 SITE=...; curl -s -o /dev/null -w '%{http_code}\n' -X POST "$SITE/api/command" -d '{"argv":["runs"]}'   # 401
 curl -s -o /dev/null -w '%{http_code}\n' "$SITE/api/command"                                            # 404 (no GET route) or 401
@@ -334,7 +335,7 @@ After A3:
   aws logs filter-log-events --log-group-name /aws/apigateway/cerberus-console-api --limit 20 \
     | jq -r '.events[].message | fromjson | [.status, (.sub | length > 0)] | @tsv'
   ```
-  Expect 401 lines with `false` and 200 lines with `true`.
+  Expect 401 lines with `false` and 200 lines with `true`. The access-log field `edgeIp` is the CloudFront edge IP, not the visitor.
 - Optional throttle order check: 10 unauthenticated POSTs in a burst. If some return 429, the throttle runs before the authorizer (this closes the cost question in section 10).
 - CI: the PR plan (`cerberus-ci-plan`) after A2 shows only the Faker churn. After A4, the CI apply shows no `console_edge` diff, and the Lambda zip hash is stable between laptop and runner, as for `lineage`.
 
@@ -369,6 +370,10 @@ Whether 401 responses are billed, and whether throttling applies before the auth
 7. **Default certificate:** the minimum viewer TLS cannot be raised, and there is no CloudFront access log. Both go to 9.7's Well-Architected pass.
 8. **Records drive Lambda updates:** each run-record merge now updates the Lambda through CI, and each apply also carries the Faker churn. Intended; the take is not affected after it is recorded.
 9. **`deletion_protection = ACTIVE`** blocks `make standing-destroy` until it is flipped. Documented in the module comment.
+10. **API Gateway tag-on-create** (unverified). Both `user/cerberus-admin` and `role/cerberus-ci-apply` are implicitly denied `apigateway:POST` on `arn:aws:apigateway:us-east-1::/tags/*`, and the AWS docs do not say whether `CreateApi` or `CreateStage` with tags needs it ([tagging IAM policy](https://docs.aws.amazon.com/apigateway/latest/developerguide/apigateway-tagging-iam-policy.html)). If A2 fails with AccessDenied on `/tags`, paste a Sid that allows `apigateway:GET`, `POST` and `DELETE` on `arn:aws:apigateway:us-east-1::/tags/*` into `cerberus-admin-console-edge.json`, in the same root session as A1. Add it to `cerberus-ci-apply-console` only if tags must change later.
+11. **The callback `https://<cf>/terminal/` does not serve `terminal/index.html`.** `default_root_object` applies only to `/`, and with OAC and no `s3:ListBucket` the key `terminal/` returns 403. Decide in 9.4/9.5: set the callback to `/terminal/index.html` (an in-place client update), or add a CloudFront Function that rewrites `*/` to `*/index.html` ($0 idle). A3 is not affected: it only needs the code value from the URL.
+12. **9.4's publish must exclude `healthz.txt`** (for example `aws s3 sync --delete --exclude healthz.txt`), or the sync deletes the Terraform-managed object and the next plan recreates it.
+13. **9.5 and xterm.js:** the DOM renderer injects a `<style>` element, which needs `style-src 'unsafe-inline'` or a nonce or hash in the response-headers policy. `connect-src` needs no change (same-origin HTTPS, no websocket). `script-src 'self'` means the SPA bundles all scripts, with no inline script.
 
 ## 12. Open questions for the user
 
