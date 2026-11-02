@@ -279,7 +279,8 @@ If the 9.2 spike measures more than 20 minutes up, or a teardown that is not rel
    - Verify: `describe-workspace-configuration`. The 2026-10-13 series still return.
 6. **9.3. The command set package**, with fixtures, pytest and ruff `S` rules. No AWS in CI.
    - Verify: tests pass, including refusals and output sanitising. A local read-only run of every command works as `cerberus-console-cli`, assumed.
-7. **9.2. The standing edge.** S3, CloudFront, Cognito, HTTP API, Lambda from step 6, and the workgroup. First apply local, then CI.
+   - Changed in [the command-set plan](2026-11-01-command-set.md): the `cerberus_platform_console` workgroup, the `console/` result prefix and the `cerberus-console-cli` Athena, Glue and gold-metadata read grants moved here from step 7, as PR 6a (Terraform, CI-applied after the 8.10 take).
+7. **9.2. The standing edge.** S3, CloudFront, Cognito, HTTP API and Lambda from step 6. First apply local, then CI.
    - Verify: an unauthenticated `/api` call returns 401. A signed-in token call to `runs` returns rows. The CI plan is clean.
    - Open: the account Lambda concurrency limit is 10 (measured 2026-10-27), so reserved concurrency of 2 will be rejected. Choose a free Service Quotas increase or API Gateway throttling alone.
 8. **9.4. Landing page.** A static build from the repo: architecture, phase status, the latest run from the records, and `docs/img/scale` charts. A CI publish step (sync plus invalidation). Cross-links with the GitHub Pages site.
