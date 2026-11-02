@@ -36,6 +36,11 @@ on:
       - "ingestion/lambda/**"
       - "ingestion/scripts/payments_lib.py"
       - "lineage/collector/**"
+      # 9.2 standing edge (ADR 0024): the console command Lambda zips the
+      # console package and the committed run records. Without these, a
+      # package fix or a new run record merges but never reaches the Lambda.
+      - "console/cerberus_console/**"
+      - "observability/scale/runs/**"
       - "observability/freshness_probe/**"
       - "orchestration/state_machine.asl.json.tftpl"
       - "serving/queries/**"
