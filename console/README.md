@@ -58,9 +58,9 @@ exception becomes `unavailable`, logged by type name only.
 |---|---|
 | `help`, `runs`, `run` (record part), `cost`, `dq`, `slo` | $0 (git files; no Cost Explorer call) |
 | Step Functions reads (`status`, `run <id>`) | $0 (the pricing page lists no charge for API reads; confirm in Cost Explorer after step 7) |
-| `status`, gold freshness | one Athena query: at most the 10 MB minimum (about $0.00005) plus one S3 PUT |
+| `status`, gold freshness | one Athena query: at most the 10 MB minimum (about $0.00005) plus one S3 PUT; at most one billed query per 5 minutes across containers when Athena reuses the result (unverified for a zero charge) |
 
-Caches bound it: the execution list for 30 s, the freshness result for 300 s.
+Caches bound it: the execution list for 30 s, the freshness result for 300 s. A failed freshness query is remembered for 60 s (negative cache), so a failing Athena is not asked again on each retry within one container.
 
 ## Run it
 

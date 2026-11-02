@@ -3,8 +3,8 @@
 boto3 is imported inside the two functions that build clients, so the tests
 (which pass fake clients) need pytest only. Calls are bounded: short timeouts,
 two attempts, and an in-process cache per reader (ListExecutions 30 s, the
-freshness query 300 s) so a flood of visitors costs a handful of calls, not a
-bill.
+freshness query 300 s plus a 60 s negative cache) so a flood of visitors costs
+a handful of calls, not a bill.
 
 The IAM role this runs as (cerberus-console-cli) can read Step Functions, run
 the one workgroup's queries and write one results prefix. Nothing here relies on
@@ -23,17 +23,36 @@ log = logging.getLogger(__name__)
 
 
 class TTLCache:
-    def __init__(self, ttl: float, clock=time.monotonic):
+    """Caches successes for `ttl` seconds.
+
+    With `negative_ttl` > 0 a failure is also remembered: the first call raises
+    the original error, later calls raise Unavailable without calling the loader
+    until `negative_ttl` seconds pass.
+    """
+
+    def __init__(self, ttl: float, clock=time.monotonic, negative_ttl: float = 0):
         self._ttl = ttl
         self._clock = clock
+        self._negative_ttl = negative_ttl
         self._items: dict = {}
+        self._failures: dict = {}
 
     def get_or_set(self, key, fn):
         hit = self._items.get(key)
         now = self._clock()
         if hit is not None and now - hit[0] < self._ttl:
             return hit[1]
-        value = fn()  # a failure is raised, not cached
+        failed_at = self._failures.get(key)
+        if failed_at is not None:
+            if now - failed_at < self._negative_ttl:
+                raise Unavailable
+            del self._failures[key]
+        try:
+            value = fn()
+        except Exception:
+            if self._negative_ttl > 0:
+                self._failures[key] = self._clock()
+            raise
         self._items[key] = (now, value)
         return value
 
@@ -153,7 +172,9 @@ class AwsFreshnessReader:
         self._clock = clock
         self._sleep = sleep
         self._deadline = deadline
-        self._cache = TTLCache(config.FRESHNESS_TTL, clock)
+        self._cache = TTLCache(
+            config.FRESHNESS_TTL, clock, negative_ttl=config.FRESHNESS_NEGATIVE_TTL
+        )
 
     def gold_freshness(self) -> dict:
         return self._cache.get_or_set("gold", self._query)
@@ -163,6 +184,12 @@ class AwsFreshnessReader:
             QueryString=config.FRESHNESS_SQL,
             QueryExecutionContext={"Database": config.DATABASE},
             WorkGroup=config.WORKGROUP,
+            ResultReuseConfiguration={
+                "ResultReuseByAgeConfiguration": {
+                    "Enabled": True,
+                    "MaxAgeInMinutes": config.RESULT_REUSE_MINUTES,
+                }
+            },
         )["QueryExecutionId"]
         stop_at = self._clock() + self._deadline
         delay = config.QUERY_POLL_SECONDS

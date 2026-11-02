@@ -149,6 +149,17 @@ def test_athena_failed_query_is_unavailable(runs):
     assert resp.body["data"]["gold"] == {"available": False}
 
 
+def test_failed_query_is_not_started_again_on_the_next_status(runs):
+    athena = fakes.FakeAthenaClient(polls=0, final="FAILED")
+    src = fakes.aws_sources(runs, athena_client=athena)
+    first = dispatch(["status"], src)
+    second = dispatch(["status"], src)
+    assert first.body["data"]["gold"] == {"available": False}
+    assert second.body["data"]["gold"] == {"available": False}
+    starts = [c for c in athena.calls if c[0] == "start_query_execution"]
+    assert len(starts) == 1
+
+
 def test_freshness_is_cached_and_query_is_the_fixed_constant(runs):
     from cerberus_console import config
 
@@ -163,6 +174,12 @@ def test_freshness_is_cached_and_query_is_the_fixed_constant(runs):
         "QueryString": config.FRESHNESS_SQL,
         "QueryExecutionContext": {"Database": config.DATABASE},
         "WorkGroup": config.WORKGROUP,
+        "ResultReuseConfiguration": {
+            "ResultReuseByAgeConfiguration": {
+                "Enabled": True,
+                "MaxAgeInMinutes": config.RESULT_REUSE_MINUTES,
+            }
+        },
     }
     clock.t += config.FRESHNESS_TTL + 1
     dispatch(["status"], src)

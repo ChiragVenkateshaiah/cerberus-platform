@@ -51,6 +51,12 @@ ERROR_CODE_CHARS = 64
 # a visitor can cause.
 LIST_EXECUTIONS_TTL = 30
 FRESHNESS_TTL = 300
+# A failed freshness query is remembered this long, so a failing Athena is not
+# re-queried on each retry (ADR 0024 amendment, 2026-11-02).
+FRESHNESS_NEGATIVE_TTL = 60
+# Athena result reuse: containers share one result for this many minutes instead
+# of one billed query each (ADR 0024 amendment, 2026-11-02).
+RESULT_REUSE_MINUTES = 5
 
 # Step Functions keeps a closed Standard execution's history this many days
 # (service quotas page, read 2026-11-01).
