@@ -86,6 +86,10 @@ grafana-token: ## make the Grafana service account and its 30-day annotation tok
 demo-forward: ## port-forward the agent UI (:9090) and the current Spark driver UI (:4040) to localhost (ADR 0022)
 	@observability/demo/forward.sh
 
+.PHONY: cerberus
+cerberus: ## run one read-only console command locally as cerberus-console-cli (CMD="status"; CMD="--json run latest")
+	cd console && uv run --no-project --python 3.12 --with boto3==1.43.67 python -m cerberus_console $(CMD)
+
 .PHONY: fmt
 fmt: ## terraform fmt across the whole terraform/ tree
 	$(TF_BIN) fmt -recursive terraform/
