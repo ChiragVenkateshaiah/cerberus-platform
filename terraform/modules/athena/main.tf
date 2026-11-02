@@ -58,6 +58,22 @@ resource "aws_s3_bucket_lifecycle_configuration" "results" {
       days = var.results_expiration_days
     }
   }
+
+  # 9.3 (ADR 0024 rule 7): the console's query results live under console/
+  # and expire after a day. Where rules overlap, S3 applies the shortest
+  # expiration, so this prefix gets the shorter life.
+  rule {
+    id     = "expire-console-results"
+    status = "Enabled"
+
+    filter {
+      prefix = "console/"
+    }
+
+    expiration {
+      days = var.console_results_expiration_days
+    }
+  }
 }
 
 resource "aws_athena_workgroup" "this" {
@@ -114,6 +130,27 @@ resource "aws_athena_workgroup" "data_quality" {
 
     result_configuration {
       output_location = "s3://${aws_s3_bucket.results.bucket}/data_quality/"
+    }
+  }
+}
+
+# 9.3: the demo console's own workgroup (ADR 0024 rules 6-7). The console runs
+# one fixed freshness query per cache window, reading only Iceberg metadata
+# of the three gold tables (about 270 KB in total, 2026-11-01), so the
+# cutoff is the provider's minimum (10 MiB). Enforced, like the data-quality workgroup: the
+# caller is plain boto3 and cannot override the cutoff or the output
+# location per query.
+resource "aws_athena_workgroup" "console" {
+  name          = "cerberus_platform_console"
+  force_destroy = true
+
+  configuration {
+    enforce_workgroup_configuration    = true
+    bytes_scanned_cutoff_per_query     = var.console_bytes_scanned_cutoff_bytes
+    publish_cloudwatch_metrics_enabled = true
+
+    result_configuration {
+      output_location = "s3://${aws_s3_bucket.results.bucket}/console/"
     }
   }
 }

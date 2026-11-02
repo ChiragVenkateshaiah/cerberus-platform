@@ -211,7 +211,7 @@ docker inspect "$c" --format '{{range .Config.Env}}{{println .}}{{end}}' | cut -
 5. Expired credentials fail quietly: the panels show errors. `up.sh` prints the expiry, and the README says how to renew.
 6. The plan in 4a may show more than 7 + 1. Do not merge, and do not use `-target`.
 7. AMP retention change. The update goes through `UPDATING`, so apply it days before the take, not during an exercise. Raising retention is expected to keep the samples. The 4a retention check confirms it.
-8. Note for step 6 (not this step): demo-console plan step 6 runs every command as `cerberus-console-cli`, but the `cerberus_platform_console` workgroup and its 1-day result prefix are in step 7. Step 6's plan should move them into step 6 or drop `status` from its local check.
+8. Note for step 6 (not this step): demo-console plan step 6 runs every command as `cerberus-console-cli`, but the `cerberus_platform_console` workgroup and its 1-day result prefix are in step 7. Step 6's plan should move them into step 6 or drop `status` from its local check. Resolved in the [command-set plan](2026-11-01-command-set.md): the workgroup, the prefix and the grants moved into step 6 as PR 6a.
 
 ## 9. Open questions for the user
 
