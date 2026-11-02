@@ -1,0 +1,24 @@
+# The console package takes untrusted text in (ADR 0024, "not a shell"), so it
+# lints stricter than the rest of the repo: the bandit rules (S) and a banned
+# list of ways to run a program or load code. Ruff finds this file for
+# everything under console/, so the root `ruff check .` in CI applies it.
+extend = "../pyproject.toml"
+
+[lint]
+extend-select = ["S", "TID251"]
+
+[lint.flake8-tidy-imports.banned-api]
+"subprocess".msg = "The console never runs a program (ADR 0024 rule 5)."
+"os.system".msg = "The console never runs a program (ADR 0024 rule 5)."
+"os.popen".msg = "The console never runs a program (ADR 0024 rule 5)."
+"os.execv".msg = "The console never runs a program (ADR 0024 rule 5)."
+"os.execvp".msg = "The console never runs a program (ADR 0024 rule 5)."
+"os.spawnv".msg = "The console never runs a program (ADR 0024 rule 5)."
+"pickle".msg = "The console never loads serialised objects (ADR 0024 rule 5)."
+"marshal".msg = "The console never loads serialised objects (ADR 0024 rule 5)."
+"shelve".msg = "The console never loads serialised objects (ADR 0024 rule 5)."
+"ctypes".msg = "The console has no native-code escape hatch (ADR 0024 rule 5)."
+"importlib.import_module".msg = "The console never imports by a computed name (ADR 0024 rule 5)."
+
+[lint.per-file-ignores]
+"tests/**" = ["S101"]

@@ -1,0 +1,46 @@
+{
+  "ResultSet": {
+    "Rows": [
+      {
+        "Data": [
+          {
+            "VarCharValue": "table_name"
+          },
+          {
+            "VarCharValue": "last_commit"
+          }
+        ]
+      },
+      {
+        "Data": [
+          {
+            "VarCharValue": "fct_transactions"
+          },
+          {
+            "VarCharValue": "2026-10-15\u001b[31m 15:23 UTC\u202e"
+          }
+        ]
+      },
+      {
+        "Data": [
+          {
+            "VarCharValue": "dim_customers"
+          },
+          {
+            "VarCharValue": "2026-10-15 15:22:50.000 UTC"
+          }
+        ]
+      },
+      {
+        "Data": [
+          {
+            "VarCharValue": "dim_merchants\u001b]52;c;SGVsbG8=\u0007"
+          },
+          {
+            "VarCharValue": "2026-10-15 15:22:51.000 UTC"
+          }
+        ]
+      }
+    ]
+  }
+}

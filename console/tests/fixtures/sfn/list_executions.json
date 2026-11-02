@@ -1,0 +1,35 @@
+{
+  "executions": [
+    {
+      "executionArn": "arn:aws:states:us-east-1:<ACCOUNT_ID>:execution:cerberus-platform-orchestration:exercise-20261102T000000Z",
+      "stateMachineArn": "arn:aws:states:us-east-1:<ACCOUNT_ID>:stateMachine:cerberus-platform-orchestration",
+      "name": "exercise-20261102T000000Z",
+      "status": "RUNNING",
+      "startDate": "2026-11-02T00:00:00+00:00"
+    },
+    {
+      "executionArn": "arn:aws:states:us-east-1:<ACCOUNT_ID>:execution:cerberus-platform-orchestration:exercise-20261013T055859Z",
+      "stateMachineArn": "arn:aws:states:us-east-1:<ACCOUNT_ID>:stateMachine:cerberus-platform-orchestration",
+      "name": "exercise-20261013T055859Z",
+      "status": "SUCCEEDED",
+      "startDate": "2026-10-13T06:35:02.004000+00:00",
+      "stopDate": "2026-10-13T06:47:23.981000+00:00"
+    },
+    {
+      "executionArn": "arn:aws:states:us-east-1:<ACCOUNT_ID>:execution:cerberus-platform-orchestration:exercise-20261008T085728Z",
+      "stateMachineArn": "arn:aws:states:us-east-1:<ACCOUNT_ID>:stateMachine:cerberus-platform-orchestration",
+      "name": "exercise-20261008T085728Z",
+      "status": "FAILED",
+      "startDate": "2026-10-08T09:13:33.494000+00:00",
+      "stopDate": "2026-10-08T09:23:05.094000+00:00"
+    },
+    {
+      "executionArn": "arn:aws:states:us-east-1:<ACCOUNT_ID>:execution:cerberus-platform-orchestration:phase7-exercise-run-1-sfn-only",
+      "stateMachineArn": "arn:aws:states:us-east-1:<ACCOUNT_ID>:stateMachine:cerberus-platform-orchestration",
+      "name": "phase7-exercise-run-1-sfn-only",
+      "status": "SUCCEEDED",
+      "startDate": "2026-08-20T10:00:00+00:00",
+      "stopDate": "2026-08-20T10:08:00+00:00"
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "ResultSet": {
+    "Rows": [
+      {
+        "Data": [
+          {
+            "VarCharValue": "table_name"
+          },
+          {
+            "VarCharValue": "last_commit"
+          }
+        ]
+      },
+      {
+        "Data": [
+          {
+            "VarCharValue": "fct_transactions"
+          },
+          {
+            "VarCharValue": "2026-10-15 15:23:12.123 UTC"
+          }
+        ]
+      },
+      {
+        "Data": [
+          {
+            "VarCharValue": "dim_customers"
+          },
+          {
+            "VarCharValue": "2026-10-15 15:22:50.000 UTC"
+          }
+        ]
+      },
+      {
+        "Data": [
+          {
+            "VarCharValue": "dim_merchants"
+          },
+          {
+            "VarCharValue": "2026-10-15 15:22:51.000 UTC"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -167,7 +167,8 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
       edge still to build
 - [ ] 9.3 The read-only command set: `cerberus status`, `runs`, `run <id>`,
       `cost`, `dq`, `slo`; an allowlist, no shell, no write, fail-closed;
-      reads run records, Step Functions, Athena and AMP
+      reads run records, Step Functions and Athena (AMP once
+      Phase 10's status series exist)
 - [ ] 9.4 The UI outline: a landing page (architecture, phase status, the
       latest run), Grafana and Prometheus panels, a terminal panel
 - [ ] 9.5 The terminal panel wired to the command set in the browser,
