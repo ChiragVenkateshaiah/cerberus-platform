@@ -282,6 +282,7 @@ If the 9.2 spike measures more than 20 minutes up, or a teardown that is not rel
 7. **9.2. The standing edge.** S3, CloudFront, Cognito, HTTP API, Lambda from step 6, and the workgroup. First apply local, then CI.
    - Verify: an unauthenticated `/api` call returns 401. A signed-in token call to `runs` returns rows. The CI plan is clean.
    - Open: the account Lambda concurrency limit is 10 (measured 2026-10-27), so reserved concurrency of 2 will be rejected. Choose a free Service Quotas increase or API Gateway throttling alone.
+   - Changed in [the standing-edge plan](2026-11-02-standing-edge.md): no reserved concurrency, and the classic hosted UI instead of managed login. The open concurrency item above is resolved by the ADR 0024 amendment (2026-11-02).
 8. **9.4. Landing page.** A static build from the repo: architecture, phase status, the latest run from the records, and `docs/img/scale` charts. A CI publish step (sync plus invalidation). Cross-links with the GitHub Pages site.
    - Verify: a clean browser loads it with no sign-in. The CSP header is present.
 9. **9.5. Terminal panel.** xterm.js vendored and pinned, PKCE, a 60-minute token, a 15-minute idle drop, help, and a refusal message.
@@ -307,8 +308,8 @@ Proposed Phases.md wording:
 - An EC2 VPC origin over HTTP in a private subnet; WebSocket through it (step 3). Measured 2026-10-27: HTTP 200 and WebSocket 101 pass in both cycles.
 - The Grafana arm64 tarball and AMP plugin 3.2.0 have `linux_arm64` builds. If not, use t3.small at about $0.0208/h (step 10).
 - Grafana 13 `generic_oauth` with Cognito managed login, `role_attribute_path` to Viewer, and `disable_login_form` (step 10).
-- Whether Cognito Lite includes managed login; otherwise Essentials, still 10k MAU free (F22) (step 7).
-- The HTTP API JWT authorizer with Cognito access tokens (`client_id` rather than `aud`) (step 7).
+- Verified 2026-11-02: Cognito Lite has no managed login; Essentials is chosen, with the classic hosted UI (F22; standing-edge plan F18, [feature plans](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-sign-in-feature-plans.html)) (step 7).
+- Verified 2026-11-02: the HTTP API JWT authorizer checks `client_id` when `aud` is absent, so the audience is the app client ID. A route scope of `openid` is expected to refuse ID tokens; the 9.2 live check confirms it (standing-edge plan F21, [JWT authorizers](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-jwt-authorizer.html)) (step 7).
 - Step Functions read APIs are not billed, and Standard history lasts 90 days (step 6).
 - Bytes scanned by the `status` Athena query, and the cutoff value (step 6).
 - Raising AMP retention keeps existing samples (step 5).
