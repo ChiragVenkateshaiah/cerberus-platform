@@ -29,7 +29,7 @@ locals {
 
   # Built from the distribution domain, which the client needs and the
   # distribution does not (the CSP uses the prefix string), so no cycle.
-  callback_url = "https://${aws_cloudfront_distribution.this.domain_name}/terminal/"
+  callback_url = "https://${aws_cloudfront_distribution.this.domain_name}/terminal/index.html"
   logout_url   = "https://${aws_cloudfront_distribution.this.domain_name}/"
 
   repo_root     = "${path.module}/../../.."
