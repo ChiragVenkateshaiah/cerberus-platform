@@ -14,6 +14,7 @@ on:
       - "observability/**"
       - "lineage/**"
       - "console/**"
+      - "Phases.md"
       - "terraform/modules/console_roles/variables.tf"
       - "pyproject.toml"
       - "requirements-dev.txt"

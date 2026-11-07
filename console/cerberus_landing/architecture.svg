@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="arch" viewBox="0 0 360 770" role="img" aria-labelledby="arch-t arch-d">
+  <title id="arch-t">Cerberus architecture as built</title>
+  <desc id="arch-d">The platform as built. The schedule is enabled only during a compute exercise (ADR 0011, amended); between exercises it is off, and a run can also be started by hand. An EventBridge schedule or a manual start begins an AWS Step Functions run (ADR 0009) with four steps. A Lambda function (ADR 0005) loads raw JSON into S3 bronze. For scale tests, a Spark generator writes the bulk events into S3 bronze before the run (ADR 0018); this is noted in step 1. Spark on Amazon EKS, created for each run and submitted through an ECS wrapper (ADR 0019), writes Iceberg tables to S3 silver (ADR 0017). dbt on ECS Fargate writes Iceberg tables to S3 gold, and Athena answers SQL queries over gold. The Glue Data Catalog holds the table definitions. Prometheus feeds Amazon Managed Service for Prometheus and Grafana, with CloudWatch alongside (ADR 0016 and ADR 0022). All infrastructure is Terraform; GitHub Actions checks every pull request and applies the always-on part on merge (ADR 0011). Databricks reading the same tables is planned for Phase 11 and is drawn dashed. The console that serves this page is described in ADR 0024 and is not drawn.</desc>
+  <rect class="d-box" x="10" y="8" width="340" height="48" rx="8"/>
+  <text class="d-title" x="180" y="28" text-anchor="middle">Schedule or manual start</text>
+  <text class="d-sub" x="180" y="46" text-anchor="middle">EventBridge Scheduler (off between exercises)</text>
+  <path class="d-line" d="M180 56V76"/>
+  <path class="d-head" d="M174 74H186L180 84Z"/>
+
+  <rect class="d-frame" x="10" y="86" width="340" height="404" rx="12"/>
+  <text class="d-label" x="180" y="108" text-anchor="middle">AWS Step Functions runs these steps</text>
+
+  <rect class="d-box" x="26" y="120" width="308" height="62" rx="8"/>
+  <text class="d-title" x="180" y="140" text-anchor="middle">1. Collect, keep the raw copy</text>
+  <text class="d-sub" x="180" y="158" text-anchor="middle">Lambda → S3 bronze (raw JSON)</text>
+  <text class="d-sub" x="180" y="174" text-anchor="middle">Scale tests: Spark generator (ADR 0018)</text>
+  <path class="d-line" d="M180 182V200"/>
+  <path class="d-head" d="M174 198H186L180 208Z"/>
+
+  <rect class="d-box" x="26" y="210" width="308" height="62" rx="8"/>
+  <text class="d-title" x="180" y="234" text-anchor="middle">2. Clean at scale (cluster per run)</text>
+  <text class="d-sub" x="180" y="256" text-anchor="middle">Spark on EKS → S3 silver (Iceberg)</text>
+  <path class="d-line" d="M180 272V290"/>
+  <path class="d-head" d="M174 288H186L180 298Z"/>
+
+  <rect class="d-box" x="26" y="300" width="308" height="62" rx="8"/>
+  <text class="d-title" x="180" y="324" text-anchor="middle">3. Model for the business</text>
+  <text class="d-sub" x="180" y="346" text-anchor="middle">dbt on Fargate → S3 gold (Iceberg)</text>
+  <path class="d-line" d="M180 362V380"/>
+  <path class="d-head" d="M174 378H186L180 388Z"/>
+
+  <rect class="d-box" x="26" y="390" width="308" height="62" rx="8"/>
+  <text class="d-title" x="180" y="414" text-anchor="middle">4. Answer questions</text>
+  <text class="d-sub" x="180" y="436" text-anchor="middle">Athena SQL over gold</text>
+
+  <text class="d-sub" x="180" y="476" text-anchor="middle">Glue Data Catalog holds the table definitions</text>
+
+  <path class="d-line" d="M180 490V510"/>
+  <rect class="d-box" x="10" y="510" width="340" height="76" rx="8"/>
+  <text class="d-title" x="180" y="534" text-anchor="middle">Watched by</text>
+  <text class="d-sub" x="180" y="556" text-anchor="middle">Prometheus → AMP → Grafana</text>
+  <text class="d-sub" x="180" y="574" text-anchor="middle">CloudWatch for the AWS services</text>
+
+  <rect class="d-plan" x="10" y="608" width="340" height="76" rx="8"/>
+  <text class="d-title" x="180" y="632" text-anchor="middle">Planned: Phase 11</text>
+  <text class="d-sub" x="180" y="654" text-anchor="middle">Databricks reads the same tables</text>
+  <text class="d-sub" x="180" y="672" text-anchor="middle">through the catalog</text>
+
+  <rect class="d-box" x="10" y="706" width="340" height="52" rx="8"/>
+  <text class="d-title" x="180" y="728" text-anchor="middle">Delivered by code</text>
+  <text class="d-sub" x="180" y="746" text-anchor="middle">Terraform and GitHub Actions</text>
+</svg>

@@ -90,3 +90,30 @@ uvx ruff@0.16.4 check . && uvx ruff@0.16.4 format --check .
 every command on the committed run records, so a new record that breaks a
 command fails CI. The test fixtures contain no account ID; ARNs use
 `<ACCOUNT_ID>` or a placeholder filled in at test time.
+
+## Landing page
+
+`cerberus_landing/` builds the public landing page for the console site (ADR 0024,
+step 8): one `index.html`, one stylesheet, a favicon, the hand-drawn architecture
+diagram and, when they exist, the scale charts. It is stdlib Python and ships no
+JavaScript, no inline style and no inline handler, so it passes the edge CSP as is.
+It reads the run records through `cerberus_console.records`, so its "latest run"
+is the same record as `cerberus run latest`. Phase status comes from `Phases.md`
+and the plain-language text from `cerberus_landing/content.toml`.
+
+```
+make console-site            # build into console/site-dist/ (no AWS)
+make console-site-preview    # serve it at http://127.0.0.1:8088/ with the edge CSP
+```
+
+The preview sends the edge's `Content-Security-Policy` (without
+`upgrade-insecure-requests` and the Cognito host), so a violation shows in the
+browser's DevTools console. The charts come from `docs/img/scale/` (override with
+`--charts-dir`); until that folder exists the page shows a placeholder. The build
+is deterministic: two builds of the same inputs are byte-identical, and asset
+names carry a hash of their content.
+
+Tests (`tests/test_landing_*.py`) cover determinism, links, the CSP scan (with
+negative fixtures), the `Phases.md` parser, the run cards (including the hostile
+record), the placeholder, accessibility basics and the stylesheet's contrast. The
+publish workflow is a later step (8b).

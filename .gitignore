@@ -69,3 +69,6 @@ observability/spark_progress/scratch/
 # 9.2 VPC-origin spike (terraform/spikes/vpc-origin): plans and run logs.
 *.tfplan
 terraform/spikes/*/logs/
+
+# 9.4 landing page: the built site (console/cerberus_landing writes it here).
+console/site-dist/

@@ -1,0 +1,103 @@
+# Plain-language text for the landing page (audience: non-engineers and hiring
+# managers). No number is typed here: every figure on the page comes from the
+# run records, Phases.md or a cited ADR, and the builder prints it.
+
+[site]
+title = "Cerberus: a payments data platform on AWS"
+description = "A payments data platform on AWS, built and run by one engineer."
+
+[hero]
+kicker = "Cerberus: portfolio project"
+title = "A payments data platform on AWS, built and run by one engineer."
+lede = "Cerberus collects synthetic payment events, keeps the raw copy, cleans it at scale, shapes it into business tables and answers questions about it in SQL."
+cost = "Nothing runs while nobody is using it. The heavy parts are created for a run and removed afterwards. What stays is storage and pay-per-use services, estimated at cents a month for the console (ADR 0024)."
+stat_phases = "phases complete"
+stat_runs = "recorded runs"
+stat_succeeded = "succeeded"
+stat_largest = "payment events in the largest run"
+
+[flow]
+title = "How the data moves"
+intro = "Payments pass through the same four steps on every run. The diagram shows what is built today. It runs during test exercises, not every day."
+steps = [
+  { name = "Collect and keep the raw copy", plain = "New synthetic payment events are created and stored exactly as they arrived, so any later step can be rebuilt.", tools = "AWS Lambda, called by Step Functions, writing to Amazon S3 (the bronze layer)" },
+  { name = "Clean at scale", plain = "Spark turns raw events into tidy tables, on a cluster that exists only for the run.", tools = "Apache Spark on Amazon EKS, with Iceberg tables in the silver layer" },
+  { name = "Model for the business", plain = "dbt shapes the clean data into fact and dimension tables built for reporting.", tools = "dbt on ECS Fargate, with Iceberg tables in the gold layer and the Glue catalog" },
+  { name = "Answer questions", plain = "Anyone with access can ask a question in plain SQL and get the answer back.", tools = "Amazon Athena" },
+]
+orchestrated = "AWS Step Functions runs the four processing steps as one run, with retries and a visible history (ADR 0009)."
+watched_title = "Watched by"
+watched = "Prometheus collects the run metrics into Amazon Managed Service for Prometheus, Grafana draws them, and CloudWatch watches the AWS services (ADRs 0016 and 0022)."
+partner_title = "Open to other engines"
+partner = "The tables use the open Iceberg format, so other engines such as Databricks can read them through the catalog. This is Phase 11 and it is planned, not built yet."
+delivery = "All infrastructure is Terraform. GitHub Actions checks every pull request and applies the always-on part on merge, and it holds no long-lived cloud keys (ADR 0011)."
+
+[latest]
+title = "The latest run"
+intro = "Each full run of the platform writes a small record to the repository. These cards read those records when the page is built."
+latest_title = "Most recent run"
+largest_title = "Largest run"
+largest_note = "The successful run that processed the most events."
+none = "No runs recorded yet."
+table_caption = "Time spent in each step of the run"
+table_step = "Step"
+table_seconds = "Seconds"
+record_link = "Open the run record"
+events_label = "payment events processed in"
+cost_prefix = "Cost: "
+bulk_note = "For scale tests, a Spark generator writes the bulk events into the raw layer before the run (ADR 0018). That time is not in this table."
+estimate_note = "Costs are estimates built from AWS usage and list prices, not a bill."
+
+[scale]
+title = "How it scales"
+intro = "The same pipeline was run at growing sizes to see where time and money go."
+placeholder = "Charts arrive with the Phase 8 results write-up."
+numbers_link = "See the numbers behind the charts"
+
+[scale.captions]
+"cost-per-million-events" = "What it costs to process one million payment events, run by run."
+"run-time-per-state" = "How long each step of a run takes."
+"transform-throughput" = "How fast the Spark step reads data as the volume grows."
+
+[progress]
+title = "Build progress"
+intro = "The platform is built in phases. From Phase 1 on, each phase ends with a review and a written decision. This list is read from the project's checklist when the page is built."
+steps_done = "steps done"
+still_open = "Still open"
+checklist_link = "Read the full checklist"
+
+[live]
+title = "Live dashboards"
+body = "During scheduled demos, a Grafana dashboard opens for the session and replays a recorded run from the stored metrics: the cluster growing, work in flight and data read so far. It is not open all day, because that would cost money. This page will link to it while a demo is on."
+link = "How the dashboards tell the story"
+
+[terminal]
+title = "Try the terminal"
+body = "Invited visitors will be able to type read-only commands such as status, runs and cost in a browser terminal. The terminal cannot change anything. The sign-in link arrives with the next step of Phase 9."
+link = "Sign in to the terminal"
+
+[footer]
+privacy = "This page uses no cookies, no trackers and no JavaScript."
+repo = "Source code"
+pages = "Project site"
+dbt = "Data model docs"
+lineage = "Data lineage"
+adrs = "Design decisions"
+phases = "Phase checklist"
+
+# One sentence per phase (0 to 13), taken from the scope in Phases.md.
+[phases]
+p0 = "A careful hand-built start: a billing alarm, a first raw-data bucket, a timer-driven ingestion script and a home for the infrastructure state."
+p1 = "The first complete path: synthetic payments land as raw files, become tidy tables and can be queried with one SQL statement."
+p2 = "Ingestion moved to a managed schedule that runs a function in the cloud, replacing the timer."
+p3 = "Heavy data work moved to Spark on Kubernetes, created for a run and destroyed afterwards to keep cost down."
+p4 = "AWS Step Functions now runs the whole flow, from ingest to transform to serve, as one run with retries and history."
+p5 = "Every pull request is checked by GitHub Actions, and the always-on infrastructure is applied automatically on merge."
+p6 = "Dashboards, alarms, data-quality tests and lineage show whether the pipeline is healthy and the data is fresh."
+p7 = "The platform was exercised end to end at larger volume, its permissions were tightened and Prometheus metrics were added for Spark."
+p8 = "Proving it scales: open table formats, incremental processing, tuning and Spot capacity, with cost measured per million events at each step."
+p9 = "A browser console: this public page, and a sign-in terminal limited to read-only commands."
+p10 = "Planned: pipeline status such as failed runs and stale data, shown on a dashboard, in alerts and in the terminal."
+p11 = "Planned: Databricks as a partner engine that reads the same open tables through the catalog with no copy, with both engines measured on the same input."
+p12 = "Planned: the platform tooling rewritten as a Go command-line tool for data-quality checks, metrics and exercise runs."
+p13 = "Planned: streaming ingestion with Kafka and Go, next to the existing batch flow."

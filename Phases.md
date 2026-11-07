@@ -151,7 +151,7 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 - [ ] 8.11 Well-Architected pass + ADR
       ADR 0023 Proposed (2026-10-27); milestone 8 after the 8.10 video
 
-## Phase 9 — Demo console (UI + terminal) ⬜
+## Phase 9 — Demo console (UI + terminal) 🔨
 
 - [ ] 9.1 ADR: the demo console (one start/stop EC2 instance vs. other
       hosts; web terminal tool; CloudFront + Cognito vs. an SSO tunnel;
