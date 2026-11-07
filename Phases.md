@@ -142,7 +142,8 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
       2026-10-15 (#103, #104)
 - [ ] 8.10 Results write-up (per-step numbers and charts) + demo video.
       ADR 0022 (live observability: local Grafana, native Prometheus/Spark
-      UIs); DQ cutoff 20 GiB; dress rehearsal at 1M; live 100M run
+      UIs); DQ cutoff 20 GiB; dress rehearsal at 10M (ADR 0022 amendment
+      2026-11-07); live 100M run
       recorded; story dashboard, Spark progress exporter and run annotations
       (ADR 0022 amendment); recording runbook (`docs/demo-recording.md`).
       Clean 1M run done 2026-10-15 (#105, $0.2928 per million events);
