@@ -13,6 +13,8 @@ Amended 2026-10-25: story dashboard, Spark progress exporter and run annotations
 
 Amended by [ADR 0024](0024-demo-console.md) (2026-10-27): a read-only role replaces the mounted keys, and console annotations come from the run records.
 
+Amended 2026-11-07: 10M rehearsal, landscape capture and the GNOME recorder (see Amendment below).
+
 ## Context
 
 The last open part of Phase 8 is the 8.10 demo video: a public, sped-up
@@ -344,3 +346,52 @@ The user accepted it on 2026-10-25 (step 6a).
   `cerberus_step_duration_seconds`.
 - With Phase 10's two dashboards, the local stack reaches about five
   dashboards, which is ADR 0021's revisit point.
+
+## Amendment (2026-11-07): 10M rehearsal, landscape capture and the GNOME recorder
+
+Status: Proposed (2026-11-07). It becomes Accepted when the user accepts it in
+the PR. The plan is
+[2026-11-07-runbook-landscape.md](../plans/2026-11-07-runbook-landscape.md).
+
+### Context
+
+- The dress rehearsal (Decision, "A dress rehearsal at 1M"; build step 8)
+  moves to 10M with the take's flags. Eight generator executors have only run
+  at 100M: the 1M reference used 2 executors and 1 Spot node. A 10M run gives a
+  second publishable data point, and the Athena headroom allows it.
+- The only screen is a landscape 1920x1080 monitor with the laptop lid closed;
+  portrait is not possible.
+- OBS is replaced by the built-in recorder of GNOME Shell 50.1: the whole
+  monitor, no scenes or crop. On this machine it writes VP8 WebM with a
+  variable frame rate.
+- The ingestion Lambda only no-ops since 2026-10-30. The rehearsal is the first
+  orchestrated run after that date.
+
+### Decision
+
+- Build step 8 becomes "Dress rehearsal at 10M":
+  `--generate 10000000 --generator-executors 8 --executor-nodes 2 --name rehearsal`.
+- Recorder: the GNOME screen recorder, full screen, 16:9 1920x1080 output. Both
+  runs are recorded whole, in one file each. The edit speeds up the quiet
+  parts.
+- Secrets stay off screen by layout: the run sits in a detached `tmux` session,
+  and the console top bar is masked in the edit with ffmpeg `drawbox`.
+- The OBS settings and "sets OBS to NVENC" (Laptop load) no longer describe the
+  recorder. NVENC stays the encoder for the edit.
+- The Grafana dashboards get a look review in a $0 recorder pre-test, and a
+  separate dashboard-polish PR lands before the rehearsal.
+
+### Consequences
+
+- Rehearsal cost about $1.0-1.4 (estimate), replacing about $0.9-1.2.
+- After the take, silver is about 248M, the dbt merge about 21.8 GiB (87% of
+  25 GiB) and the largest data quality check about 14.1 GiB (71% of 20 GiB). A
+  second 100M still does not fit (dbt about 30.6 GiB).
+- Given up: live masking (the raw file has the account ID and must stay outside
+  the repo); the OBS memory guess and the NVENC capture test in "Laptop load"
+  no longer apply. The recorder CPU load and a 63-minute recording are
+  unverified until the $0 pre-test and the rehearsal.
+- The 2026-10-25 amendment's "first proven in the 1M rehearsal (step 8)" now
+  reads 10M.
+- Portrait and 1080x1350 were never in this ADR; they change only in the
+  runbook.
