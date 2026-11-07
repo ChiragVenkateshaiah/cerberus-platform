@@ -90,6 +90,13 @@ demo-forward: ## port-forward the agent UI (:9090) and the current Spark driver 
 cerberus: ## run one read-only console command locally as cerberus-console-cli (CMD="status"; CMD="--json run latest")
 	cd console && uv run --no-project --python 3.12 --with boto3==1.43.67 python -m cerberus_console $(CMD)
 
+.PHONY: console-site console-site-preview
+console-site: ## build the public landing page into console/site-dist (zero JavaScript, no AWS; ADR 0024)
+	cd console && rm -rf site-dist && uv run --no-project --python 3.12 python -m cerberus_landing build --out site-dist
+
+console-site-preview: ## serve console/site-dist at http://127.0.0.1:8088/ with the edge CSP (run console-site first)
+	cd console && uv run --no-project --python 3.12 python -m cerberus_landing.serve --dir site-dist
+
 .PHONY: fmt
 fmt: ## terraform fmt across the whole terraform/ tree
 	$(TF_BIN) fmt -recursive terraform/
