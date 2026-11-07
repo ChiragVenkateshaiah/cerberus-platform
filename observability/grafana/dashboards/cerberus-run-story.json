@@ -1,6 +1,6 @@
 {
   "uid": "cerberus-run-story",
-  "title": "Cerberus: 100M payments, live",
+  "title": "Cerberus: payments pipeline, live",
   "tags": [
     "cerberus",
     "story"
@@ -16,9 +16,17 @@
     "to": "now"
   },
   "timepicker": {
-    "hidden": false
+    "hidden": false,
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "15s",
+      "30s",
+      "1m",
+      "5m"
+    ]
   },
-  "description": "Plain-English view of the recorded run. Engineers: see 'Cerberus: live run'. For a past run open it with absolute from/to in the URL (RUNNING_SUM needs the run start inside the range). Colours: green = done, blue = running, grey = waiting, red = failed.",
+  "description": "Plain-English view of the recorded run. Engineers: see 'Cerberus: live run'. For a past run open it with absolute from/to in the URL (RUNNING_SUM needs the run start inside the range, so set 'from' to the run start). Colours: green = done, blue = running, grey = waiting, red = failed.",
   "links": [
     {
       "title": "For engineers →",
@@ -67,24 +75,6 @@
         "name": "Annotations & Alerts",
         "iconColor": "rgba(0, 211, 255, 1)",
         "type": "dashboard"
-      },
-      {
-        "datasource": {
-          "type": "grafana",
-          "uid": "-- Grafana --"
-        },
-        "enable": true,
-        "hide": false,
-        "name": "Run steps",
-        "iconColor": "purple",
-        "target": {
-          "type": "tags",
-          "tags": [
-            "cerberus"
-          ],
-          "limit": 100,
-          "matchAny": false
-        }
       }
     ]
   },
@@ -171,7 +161,7 @@
               },
               {
                 "color": "green",
-                "value": 100
+                "value": 99
               }
             ]
           }
@@ -195,8 +185,8 @@
           "values": false
         },
         "text": {
-          "titleSize": 20,
-          "valueSize": 28
+          "titleSize": 22,
+          "valueSize": 34
         }
       }
     },
@@ -207,131 +197,85 @@
       "gridPos": {
         "x": 0,
         "y": 5,
-        "w": 16,
-        "h": 3
+        "w": 12,
+        "h": 5
       },
       "datasource": {
-        "type": "grafana-amazonprometheus-datasource",
-        "uid": "amp"
+        "type": "grafana",
+        "uid": "-- Grafana --"
       },
       "targets": [
         {
+          "refId": "A",
           "datasource": {
-            "type": "grafana-amazonprometheus-datasource",
-            "uid": "amp"
+            "type": "grafana",
+            "uid": "-- Grafana --"
           },
-          "refId": "N0",
-          "expr": "max(cerberus_spark_activity{activity=\"creating_payments\"} == 1)",
-          "legendFormat": "Creating payments",
-          "range": false,
-          "instant": true
-        },
-        {
-          "datasource": {
-            "type": "grafana-amazonprometheus-datasource",
-            "uid": "amp"
-          },
-          "refId": "N1",
-          "expr": "max(cerberus_spark_activity{activity=\"saving_files\"} == 1)",
-          "legendFormat": "Saving files into bronze — no counter for this part",
-          "range": false,
-          "instant": true
-        },
-        {
-          "datasource": {
-            "type": "grafana-amazonprometheus-datasource",
-            "uid": "amp"
-          },
-          "refId": "N2",
-          "expr": "max(cerberus_spark_activity{activity=\"reading_new_payments\"} == 1)",
-          "legendFormat": "Reading new payments",
-          "range": false,
-          "instant": true
-        },
-        {
-          "datasource": {
-            "type": "grafana-amazonprometheus-datasource",
-            "uid": "amp"
-          },
-          "refId": "N3",
-          "expr": "max(cerberus_spark_activity{activity=\"adding_to_clean_table\"} == 1)",
-          "legendFormat": "Adding to the clean table",
-          "range": false,
-          "instant": true
-        },
-        {
-          "datasource": {
-            "type": "grafana-amazonprometheus-datasource",
-            "uid": "amp"
-          },
-          "refId": "N4",
-          "expr": "max(cerberus_spark_activity{activity=\"tidying_files\"} == 1)",
-          "legendFormat": "Tidying files",
-          "range": false,
-          "instant": true
-        },
-        {
-          "datasource": {
-            "type": "grafana-amazonprometheus-datasource",
-            "uid": "amp"
-          },
-          "refId": "N5",
-          "expr": "max(cerberus_spark_activity{activity=\"finishing\"} == 1)",
-          "legendFormat": "Finishing up",
-          "range": false,
-          "instant": true
-        },
-        {
-          "datasource": {
-            "type": "grafana-amazonprometheus-datasource",
-            "uid": "amp"
-          },
-          "refId": "N6",
-          "expr": "max(cerberus_spark_activity{activity=\"waiting\"} == 1)",
-          "legendFormat": "Waiting",
-          "range": false,
-          "instant": true
-        },
-        {
-          "datasource": {
-            "type": "grafana-amazonprometheus-datasource",
-            "uid": "amp"
-          },
-          "refId": "N7",
-          "expr": "vector(1) unless on() count(cerberus_spark_activity)",
-          "legendFormat": "No Spark job running now",
-          "range": false,
-          "instant": true
+          "queryType": "annotations",
+          "name": "now",
+          "enable": true,
+          "iconColor": "blue",
+          "target": {
+            "type": "tags",
+            "tags": [
+              "cerberus-now"
+            ],
+            "limit": 1,
+            "matchAny": false
+          }
         }
       ],
-      "description": "What Spark is doing right now, from the exporter. 'No Spark job running now' also shows when the exporter reports nothing.",
+      "description": "What the run is doing now, in plain words. It follows the run's own step notes (tag cerberus-now) and changes within about 15 s.",
       "fieldConfig": {
         "defaults": {
+          "noValue": "Waiting for the run to start",
           "color": {
             "mode": "fixed",
             "fixedColor": "blue"
           },
-          "noValue": "No data"
+          "mappings": [
+            {
+              "type": "regex",
+              "options": {
+                "pattern": "FAILED",
+                "result": {
+                  "color": "red",
+                  "index": 0
+                }
+              }
+            },
+            {
+              "type": "regex",
+              "options": {
+                "pattern": "^Finished",
+                "result": {
+                  "color": "green",
+                  "index": 1
+                }
+              }
+            }
+          ]
         },
         "overrides": []
       },
       "options": {
         "reduceOptions": {
+          "values": true,
+          "limit": 1,
+          "fields": "/^text$/",
           "calcs": [
             "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
+          ]
         },
         "colorMode": "value",
         "graphMode": "none",
         "justifyMode": "center",
-        "textMode": "name",
+        "textMode": "value",
         "orientation": "auto",
         "wideLayout": true,
         "text": {
-          "titleSize": 26,
-          "valueSize": 26
+          "titleSize": 18,
+          "valueSize": 30
         }
       }
     },
@@ -340,10 +284,10 @@
       "title": "Payments per second",
       "type": "stat",
       "gridPos": {
-        "x": 16,
+        "x": 18,
         "y": 5,
-        "w": 8,
-        "h": 3
+        "w": 6,
+        "h": 5
       },
       "datasource": {
         "type": "grafana-amazonprometheus-datasource",
@@ -356,22 +300,33 @@
             "uid": "amp"
           },
           "refId": "A",
-          "expr": "max(clamp_min(deriv(cerberus_spark_rows[2m]), 0))",
+          "expr": "max(clamp_min(deriv(cerberus_spark_rows[1m]), 0)) or vector(0)",
           "legendFormat": "payments a second, current step",
-          "range": true,
-          "instant": false
+          "range": false,
+          "instant": true
         }
       ],
-      "description": "How fast the active row is growing, over the last 2 minutes.",
+      "description": "How fast the active row is growing, over the last minute. Shows a dash when no step is adding rows.",
       "fieldConfig": {
         "defaults": {
           "unit": "short",
           "decimals": 0,
-          "noValue": "0",
           "color": {
             "mode": "fixed",
             "fixedColor": "blue"
-          }
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "—",
+                  "color": "#8e8e8e",
+                  "index": 0
+                }
+              }
+            }
+          ]
         },
         "overrides": []
       },
@@ -386,12 +341,12 @@
         "colorMode": "value",
         "graphMode": "none",
         "justifyMode": "center",
-        "textMode": "value_and_name",
+        "textMode": "value",
         "orientation": "auto",
         "wideLayout": true,
         "text": {
-          "titleSize": 16,
-          "valueSize": 36
+          "titleSize": 18,
+          "valueSize": 44
         }
       }
     },
@@ -401,9 +356,9 @@
       "type": "state-timeline",
       "gridPos": {
         "x": 0,
-        "y": 8,
+        "y": 10,
         "w": 24,
-        "h": 9
+        "h": 14
       },
       "datasource": {
         "type": "datasource",
@@ -416,7 +371,7 @@
             "uid": "amp"
           },
           "refId": "A",
-          "expr": "clamp_max(vector(time() >= bool scalar(min(kube_node_created @ end()))) + (clamp_max(sum(kube_pod_status_phase{namespace=\"spark-jobs\",pod=\"cerberus-generate-bulk-payments-driver\",phase=~\"Running|Succeeded|Failed\"}), 1) or vector(0)), 2)",
+          "expr": "1 + max_over_time((clamp_max(sum(kube_pod_status_phase{namespace=\"spark-jobs\",pod=\"cerberus-generate-bulk-payments-driver\",phase=~\"Running|Succeeded|Failed\"}), 1) or vector(0))[${__range_s}s:${__interval}])",
           "legendFormat": "Start servers",
           "range": true,
           "instant": false
@@ -427,8 +382,8 @@
             "uid": "amp"
           },
           "refId": "B",
-          "expr": "(sum(kube_pod_status_phase{namespace=\"spark-jobs\",pod=\"cerberus-generate-bulk-payments-driver\",phase=\"Running\"}) or vector(0)) + 2 * (sum(kube_pod_status_phase{namespace=\"spark-jobs\",pod=\"cerberus-generate-bulk-payments-driver\",phase=\"Succeeded\"}) or vector(0)) + 3 * (sum(kube_pod_status_phase{namespace=\"spark-jobs\",pod=\"cerberus-generate-bulk-payments-driver\",phase=\"Failed\"}) or vector(0))",
-          "legendFormat": "Generate",
+          "expr": "max_over_time(((sum(kube_pod_status_phase{namespace=\"spark-jobs\",pod=\"cerberus-generate-bulk-payments-driver\",phase=\"Running\"}) or vector(0)) + 2 * (sum(kube_pod_status_phase{namespace=\"spark-jobs\",pod=\"cerberus-generate-bulk-payments-driver\",phase=\"Succeeded\"}) or vector(0)) + 3 * (sum(kube_pod_status_phase{namespace=\"spark-jobs\",pod=\"cerberus-generate-bulk-payments-driver\",phase=\"Failed\"}) or vector(0)))[${__range_s}s:${__interval}])",
+          "legendFormat": "Create test payments",
           "range": true,
           "instant": false
         },
@@ -438,8 +393,8 @@
             "uid": "amp"
           },
           "refId": "C",
-          "expr": "(clamp_max((sum(kube_pod_status_phase{namespace=\"spark-jobs\",pod=\"cerberus-generate-bulk-payments-driver\",phase=\"Running\"}) > 0) and on() (max(metrics_cerberus_driver_DAGScheduler_job_activeJobs_Number{spark_app=\"cerberus-generate-bulk-payments\"}) == 0) and on() (max(metrics_cerberus_driver_DAGScheduler_job_allJobs_Number{spark_app=\"cerberus-generate-bulk-payments\"}) > 0), 1) or vector(0)) + 2 * (clamp_max(sum(kube_pod_status_phase{namespace=\"spark-jobs\",pod=\"cerberus-generate-bulk-payments-driver\",phase=\"Succeeded\"}), 1) or vector(0))",
-          "legendFormat": "   Saving files (inside Generate)",
+          "expr": "max_over_time((2 * (clamp_max(sum(kube_pod_status_phase{namespace=\"spark-jobs\",pod=\"cerberus-generate-bulk-payments-driver\",phase=\"Succeeded\"}) > 0, 1) or on() max(cerberus_spark_activity{spark_app=\"cerberus-generate-bulk-payments\",activity=\"finishing\"})) or on() max(cerberus_spark_activity{spark_app=\"cerberus-generate-bulk-payments\",activity=\"saving_files\"}))[${__range_s}s:${__interval}])",
+          "legendFormat": "↳ Saving files",
           "range": true,
           "instant": false
         },
@@ -455,7 +410,7 @@
           "metricEditorMode": 1,
           "region": "default",
           "expression": "IF(RUNNING_SUM(FILL(lam_d,0))>=1,2,IF(RUNNING_SUM(FILL(lam_s,0))>=1 AND RUNNING_SUM(FILL(ex_f,0))>=1,3,IF(RUNNING_SUM(FILL(lam_s,0))>=1,1,0)))",
-          "label": "Ingest",
+          "label": "Check for new payments",
           "period": "60",
           "statistic": "Average"
         },
@@ -471,7 +426,7 @@
           "metricEditorMode": 1,
           "region": "default",
           "expression": "IF(RUNNING_SUM(FILL(ecs_d,0))>=1,2,IF(RUNNING_SUM(FILL(ecs_s,0))>=1 AND RUNNING_SUM(FILL(ex_f,0))>=1,3,IF(RUNNING_SUM(FILL(ecs_s,0))>=1,1,0)))",
-          "label": "Transform",
+          "label": "Clean payments (Spark)",
           "period": "60",
           "statistic": "Average"
         },
@@ -487,7 +442,7 @@
           "metricEditorMode": 1,
           "region": "default",
           "expression": "IF(RUNNING_SUM(FILL(ecs_d,0))>=2,2,IF(RUNNING_SUM(FILL(ecs_d,0))>=1 AND RUNNING_SUM(FILL(ex_f,0))>=1,3,IF(RUNNING_SUM(FILL(ecs_d,0))>=1,1,0)))",
-          "label": "Model (dbt)",
+          "label": "Build business tables (dbt)",
           "period": "60",
           "statistic": "Average"
         },
@@ -503,7 +458,7 @@
           "metricEditorMode": 1,
           "region": "default",
           "expression": "IF(RUNNING_SUM(FILL(ath_d,0))>=1,2,IF(RUNNING_SUM(FILL(ath_s,0))>=1 AND RUNNING_SUM(FILL(ex_f,0))>=1,3,IF(RUNNING_SUM(FILL(ath_s,0))>=1,1,0)))",
-          "label": "Serve",
+          "label": "Answer a business question",
           "period": "60",
           "statistic": "Average"
         },
@@ -520,22 +475,6 @@
           "region": "default",
           "expression": "IF(FILL(dq_n,0)>0,1,IF(RUNNING_SUM(FILL(dq_n,0))>0,2,0))",
           "label": "Quality checks",
-          "period": "60",
-          "statistic": "Average"
-        },
-        {
-          "datasource": {
-            "type": "cloudwatch",
-            "uid": "cloudwatch"
-          },
-          "refId": "X6",
-          "id": "x_teardown",
-          "queryMode": "Metrics",
-          "metricQueryType": 0,
-          "metricEditorMode": 1,
-          "region": "default",
-          "expression": "FILL(lam_s,0)*0",
-          "label": "Teardown",
           "period": "60",
           "statistic": "Average"
         },
@@ -709,12 +648,12 @@
         }
       ],
       "interval": "15s",
-      "description": "One row per step. Grey = waiting, blue = running, green = done, red = failed. Servers, Generate and Saving files come from Kubernetes (15 s). Ingest, Transform, Model, Serve and Quality come from AWS metrics and can lag 1-3 min; the markers come from the run's own notes. Teardown is shown by the Clean-up box and its marker. Needs the dashboard range to start at the run start.",
+      "description": "One row per step. Grey = waiting, blue = running, green = done, red = failed. Start servers counts from the dashboard start time. Start servers, Create test payments and Saving files come from Kubernetes (15 s). The other rows come from AWS metrics and can lag 1-3 min. Needs the dashboard range to start at the run start.",
       "transformations": [
         {
           "id": "filterByRefId",
           "options": {
-            "include": "A|B|C|X1|X2|X3|X4|X5|X6"
+            "include": "A|B|C|X1|X2|X3|X4|X5"
           }
         }
       ],
@@ -757,29 +696,6 @@
           }
         },
         "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Teardown"
-            },
-            "properties": [
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "type": "value",
-                    "options": {
-                      "0": {
-                        "text": "See Clean-up result",
-                        "color": "#8e8e8e",
-                        "index": 0
-                      }
-                    }
-                  }
-                ]
-              }
-            ]
-          },
           {
             "matcher": {
               "id": "byName",
@@ -836,74 +752,208 @@
     {
       "id": 5,
       "title": "Data quality result",
-      "type": "annolist",
+      "type": "stat",
       "gridPos": {
         "x": 0,
-        "y": 17,
-        "w": 24,
-        "h": 3
+        "y": 24,
+        "w": 12,
+        "h": 4
       },
       "datasource": {
-        "type": "datasource",
-        "uid": "grafana"
+        "type": "grafana",
+        "uid": "-- Grafana --"
       },
-      "targets": [],
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana",
+            "uid": "-- Grafana --"
+          },
+          "queryType": "annotations",
+          "name": "dq",
+          "enable": true,
+          "iconColor": "blue",
+          "target": {
+            "type": "tags",
+            "tags": [
+              "cerberus-dq"
+            ],
+            "limit": 1,
+            "matchAny": false
+          }
+        }
+      ],
       "description": "The verdict of the data-quality checks. The run script posts 'not finished yet' at the start and the real verdict when the checks end.",
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Not started yet",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#8e8e8e"
+          },
+          "mappings": [
+            {
+              "type": "regex",
+              "options": {
+                "pattern": "PASSED|Cluster deleted",
+                "result": {
+                  "color": "green",
+                  "index": 0
+                }
+              }
+            },
+            {
+              "type": "regex",
+              "options": {
+                "pattern": "FAILED|NOT RUN|STILL RUNNING",
+                "result": {
+                  "color": "red",
+                  "index": 1
+                }
+              }
+            },
+            {
+              "type": "regex",
+              "options": {
+                "pattern": "not finished yet|not started yet",
+                "result": {
+                  "color": "#8e8e8e",
+                  "index": 2
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
       "options": {
-        "onlyFromThisDashboard": false,
-        "onlyInTimeRange": true,
-        "tags": [
-          "cerberus-dq"
-        ],
-        "limit": 1,
-        "showUser": false,
-        "showTime": false,
-        "showTags": false,
-        "navigateToPanel": false,
-        "navigateBefore": "5m",
-        "navigateAfter": "5m"
+        "reduceOptions": {
+          "values": true,
+          "limit": 1,
+          "fields": "/^text$/",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "text": {
+          "titleSize": 18
+        }
       }
     },
     {
       "id": 6,
       "title": "Clean-up result",
-      "type": "annolist",
+      "type": "stat",
       "gridPos": {
-        "x": 0,
-        "y": 20,
-        "w": 24,
-        "h": 3
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 4
       },
       "datasource": {
-        "type": "datasource",
-        "uid": "grafana"
+        "type": "grafana",
+        "uid": "-- Grafana --"
       },
-      "targets": [],
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana",
+            "uid": "-- Grafana --"
+          },
+          "queryType": "annotations",
+          "name": "teardown",
+          "enable": true,
+          "iconColor": "blue",
+          "target": {
+            "type": "tags",
+            "tags": [
+              "cerberus-teardown"
+            ],
+            "limit": 1,
+            "matchAny": false
+          }
+        }
+      ],
       "description": "The result of the account-wide check after the servers are deleted. The run script posts 'not started yet' at the start and the real result at the end.",
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Not started yet",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#8e8e8e"
+          },
+          "mappings": [
+            {
+              "type": "regex",
+              "options": {
+                "pattern": "PASSED|Cluster deleted",
+                "result": {
+                  "color": "green",
+                  "index": 0
+                }
+              }
+            },
+            {
+              "type": "regex",
+              "options": {
+                "pattern": "FAILED|NOT RUN|STILL RUNNING",
+                "result": {
+                  "color": "red",
+                  "index": 1
+                }
+              }
+            },
+            {
+              "type": "regex",
+              "options": {
+                "pattern": "not finished yet|not started yet",
+                "result": {
+                  "color": "#8e8e8e",
+                  "index": 2
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
       "options": {
-        "onlyFromThisDashboard": false,
-        "onlyInTimeRange": true,
-        "tags": [
-          "cerberus-teardown"
-        ],
-        "limit": 1,
-        "showUser": false,
-        "showTime": false,
-        "showTags": false,
-        "navigateToPanel": false,
-        "navigateBefore": "5m",
-        "navigateAfter": "5m"
+        "reduceOptions": {
+          "values": true,
+          "limit": 1,
+          "fields": "/^text$/",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "text": {
+          "titleSize": 18
+        }
       }
     },
     {
       "id": 7,
-      "title": "Time running",
+      "title": "Time since start",
       "type": "stat",
       "gridPos": {
         "x": 0,
-        "y": 23,
+        "y": 28,
         "w": 6,
-        "h": 4
+        "h": 7
       },
       "datasource": {
         "type": "grafana-amazonprometheus-datasource",
@@ -916,15 +966,15 @@
             "uid": "amp"
           },
           "refId": "A",
-          "expr": "(max(timestamp(kube_node_info)) - min(kube_node_created)) / 60",
-          "legendFormat": "since the first server",
-          "range": true,
-          "instant": false
+          "expr": "(time() - ${__from:date:seconds}) / 60",
+          "legendFormat": "since the run started",
+          "range": false,
+          "instant": true
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "m",
+          "unit": "suffix: min",
           "decimals": 0,
           "color": {
             "mode": "fixed",
@@ -948,10 +998,11 @@
         "orientation": "auto",
         "wideLayout": true,
         "text": {
-          "titleSize": 16,
-          "valueSize": 30
+          "titleSize": 20,
+          "valueSize": 44
         }
-      }
+      },
+      "description": "Counts from the dashboard start time, which the runbook sets to the run start."
     },
     {
       "id": 8,
@@ -959,9 +1010,9 @@
       "type": "stat",
       "gridPos": {
         "x": 6,
-        "y": 23,
-        "w": 5,
-        "h": 4
+        "y": 28,
+        "w": 6,
+        "h": 7
       },
       "datasource": {
         "type": "grafana-amazonprometheus-datasource",
@@ -974,8 +1025,8 @@
             "uid": "amp"
           },
           "refId": "A",
-          "expr": "count(kube_node_labels{label_eks_amazonaws_com_capacity_type=\"ON_DEMAND\"}) or (count(kube_node_labels{label_eks_amazonaws_com_capacity_type!=\"\"}) * 0)",
-          "legendFormat": "regular",
+          "expr": "count(kube_node_labels{label_eks_amazonaws_com_capacity_type=\"ON_DEMAND\"}) or (count(kube_node_labels{label_eks_amazonaws_com_capacity_type!=\"\"}) * 0) or on() (0 * count(last_over_time(kube_node_info[${__range}])))",
+          "legendFormat": "on-demand",
           "range": false,
           "instant": true
         },
@@ -985,8 +1036,8 @@
             "uid": "amp"
           },
           "refId": "B",
-          "expr": "count(kube_node_labels{label_eks_amazonaws_com_capacity_type=\"SPOT\"}) or (count(kube_node_labels{label_eks_amazonaws_com_capacity_type!=\"\"}) * 0)",
-          "legendFormat": "spare-capacity (Spot)",
+          "expr": "count(kube_node_labels{label_eks_amazonaws_com_capacity_type=\"SPOT\"}) or (count(kube_node_labels{label_eks_amazonaws_com_capacity_type!=\"\"}) * 0) or on() (0 * count(last_over_time(kube_node_info[${__range}])))",
+          "legendFormat": "Spot (spare capacity)",
           "range": false,
           "instant": true
         }
@@ -998,7 +1049,8 @@
           "color": {
             "mode": "fixed",
             "fixedColor": "blue"
-          }
+          },
+          "noValue": "Waiting for servers"
         },
         "overrides": []
       },
@@ -1017,24 +1069,24 @@
         "orientation": "horizontal",
         "wideLayout": true,
         "text": {
-          "titleSize": 16,
-          "valueSize": 30
+          "titleSize": 20,
+          "valueSize": 44
         }
       }
     },
     {
       "id": 9,
-      "title": "Cost (estimate)",
+      "title": "Cost so far (estimate)",
       "type": "stat",
       "gridPos": {
-        "x": 11,
-        "y": 23,
-        "w": 7,
-        "h": 4
+        "x": 12,
+        "y": 28,
+        "w": 6,
+        "h": 7
       },
       "datasource": {
-        "type": "grafana-amazonprometheus-datasource",
-        "uid": "amp"
+        "type": "datasource",
+        "uid": "-- Mixed --"
       },
       "targets": [
         {
@@ -1042,14 +1094,98 @@
             "type": "grafana-amazonprometheus-datasource",
             "uid": "amp"
           },
-          "refId": "A",
-          "expr": "(max(timestamp(kube_node_info)) - min(kube_node_created)) / 3600 * 1.72",
-          "legendFormat": "estimate at $1.72 an hour, Athena not included",
-          "range": true,
-          "instant": false
+          "refId": "S",
+          "expr": "(time() - ${__from:date:seconds}) / 3600 * 1.15",
+          "legendFormat": "servers",
+          "range": false,
+          "instant": true,
+          "hide": true
+        },
+        {
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "refId": "P0",
+          "id": "",
+          "hide": true,
+          "queryMode": "Metrics",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "region": "default",
+          "namespace": "AWS/Athena",
+          "metricName": "ProcessedBytes",
+          "statistic": "Sum",
+          "period": "60",
+          "matchExact": true,
+          "dimensions": {
+            "WorkGroup": "cerberus_platform"
+          },
+          "label": "Athena bytes cerberus_platform"
+        },
+        {
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "refId": "Q0",
+          "id": "",
+          "hide": true,
+          "queryMode": "Metrics",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "region": "default",
+          "namespace": "AWS/Athena",
+          "metricName": "ProcessedBytes",
+          "statistic": "Sum",
+          "period": "60",
+          "matchExact": true,
+          "dimensions": {
+            "WorkGroup": "cerberus_platform_dq"
+          },
+          "label": "Athena bytes cerberus_platform_dq"
+        },
+        {
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "refId": "P",
+          "type": "reduce",
+          "expression": "P0",
+          "reducer": "sum",
+          "hide": true,
+          "settings": {
+            "mode": "replaceNN",
+            "replaceWithValue": 0
+          }
+        },
+        {
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "refId": "Q",
+          "type": "reduce",
+          "expression": "Q0",
+          "reducer": "sum",
+          "hide": true,
+          "settings": {
+            "mode": "replaceNN",
+            "replaceWithValue": 0
+          }
+        },
+        {
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "refId": "COST",
+          "type": "math",
+          "expression": "$S + ($P + $Q) / 200000000000"
         }
       ],
-      "description": "Estimate: time running (hours) x $1.72. The rate is $1.207592 non-Athena (2026-10-13 run record, cost block) divided by 0.704 h (first node 06:09:24 to last scrape 06:51:38). Athena and the real bill come a day later (2026-10-13 rate).",
+      "description": "Estimate: servers = hours since the dashboard start x $1.15 an hour (2026-10-13 run record: $1.207592 non-Athena over 1.048 h of observed cluster time), plus Athena queries = bytes scanned (CloudWatch ProcessedBytes, both workgroups) x $5 per 10^12 bytes. Whether Athena bills per 10^12 or per 2^40 bytes is not verified (docs/scale-metrics.md). The real bill comes a day later.",
       "fieldConfig": {
         "defaults": {
           "unit": "currencyUSD",
@@ -1059,7 +1195,20 @@
             "fixedColor": "blue"
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "COST"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "servers + Athena queries"
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "reduceOptions": {
@@ -1076,8 +1225,8 @@
         "orientation": "auto",
         "wideLayout": true,
         "text": {
-          "titleSize": 16,
-          "valueSize": 30
+          "titleSize": 20,
+          "valueSize": 44
         }
       }
     },
@@ -1087,9 +1236,9 @@
       "type": "stat",
       "gridPos": {
         "x": 18,
-        "y": 23,
+        "y": 28,
         "w": 6,
-        "h": 4
+        "h": 7
       },
       "datasource": {
         "type": "grafana-amazonprometheus-datasource",
@@ -1115,7 +1264,8 @@
           "color": {
             "mode": "fixed",
             "fixedColor": "blue"
-          }
+          },
+          "noValue": "Not started yet"
         },
         "overrides": []
       },
@@ -1134,8 +1284,144 @@
         "orientation": "auto",
         "wideLayout": true,
         "text": {
-          "titleSize": 16,
-          "valueSize": 30
+          "titleSize": 20,
+          "valueSize": 44
+        }
+      },
+      "description": "Data Spark read from storage so far, summed over all Spark applications in the dashboard range."
+    },
+    {
+      "id": 11,
+      "title": "Spark is doing",
+      "type": "stat",
+      "gridPos": {
+        "x": 12,
+        "y": 5,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "grafana-amazonprometheus-datasource",
+        "uid": "amp"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-amazonprometheus-datasource",
+            "uid": "amp"
+          },
+          "refId": "N0",
+          "expr": "max(last_over_time(cerberus_spark_activity{activity=\"creating_payments\"}[45s]) == 1)",
+          "legendFormat": "Creating payments",
+          "range": false,
+          "instant": true
+        },
+        {
+          "datasource": {
+            "type": "grafana-amazonprometheus-datasource",
+            "uid": "amp"
+          },
+          "refId": "N1",
+          "expr": "max(last_over_time(cerberus_spark_activity{activity=\"saving_files\"}[45s]) == 1)",
+          "legendFormat": "Saving files (no counter)",
+          "range": false,
+          "instant": true
+        },
+        {
+          "datasource": {
+            "type": "grafana-amazonprometheus-datasource",
+            "uid": "amp"
+          },
+          "refId": "N2",
+          "expr": "max(last_over_time(cerberus_spark_activity{activity=\"reading_new_payments\"}[45s]) == 1)",
+          "legendFormat": "Reading new payments",
+          "range": false,
+          "instant": true
+        },
+        {
+          "datasource": {
+            "type": "grafana-amazonprometheus-datasource",
+            "uid": "amp"
+          },
+          "refId": "N3",
+          "expr": "max(last_over_time(cerberus_spark_activity{activity=\"adding_to_clean_table\"}[45s]) == 1)",
+          "legendFormat": "Adding to the clean table",
+          "range": false,
+          "instant": true
+        },
+        {
+          "datasource": {
+            "type": "grafana-amazonprometheus-datasource",
+            "uid": "amp"
+          },
+          "refId": "N4",
+          "expr": "max(last_over_time(cerberus_spark_activity{activity=\"tidying_files\"}[45s]) == 1)",
+          "legendFormat": "Tidying files",
+          "range": false,
+          "instant": true
+        },
+        {
+          "datasource": {
+            "type": "grafana-amazonprometheus-datasource",
+            "uid": "amp"
+          },
+          "refId": "N5",
+          "expr": "max(last_over_time(cerberus_spark_activity{activity=\"finishing\"}[45s]) == 1)",
+          "legendFormat": "Finishing up",
+          "range": false,
+          "instant": true
+        },
+        {
+          "datasource": {
+            "type": "grafana-amazonprometheus-datasource",
+            "uid": "amp"
+          },
+          "refId": "N6",
+          "expr": "max(last_over_time(cerberus_spark_activity{activity=\"waiting\"}[45s]) == 1)",
+          "legendFormat": "Waiting",
+          "range": false,
+          "instant": true
+        },
+        {
+          "datasource": {
+            "type": "grafana-amazonprometheus-datasource",
+            "uid": "amp"
+          },
+          "refId": "N7",
+          "expr": "vector(1) unless on() count(last_over_time(cerberus_spark_activity[45s]))",
+          "legendFormat": "Not in use now",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "description": "What Spark itself reports it is doing (from the exporter). 'Not in use now' shows when no Spark job is running.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          },
+          "noValue": "Not in use now"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "name",
+        "orientation": "auto",
+        "wideLayout": true,
+        "text": {
+          "titleSize": 18,
+          "valueSize": 22
         }
       }
     }
