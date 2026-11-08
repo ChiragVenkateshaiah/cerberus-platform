@@ -394,20 +394,28 @@ the PR. The plan is
   and the console top bar is masked in the edit with ffmpeg `drawbox`.
 - The OBS settings and "sets OBS to NVENC" (Laptop load) no longer describe the
   recorder. NVENC stays the encoder for the edit.
-- The Grafana dashboards get a look review in a $0 recorder pre-test, and a
-  separate dashboard-polish PR lands before the rehearsal.
+- The Grafana dashboards get a look review, and separate dashboard-polish
+  PRs land before the take (PRs #133 and #134; they used the 10M rehearsal as
+  replay data).
 
 ### Consequences
 
 - Rehearsal cost about $1.0-1.4 (estimate), replacing about $0.9-1.2.
-- After the take, silver is about 248M, the dbt merge about 21.8 GiB (87% of
-  25 GiB) and the largest data quality check about 14.1 GiB (71% of 20 GiB). A
-  second 100M still does not fit (dbt about 30.6 GiB).
+- After the take, silver is about 249.1M (149.1M after the two rehearsals,
+  plus about 100.0M), the dbt merge about 21.9 GiB (87.5% of 25 GiB) and the
+  largest data quality check about 14.2 GiB (71% of 20 GiB). A second 100M
+  still does not fit (dbt about 30.6 GiB).
 - Given up: live masking (the raw file has the account ID and must stay outside
   the repo); the OBS memory guess and the NVENC capture test in "Laptop load"
   no longer apply. The recorder CPU load and a 63-minute recording are
   unverified until the $0 pre-test and the rehearsal.
 - The 2026-10-25 amendment's "first proven in the 1M rehearsal (step 8)" now
   reads 10M.
+- The 10M rehearsal ran on 2026-11-07 (`rehearsal-20261107T081206Z`), with
+  a clean teardown. A 1M check run on 2026-11-08
+  (`rehearsal-1m-20261108T060517Z`) tested the dashboard fixes; it is not build
+  step 8. The erratum "8.10 journey and freeze" calls it "the 1M rehearsal".
+  Both runs confirm the retired ingestion path: `InvokeIngestion` succeeded,
+  and the silver gain equalled the generated events exactly.
 - Portrait and 1080x1350 were never in this ADR; they change only in the
   runbook.

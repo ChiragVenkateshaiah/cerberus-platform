@@ -11,6 +11,13 @@ GNOME screen recorder, a time-lapse edit, the Databricks post) follows the
 ADR 0022 amendment of 2026-11-07 and the plan
 [2026-11-07-runbook-landscape.md](plans/2026-11-07-runbook-landscape.md).
 
+Status on 2026-11-08: the 10M rehearsal ran on 2026-11-07
+(`rehearsal-20261107T081206Z`). The dashboard fixes from its replay and from
+the 1M check run (section 7, "1M check run") are merged (PRs #133 and #134),
+and the runbook follows them
+([2026-11-08-runbook-main-sync.md](plans/2026-11-08-runbook-main-sync.md)).
+Next: pre-flight, then the 100M take.
+
 Order: this runbook merged, the $0 recorder pre-test and dashboard look
 review (section 4), the dashboard-polish PR merged (a separate PR, not part of
 this one), pre-flight, the 10M rehearsal (section 7), fix what it finds,
@@ -62,23 +69,22 @@ The nearest real reference for the 10M rehearsal is the 9M run
 `exercise-20261012T111304Z` (log `observability/scale/exercises/exercise-20261012T111304Z.log`,
 run record `observability/scale/runs/exercise-20261012T111304Z.json`). It used
 2 generator executors and 1 Spot node, and silver held about 19M events before
-it. It does not use the take's flags (8 executors, 2 nodes); no run below 100M
-did.
+it. It does not use the take's flags (8 executors, 2 nodes).
 
-| Phase | 9M reference | 10M rehearsal (estimate) |
+| Phase | 9M reference | 10M rehearsal (2026-11-07) |
 |---|---|---|
-| Apply | 951 s (log L232) | 793-951 s |
-| Generator, whole step | 243 s (log L277) | about 2-4 min (map about 18 s; 40 write tasks; commit about 90-110 s if it scales with bytes or files, 875 s at 100M) |
-| Step Functions execution | 506 s (log L279) | 550-750 s (9M: 506-536 s at 19-37M silver; the 1M run took 588 s at 138M) |
-| ... states | Ingest 3.9 s, Transform 295.7 s, dbt 143.5 s, Serve 60.3 s (run record `states[]`) | |
-| Collector | | 60-80 s |
-| Metrics flush wait | | 60 s |
-| Destroy | 694 s (log L3605) | 690-920 s |
-| Cluster up in total | 2,549 s (log L3607) | about 38-50 min |
+| Apply | 951 s (log L232) | 905 s (log L263) |
+| Generator, whole step | 243 s (log L277) | 235 s (log L309) |
+| Step Functions execution | 506 s (log L279) | 461 s (log L311) |
+| ... states | Ingest 3.9 s, Transform 295.7 s, dbt 143.5 s, Serve 60.3 s (run record `states[]`) | Ingest 1.3 s, Transform 252.9 s, dbt 137.1 s, Serve 59.3 s (run record `states[]`) |
+| Collector | | 78 s (log L315-L350) |
+| Metrics flush wait | | 60 s (log L351-L352; `FLUSH_SECONDS` default) |
+| Destroy | 694 s (log L3605) | 818 s (log L6290) |
+| Cluster up in total | 2,549 s (log L3607) | 2,605 s (log L6292) |
 
-The 10M column is a projection from the plan's section 7
-([2026-11-07-runbook-landscape.md](plans/2026-11-07-runbook-landscape.md)); the
-rehearsal replaces it with a measurement (check 19).
+The 10M column is measured; check 19 is done. The projection it replaced is in
+the plan's section 7
+([2026-11-07-runbook-landscape.md](plans/2026-11-07-runbook-landscape.md)).
 
 The generator step is 1,335 s, but the map, write and commit parts add up to
 about 1,250 s. The rest (about 85 s, estimate: 1,335 minus 375 minus 875) is
@@ -111,7 +117,7 @@ Run the checks for the rehearsal and again for the take. Nothing here changes AW
    ```
 
    Sourcing only defines functions: the CLI block runs only when the file is
-   executed (annotate.sh L327), and `annotate_init` is not needed for a GET.
+   executed (annotate.sh L367), and `annotate_init` is not needed for a GET.
    Use `bash -c`, because the file reads `BASH_SOURCE`. Expected: `token ok: true`.
    Tested here only for the failure path (no token file): it prints the
    `annotation skipped (no token ...)` line and `token ok: false`. The
@@ -131,17 +137,18 @@ Run the checks for the rehearsal and again for the take. Nothing here changes AW
 
    Expected: `26843545600` (25 GiB) and `21474836480` (20 GiB); the defaults are in
    `terraform/modules/athena/variables.tf` L15 and L21. Silver holds
-   138,119,860 events now (`exercise-20261015T145812Z.json`, `.silver.events`).
-   After the 10M rehearsal it holds about 148M, and after the take about 248M
-   (estimate: plus 100,008,511, the gain of the 2026-10-13 run). At 248M the dbt
-   merge is about 21.8 GiB (about 87% of 25 GiB) and the largest data quality
-   check about 14.1 GiB (about 71% of 20 GiB). Both are linear projections
+   149,119,415 events after the 1M check run
+   (`rehearsal-1m-20261108T060517Z.json`, `.silver.events`). After the take it
+   holds about 249.1M (estimate: plus 100,008,511, the gain of the 2026-10-13
+   run). At that size the dbt merge is about 21.9 GiB (about 87.5% of 25 GiB)
+   and the largest data quality check about 14.2 GiB (about 71% of 20 GiB)
+   (plan 2026-11-07-dashboard-polish, section 10). Both are linear projections
    from ADR 0022 L46-51 (20.8 GiB and 13.5 GiB at 237M, scaled by silver
    over 237M). One take fits; a second 100M does not (section 8, "Retake
    rule"). The dbt merge is the binding limit: silver must stay at or below
-   about 184.8M before the take, which leaves about 46.7M of room, so up to
-   four 10M rehearsals in total fit (estimate). The margin is thin: dbt fails if
-   the real growth is 15% above linear (25 / 21.78 = 1.148), and the data
+   about 184.8M before the take, which leaves about 35.7M of room (184.8M minus
+   149.1M; estimate). The margin is thin: dbt fails if the real growth is 14%
+   above linear (25 / 21.9 = 1.14), and the data
    quality scan once outran its projection (105.9 GB against 76 GB,
    checkpoint L195-196). Before the take, re-project with the rehearsal record's
    `states[RunDbt].athena.bytes_scanned`: it is the sum of 33 queries, so it is
@@ -175,10 +182,10 @@ Run the checks for the rehearsal and again for the take. Nothing here changes AW
    L14, and `ingestion/lambda/handler.py` L58-67 returns `{"status": "retired"}`
    and writes nothing. The state machine has no Choice on the result
    (`orchestration/state_machine.asl.json.tftpl` L5-13), so `InvokeIngestion`
-   should still succeed. That is inferred: no execution has run since
-   2026-10-30, and the last one was on 2026-10-15
-   (`aws stepfunctions list-executions`, read 2026-11-07). The rehearsal is the first run of the retired path. Watch:
-   `InvokeIngestion` SUCCEEDED; `RunTransform` reads only `payments_bulk/`
+   should still succeed. Confirmed on 2026-11-07 and 2026-11-08:
+   `InvokeIngestion` succeeded (1.3 s and 1.1 s), and the silver gain equalled
+   `events=` exactly (9,999,709 and 999,846; the two run records). Watch it
+   again in the take: `InvokeIngestion` SUCCEEDED; `RunTransform` reads only `payments_bulk/`
    (`read_bronze` skips a prefix with no new files,
    `transform/spark/promote_payments_spark.py` L240-245); and the silver gain
    equals the generator's `events=` exactly (the pass rule of check 2). If
@@ -210,6 +217,15 @@ Run the checks for the rehearsal and again for the take. Nothing here changes AW
     tmux send-keys -t cerberus-run 'make exercise-check' Enter
     tmux attach -t cerberus-run     # read the result, then detach with Ctrl-b d
     ```
+12. **Cost tile, Athena part.** "Cost so far (estimate)" reads the Athena
+    bytes with a CloudWatch `SEARCH` expression (`cerberus-run-story.json`,
+    panel 9). `SEARCH` finds only metrics that had data in the last 14 days,
+    and a metric new to the index can take about 15 minutes to appear. After
+    a pause of more than 14 days, the first run shows $0 for Athena until its
+    first query lands; this is expected, and the server part counts from the
+    start. The final screenshot (section 10) is made later and includes it.
+    The last queries ran on 2026-11-08, so a take before about 2026-11-22 is
+    not affected. Source: plan 2026-11-07-dashboard-polish, section 13.
 
 ## 3. Screens and browser
 
@@ -226,15 +242,30 @@ firefox -CreateProfile cerberus-recording   # once
 firefox -P cerberus-recording --no-remote
 ```
 
-Do not set `layout.css.devPixelsPerPx`: the default gives 1.0 here. The Story
-dashboard is about 1,018 px tall (27 rows of 30 px plus 26 gaps of 8 px,
-estimate) and fits a 1,080 px viewport at 1.0, but not at 1.25 (an 864 px
-viewport), where the KPI row is lost. `cerberus-run-live` is about 1,208 px
-tall and fits at neither; its shot panels are in the top 904 px, and its Run
-log is below the fold, which no shot uses. The grid constants (30 px rows, 8 px
-margin) and the kiosk padding are unverified; the rehearsal checks the fit
-(check 15). Sign in to the AWS console and to Grafana beforehand. Press F11 for
-fullscreen. Keep the mouse off the top edge, or Firefox shows its toolbar.
+Set the zoom to 80% in this profile (Ctrl+minus twice from 100%, on
+`localhost:3000`). Do not set `layout.css.devPixelsPerPx`. Run Overview's grid
+ends at row 34 (the journey panel is 13 rows high, `cerberus-run-story.json`).
+In F11 on the 1920x1080 monitor at 80% it fits with no scrollbar (plan
+2026-11-07-dashboard-polish, section 13, F3; the owner's browser check in
+PR #134). Run Health's grid ends at row 35: its Run log fills the bottom rows,
+and the shot panels sit above it. Check 15 confirms both before the take. Sign
+in to the AWS console and to Grafana beforehand. Press F11 for fullscreen. Keep the mouse off the top edge, or Firefox shows its toolbar.
+
+### Dashboards: three layers
+
+The three Grafana dashboards go from the business view to the engineering
+detail. Each answers a different audience's question; the uids did not
+change, so old links still work.
+
+| Dashboard | uid | For | What it answers |
+|---|---|---|---|
+| 1 · Run Overview: progress, quality, cost | `cerberus-run-story` | Everyone: business, finance, data users | How far the run is, whether the data passed its checks, what it cost, and that everything is switched off again |
+| 2 · Run Health: compute and throughput | `cerberus-run-live` | Platform and data engineers | How many servers and Spark executors run, and how fast data moves |
+| 3 · Spark and Cluster Diagnostics | `cerberus-spark-on-eks` | Engineers, when something looks wrong | Spark memory, tasks and stages, pods, and the metrics agent itself |
+
+The video shows dashboards 1 and 2. Dashboard 3 is for troubleshooting and is
+not in the shot table. In kiosk mode the link buttons between the layers are
+hidden (`_dash.hideLinks`).
 
 ### Layout: what is on screen
 
@@ -251,18 +282,22 @@ output; the AWS console Details panel and the account menu (it shows
 `<user> @ XXXX-XXXX-XXXX`; masked in the edit, section 6); Prometheus Status
 and Configuration; Spark UI Environment and SQL; the Grafana sign-in page,
 `.env`, the `make grafana-token` output and Administration, Service accounts.
-Keep the mouse off the CloudWatch panels of Story and `cerberus-run-live`:
-their queries carry ARNs with the account ID as dimensions
-(`cerberus-run-story.json` L560-686, `cerberus-run-live.json` L538-582), and
-whether a hover tooltip shows them is unverified (check 17).
+The CloudWatch queries of Run Overview and Run Health carry ARNs with the
+account ID as dimensions (`cerberus-run-story.json` L518-644,
+`cerberus-run-live.json` L542-586). Those queries are hidden and every shown
+series has a label, so a normal tooltip shows no ARN (plan
+2026-11-07-dashboard-polish, section 2). An error can: a CloudWatch error such
+as AccessDenied puts a warning or error triangle in the panel header, and its
+tooltip can print the IAM role ARN. Never hover a panel with a triangle on
+camera (check 17).
 
 **Tabs** (switch with Ctrl+1 to Ctrl+6, keyboard only):
 
 | Tab | Page | Show | Do not show |
 |---|---|---|---|
 | 1 | Step Functions: `https://us-east-1.console.aws.amazon.com/states/home?region=us-east-1#/statemachines` | After `starting execution`, click into the new execution. Graph view and the step table. | The Details panel (it shows the execution ARN, which has the account ID) and the account menu (masked in the edit) |
-| 2 | Story dashboard `cerberus-run-story` (URL below) | Everything. Show it first in every phase. | |
-| 3 | Engineers' dashboard `cerberus-run-live` (URL below) | Executors, Spot nodes, input bytes/s | |
+| 2 | Run Overview `cerberus-run-story` (URL below) | Everything. Show it first in every phase. | |
+| 3 | Run Health `cerberus-run-live` (URL below) | Executors, Spot nodes, input bytes/s | |
 | 4 | Grafana Explore, datasource `amp`, refresh 15 s | One query at a time (links below) | |
 | 5 | `http://localhost:9090/targets` | The agent's Targets page. The agent has no query page; PromQL goes in tab 4. Plan 2026-10-24 L38 states that agent mode serves Targets; confirm it on the cluster in the rehearsal. | Status, Configuration (the remote-write URL has the workspace ID) |
 | 6 | `http://localhost:4040` | Jobs, Stages, Executors | Environment, SQL (they print the S3 paths with the account ID, `spark-application.yaml` L30) |
@@ -271,24 +306,30 @@ Press F5 on tab 6 after `make demo-forward` prints `attached  spark driver ...`
 for the silver job (forward.sh logs that text on each attach). The forward
 re-attaches by itself when the generator driver ends and the silver driver starts.
 
-**URL builder.** Run it right before `make exercise`. The `from=` is absolute
-because the placeholders are posted at the apply start (exercise.sh L268) and
-the cumulative step rows (`RUNNING_SUM`) need the run start inside the range
-(plan 2026-10-25 L215):
+**URL builder.** Run it right before Enter (step 3 of the take sequence), so
+`from` is the run start. "Start servers", "Time since start" and the cost tile
+count from it. The placeholders are posted at the apply start (exercise.sh
+L268), and the cumulative step rows (`RUNNING_SUM`) need the run start inside
+the range (plan 2026-10-25 L215), so `from` must not be later than the Enter.
 
 ```
-FROM=$(( ($(date +%s) - 120) * 1000 ))
-echo "http://localhost:3000/d/cerberus-run-story?orgId=1&from=$FROM&to=now&refresh=15s&kiosk&_dash.hideTimePicker&_dash.hideVariables&_dash.hideLinks"
+FROM=$(( $(date +%s) * 1000 )); echo "FROM=$FROM"
+echo "http://localhost:3000/d/cerberus-run-story?orgId=1&from=$FROM&to=now&refresh=15s&var-requested=100000000&kiosk&_dash.hideTimePicker&_dash.hideVariables&_dash.hideLinks"
 echo "http://localhost:3000/d/cerberus-run-live?orgId=1&from=$FROM&to=now&refresh=15s&kiosk&_dash.hideTimePicker&_dash.hideVariables&_dash.hideLinks"
 ```
 
-Tested here: it prints both URLs with a 13-digit `from=` two minutes in the
-past. Whether Grafana 13.2.3 honours the three `_dash.hide*` flags is
-unverified (no Grafana was running); the rehearsal checks it.
+Write down the printed `FROM`: the final screenshot needs it (section 10).
+Tested here: it prints both URLs with a 13-digit `from=`. The 1M check run used
+this form (plan 2026-11-07-dashboard-polish, section 10). Whether Grafana
+13.2.3 honours the three `_dash.hide*` flags is unverified; check 15 checks it.
 
-- The rehearsal adds `&var-requested=10000000` to the story URL, so the bar
-  is full at 10.0M (the variable `requested` is hidden and defaults to 100000000).
-- Use the same `from=` on `cerberus-run-live`. Its Run log panel only lists
+- `refresh=15s` works because both dashboards list `15s` in
+  `timepicker.refresh_intervals` (PR #133). Without it, Grafana 13.2.3 started
+  no refresh timer at all (plan 2026-11-07-dashboard-polish, bug 10).
+- `var-requested` sets the target of the "Payments processed" bar (a hidden
+  variable, default 100000000). The take uses 100000000; the 10M rehearsal used
+  10000000 and the 1M check run 1000000.
+- Use the same `from=` on Run Health. Its Run log panel only lists
   annotations in the time range, and the default range is `now-30m`, while
   the take lasts about 63 minutes.
 
@@ -361,9 +402,9 @@ whole monitor: no scenes, no crop, no masks.
   `~/Videos/cerberus-8-10/`. Re-plan only if both fail.
 
 **$0 pre-test, before the rehearsal.** It checks the recorder at full length
-and doubles as a look review of the two dashboards. No cluster is needed.
+and doubles as a look review of Run Overview and Run Health. No cluster is needed.
 
-1. Record 65 minutes of the Story and `cerberus-run-live` dashboards on the
+1. Record 65 minutes of the Run Overview and Run Health dashboards on the
    2026-10-13 window (`from=1791871500000`, `to=1791874500000`, the URLs of
    section 3 with those two values; 06:05Z to 06:55Z). Step through the six
    phases (start and apply, generator, transform, dbt, serve, teardown) and
@@ -380,7 +421,7 @@ and doubles as a look review of the two dashboards. No cluster is needed.
 
 **Dashboard look review.** While the recording plays, and afterwards from
 frames, check this list for
-each of the six phases, on Story and on `cerberus-run-live`. Normalise the
+each of the six phases, on Run Overview and on Run Health. Normalise the
 recording first (section 6, step 2) and grab frames from `timed.mkv`:
 `ffmpeg -ss T -i timed.mkv -frames:v 1 frame.png`. The raw file has one keyframe,
 so every `-ss` on it would decode from the start:
@@ -465,20 +506,20 @@ or restart in between.
 
 In the shot table, "Terminal" means the `cerberus-view` window.
 
-Each row lists the screens in order, story first.
+Each row lists the screens in order, Run Overview first.
 
 | Phase | Terminal cue (exercise.sh) | Real time (100M) | Screens | What to show | Edit speed | On screen |
 |---|---|---|---|---|---|---|
-| Before start | the first seconds after the run starts | 3 s | Story | All grey. Tiles "Quality checks: not finished yet" and "Clean-up: not started yet" (placeholders posted at L268). | 1x | about 3 s |
-| Start servers | `spot executor nodes: 2` then `apply took` (L269, L272) | 793 s | Terminal, then Story | Terraform creating EKS; then the "Start servers" marker. "Servers now" and "Time running" appear once scraped. | 60x | about 13 s |
-| Generate (create) | `generator: 100000000 events` | about 375 s (183 + 192) | Story, Spark UI (Jobs, Executors), run-live | "Creating payments". The bar stays flat for about 3 minutes in the 8-task map stage, then fills in the 328-task write. | 15x | about 25 s |
-| Generate (commit) | no log line | 875 s | Story, run-live | "Saving files into bronze — no counter for this part"; executors 0. Caption: "Saving files to S3: 14.6 min, shown 30x faster. No progress signal exists for this step." | about 30x | about 29 s |
+| Before start | the first seconds after the run starts | 3 s | Run Overview | Journey: "Start servers" is blue (Running); the other seven rows show no bar yet, only their labels, with the legend Running / Done / Ran at the bottom and no text in the bars. "Now" reads "Waiting for the run to start", then "1/8 Starting the servers (about 15 min)". Tiles "Quality checks: not finished yet" and "Clean-up: not started yet" (placeholders posted at L268). | 1x | about 3 s |
+| Start servers | `spot executor nodes: 2` then `apply took` (L269, L272) | 793 s | Terminal, then Run Overview | Terraform creating EKS; then the "Start servers" marker. "Servers now" appears once scraped; "Time since start" counts from the first frame. | 60x | about 13 s |
+| Generate (create) | `generator: 100000000 events` | about 375 s (183 + 192) | Run Overview, Spark UI (Jobs, Executors), Run Health | "Now": "2/8 Creating test payments (Spark)"; "Spark is doing": "Creating payments". The bar stays flat for about 3 minutes in the 8-task map stage, then fills in the 328-task write. | 15x | about 25 s |
+| Generate (commit) | no log line | 875 s | Run Overview, Run Health | "Spark is doing": "Saving files (no counter)"; the journey row "↳ Saving files" is blue; executors 0. Caption: "Saving files to S3: 14.6 min, shown 30x faster. No progress signal exists for this step." | about 30x | about 29 s |
 | Ingest | `starting execution` (L331) | 4.2 s | Console | Graph view (top bar masked in the edit) | 1-5x | about 3 s |
-| Transform | (RunTransform) | 511.6 s | Story, run-live, Spark UI, Explore, Targets, then Story | Story: "Reading new payments", then "Adding to the clean table", then "Tidying files"; the second bar fills. run-live: executors to 16, Spot nodes 2 to 4, input bytes/s. Spark UI Executors. Explore: nodes by capacity type. Targets: `spark-progress` and the driver up. End on Story. | about 10x | about 51 s |
-| Model (dbt) | (RunDbt) | 167.9 s | Console, then Story | The journey row (console top bar masked in the edit) | 15x | about 11 s |
-| Serve | (RunServingQuery) | 58.3 s | Console, then Story | Console top bar masked in the edit | 15x | about 4 s |
-| Quality checks | `collecting metrics` (L362) to `exercise done` (L380) | about 62 s | Console, Story, Terminal | Console all green (top bar masked in the edit). Story tile "Quality checks: PASSED (N checks, 0 errors, 1 warning)" (`annotate_dq_verdict`, annotate.sh L141; N was 26 on 2026-10-13). Terminal `data quality PASSED` line. | 10x | about 6 s |
-| Clean-up | `waiting 60s for the last metrics to reach AMP`, then `destroying dev-compute`, `destroy took`, `after destroy: EKS 0, NAT 0, EIP 0, running instances 0` (L170-196) | 792 s to `destroy took` (60 + 732); 799 s to the `after destroy:` line | Terminal, then Story | Story tile "Cluster deleted: EKS 0, NAT 0, Elastic IP 0, running instances 0 (account-wide check)" (`annotate_teardown_check`, annotate.sh L163). | 60x | about 13 s |
+| Transform | (RunTransform) | 511.6 s | Run Overview, Run Health, Spark UI, Explore, Targets, then Run Overview | Run Overview: "Spark is doing" reads "Reading new payments", then "Adding to the clean table", then "Tidying files"; the second bar fills. Run Health: executors to 16, Spot nodes 2 to 4, input bytes/s. Spark UI Executors. Explore: nodes by capacity type. Targets: `spark-progress` and the driver up. End on Run Overview. | about 10x | about 51 s |
+| Model (dbt) | (RunDbt) | 167.9 s | Console, then Run Overview | The journey row (console top bar masked in the edit) | 15x | about 11 s |
+| Serve | (RunServingQuery) | 58.3 s | Console, then Run Overview | Console top bar masked in the edit | 15x | about 4 s |
+| Quality checks | `collecting metrics` (L362) to `exercise done` (L380) | about 62 s | Console, Run Overview, Terminal | Console all green (top bar masked in the edit). Run Overview tile "Quality checks: PASSED (N checks, 0 errors, 1 warning)" (`annotate_dq_verdict`, annotate.sh L171; N was 26 on 2026-10-13). Terminal `data quality PASSED` line. | 10x | about 6 s |
+| Clean-up | `waiting 60s for the last metrics to reach AMP`, then `destroying dev-compute`, `destroy took`, `after destroy: EKS 0, NAT 0, EIP 0, running instances 0` (L170-196) | 792 s to `destroy took` (60 + 732); 799 s to the `after destroy:` line | Terminal, then Run Overview | Run Overview tile "Cluster deleted: EKS 0, NAT 0, Elastic IP 0, running instances 0 (account-wide check)" (`annotate_teardown_check`, annotate.sh L194). "Time since start" and "Cost so far (estimate)" keep counting through the clean-up and stop at the cluster's last metrics plus 780 s (hidden variable `teardown_s`). | 60x | about 13 s |
 | Title and end card | | | | Title about 5 s, end card about 6 s | | about 11 s |
 
 Real-time sources: log L229, L368-370, L3890-3892 and run record `states[]`.
@@ -489,11 +530,14 @@ The 10M estimates are in section 1. The on-screen total is about 2:49
 **Dwell rule.** One screen holds for about 15 s on screen, which is 150 s of
 real time at 10x. Record each screen long enough for that, then cut.
 
-The cue strings above are the exact text of `exercise.sh`. The Story "Now"
-tile shows the activity name without a prefix. The names come from the
-dashboard JSON: "Creating payments", "Saving files into bronze — no counter
-for this part", "Reading new payments", "Adding to the clean table", "Tidying
-files", "Finishing up", "Waiting", "No Spark job running now".
+The cue strings above are the exact text of `exercise.sh`. Two tiles describe
+the moment in plain words. "Now" shows the run's own step notes (tag
+`cerberus-now`, `annotate_now_text`, annotate.sh L132-150): "1/8 Starting the
+servers (about 15 min)" to "8/8 Deleting the servers (about 13 min)", then
+"Finished: servers deleted, nothing left running". "Spark is doing" shows what
+Spark itself reports: "Creating payments", "Saving files (no counter)",
+"Reading new payments", "Adding to the clean table", "Tidying files",
+"Finishing up", "Waiting" or "Not in use now".
 
 ## 6. Post-production (ffmpeg 8.0.1)
 
@@ -611,7 +655,7 @@ make exercise ARGS="--yes --generate 10000000 --generator-executors 8 --executor
 
 Run it through the section 5 wrapper (the hidden `cerberus-run` session and the
 pre-typed line, with `rehearsal-*.log` in place of `demo-100m-*.log`). Use the
-story URL with `&var-requested=10000000`. Record the whole run, from Enter to
+Run Overview URL with `&var-requested=10000000`. Record the whole run, from Enter to
 the `after destroy:` line, in one file, with the GNOME recorder (section 4).
 The run record is `observability/scale/runs/rehearsal-<stamp>.json`; it is
 committed in the take's PR, not in its own.
@@ -629,16 +673,16 @@ from the run record (`events_processed`).
 | 5 | CloudWatch delay | Note when the Transform row turns blue, against the `RunTransform` marker | Record the delay (estimate 1-3 min, plan 2026-10-25 L126; unverified). |
 | 6 | Pods | `kubectl -n monitoring get pods -l app=spark-progress-exporter`; `kubectl -n spark-jobs get pods -l spark-role=driver` | Exporter Running; no driver Pending. (`app` label: `eks_observability/main.tf` L354.) |
 | 7 | Series count | Explore: `count({__name__=~"cerberus_spark_.*"})` | Below about 200 (plan 2026-10-25). |
-| 8 | Fail-open (rehearsal only, never the take) | `make grafana-down` during RunTransform, wait 60 s, `make grafana-up` | The run carries on. `grep -c "annotation skipped" <log>` returns 1 (the message is `annotation skipped (...)`, annotate.sh `annotate_warn`). Step Functions states missed in the gap are posted after the restart (the history reader keeps a seen-file, annotate.sh L184 and following). Direct step posts made in the gap are lost, which is expected. Does the browser session survive the restart: unverified. |
+| 8 | Fail-open (rehearsal only, never the take) | `make grafana-down` during RunTransform, wait 60 s, `make grafana-up` | The run carries on. `grep -c "annotation skipped" <log>` returns 1 (the message is `annotation skipped (...)`, annotate.sh `annotate_warn`). Step Functions states missed in the gap are posted after the restart (the history reader keeps a seen-file, annotate.sh L219 and following). Direct step posts made in the gap are lost, which is expected. Does the browser session survive the restart: unverified. |
 | 9 | Stage retries | While the silver driver runs: `curl -s localhost:4040/api/v1/applications \| jq -r '.[0].id'`, then `curl -s localhost:4040/api/v1/applications/<id>/stages \| jq '[.[]\|select(.attemptId>0)]\|length'` | Returns 0. Afterwards, grep the driver log for retries (the pattern is unverified). Basis: `observability/spark_progress/CAPTURE.md`, "Known limits". |
-| 10 | Node labels | Explore: nodes by capacity type | Returns `ON_DEMAND` and `SPOT`. "Servers now" shows the texts "regular" and "spare-capacity (Spot)". |
+| 10 | Node labels | Explore: nodes by capacity type | Returns `ON_DEMAND` and `SPOT`. "Servers now" shows "on-demand" and "Spot (spare capacity)". |
 | 11 | Dev-compute plan | Section 2, item 7, before the apply | "0 to change, 0 to destroy". |
 | 12 | Spark UI text | Open Jobs and Stages on `localhost:4040` while the generator and silver drivers run | No bucket name in the job descriptions (for example "Listing leaf files and directories ... s3a://cerberus-platform-bronze-<account>/"). If one shows, show Executors only. Unverified. |
 | 13 | Recorder | `ffprobe` on the raw file | 1920x1080; duration about the wall time of the run; average about 30 fps; no visible stutter. |
 | 14 | Focus | Press Enter after the recording starts | The keypress reaches the terminal. If not, click the terminal first and change step 6 of the take sequence. |
-| 15 | Fit | Open Story at the default scale | All four KPI tiles show with no scroll at 1.0; the shot panels of `cerberus-run-live` are visible. |
+| 15 | Fit | Open Run Overview and Run Health in F11 at 80% zoom | Run Overview: every panel visible with no scrollbar, the journey legend (Running, Done, Ran) at the bottom. Run Health: the shot panels visible. The `_dash.hide*` flags hide the time picker, variables and links. |
 | 16 | Account ID | Grab a frame at each console shot (`ffmpeg -ss T -i timed.mkv -frames:v 1 frame.png`, after section 6 step 2; the raw file has one keyframe) | Find every place the dashed ID or an ARN shows; record the `drawbox` height and any extra box needed. |
-| 17 | Tooltips | Off camera, hover a CloudWatch panel of Story | Note whether the tooltip shows the ARN. |
+| 17 | Error tooltips | Watch every panel of Run Overview and Run Health through the run | No warning or error triangle on any panel. "Cost so far (estimate)" must show none: its earlier triangle was the "items dropped from union(s)" notice, fixed in PR #133 (plan 2026-11-07-dashboard-polish, F5). If one shows, do not hover it on camera; note the panel and the time. |
 | 18 | Terminal legibility | A frame of the masked log at 1080p | The text is readable. |
 | 19 | Timing | Record apply, generator, execution and destroy times | Update section 1; re-run the headroom projection (section 2, item 5) with `states[RunDbt].athena.bytes_scanned`. |
 | 20 | Lambda watch | Section 2, item 9 | `InvokeIngestion` SUCCEEDED and the silver gain equals `events=`. |
@@ -667,6 +711,38 @@ come only from `aws stepfunctions get-execution-history`.
 **Decision point.** If the exporter fails in the rehearsal, switch to the R4
 panel (prepared in step 6d) and check it again before step 9 (plan 2026-10-25
 L361).
+
+### 1M check run (2026-11-08)
+
+A short run with the take's flags tested the dashboard fixes live (PRs #133
+and #134). It is not the dress rehearsal; that was the 10M run of 2026-11-07.
+
+- Run `rehearsal-1m-20261108T060517Z`: `--generate 1000000
+  --generator-executors 8 --executor-nodes 2 --name rehearsal-1m`. Record
+  `observability/scale/runs/rehearsal-1m-20261108T060517Z.json` (committed
+  with the take): 999,846 events, silver 149,119,415, data quality passed
+  (0 errors, 1 warning).
+- Log (`observability/scale/exercises/rehearsal-1m-20261108T060517Z.log`,
+  local only): apply 820 s (L236), generator 142 s (L274), execution 404 s
+  (L276), destroy 693 s (L6500), `after destroy: EKS 0, NAT 0, EIP 0, running
+  instances 0` (L6501), cluster up 2,235 s (L6502).
+- Range: `from=1794117917000` (06:05:17Z, the run start). The "Finished" note
+  (tag `cerberus-now`) is at `1794120176590` (06:42:56.6Z): 2,259.6 s, or
+  37.66 min.
+- Cost tile at "Finished": servers 2,259.6 s / 3,600 x $1.15 = $0.7218, plus
+  Athena 8.0956 x 10^10 bytes x $5 per 10^12 = $0.4048, total $1.1266. The
+  tile shows $1.13. This is the tile's estimate; the bill comes from
+  `--cost-only`.
+- From the cluster's last AMP sample to "Finished": 660 s on this run and
+  786 s on the 10M rehearsal. `teardown_s` (780 s) is set close to the longer
+  one.
+
+Sources: the log and record above; plan 2026-11-08-journey-freeze, sections 2
+and 8; PR #134, "Verification".
+
+With the final-screenshot URL of section 10 (`from=1794117917000`,
+`to=1794120176590`), Run Overview reads 38 min and $1.13. This works only
+while the Athena metrics are younger than 14 days (until about 2026-11-22).
 
 ## 8. Failure and abort
 
@@ -712,11 +788,11 @@ L361).
   (dynamic partition overwrite, `generate_bulk_payments.py` L320 and L337;
   the `[generate] done` line is only grepped at the end, `generate_bulk.sh`
   L94). Let the teardown finish, stop, and re-plan. Even a clean second 100M
-  takes silver from about 248M to about 348M (estimate), and the dbt merge
-  would be about 30.6 GiB, past the 25 GiB cutoff (linear from 21.8 GiB at
-  248M, ADR 0022 L46-51). A second 10M rehearsal is allowed: up to four
-  rehearsals in total fit (section 2, item 5).
-- **Cost guard.** An open story tab polls CloudWatch `GetMetricData` every
+  takes silver from about 249M to about 349M (estimate), and the dbt merge
+  would be about 30.6 GiB, past the 25 GiB cutoff (linear from 21.9 GiB at
+  249M, ADR 0022 L46-51). A second 10M rehearsal is allowed: about 35.7M of
+  room is left (section 2, item 5).
+- **Cost guard.** An open Run Overview tab polls CloudWatch `GetMetricData` every
   15 s, about $0.02 per viewing hour (estimate, plan 2026-10-25 L123, J1). After the take, close the tabs or run `make grafana-down`. Run
   `--cost-only` the next day.
 
@@ -740,13 +816,37 @@ L361).
 
 ## 10. After the take
 
-1. Commit the run record (and the rehearsal record, in the same PR) in a PR like #98 (the records in
+1. Commit the run record (and the two rehearsal records, `rehearsal-20261107T081206Z.json` and `rehearsal-1m-20261108T060517Z.json`, in the same PR) in a PR like #98 (the records in
    `observability/scale/runs/`; the exercise log is git-ignored, so it stays local).
 2. Run `--cost-only` the next day:
    `uv run -q --no-project --with boto3 python observability/scale/collect_run_metrics.py --execution demo-100m-<stamp> --cost-only`
    (the form the script prints, exercise.sh L380).
 3. Do step 10 of plan 2026-10-24 (edit, publish, link in 8.10, follow-ups in
    the checkpoint "Later" list).
+
+**The final screenshot.** After the run, "Time since start" and "Cost so far
+(estimate)" stop at the cluster's last AMP sample plus 780 s (hidden
+variable `teardown_s`; ADR 0022, "Erratum (8.10 journey and freeze,
+2026-11-08)"). The real gap was 660 s and 786 s on the two rehearsals, so a
+live view after the run can read about 2 minutes high or low. For exact
+numbers, end the range at the "Finished" note and lift the cap. `from` is the
+take's `FROM` from the URL builder. If it is lost, use the run start from the
+execution name, as below.
+
+```
+EXEC=demo-100m-<stamp>
+s=${EXEC##*-}; FROM=${FROM:-$(date -u -d "${s:0:8} ${s:9:2}:${s:11:2}:${s:13:2}" +%s000)}
+bash -c 'source orchestration/annotate.sh; annotate_http GET "/api/annotations?limit=1&tags=cerberus-now&tags=run:'"$EXEC"'"; jq -r ".[0]|[.time,.text]|@tsv" <<<"$ANNOTATE_BODY"'
+TO=<the time printed above>
+echo "http://localhost:3000/d/cerberus-run-story?orgId=1&from=$FROM&to=$TO&var-requested=100000000&var-teardown_s=99999&kiosk&_dash.hideTimePicker&_dash.hideVariables&_dash.hideLinks"
+```
+
+The printed text must be "Finished: servers deleted, nothing left running".
+With `to` at "Finished", the tiles end exactly there, and `teardown_s=99999`
+stops the cap from ending them earlier. Use no `refresh` on this URL. Tested
+here: the stamp parsing (in bash and zsh, it gives 1794117917000 for the 1M
+run) and the jq part on a sample body. The annotation query needs Grafana and
+the token (not run).
 
 ## 11. The post: Cerberus and Databricks as complements
 
