@@ -119,9 +119,39 @@ annotate() {
   return 0
 }
 
-# Step annotation: tags cerberus, run:<execution>, step.
+# "Now" annotation for the story dashboard's "Now" tile: tags cerberus-now,
+# run:<execution>. No `cerberus` tag, so the Run log and the step markers
+# stay as they were. It overwrites ANNOTATE_OK, like every annotate call.
+annotate_now() { # TEXT TIME_MS
+  [[ -n "${1:-}" ]] || return 0
+  annotate "$1" "$2" cerberus-now "run:$ANNOTATE_RUN" ${ANNOTATE_EXTRA[@]+"${ANNOTATE_EXTRA[@]}"}
+  return 0
+}
+
+# The plain-English "Now" text for a step annotation text (empty = no post).
+annotate_now_text() { # NAME
+  case "$1" in
+    "Start servers started") echo "1/8 Starting the servers (about 15 min)" ;;
+    "Generate started") echo "2/8 Creating test payments (Spark)" ;;
+    "InvokeIngestion started") echo "3/8 Checking for new app payments (Lambda)" ;;
+    "RunTransform started") echo "4/8 Cleaning payments into the clean table (Spark)" ;;
+    "RunDbt started") echo "5/8 Building business tables (dbt)" ;;
+    "RunServingQuery started") echo "6/8 Answering a business question (Athena)" ;;
+    "Pipeline run SUCCEEDED") echo "7/8 Checking data quality (Athena)" ;;
+    "Pipeline run FAILED" | "Pipeline run TIMED_OUT" | "Pipeline run ABORTED")
+      echo "Pipeline ${1#Pipeline run }: deleting the servers next"
+      ;;
+    "Delete servers started") echo "8/8 Deleting the servers (about 13 min)" ;;
+    *) echo "" ;;
+  esac
+  return 0
+}
+
+# Step annotation: tags cerberus, run:<execution>, step. Also posts the
+# matching "Now" text, if the step has one.
 annotate_step() { # TEXT TIME_MS [TIME_END_MS]
   annotate "$@" cerberus "run:$ANNOTATE_RUN" step ${ANNOTATE_EXTRA[@]+"${ANNOTATE_EXTRA[@]}"}
+  annotate_now "$(annotate_now_text "$1")" "$2"
   return 0
 }
 
@@ -156,25 +186,30 @@ annotate_dq_verdict() { # COLLECTOR_RC TIME_MS
   esac
   annotate "$text" "$t" cerberus "run:$ANNOTATE_RUN" dq cerberus-dq \
     ${ANNOTATE_EXTRA[@]+"${ANNOTATE_EXTRA[@]}"}
+  annotate_now "Quality checks done: deleting the servers next" "$t"
   return 0
 }
 
 # The account-wide check after the destroy. Counts are the check's own output.
 annotate_teardown_check() { # EKS NAT EIP EC2 TIME_MS
-  local text
+  local text now
   if [[ "$1$2$3$4" == "0000" ]]; then
+    now="Finished: servers deleted, nothing left running"
     text="Cluster deleted: EKS 0, NAT 0, Elastic IP 0, running instances 0 (account-wide check)"
   else
+    now="Clean-up FAILED: check the console"
     text="STILL RUNNING — check the console (EKS $1, NAT $2, Elastic IP $3, running instances $4)"
   fi
   annotate "$text" "$5" cerberus "run:$ANNOTATE_RUN" teardown cerberus-teardown \
     ${ANNOTATE_EXTRA[@]+"${ANNOTATE_EXTRA[@]}"}
+  annotate_now "$now" "$5"
   return 0
 }
 
 annotate_teardown_failed() { # TIME_MS
   annotate "Teardown FAILED — check the console" "$1" cerberus "run:$ANNOTATE_RUN" teardown \
     cerberus-teardown ${ANNOTATE_EXTRA[@]+"${ANNOTATE_EXTRA[@]}"}
+  annotate_now "Clean-up FAILED: check the console" "$1"
   return 0
 }
 
@@ -206,6 +241,11 @@ annotate_sfn_history() { # EXECUTION_ARN RUN_TAG
     fi
     $ANNOTATE_OK || break
     echo "$id" >>"$ANNOTATE_SEEN_FILE"
+    # After the seen-file write: annotate_now overwrites ANNOTATE_OK, and the
+    # test above must keep reading the step post.
+    if [[ "$kind" == point ]]; then
+      annotate_now "$(annotate_now_text "$name started")" "$start"
+    fi
   done < <(jq -r '
     def ms: if type == "number" then (. * 1000 | floor)
       else capture("^(?<a>[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2})(?:\\.(?<f>[0-9]+))?(?<z>Z|[+-][0-9]{2}:[0-9]{2})$")
