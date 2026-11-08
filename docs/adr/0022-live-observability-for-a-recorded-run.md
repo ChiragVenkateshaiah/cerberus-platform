@@ -365,8 +365,7 @@ The user accepted it on 2026-10-25 (step 6a).
 
 ## Amendment (2026-11-07): 10M rehearsal, landscape capture and the GNOME recorder
 
-Status: Proposed (2026-11-07). It becomes Accepted when the user accepts it in
-the PR. The plan is
+Status: Accepted (2026-11-08). The plan is
 [2026-11-07-runbook-landscape.md](../plans/2026-11-07-runbook-landscape.md).
 
 ### Context
