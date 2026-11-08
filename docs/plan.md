@@ -564,7 +564,7 @@ re-check them in the phase's ADR._
 ### Phase 14 — AI operations agents
 _Added 2026-11-08, after Phase 10 (the signals these agents read) and
 numbered 14 so Phases 11–13 keep the numbers cited in ADR 0019, the README
-and the checkpoint. ADR 0025 (Proposed)._
+and the checkpoint. ADR 0025 (Accepted 2026-11-08)._
 
 - **Goal:** Review every run and explain every failure with evidence:
   GenAI agents read the run record, the Spark logs, the metrics and the

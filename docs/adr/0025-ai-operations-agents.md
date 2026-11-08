@@ -4,7 +4,7 @@ Date: 2026-11-08
 
 ## Status
 
-Proposed. This ADR takes 0025. The 9.7 Well-Architected ADR, planned as 0025
+Accepted (2026-11-08). This ADR takes 0025. The 9.7 Well-Architected ADR, planned as 0025
 in [ADR 0024](0024-demo-console.md) build step 13, takes the next free number
 when it is written (the precedent is [ADR 0022](0022-live-observability-for-a-recorded-run.md),
 which took 0022 and moved the planned 8.11 Well-Architected ADR to 0023).
