@@ -143,7 +143,7 @@ No new ADR. One erratum paragraph under ADR 0022's 2026-10-25 amendment "Cost ti
 
 ## 9. Tests
 
-9.1 Static ($0): `jq empty` on both; `jq '[.panels[]|.gridPos.y+.gridPos.h]|max'` ≤ R; no overlap (pairwise jq); unique ids; `.timepicker.refresh_intervals | index("15s")` not null; `git diff origin/main | grep -E '^\+.*[0-9]{12}'` empty; `bash -n orchestration/annotate.sh`.
+9.1 Static ($0): `jq empty` on both; `jq '[.panels[]|.gridPos.y+.gridPos.h]|max'` ≤ R; no overlap (pairwise jq); unique ids; `.timepicker.refresh_intervals | index("15s")` not null; `git diff origin/main | grep -E '^\+.*[0-9]{12}'` (expected hit: the 200000000000 divisor in the cost tile); `bash -n orchestration/annotate.sh`.
 
 9.2 Provisioning reload ($0): the file provider polls (U, about 10 s) or restart the container. Read-only API check without printing the secret: `curl -s --config <(printf 'user = "admin:%s"\n' "$(grep -m1 '^GF_SECURITY_ADMIN_PASSWORD=' observability/grafana/.env | cut -d= -f2-)") http://127.0.0.1:3000/api/dashboards/uid/cerberus-run-story | jq '.dashboard.timepicker, .dashboard.version'`.
 
@@ -187,6 +187,7 @@ At the last `to`, journey rows stay Done. At `to=1794040620000` (dbt), "Payments
   12. The bar turns green at about 1.0M.
   13. The live dashboard fits; no "No data" text.
   14. No red error corner on any CloudWatch panel; if one shows, do not hover it on camera.
+  15. Before a recorded run, if the last run is older than 14 days, run any Athena query in both `cerberus_platform` and `cerberus_platform_dq` (see the note after F5 in section 13).
 
 ## 11. Risks
 
@@ -200,3 +201,15 @@ At the last `to`, journey rows stay Done. At `to=1794040620000` (dbt), "Payments
 Answered 2026-11-07; see User decisions at the top.
 
 Sources: scenes v8.13.5 `SceneRefreshPicker.tsx`, `services/utils.ts`, `UrlSyncContextProvider.ts`; grafana v13.2.3 `transformSaveModelToScene.ts`, `DashboardControls.tsx`, `DashboardSceneRenderer.tsx`, `plugins/datasource/grafana/datasource.ts`, `pkg/services/annotations/annotationsimpl/xorm_store.go`; Grafana community thread 41600; grafana issues #83691, #97759.
+
+## 13. 2026-11-08 replay test findings
+
+A browser test (Grafana 13.2.3, Firefox at 80% zoom, 1914x954 viewport, replay of the 10M rehearsal) found four problems. All four are fixed in the dashboard JSON.
+
+- F1 (bug): the regex value mappings never matched. Grafana wraps a pattern that does not start with "/" as `new RegExp('^' + pattern + '$')`, so "PASSED|Cluster deleted" meant `^PASSED` or `Cluster deleted$`, and "^Finished" became `^^Finished$`. "Now" stayed blue, and the Data quality and Clean-up tiles stayed grey. Fix: every regex pattern in `cerberus-run-story.json` is now in slash form: `/FAILED|TIMED_OUT|ABORTED/` and `/^Finished/` for "Now"; `/FAILED|NOT RUN|STILL RUNNING/`, `/PASSED|Cluster deleted/` and `/not finished yet|not started yet/` for the two result tiles. The red mapping now comes first. `TIMED_OUT` and `ABORTED` were added to "Now" because `annotate.sh` posts "Pipeline <status>: deleting the servers next" for those statuses too. Each pattern was checked against every text `annotate.sh` can post; no failure text contains "PASSED", "Cluster deleted" or a text starting with "Finished". `cerberus-run-live.json` has no regex mappings.
+- F2 (layout): the long texts in panels 5 and 6 wrapped and the second line was clipped. Both panels now use `valueSize` 22 (title size stays 18). Measured with Noto Sans as a stand-in for Inter, the longest text (85 characters) is about 854 px wide at 22 px, which fits in a w12 panel at 1914 px (about 940 px). At 26 px it would be about 1010 px.
+- F3 (layout): the story dashboard was about 20-30 px too tall for the 954 px viewport. The journey panel went from h14 to h13, and panels 5-10 moved up by one row unit. The grid now ends at row 34 instead of 35.
+- F4 (live dashboard): the "Input read so far" stat panel drew its sparkline under the value, and the long legend name overlapped it. Its `graphMode` is now "none".
+- F5 (2026-11-08, bug): the "Cost so far (estimate)" tile showed a warning icon. Grafana joins the series of a server-side math expression by label, and the two Athena series had different `WorkGroup` labels, so `$P + $Q` dropped both items ("2 items dropped from union(s)"). The value was right, but the notice showed in the recording. Fix: one code-mode CloudWatch query, `SUM(SEARCH('{AWS/Athena,WorkGroup} MetricName="ProcessedBytes" (WorkGroup="cerberus_platform" OR WorkGroup="cerberus_platform_dq")', 'Sum', 60))`, sums both workgroups into one series with no labels, so `$S + $P / 200000000000` matches. The search schema `{AWS/Athena,WorkGroup}` matches the same metrics as the old `matchExact` queries. Checked against the replay data: the cost values are identical to six decimals (0.153333, 0.561474 and 1.256893), and the response has no notices or errors. Before the first Athena query the tile shows the server part (0.153333), not "No data".
+
+CloudWatch SEARCH finds only metrics that had data in the last 14 days, and a metric that is new to the index can take up to about 15 minutes to appear. If a workgroup has had no Athena query for 14 days, the Athena part of the cost tile can read 0 early in a run. Before a recorded run, if the last run is older than 14 days, run any Athena query in both cerberus_platform and cerberus_platform_dq. Replays work only for runs younger than 14 days; the 60-second period already limits them to 15 days.

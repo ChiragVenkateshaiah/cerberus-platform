@@ -29,7 +29,7 @@
   "description": "Plain-English view of the recorded run. Engineers: see 'Cerberus: live run'. For a past run open it with absolute from/to in the URL (RUNNING_SUM needs the run start inside the range, so set 'from' to the run start). Colours: green = done, blue = running, grey = waiting, red = failed.",
   "links": [
     {
-      "title": "For engineers →",
+      "title": "For engineers \u2192",
       "type": "link",
       "url": "/d/cerberus-run-live",
       "icon": "dashboard",
@@ -237,7 +237,7 @@
             {
               "type": "regex",
               "options": {
-                "pattern": "FAILED",
+                "pattern": "/FAILED|TIMED_OUT|ABORTED/",
                 "result": {
                   "color": "red",
                   "index": 0
@@ -247,7 +247,7 @@
             {
               "type": "regex",
               "options": {
-                "pattern": "^Finished",
+                "pattern": "/^Finished/",
                 "result": {
                   "color": "green",
                   "index": 1
@@ -320,7 +320,7 @@
               "type": "value",
               "options": {
                 "0": {
-                  "text": "—",
+                  "text": "\u2014",
                   "color": "#8e8e8e",
                   "index": 0
                 }
@@ -358,7 +358,7 @@
         "x": 0,
         "y": 10,
         "w": 24,
-        "h": 14
+        "h": 13
       },
       "datasource": {
         "type": "datasource",
@@ -394,7 +394,7 @@
           },
           "refId": "C",
           "expr": "max_over_time((2 * (clamp_max(sum(kube_pod_status_phase{namespace=\"spark-jobs\",pod=\"cerberus-generate-bulk-payments-driver\",phase=\"Succeeded\"}) > 0, 1) or on() max(cerberus_spark_activity{spark_app=\"cerberus-generate-bulk-payments\",activity=\"finishing\"})) or on() max(cerberus_spark_activity{spark_app=\"cerberus-generate-bulk-payments\",activity=\"saving_files\"}))[${__range_s}s:${__interval}])",
-          "legendFormat": "↳ Saving files",
+          "legendFormat": "\u21b3 Saving files",
           "range": true,
           "instant": false
         },
@@ -755,7 +755,7 @@
       "type": "stat",
       "gridPos": {
         "x": 0,
-        "y": 24,
+        "y": 23,
         "w": 12,
         "h": 4
       },
@@ -796,9 +796,9 @@
             {
               "type": "regex",
               "options": {
-                "pattern": "PASSED|Cluster deleted",
+                "pattern": "/FAILED|NOT RUN|STILL RUNNING/",
                 "result": {
-                  "color": "green",
+                  "color": "red",
                   "index": 0
                 }
               }
@@ -806,9 +806,9 @@
             {
               "type": "regex",
               "options": {
-                "pattern": "FAILED|NOT RUN|STILL RUNNING",
+                "pattern": "/PASSED|Cluster deleted/",
                 "result": {
-                  "color": "red",
+                  "color": "green",
                   "index": 1
                 }
               }
@@ -816,7 +816,7 @@
             {
               "type": "regex",
               "options": {
-                "pattern": "not finished yet|not started yet",
+                "pattern": "/not finished yet|not started yet/",
                 "result": {
                   "color": "#8e8e8e",
                   "index": 2
@@ -843,7 +843,8 @@
         "orientation": "auto",
         "wideLayout": true,
         "text": {
-          "titleSize": 18
+          "titleSize": 18,
+          "valueSize": 22
         }
       }
     },
@@ -853,7 +854,7 @@
       "type": "stat",
       "gridPos": {
         "x": 12,
-        "y": 24,
+        "y": 23,
         "w": 12,
         "h": 4
       },
@@ -894,9 +895,9 @@
             {
               "type": "regex",
               "options": {
-                "pattern": "PASSED|Cluster deleted",
+                "pattern": "/FAILED|NOT RUN|STILL RUNNING/",
                 "result": {
-                  "color": "green",
+                  "color": "red",
                   "index": 0
                 }
               }
@@ -904,9 +905,9 @@
             {
               "type": "regex",
               "options": {
-                "pattern": "FAILED|NOT RUN|STILL RUNNING",
+                "pattern": "/PASSED|Cluster deleted/",
                 "result": {
-                  "color": "red",
+                  "color": "green",
                   "index": 1
                 }
               }
@@ -914,7 +915,7 @@
             {
               "type": "regex",
               "options": {
-                "pattern": "not finished yet|not started yet",
+                "pattern": "/not finished yet|not started yet/",
                 "result": {
                   "color": "#8e8e8e",
                   "index": 2
@@ -941,7 +942,8 @@
         "orientation": "auto",
         "wideLayout": true,
         "text": {
-          "titleSize": 18
+          "titleSize": 18,
+          "valueSize": 22
         }
       }
     },
@@ -951,7 +953,7 @@
       "type": "stat",
       "gridPos": {
         "x": 0,
-        "y": 28,
+        "y": 27,
         "w": 6,
         "h": 7
       },
@@ -1010,7 +1012,7 @@
       "type": "stat",
       "gridPos": {
         "x": 6,
-        "y": 28,
+        "y": 27,
         "w": 6,
         "h": 7
       },
@@ -1080,7 +1082,7 @@
       "type": "stat",
       "gridPos": {
         "x": 12,
-        "y": 28,
+        "y": 27,
         "w": 6,
         "h": 7
       },
@@ -1111,39 +1113,12 @@
           "hide": true,
           "queryMode": "Metrics",
           "metricQueryType": 0,
-          "metricEditorMode": 0,
+          "metricEditorMode": 1,
           "region": "default",
-          "namespace": "AWS/Athena",
-          "metricName": "ProcessedBytes",
           "statistic": "Sum",
           "period": "60",
-          "matchExact": true,
-          "dimensions": {
-            "WorkGroup": "cerberus_platform"
-          },
-          "label": "Athena bytes cerberus_platform"
-        },
-        {
-          "datasource": {
-            "type": "cloudwatch",
-            "uid": "cloudwatch"
-          },
-          "refId": "Q0",
-          "id": "",
-          "hide": true,
-          "queryMode": "Metrics",
-          "metricQueryType": 0,
-          "metricEditorMode": 0,
-          "region": "default",
-          "namespace": "AWS/Athena",
-          "metricName": "ProcessedBytes",
-          "statistic": "Sum",
-          "period": "60",
-          "matchExact": true,
-          "dimensions": {
-            "WorkGroup": "cerberus_platform_dq"
-          },
-          "label": "Athena bytes cerberus_platform_dq"
+          "label": "Athena bytes",
+          "expression": "SUM(SEARCH('{AWS/Athena,WorkGroup} MetricName=\"ProcessedBytes\" (WorkGroup=\"cerberus_platform\" OR WorkGroup=\"cerberus_platform_dq\")', 'Sum', 60))"
         },
         {
           "datasource": {
@@ -1165,24 +1140,9 @@
             "type": "__expr__",
             "uid": "__expr__"
           },
-          "refId": "Q",
-          "type": "reduce",
-          "expression": "Q0",
-          "reducer": "sum",
-          "hide": true,
-          "settings": {
-            "mode": "replaceNN",
-            "replaceWithValue": 0
-          }
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
           "refId": "COST",
           "type": "math",
-          "expression": "$S + ($P + $Q) / 200000000000"
+          "expression": "$S + $P / 200000000000"
         }
       ],
       "description": "Estimate: servers = hours since the dashboard start x $1.15 an hour (2026-10-13 run record: $1.207592 non-Athena over 1.048 h of observed cluster time), plus Athena queries = bytes scanned (CloudWatch ProcessedBytes, both workgroups) x $5 per 10^12 bytes. Whether Athena bills per 10^12 or per 2^40 bytes is not verified (docs/scale-metrics.md). The real bill comes a day later.",
@@ -1236,7 +1196,7 @@
       "type": "stat",
       "gridPos": {
         "x": 18,
-        "y": 28,
+        "y": 27,
         "w": 6,
         "h": 7
       },
