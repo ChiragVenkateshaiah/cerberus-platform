@@ -1,6 +1,6 @@
 {
   "uid": "cerberus-run-story",
-  "title": "Cerberus: payments pipeline, live",
+  "title": "1 \u00b7 Run Overview: progress, quality, cost",
   "tags": [
     "cerberus",
     "story"
@@ -26,10 +26,10 @@
       "5m"
     ]
   },
-  "description": "Plain-English view of the recorded run. Engineers: see 'Cerberus: live run'. For a past run open it with absolute from/to in the URL (RUNNING_SUM needs the run start inside the range, so set 'from' to the run start). Colours: green = done, blue = running, grey = waiting, red = failed.",
+  "description": "Plain-English view of the recorded run. Engineers: see '2 \u00b7 Run Health: compute and throughput'. For a past run open it with absolute from/to in the URL (RUNNING_SUM needs the run start inside the range, so set 'from' to the run start). Colours: green = done, blue = running, red = failed; a step that has not started shows no bar.",
   "links": [
     {
-      "title": "For engineers \u2192",
+      "title": "2 \u00b7 Run Health \u2192",
       "type": "link",
       "url": "/d/cerberus-run-live",
       "icon": "dashboard",
@@ -57,6 +57,25 @@
             "selected": true,
             "text": "100000000",
             "value": "100000000"
+          }
+        ]
+      },
+      {
+        "type": "textbox",
+        "name": "teardown_s",
+        "label": "teardown_s",
+        "query": "780",
+        "hide": 2,
+        "skipUrlSync": false,
+        "current": {
+          "text": "780",
+          "value": "780"
+        },
+        "options": [
+          {
+            "selected": true,
+            "text": "780",
+            "value": "780"
           }
         ]
       }
@@ -393,7 +412,7 @@
             "uid": "amp"
           },
           "refId": "C",
-          "expr": "max_over_time((2 * (clamp_max(sum(kube_pod_status_phase{namespace=\"spark-jobs\",pod=\"cerberus-generate-bulk-payments-driver\",phase=\"Succeeded\"}) > 0, 1) or on() max(cerberus_spark_activity{spark_app=\"cerberus-generate-bulk-payments\",activity=\"finishing\"})) or on() max(cerberus_spark_activity{spark_app=\"cerberus-generate-bulk-payments\",activity=\"saving_files\"}))[${__range_s}s:${__interval}])",
+          "expr": "max_over_time(((2 * (clamp_max(sum(kube_pod_status_phase{namespace=\"spark-jobs\",pod=\"cerberus-generate-bulk-payments-driver\",phase=\"Succeeded\"}) > 0, 1) or on() max(cerberus_spark_activity{spark_app=\"cerberus-generate-bulk-payments\",activity=\"finishing\"})) or on() max(cerberus_spark_activity{spark_app=\"cerberus-generate-bulk-payments\",activity=\"saving_files\"})) or on() vector(0))[${__range_s}s:${__interval}])",
           "legendFormat": "\u21b3 Saving files",
           "range": true,
           "instant": false
@@ -648,7 +667,7 @@
         }
       ],
       "interval": "15s",
-      "description": "One row per step. Grey = waiting, blue = running, green = done, red = failed. Start servers counts from the dashboard start time. Start servers, Create test payments and Saving files come from Kubernetes (15 s). The other rows come from AWS metrics and can lag 1-3 min. Needs the dashboard range to start at the run start.",
+      "description": "One row per step. A bar starts when its step starts: blue = running, green = done (Quality checks: green = ran; the verdict is in its own tile), red = failed. Start servers counts from the dashboard start time. Start servers, Create test payments and Saving files come from Kubernetes (15 s). The other rows come from AWS metrics and can lag 1-3 min. Needs the dashboard range to start at the run start.",
       "transformations": [
         {
           "id": "filterByRefId",
@@ -664,8 +683,8 @@
               "type": "value",
               "options": {
                 "0": {
-                  "text": "Waiting",
-                  "color": "#8e8e8e",
+                  "text": "",
+                  "color": "#00000000",
                   "index": 0
                 },
                 "1": {
@@ -709,8 +728,8 @@
                     "type": "value",
                     "options": {
                       "0": {
-                        "text": "Waiting",
-                        "color": "#8e8e8e",
+                        "text": "",
+                        "color": "#00000000",
                         "index": 0
                       },
                       "1": {
@@ -738,11 +757,13 @@
       },
       "options": {
         "mergeValues": true,
-        "showValue": "auto",
+        "showValue": "never",
         "alignValue": "left",
         "rowHeight": 0.85,
         "legend": {
-          "showLegend": false
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
         },
         "tooltip": {
           "mode": "single"
@@ -968,7 +989,7 @@
             "uid": "amp"
           },
           "refId": "A",
-          "expr": "(time() - ${__from:date:seconds}) / 60",
+          "expr": "(clamp_max(vector(time()), scalar(max(max_over_time(timestamp(up)[${__range_s}s:15s])) + $teardown_s or vector(time()))) - ${__from:date:seconds}) / 60",
           "legendFormat": "since the run started",
           "range": false,
           "instant": true
@@ -1004,7 +1025,7 @@
           "valueSize": 44
         }
       },
-      "description": "Counts from the dashboard start time, which the runbook sets to the run start."
+      "description": "Counts from the dashboard start time, which the runbook sets to the run start. After the run it stops at the cluster's last metrics plus 13 min for the clean-up (hidden variable teardown_s, 780 s; measured 660 s and 786 s on the 2026-11-08 and 2026-11-07 rehearsals), so a past run can read about 2 min high or low. For the exact value, set the dashboard end time to the 'Finished' note."
     },
     {
       "id": 8,
@@ -1097,7 +1118,7 @@
             "uid": "amp"
           },
           "refId": "S",
-          "expr": "(time() - ${__from:date:seconds}) / 3600 * 1.15",
+          "expr": "(clamp_max(vector(time()), scalar(max(max_over_time(timestamp(up)[${__range_s}s:15s])) + $teardown_s or vector(time()))) - ${__from:date:seconds}) / 3600 * 1.15",
           "legendFormat": "servers",
           "range": false,
           "instant": true,
@@ -1145,7 +1166,7 @@
           "expression": "$S + $P / 200000000000"
         }
       ],
-      "description": "Estimate: servers = hours since the dashboard start x $1.15 an hour (2026-10-13 run record: $1.207592 non-Athena over 1.048 h of observed cluster time), plus Athena queries = bytes scanned (CloudWatch ProcessedBytes, both workgroups) x $5 per 10^12 bytes. Whether Athena bills per 10^12 or per 2^40 bytes is not verified (docs/scale-metrics.md). The real bill comes a day later.",
+      "description": "Estimate: servers = hours from the dashboard start to now (after the run: to the cluster's last metrics plus teardown_s, 780 s) x $1.15 an hour (2026-10-13 run record: $1.207592 non-Athena over 1.048 h of observed cluster time), plus Athena queries = bytes scanned (CloudWatch ProcessedBytes, both workgroups) x $5 per 10^12 bytes. Whether Athena bills per 10^12 or per 2^40 bytes is not verified (docs/scale-metrics.md). The real bill comes a day later.",
       "fieldConfig": {
         "defaults": {
           "unit": "currencyUSD",

@@ -1,6 +1,6 @@
 {
   "uid": "cerberus-run-live",
-  "title": "Cerberus: live run",
+  "title": "2 · Run Health: compute and throughput",
   "description": "Large-panel view of a live exercise run, for a landscape 1920x1080 browser window at 80% zoom. ADR 0022.",
   "tags": [
     "cerberus",
@@ -630,7 +630,7 @@
   ],
   "links": [
     {
-      "title": "For everyone →",
+      "title": "1 · Run Overview →",
       "type": "link",
       "url": "/d/cerberus-run-story",
       "icon": "dashboard",
@@ -638,6 +638,16 @@
       "includeVars": false,
       "targetBlank": false,
       "tooltip": "Plain-English view of the run"
+    },
+    {
+      "title": "3 · Spark and Cluster Diagnostics →",
+      "type": "link",
+      "url": "/d/cerberus-spark-on-eks",
+      "icon": "dashboard",
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "tooltip": "Spark and cluster detail"
     }
   ],
   "timepicker": {

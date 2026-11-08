@@ -330,6 +330,11 @@ The user accepted it on 2026-10-25 (step 6a).
   the run's annotations (tags `cerberus-now`, `cerberus-dq`,
   `cerberus-teardown`), which ADR 0024's annotation rebuild replays. The cost
   tile needs ADR 0024's AMP-only fallback on the console (Phase 9).
+  Erratum (8.10 journey and freeze, 2026-11-08): after the run, "Time since
+  start" and the cost tile stop at the cluster's last AMP sample plus 780 s
+  for the destroy (hidden variable `teardown_s`; measured 660 s on the 1M and
+  786 s on the 10M rehearsal), so they no longer grow after the clean-up. The
+  rate and the Athena term are unchanged.
 - Rejected: J2 (Grafana Live, memory only) and J3 (ADR 0021's publisher
   built early; Phase 10, and it needs an ADR 0021 change).
 - Build steps 6a-6f go between steps 6 and 7. Steps 7-10 keep their numbers.
