@@ -1,7 +1,7 @@
 {
   "uid": "cerberus-run-live",
   "title": "Cerberus: live run",
-  "description": "Large-panel view of a live exercise run, for a 4:5 (about 864x1080) browser window. ADR 0022.",
+  "description": "Large-panel view of a live exercise run, for a landscape 1920x1080 browser window at 80% zoom. ADR 0022.",
   "tags": [
     "cerberus",
     "run-live"
@@ -33,10 +33,10 @@
         "uid": "amp"
       },
       "gridPos": {
-        "h": 6,
-        "w": 12,
         "x": 0,
-        "y": 0
+        "y": 0,
+        "w": 8,
+        "h": 8
       },
       "fieldConfig": {
         "defaults": {
@@ -104,10 +104,10 @@
         "uid": "amp"
       },
       "gridPos": {
-        "h": 6,
-        "w": 12,
-        "x": 12,
-        "y": 0
+        "x": 8,
+        "y": 0,
+        "w": 8,
+        "h": 8
       },
       "fieldConfig": {
         "defaults": {
@@ -130,7 +130,7 @@
           "values": false
         },
         "colorMode": "value",
-        "graphMode": "area",
+        "graphMode": "none",
         "justifyMode": "center",
         "textMode": "value_and_name",
         "orientation": "vertical",
@@ -163,10 +163,10 @@
         "uid": "amp"
       },
       "gridPos": {
-        "h": 6,
-        "w": 24,
         "x": 0,
-        "y": 6
+        "y": 8,
+        "w": 12,
+        "h": 8
       },
       "fieldConfig": {
         "defaults": {
@@ -177,7 +177,8 @@
             "showPoints": "never"
           },
           "decimals": 0,
-          "min": 0
+          "min": 0,
+          "noValue": "Waiting for servers"
         },
         "overrides": [
           {
@@ -273,17 +274,17 @@
     {
       "id": 4,
       "type": "timeseries",
-      "title": "Tasks completed / s",
+      "title": "Spark tasks finished per second",
       "description": "Tasks finished per second, per application, from the Spark executor summary. The inner max removes duplicate series from a reused driver pod IP.",
       "datasource": {
         "type": "grafana-amazonprometheus-datasource",
         "uid": "amp"
       },
       "gridPos": {
-        "h": 6,
-        "w": 12,
         "x": 0,
-        "y": 12
+        "y": 16,
+        "w": 12,
+        "h": 8
       },
       "fieldConfig": {
         "defaults": {
@@ -294,7 +295,8 @@
             "showPoints": "never"
           },
           "decimals": 1,
-          "min": 0
+          "min": 0,
+          "noValue": "Waiting for Spark"
         },
         "overrides": []
       },
@@ -331,10 +333,10 @@
         "uid": "amp"
       },
       "gridPos": {
-        "h": 6,
-        "w": 12,
         "x": 12,
-        "y": 12
+        "y": 16,
+        "w": 12,
+        "h": 8
       },
       "fieldConfig": {
         "defaults": {
@@ -343,7 +345,8 @@
             "lineWidth": 3,
             "fillOpacity": 15,
             "showPoints": "never"
-          }
+          },
+          "noValue": "Waiting for Spark"
         },
         "overrides": []
       },
@@ -380,10 +383,10 @@
         "uid": "amp"
       },
       "gridPos": {
-        "h": 6,
+        "x": 12,
+        "y": 8,
         "w": 12,
-        "x": 0,
-        "y": 18
+        "h": 8
       },
       "fieldConfig": {
         "defaults": {
@@ -394,7 +397,8 @@
             "showPoints": "never"
           },
           "min": 0,
-          "max": 1
+          "max": 1,
+          "noValue": "Waiting for servers"
         },
         "overrides": []
       },
@@ -441,10 +445,10 @@
         "uid": "cloudwatch"
       },
       "gridPos": {
-        "h": 6,
-        "w": 12,
-        "x": 12,
-        "y": 18
+        "x": 16,
+        "y": 0,
+        "w": 8,
+        "h": 8
       },
       "fieldConfig": {
         "defaults": {
@@ -605,7 +609,7 @@
         "x": 0,
         "y": 24,
         "w": 24,
-        "h": 8
+        "h": 11
       },
       "description": "Every step the run script reported, with its time (tag cerberus). Needs the dashboard range to include the run.",
       "options": {
@@ -635,5 +639,16 @@
       "targetBlank": false,
       "tooltip": "Plain-English view of the run"
     }
-  ]
+  ],
+  "timepicker": {
+    "hidden": false,
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "15s",
+      "30s",
+      "1m",
+      "5m"
+    ]
+  }
 }

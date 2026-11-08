@@ -319,6 +319,17 @@ The user accepted it on 2026-10-25 (step 6a).
   Erratum (6d, 2026-10-25): the rate is corrected to $1.72/h. The $1.15/h rate
   divided by the 3,773 s exercise time, which includes apply and destroy;
   $1.207592 over 0.704 h of node time gives $1.72/h.
+  Erratum (8.10 polish, 2026-11-07): the tile counts from the run start (the
+  dashboard start time) at $1.15/h, the 2026-10-13 rate over the observed
+  cluster time ($1.207592 / 1.048 h). The $1.72/h of the earlier erratum
+  divided by node time only (0.704 h), so it read high on a run that counts
+  from the start. The $1.34-1.38/h in the cost rows is per Cost Explorer EKS
+  cluster-hour, which reads 17-29% low, so no one rate fits all three time
+  bases. The tile now adds the Athena queries live from CloudWatch
+  `ProcessedBytes` at $5 per 10^12 bytes. "Now" and the two result tiles read
+  the run's annotations (tags `cerberus-now`, `cerberus-dq`,
+  `cerberus-teardown`), which ADR 0024's annotation rebuild replays. The cost
+  tile needs ADR 0024's AMP-only fallback on the console (Phase 9).
 - Rejected: J2 (Grafana Live, memory only) and J3 (ADR 0021's publisher
   built early; Phase 10, and it needs an ADR 0021 change).
 - Build steps 6a-6f go between steps 6 and 7. Steps 7-10 keep their numbers.
