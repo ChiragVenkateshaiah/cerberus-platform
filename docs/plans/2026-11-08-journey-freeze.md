@@ -45,55 +45,83 @@ Append after L332 "...(Phase 9).", in the same bullet and indentation:
 
 ```python
 import json
+
 P = "observability/grafana/dashboards/cerberus-run-story.json"
-src = open(P).read(); d = json.loads(src)
+src = open(P).read()
+d = json.loads(src)
 assert json.dumps(d, indent=2) + "\n" == src
 pan = {p["id"]: p for p in d["panels"]}
 assert sorted(pan) == list(range(1, 12)) and len(d["panels"]) == 11
 
 old = "Colours: green = done, blue = running, grey = waiting, red = failed."
 assert old in d["description"]
-d["description"] = d["description"].replace(old, "Colours: green = done, blue = running, red = failed; a step that has not started shows no bar.")
+d["description"] = d["description"].replace(
+    old,
+    "Colours: green = done, blue = running, red = failed; a step that has not started shows no bar.",
+)
 
 assert all(v["name"] != "teardown_s" for v in d["templating"]["list"])
-d["templating"]["list"].append({"type": "textbox", "name": "teardown_s", "label": "teardown_s", "query": "780", "hide": 2, "skipUrlSync": False, "current": {"text": "780", "value": "780"}, "options": [{"selected": True, "text": "780", "value": "780"}]})
+d["templating"]["list"].append(
+    {
+        "type": "textbox",
+        "name": "teardown_s",
+        "label": "teardown_s",
+        "query": "780",
+        "hide": 2,
+        "skipUrlSync": False,
+        "current": {"text": "780", "value": "780"},
+        "options": [{"selected": True, "text": "780", "value": "780"}],
+    }
+)
 
 END = "clamp_max(vector(time()), scalar(max(max_over_time(timestamp(up)[${__range_s}s:15s])) + $teardown_s or vector(time())))"
 
 t = pan[7]["targets"][0]
 assert t["expr"] == "(time() - ${__from:date:seconds}) / 60"
 t["expr"] = "(" + END + " - ${__from:date:seconds}) / 60"
-pan[7]["description"] = ("Counts from the dashboard start time, which the runbook sets to the run start. "
-  "After the run it stops at the cluster's last metrics plus 13 min for the clean-up (hidden variable teardown_s, 780 s; "
-  "measured 660 s and 786 s on the 2026-11-08 and 2026-11-07 rehearsals), so a past run can read about 2 min high or low. "
-  "For the exact value, set the dashboard end time to the 'Finished' note.")
+pan[7]["description"] = (
+    "Counts from the dashboard start time, which the runbook sets to the run start. "
+    "After the run it stops at the cluster's last metrics plus 13 min for the clean-up (hidden variable teardown_s, 780 s; "
+    "measured 660 s and 786 s on the 2026-11-08 and 2026-11-07 rehearsals), so a past run can read about 2 min high or low. "
+    "For the exact value, set the dashboard end time to the 'Finished' note."
+)
 
 s = [x for x in pan[9]["targets"] if x["refId"] == "S"][0]
 assert s["expr"] == "(time() - ${__from:date:seconds}) / 3600 * 1.15"
 s["expr"] = "(" + END + " - ${__from:date:seconds}) / 3600 * 1.15"
 old = "servers = hours since the dashboard start x $1.15 an hour"
 assert old in pan[9]["description"]
-pan[9]["description"] = pan[9]["description"].replace(old,
-  "servers = hours from the dashboard start to now (after the run: to the cluster's last metrics plus teardown_s, 780 s) x $1.15 an hour")
+pan[9]["description"] = pan[9]["description"].replace(
+    old,
+    "servers = hours from the dashboard start to now (after the run: to the cluster's last metrics plus teardown_s, 780 s) x $1.15 an hour",
+)
 
 p4 = pan[4]
 c = [x for x in p4["targets"] if x["refId"] == "C"][0]
 pre, suf = "max_over_time((", ")[${__range_s}s:${__interval}])"
 assert c["expr"].startswith(pre) and c["expr"].endswith(suf) and "vector(0)" not in c["expr"]
-c["expr"] = "max_over_time(((" + c["expr"][len(pre):-len(suf)] + ") or on() vector(0))[${__range_s}s:${__interval}])"
+c["expr"] = (
+    "max_over_time((("
+    + c["expr"][len(pre) : -len(suf)]
+    + ") or on() vector(0))[${__range_s}s:${__interval}])"
+)
 HIDE = {"text": "", "color": "#00000000", "index": 0}
 m = p4["fieldConfig"]["defaults"]["mappings"][0]["options"]
-assert m["0"]["text"] == "Waiting"; m["0"] = dict(HIDE)
+assert m["0"]["text"] == "Waiting"
+m["0"] = dict(HIDE)
 ov = [o for o in p4["fieldConfig"]["overrides"] if o["matcher"]["options"] == "Quality checks"][0]
 om = ov["properties"][0]["value"][0]["options"]
-assert om["0"]["text"] == "Waiting"; om["0"] = dict(HIDE)
+assert om["0"]["text"] == "Waiting"
+om["0"] = dict(HIDE)
 assert p4["options"]["showValue"] == "auto"
 p4["options"]["showValue"] = "never"
 p4["options"]["legend"] = {"showLegend": True, "displayMode": "list", "placement": "bottom"}
-p4["description"] = ("One row per step. A bar starts when its step starts: blue = running, green = done "
-  "(Quality checks: green = ran; the verdict is in its own tile), red = failed. Start servers counts from the dashboard start time. "
-  "Start servers, Create test payments and Saving files come from Kubernetes (15 s). The other rows come from AWS metrics "
-  "and can lag 1-3 min. Needs the dashboard range to start at the run start.")
+p4["description"] = (
+    "One row per step. A bar starts when its step starts: blue = running, green = done "
+    "(Quality checks: green = ran; the verdict is in its own tile), red = failed. Start servers counts from the dashboard start time. "
+    "Start servers, Create test payments and Saving files come from Kubernetes (15 s). The other rows come from AWS metrics "
+    "and can lag 1-3 min. Needs the dashboard range to start at the run start."
+)
 
 open(P, "w").write(json.dumps(d, indent=2) + "\n")
 ```
