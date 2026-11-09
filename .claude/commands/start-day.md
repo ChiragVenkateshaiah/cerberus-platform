@@ -29,6 +29,6 @@ where the last `/end-day` left off.
    or linked. If no ADR work is upcoming, mention in one line that the
    reference is there rather than rendering it.
 
-Do not modify checkpoint.md, Phases.md, or docs/plan.md, and do not commit
-or push anything as part of this command — `/start-day` is read-only
+Do not modify checkpoint.md, Phases.md, docs/plan.md, or README.md, and do not
+commit or push anything as part of this command — `/start-day` is read-only
 orientation. Only `/end-day` writes the checkpoint.

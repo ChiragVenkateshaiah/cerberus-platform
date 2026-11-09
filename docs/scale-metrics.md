@@ -14,6 +14,124 @@ This page pins each one to a source that already exists, so a step's
 numbers come from one command after the run, not from memory or
 screenshots.
 
+## Results: 1M, 10M and 100M (8.10)
+
+The clean run at each step of the ladder. The sections further down hold
+each step's detail; this one puts the three side by side. The charts are
+rendered from the run records by
+[`observability/scale/charts.py`](../observability/scale/charts.py); the
+tables below carry the same numbers.
+
+The 100M column is the 8.9 run of 2026-10-13, the clean run at that step
+with a billed cost. The recorded 100M take of 2026-11-08 has its own
+subsection, [8.10: the recorded 100M take](#810-the-recorded-100m-take).
+Its billed cost is not posted yet, so it is not in this table or the
+charts.
+
+| | 1M | 10M | 100M (8.9) |
+|---|---|---|---|
+| Run | `exercise-20261015T145812Z` | `exercise-20261009T074853Z` | `exercise-20261013T055859Z` |
+| New events promoted | 1,005,920 | 9,005,590 | 100,008,511 |
+| Silver before the run | 137.1M | 1.1M | 37.1M |
+| Run time | 581.2 s | 522.8 s | 742.0 s |
+| InvokeIngestion | 3.8 s | 4.3 s | 4.2 s |
+| RunTransform | 234.3 s | 323.3 s | 511.6 s |
+| RunDbt (of which Athena queue) | 286.7 s (230.5 s) | 132.8 s (2.5 s) | 167.9 s (2.7 s) |
+| RunServingQuery (Athena engine) | 56.3 s (5.0 s) | 62.3 s (3.1 s) | 58.3 s (3.2 s) |
+| Silver job executors | up to 16 (dynamic) | 1 × 1 GB | up to 16 (dynamic) |
+| Run cost | $0.29 | $0.10 | $0.37 |
+| **Cost per million events** | **$0.2928** | **$0.0112** | **$0.0037** |
+| Data quality | passed (ledger) | passed (ledger) | passed (ledger); `--full` audit passed 2026-10-15 |
+| Prometheus peak series | 9,053 | 4,510 | 10,370 |
+
+The ladder did not run in order: 10M first (2026-10-09), then 100M
+(2026-10-13), then the clean 1M on top of everything (2026-10-15; the
+earlier "1M" runs were either a 45k-event baseline or failed in RunDbt).
+So each run started on a different silver table, and the 1M run on the
+largest. The 10M column is 8.6's "before" run (one 1 GB executor); its
+"after" run had a failed RunDbt, so it is not the clean one.
+
+![Run time per state for the 1M, 10M and 100M (8.9) runs](img/scale/run-time-per-state.svg)
+
+![Cost per million events for the 1M, 10M and 100M (8.9) runs, log scale](img/scale/cost-per-million-events.svg)
+
+![RunTransform input throughput against the silver job's executors](img/scale/transform-throughput.svg)
+
+| Run (RunTransform) | Executors registered | Spark input | Seconds | Input MB/s |
+|---|---|---|---|---|
+| 10M, 1 × 1 GB (`…20261009T074853Z`) | 1 | 3.92 GB | 323.3 | 12 |
+| 10M, 2 × 2 GB (`…20261009T101830Z`) | 2 | 4.20 GB | 241.6 | 17 |
+| 9M load test (`…20261012T111304Z`) | 8 | 5.56 GB | 295.7 | 19 |
+| 9M Spot interruption (`…20261012T133620Z`) | 12 | 4.96 GB | 314.1 | 16 |
+| 100M, 8.9 (`…20261013T055859Z`) | 16 | 52.62 GB | 511.6 | 103 |
+| 1M on 137M silver (`…20261015T145812Z`) | 16 | 4.13 GB | 234.3 | 18 |
+
+Executors are counted from each driver log's registrations, so the Spot
+test's 12 includes replacements; the dynamic runs' peak at any one time is
+at most that number.
+
+### What the ladder shows
+
+- **The run's cost hardly moves; the cost per event does.** The run cost
+  $0.10–0.37 at every step, because almost all of it is cluster time and
+  the run time stayed between 523 and 742 s. A hundred times the events
+  cost 1.3 times as much, so the cost per million events fell about 80
+  times from 1M to 100M.
+- **Run time is set by fixed work and by silver, not by the new events.**
+  The 1M run took 78% of the 8.9 100M run's time. About 50 s of each
+  RunTransform is the ECS wrapper (ADR 0019), RunServingQuery is a ~55 s
+  polling floor, and the rest grows with what the step reads: the silver
+  job's anti-join reads the silver days a batch touches, so 1M new events
+  on 137M silver read 4.13 GB, about as much as 9M on 1.1M (3.92 GB).
+- **RunTransform throughput follows the input size, not the executors.**
+  From 1 to 16 executors, every run that read 4–6 GB moved 12–19 MB/s; the
+  8.9 100M run, reading 52.6 GB, moved 103 MB/s with the same 16. At a few
+  GB the step is bound by its fixed parts (start-up, the watermark read,
+  compaction), so more executors add little; they pay off once there is
+  enough data to spread. Dynamic allocation asked for 16 even at 1M, which
+  cost Spot node time for little gain.
+- **RunDbt's engine work is flat; its time was not.** Athena engine time
+  was 57.6 s at 10M and 57.9 s at 1M (92.1 s at 100M, the larger gold
+  merge). The 1M run's 286.7 s is 230.5 s of Athena queue time, almost all
+  on two small dbt source tests that gate the gold models (63.7 s and
+  132.6 s waiting, under 1.5 s running). dbt runs two threads and the
+  data-quality workgroup was idle, so this was Athena capacity in
+  us-east-1, not our load. Every other run queued 1.9–5.4 s. Without it,
+  RunDbt would have taken about 145–150 s and the run about 440 s.
+- **SLOs held at every step.** Run latency 523–742 s against 30 min;
+  serving-query engine time 3.1–5.0 s against 30 s; data quality passed
+  everywhere.
+
+### What was not isolated
+
+- **Executors against silver size.** Every step changed both, so the ladder
+  shows that throughput follows the input, not how much of the 8.9 run's
+  speed-up is the 16 executors. Isolating it needs two runs at one input
+  size with a fixed executor count.
+- **The cost rate is a day average.** Each run's cost is the day's
+  non-Athena cost per EKS cluster-hour times its run time. On 10-08, 10-09
+  and 10-12 more than one exercise shared a day, and every day includes
+  apply, generator, waits and destroy (in the 8.9 100M exercise, 1,706 s of
+  the 3,773 s of cluster time were neither the generator nor the run:
+  apply, waits and destroy, not attributed to any step).
+- **EKS cluster-hours read low.** Cost Explorer showed 0.875 h for the 8.9
+  100M day against 1.05 h up, and 0.489 h for the 1M day against 0.69 h up.
+  If the observed hours are right, the true rates are 17–29% lower than
+  those used here; the posted day totals are unaffected.
+- **Athena billing units.** The collector prices bytes at $5 per 10^12;
+  the 8.9 100M day's computed Athena ($0.61) is 7% above the posted $0.574,
+  close to the TB/TiB ratio. Not verified.
+- **Bytes written.** Spark's output bytes are not in the record; only
+  input and shuffle are.
+- **One run per step.** The 1M run's Athena queue shows how much a single
+  run can vary for reasons outside the platform.
+
+### Demo video (8.10)
+
+The demo video records the live 100M take (ADR 0022). The runbook is
+[docs/demo-recording.md](demo-recording.md), and the take's numbers are
+in [8.10: the recorded 100M take](#810-the-recorded-100m-take).
+
 ## The metric set
 
 | Metric | Definition | Source | Read as |
@@ -519,6 +637,58 @@ query's own engine time, which the collector records since 2026-10-15
 (`engine_seconds`, back-filled into every record): 0.7–5.0 s in every
 run from 40k to 138M silver events, so the serving query has not grown
 near its limit.
+
+### 8.10: the recorded 100M take
+
+The live 100M take for the demo video ran on 2026-11-08 as execution
+`demo-100m-20261108T135119Z` (run record:
+`observability/scale/runs/demo-100m-20261108T135119Z.json`). Command, from
+[docs/demo-recording.md](demo-recording.md): `make exercise ARGS="--yes
+--generate 100000000 --generator-executors 8 --executor-nodes 2 --name
+demo-100m"`.
+
+From the run record:
+
+| Measure | Value |
+|---|---|
+| Result | SUCCEEDED, 859.1 s in Step Functions |
+| New events | 100,001,897 (116,409 events/s over the run) |
+| States | InvokeIngestion 1.1 s, RunTransform 618.3 s, RunDbt 178.3 s, RunServingQuery 61.3 s |
+| Silver after | 249,121,312 events, 81,745,183 transactions |
+| Data quality | Passed: 26 checks, 0 errors, 1 warning (`token_digit_runs`, legacy hex tokens) |
+| Bronze to silver | 249,121,312 = 249,121,312 |
+| Suite scan | 153.1 GB in 34.0 s |
+| Generator | 8 partitions, 1,180.8 s write, 84,687 events/s |
+| Prometheus peak | 9,424 active series |
+
+Whole-exercise timings come from the exercise log. That log is not
+committed, so these figures have no committed source other than this page:
+
+| Step | Time |
+|---|---|
+| Start | 13:51:19Z |
+| `terraform apply` | 790 s |
+| Generator | 1,264 s |
+| Execution (harness clock) | 870 s, against 859.1 s in Step Functions |
+| `terraform destroy` | 807 s |
+| Cluster up in total | 3,906 s |
+| End | 14:56:46Z, 65 min after the start |
+
+After the destroy the account held EKS 0, NAT 0, EIP 0 and running
+instances 0.
+
+Dashboard readings (estimates, read from dashboards 1 and 2, replayed from
+the run's recorded metrics on 2026-11-09):
+
+- Dashboard 1 · Run Overview at Finished: cost estimate $2.20 (servers $1.25
+  plus Athena $0.95), 65 min since start, 26 checks passed with 0 errors and
+  1 warning, 50.9 GB read.
+- Dashboard 2 · Run Health: Spot executor nodes scaled from 2 to 4 during
+  RunTransform (16 executors).
+
+The $2.20 is the dashboard's estimate, not a billed figure. The billed
+figure follows once Cost Explorer has fully posted, through
+`collect_run_metrics.py --execution demo-100m-20261108T135119Z --cost-only`.
 
 ## Data-quality suite
 

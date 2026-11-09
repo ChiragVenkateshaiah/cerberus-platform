@@ -20,7 +20,7 @@ the specific "what's next" live in [checkpoint.md](checkpoint.md)._
   own work plus an ADR. This is a real checkbox in each phase below, not an
   aspiration: architecture is built by repetition, so it is tracked like any
   other deliverable. Two parts are required to check a "Well-Architected pass
-  + ADR" subtask off (3.8, 4.5, 5.5, 6.6, 7.4, 8.11, 9.7, 10.7, 11.7, 12.7, 13.7), not just the ADR: also save a
+  + ADR" subtask off (3.8, 4.5, 5.5, 6.6, 7.4, 8.11, 9.7, 10.7, 11.7, 12.7, 13.7, 14.8), not just the ADR: also save a
   new milestone on the `cerberus-platform` AWS Well-Architected Tool workload
   (`phase-N-<slug>-complete`). See [docs/plan.md](docs/plan.md)'s
   Architecture guiding principle and [checkpoint.md](checkpoint.md)'s
@@ -140,31 +140,39 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
       the run as re-priced 2026-10-15 (#102), $0.0178 for the whole
       exercise; #98). Milestone `--full` data-quality audit passed
       2026-10-15 (#103, #104)
-- [ ] 8.10 Results write-up (per-step numbers and charts) + demo video.
+- [x] 8.10 Results write-up (per-step numbers and charts) + demo video.
       ADR 0022 (live observability: local Grafana, native Prometheus/Spark
-      UIs); DQ cutoff 20 GiB; dress rehearsal at 1M; live 100M run
+      UIs); DQ cutoff 20 GiB; dress rehearsal at 10M (ADR 0022 amendment
+      2026-11-07); live 100M run
       recorded; story dashboard, Spark progress exporter and run annotations
       (ADR 0022 amendment); recording runbook (`docs/demo-recording.md`).
       Clean 1M run done 2026-10-15 (#105, $0.2928 per million events);
-      write-up, charts and video script in #107 (2026-10-22); the video is
-      still to record
+      write-up and charts merged in #107 (2026-11-09). The 100M take was
+      recorded 2026-11-08 (`demo-100m-20261108T135119Z`, 100,001,897
+      events, 859 s, data quality passed; #136). The video is published as
+      a LinkedIn post scheduled for 2026-11-11; its link is added here once
+      the post is live
 - [ ] 8.11 Well-Architected pass + ADR
-      ADR 0023 Proposed (2026-10-27); milestone 8 after the 8.10 video
+      ADR 0023 Proposed (2026-10-27); milestone 8 now that the 8.10 video is done
 
-## Phase 9 — Demo console (UI + terminal) ⬜
+## Phase 9 — Demo console (UI + terminal) 🔨
 
-- [ ] 9.1 ADR: the demo console (one start/stop EC2 instance vs. other
+- [x] 9.1 ADR: the demo console (one start/stop EC2 instance vs. other
       hosts; web terminal tool; CloudFront + Cognito vs. an SSO tunnel;
       the read-only command set and why it is not a shell; where Grafana
       and Prometheus data come from while `dev-compute` is down; idle cost
       $0; how this relates to ADR 0021's local Grafana)
+      ADR 0024 Accepted 2026-10-27 (serverless read-only terminal and
+      landing page, live Grafana per session); amendment 2026-11-02 in #129
 - [ ] 9.2 Terraform: the standing edge (S3 + CloudFront + Cognito + API
       Gateway + the command Lambda, read-only roles) and the per-session
       Grafana root (`envs/dev-console`, `make console-session`); remove the
       in-cluster Grafana after 8.10
       IAM prerequisites done 2026-10-27 (#123); VPC-origin spike done
       2026-10-27 (#124): wake 12–15 min, destroy about 11 min; standing
-      edge still to build
+      edge still to build; read-only roles, console subnet and AMP
+      retention 400 days done 2026-10-29 (#125); local Grafana on
+      short-lived credentials (#126), merged after the 8.10 take (#136)
 - [ ] 9.3 The read-only command set: `cerberus status`, `runs`, `run <id>`,
       `cost`, `dq`, `slo`; an allowlist, no shell, no write, fail-closed;
       reads run records, Step Functions and Athena (AMP once
@@ -233,10 +241,32 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 - [ ] 13.6 Sustained-load test: throughput, consumer lag, cost per hour
 - [ ] 13.7 Well-Architected pass + ADR
 
+## Phase 14 — AI operations agents ⬜
+
+_Added 2026-11-08. Starts after Phase 10; numbered 14 so Phases 11–13 keep
+their numbers. ADR 0025._
+
+- [ ] 14.1 ADR: AI operations agents (rules detect, Claude on Bedrock
+      explains, a human approves; local trigger; read-only role; $0 idle)
+- [ ] 14.2 Deterministic review core and the agent tool registry on the 9.3
+      command set: masking, size caps, a local stdio MCP server
+- [ ] 14.3 Evaluation: labelled replay set from past runs (failed runs,
+      Glue timeouts, Spot interruption, Athena queue time, clean runs) and a
+      scored harness
+- [ ] 14.4 Run reviewer (first agent, report only): review file, Grafana
+      annotation and an "AI review" panel on dashboard 1
+- [ ] 14.5 Failure triage: root cause with cited log lines and metric
+      values; a draft issue or PR for human approval
+- [ ] 14.6 Pre-flight rules (Athena headroom, budget, Spot quota, CloudWatch
+      SEARCH index), cost guardian and data-quality analyst
+- [ ] 14.7 Live check: one passing and one deliberately failed exercise,
+      reviewed and triaged correctly; AI cost recorded
+- [ ] 14.8 Well-Architected pass + ADR
+
 ---
 
 When every subtask in a phase is checked: mark that phase ✅ Complete here,
 flip its status cell in [docs/plan.md](docs/plan.md)'s roadmap table,
-record the completion in [checkpoint.md](checkpoint.md), and reconcile
-[README.md](README.md)'s status badges and roadmap references —
+record the completion in [checkpoint.md](checkpoint.md), and update
+[README.md](README.md)'s Roadmap table —
 `/end-day` keeps all four in sync together.

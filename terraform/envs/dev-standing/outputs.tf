@@ -167,3 +167,8 @@ output "console_api_id" {
   description = "9.2: API Gateway HTTP API ID of the command route."
   value       = module.console_edge.api_id
 }
+
+output "console_workgroup_name" {
+  description = "9.3: Athena workgroup of the demo console's fixed query."
+  value       = module.athena.console_workgroup_name
+}

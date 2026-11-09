@@ -8,12 +8,11 @@
 # proven in 7.7/7.8 need nothing new: AMP query on the workspace plus
 # read-only CloudWatch. Sessions can last up to 12 h.
 #
-# cerberus-console-cli is the role every console command runs as. For now it
-# reads Step Functions only. The Athena, Glue and gold-read statements (and
-# the workgroup and result prefix they need) arrive with the command set in
-# 9.3, together with the fixed queries they serve, because the bytes scanned
-# and the table set are not known yet. It has no write action anywhere: no
-# glue:UpdateTable, no s3:PutObject.
+# cerberus-console-cli is the role every console command runs as. It reads
+# Step Functions, runs one fixed Athena query in the console workgroup, and
+# reads gold table metadata only (never data files). Its only write is the
+# console/ results prefix. It has no glue:UpdateTable and no s3:PutObject
+# outside that prefix.
 #
 # Trust is set at creation. CI has no iam:UpdateAssumeRolePolicy, so a later
 # trust change needs a local cerberus-admin apply. Inline policies, as in
@@ -21,6 +20,9 @@
 
 locals {
   state_machine_execution_arn = "arn:aws:states:${var.region}:${var.account_id}:execution:${var.state_machine_name}:*"
+
+  glue_database_arn = "arn:aws:glue:${var.region}:${var.account_id}:database/${var.glue_database_name}"
+  glue_table_arns   = [for t in var.gold_table_names : "arn:aws:glue:${var.region}:${var.account_id}:table/${var.glue_database_name}/${t}"]
 }
 
 # --- cerberus-grafana-read: local Grafana, AMP + CloudWatch read --------
@@ -78,7 +80,7 @@ resource "aws_iam_role_policy" "grafana_read" {
   })
 }
 
-# --- cerberus-console-cli: console commands, Step Functions read only ----
+# --- cerberus-console-cli: console commands --------------------------
 
 resource "aws_iam_role" "console_cli" {
   name = "cerberus-console-cli"
@@ -125,6 +127,54 @@ resource "aws_iam_role_policy" "console_cli" {
         Effect   = "Allow"
         Action   = ["states:DescribeExecution", "states:GetExecutionHistory"]
         Resource = local.state_machine_execution_arn
+      },
+      {
+        Sid    = "RunConsoleQuery"
+        Effect = "Allow"
+        Action = [
+          "athena:StartQueryExecution", "athena:GetQueryExecution", "athena:GetQueryResults",
+          "athena:StopQueryExecution", "athena:GetWorkGroup",
+        ]
+        Resource = "arn:aws:athena:${var.region}:${var.account_id}:workgroup/${var.athena_workgroup_name}"
+      },
+      {
+        # Exactly the gold tables the fixed query names. The catalog ARN is
+        # required alongside the database and tables.
+        Sid    = "ReadGoldCatalog"
+        Effect = "Allow"
+        Action = ["glue:GetDatabase", "glue:GetTable"]
+        Resource = concat(
+          ["arn:aws:glue:${var.region}:${var.account_id}:catalog", local.glue_database_arn],
+          local.glue_table_arns,
+        )
+      },
+      {
+        # Iceberg metadata trees only. Gold data files stay unreadable.
+        Sid      = "ReadGoldMetadata"
+        Effect   = "Allow"
+        Action   = ["s3:GetObject"]
+        Resource = [for t in var.gold_table_names : "${var.gold_bucket_arn}/${var.glue_database_name}/${t}/*/metadata/*"]
+      },
+      {
+        Sid      = "WriteConsoleResults"
+        Effect   = "Allow"
+        Action   = ["s3:GetObject", "s3:PutObject", "s3:AbortMultipartUpload"]
+        Resource = "${var.athena_results_bucket_arn}/${var.athena_results_prefix}*"
+      },
+      {
+        Sid      = "ListConsoleResults"
+        Effect   = "Allow"
+        Action   = ["s3:GetBucketLocation"]
+        Resource = var.athena_results_bucket_arn
+      },
+      {
+        Sid      = "ListConsoleResultsPrefix"
+        Effect   = "Allow"
+        Action   = ["s3:ListBucket"]
+        Resource = var.athena_results_bucket_arn
+        Condition = {
+          StringLike = { "s3:prefix" = ["${var.athena_results_prefix}*"] }
+        }
       }
     ]
   })

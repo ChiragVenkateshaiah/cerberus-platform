@@ -173,6 +173,13 @@ module "console_roles" {
   amp_workspace_arn  = module.prometheus_workspace.workspace_arn
   state_machine_arn  = module.step_functions.state_machine_arn
   state_machine_name = module.step_functions.state_machine_name
+
+  # 9.3: the console workgroup, its result prefix and the gold metadata read.
+  athena_workgroup_name     = module.athena.console_workgroup_name
+  athena_results_bucket_arn = module.athena.results_bucket_arn
+  athena_results_prefix     = module.athena.console_results_prefix
+  gold_bucket_arn           = module.s3_medallion.bucket_arns["gold"]
+  glue_database_name        = module.glue_catalog.database_name
 }
 
 module "console_edge" {

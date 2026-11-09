@@ -211,10 +211,31 @@ docker inspect "$c" --format '{{range .Config.Env}}{{println .}}{{end}}' | cut -
 5. Expired credentials fail quietly: the panels show errors. `up.sh` prints the expiry, and the README says how to renew.
 6. The plan in 4a may show more than 7 + 1. Do not merge, and do not use `-target`.
 7. AMP retention change. The update goes through `UPDATING`, so apply it days before the take, not during an exercise. Raising retention is expected to keep the samples. The 4a retention check confirms it.
-8. Note for step 6 (not this step): demo-console plan step 6 runs every command as `cerberus-console-cli`, but the `cerberus_platform_console` workgroup and its 1-day result prefix are in step 7. Step 6's plan should move them into step 6 or drop `status` from its local check.
+8. Note for step 6 (not this step): demo-console plan step 6 runs every command as `cerberus-console-cli`, but the `cerberus_platform_console` workgroup and its 1-day result prefix are in step 7. Step 6's plan should move them into step 6 or drop `status` from its local check. Resolved in the [command-set plan](2026-11-01-command-set.md): the workgroup, the prefix and the grants moved into step 6 as PR 6a.
 
 ## 9. Open questions for the user
 
 1. **When to merge 4b (the local Grafana switch):** answered 2026-10-28: after the 8.10 take. Both PRs are built and verified now.
 
 Sources: [Grafana: plugin processes no longer receive all host environment variables by default](https://grafana.com/whats-new/2026-02-24-plugin-processes-no-longer-receive-all-host-environment-variables-by-default/), [Grafana 13.2 CloudWatch configure](https://grafana.com/docs/grafana/v13.2/datasources/aws-cloudwatch/configure.md).
+
+## Outcome (PR 4a, #125)
+
+Verified 2026-10-29 with read-only checks as `cerberus-admin`.
+
+- CI plan and apply on `main`: 8 added, 2 changed, 1 destroyed. Beyond the planned 7 added and 1 changed, the extras were the known Faker churn: `aws_lambda_layer_version.faker` was replaced, and `ingest_payments` was updated in place (its `layers` list only). Apply run 40825183789 succeeded.
+- Console subnet: `use1-az1`, `10.0.2.0/24`, no public IP on launch. Its route table has 1 route (local) and 1 association.
+- `cerberus-grafana-read`: `MaxSessionDuration` is 43200. `simulate-principal-policy` allowed `aps:QueryMetrics`, `aps:GetSeries`, `cloudwatch:GetMetricData` and `cloudwatch:ListMetrics`. It denied `aps:RemoteWrite`, `aps:UpdateWorkspaceConfiguration`, `aps:DeleteWorkspace`, `cloudwatch:PutMetricData`, `cloudwatch:PutMetricAlarm`, `cloudwatch:DeleteAlarms`, `cloudwatch:PutDashboard`, `iam:CreateRole` and `s3:PutObject`.
+- `cerberus-console-cli`: allowed `states:DescribeStateMachine`, `states:ListExecutions`, `states:DescribeExecution` and `states:GetExecutionHistory`. Denied `states:StartExecution`, `states:UpdateStateMachine`, `states:DeleteStateMachine`, `states:StopExecution`, `glue:UpdateTable`, `s3:PutObject`, `athena:StartQueryExecution`, `iam:PassRole` and `sts:AssumeRole`.
+- `cerberus-admin` can assume both roles (`cerberus-grafana-read` with 43200 s).
+- AMP retention is `ACTIVE` at 400 days. The samples were kept: a SigV4 `query_range` as `cerberus-grafana-read` for 2026-10-13 06:30–06:50Z returned status success, 21 points and up to 10,370 series. This closes the demo-console §8 item "raising AMP retention keeps existing samples".
+
+### Live check (PR 4b, branch `9.2-grafana-readonly-creds`)
+
+Run 2026-10-29 on the branch. The only AWS call was `sts:AssumeRole`.
+
+- `make grafana-up` printed only the role (`cerberus-grafana-read`), the session name (`grafana-20261029T054931Z`), an expiry 12 h later and the renew hint. Compose recreated the container, and the `grafana-data` volume stayed.
+- `docker inspect` mounts: `/etc/grafana/provisioning`, `/var/lib/grafana`, `/var/lib/grafana/dashboards/cerberus`. There is no `/aws`. Env names: `AMP_URL`, `AWS_ACCESS_KEY_ID`, `AWS_REGION`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, `GF_*`, `HOME`, `PATH`. There is no `AWS_PROFILE`, `AWS_SHARED_CREDENTIALS_FILE` or `AWS_CONFIG_FILE`.
+- AMP datasource health was OK. `/api/ds/query` for 2026-10-13 06:30–06:50Z returned 1 frame and 21 points.
+- CloudWatch datasource: the metrics API works, and an AWS/Lambda Invocations query (last 3 h) returned status 200 and 3 frames. The core CloudWatch datasource reads the env credentials without being on `GF_PLUGINS_FORWARD_HOST_ENV_VARS`. This closes risk 2 (F19), and the fallback is not needed.
+- The logs half of "Save & test" fails with `AccessDeniedException` on `DescribeLogGroups`. This differs from the §7 expectation that "Save & test passes". It is accepted, not fixed: the role has no logs read (the in-cluster `cerberus-grafana` has none either), and every CloudWatch target in the dashboards is `queryMode: Metrics`. The README documents the warning.

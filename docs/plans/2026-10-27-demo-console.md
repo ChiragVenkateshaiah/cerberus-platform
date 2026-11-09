@@ -279,9 +279,11 @@ If the 9.2 spike measures more than 20 minutes up, or a teardown that is not rel
    - Verify: `describe-workspace-configuration`. The 2026-10-13 series still return.
 6. **9.3. The command set package**, with fixtures, pytest and ruff `S` rules. No AWS in CI.
    - Verify: tests pass, including refusals and output sanitising. A local read-only run of every command works as `cerberus-console-cli`, assumed.
-7. **9.2. The standing edge.** S3, CloudFront, Cognito, HTTP API, Lambda from step 6, and the workgroup. First apply local, then CI.
+   - Changed in [the command-set plan](2026-11-01-command-set.md): the `cerberus_platform_console` workgroup, the `console/` result prefix and the `cerberus-console-cli` Athena, Glue and gold-metadata read grants moved here from step 7, as PR 6a (Terraform, CI-applied after the 8.10 take).
+7. **9.2. The standing edge.** S3, CloudFront, Cognito, HTTP API and Lambda from step 6. First apply local, then CI.
    - Verify: an unauthenticated `/api` call returns 401. A signed-in token call to `runs` returns rows. The CI plan is clean.
    - Open: the account Lambda concurrency limit is 10 (measured 2026-10-27), so reserved concurrency of 2 will be rejected. Choose a free Service Quotas increase or API Gateway throttling alone.
+   - Changed in [the standing-edge plan](2026-11-02-standing-edge.md): no reserved concurrency, and the classic hosted UI instead of managed login. The open concurrency item above is resolved by the ADR 0024 amendment (2026-11-02).
 8. **9.4. Landing page.** A static build from the repo: architecture, phase status, the latest run from the records, and `docs/img/scale` charts. A CI publish step (sync plus invalidation). Cross-links with the GitHub Pages site.
    - Verify: a clean browser loads it with no sign-in. The CSP header is present.
 9. **9.5. Terminal panel.** xterm.js vendored and pinned, PKCE, a 60-minute token, a 15-minute idle drop, help, and a refusal message.
@@ -295,7 +297,7 @@ If the 9.2 spike measures more than 20 minutes up, or a teardown that is not rel
     - Verify: the next exercise plan shows the Grafana release and role gone, and the agent still writes to AMP.
 12. **9.6. Safety and live check.** A CI escape and injection suite (`;`, `$( )`, backticks, newline, NUL, `../`, Unicode, long input, type confusion, ANSI/OSC 52 in data). An IAM deny check. A demo from a clean browser. Teardown to $0.
     - Verify: CI green, a recorded short video, and the account check at zero.
-13. **9.7. Well-Architected pass, ADR 0025, and milestone `phase-9-demo-console-complete`.**
+13. **9.7. Well-Architected pass, the next free ADR number, and milestone `phase-9-demo-console-complete`.**
 
 Proposed Phases.md wording:
 - **9.2:** "Terraform: the standing edge (S3 + CloudFront + Cognito + API Gateway + the command Lambda, read-only roles) and the per-session Grafana root (`envs/dev-console`, `make console-session`); remove the in-cluster Grafana after 8.10."
@@ -307,12 +309,12 @@ Proposed Phases.md wording:
 - An EC2 VPC origin over HTTP in a private subnet; WebSocket through it (step 3). Measured 2026-10-27: HTTP 200 and WebSocket 101 pass in both cycles.
 - The Grafana arm64 tarball and AMP plugin 3.2.0 have `linux_arm64` builds. If not, use t3.small at about $0.0208/h (step 10).
 - Grafana 13 `generic_oauth` with Cognito managed login, `role_attribute_path` to Viewer, and `disable_login_form` (step 10).
-- Whether Cognito Lite includes managed login; otherwise Essentials, still 10k MAU free (F22) (step 7).
-- The HTTP API JWT authorizer with Cognito access tokens (`client_id` rather than `aud`) (step 7).
+- Verified 2026-11-02: Cognito Lite has no managed login; Essentials is chosen, with the classic hosted UI (F22; standing-edge plan F18, [feature plans](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-sign-in-feature-plans.html)) (step 7).
+- Verified 2026-11-02: the HTTP API JWT authorizer checks `client_id` when `aud` is absent, so the audience is the app client ID. A route scope of `openid` is expected to refuse ID tokens; the 9.2 live check confirms it (standing-edge plan F21, [JWT authorizers](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-jwt-authorizer.html)) (step 7).
 - Step Functions read APIs are not billed, and Standard history lasts 90 days (step 6).
 - Bytes scanned by the `status` Athena query, and the cutoff value (step 6).
-- Raising AMP retention keeps existing samples (step 5).
-- The AMP plugin and the CloudWatch datasource read environment-variable session credentials in Compose (`GF_PLUGINS_FORWARD_HOST_ENV_VARS`) (step 4).
+- Raising AMP retention keeps existing samples (step 5). Verified 2026-10-29: a SigV4 `query_range` for 2026-10-13 06:30–06:50Z returned 21 points and up to 10,370 series after the change to 400 days (see `2026-10-28-readonly-roles.md`, Outcome).
+- The AMP plugin and the CloudWatch datasource read environment-variable session credentials in Compose (`GF_PLUGINS_FORWARD_HOST_ENV_VARS`) (step 4). Verified 2026-10-29 in the PR 4b live check. The AMP plugin reads them through the forward list (`grafana-amazonprometheus-datasource`). The core CloudWatch datasource reads them without being on the list. AMP health was OK, and a 2026-10-13 06:30–06:50Z query returned 21 points. A CloudWatch metrics query (AWS/Lambda Invocations, last 3 h) returned 3 frames. The logs half of the CloudWatch "Save & test" fails with `AccessDeniedException` on `DescribeLogGroups`, because `cerberus-grafana-read` has no logs read. That is accepted: no dashboard uses CloudWatch Logs (see `2026-10-28-readonly-roles.md`, Outcome).
 - A Grafana Viewer can open Inspect → Query without Explore (step 10).
 - The AL2023 arm64 root size (needed only if Open question 1 picks A) (step 2 reads). Verified: 8 GiB gp3.
 - The list prices in section 2 (step 3, then Cost Explorer).

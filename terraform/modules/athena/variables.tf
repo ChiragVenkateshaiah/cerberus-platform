@@ -20,3 +20,15 @@ variable "dq_bytes_scanned_cutoff_bytes" {
   type        = number
   default     = 21474836480 # 20 GiB
 }
+
+variable "console_bytes_scanned_cutoff_bytes" {
+  description = "Per-query bytes-scanned cutoff for the console workgroup (9.3). 10 MiB (10485760) is the AWS provider's minimum (the Athena API minimum is 10,000,000 bytes); the three gold metadata trees total about 270 KB (2026-11-01)."
+  type        = number
+  default     = 10485760
+}
+
+variable "console_results_expiration_days" {
+  description = "Days before the console's Athena query-result objects (prefix console/) expire."
+  type        = number
+  default     = 1
+}
