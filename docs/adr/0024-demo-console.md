@@ -12,6 +12,9 @@ Accepted (2026-10-27). Amends [ADR 0007](0007-vpc-network-design.md),
 (see the Amends list in the Decision). The build steps and the facts behind
 this ADR are in [the plan](../plans/2026-10-27-demo-console.md).
 
+Amended 2026-11-02: no reserved concurrency; classic
+hosted UI (see Amendment below).
+
 ## Context
 
 Phase 9's goal is to show Cerberus in a browser to someone who will not read
@@ -345,3 +348,60 @@ rewritten. If this ADR is not accepted, the notes are removed.
 - A domain is acquired (a public origin with HTTPS becomes possible).
 - Invites go beyond a handful of people.
 - Phase 10 series replace the run-record annotations.
+
+## Amendment (2026-11-02): rate bounds and sign-in pages for the standing edge
+
+Status: Accepted (2026-11-09). The plan is
+[2026-11-02-standing-edge.md](../plans/2026-11-02-standing-edge.md). It
+changes the text of rule 8 (reserved concurrency), the first "Sign-in and
+sessions" point (managed login), and the "reserved concurrency" bound in
+Consequences (Security). The original text stays as written.
+
+### Context
+
+- The account Lambda concurrency limit is 10 and adjustable, measured
+  2026-10-27 and read again 2026-11-02 (plan F2 and F11). You can reserve at
+  most the unreserved account concurrency minus 100 ([Lambda reserved
+  concurrency](https://docs.aws.amazon.com/lambda/latest/dg/configuration-concurrency.html),
+  plan F16), so reserving 2 needs a limit of at least 102. New accounts get
+  reduced quotas that AWS raises with usage, and the timing is unknown
+  ([Lambda quotas](https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html),
+  plan F17). `cerberus-admin` cannot file a quota request.
+- AWS provider 5.100.0 has no managed-login branding resource (schema dumped
+  2026-11-02, plan F10). Managed login without a style does not work
+  ([DeleteManagedLoginBranding](https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_DeleteManagedLoginBranding.html),
+  plan F20).
+- The HTTP API JWT authorizer checks `client_id` only when `aud` is absent.
+  It cannot tell ID tokens from access tokens without a route scope ([JWT
+  authorizers](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-jwt-authorizer.html),
+  plan F21).
+
+### Decision
+
+1. No reserved concurrency. `command_reserved_concurrency` stays a variable,
+   with the default unreserved.
+2. Stage throttling of 1 request per second, burst 3, replaces the example
+   values in rule 8.
+3. In-function bounds: ListExecutions cached 30 s, freshness 300 s, a 60 s
+   negative cache, and Athena result reuse for 5 minutes.
+4. The classic hosted UI (`managed_login_version = 1`) on the Essentials
+   tier, until the AWS provider moves to 6.x.
+5. The JWT audience is the app client ID, and the route requires the
+   `openid` scope.
+
+### Consequences
+
+- Good: `terraform apply` works in any account, and no root action is
+  needed. The worst month at the throttle is about $3.4 with result reuse
+  and about $7.7 without (plan section 10).
+- Given up: no per-function ceiling. A signed-in abuser can crowd out other
+  visitors (one shared throttle) and, during slow Athena calls, use several
+  of the account's 10 slots shared with the pipeline Lambdas. The sign-in
+  pages keep the classic look. Grafana's `generic_oauth` sign-in (step 10)
+  uses the same classic pages.
+- Revisit if: the account limit reaches at least 102 (then reserve 2); the
+  provider is on 6.x (then managed login); invites go beyond a handful
+  (already a trigger above).
+- It closes two "To confirm in build" items: Cognito Lite has no managed
+  login ([feature plans](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-sign-in-feature-plans.html),
+  plan F18), and access tokens validate by `client_id` (plan F21).
