@@ -152,13 +152,15 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 - [ ] 8.11 Well-Architected pass + ADR
       ADR 0023 Proposed (2026-10-27); milestone 8 after the 8.10 video
 
-## Phase 9 — Demo console (UI + terminal) ⬜
+## Phase 9 — Demo console (UI + terminal) 🔨
 
-- [ ] 9.1 ADR: the demo console (one start/stop EC2 instance vs. other
+- [x] 9.1 ADR: the demo console (one start/stop EC2 instance vs. other
       hosts; web terminal tool; CloudFront + Cognito vs. an SSO tunnel;
       the read-only command set and why it is not a shell; where Grafana
       and Prometheus data come from while `dev-compute` is down; idle cost
       $0; how this relates to ADR 0021's local Grafana)
+      ADR 0024 Accepted 2026-10-27 (serverless read-only terminal and
+      landing page, live Grafana per session); amendment 2026-11-02 in #129
 - [ ] 9.2 Terraform: the standing edge (S3 + CloudFront + Cognito + API
       Gateway + the command Lambda, read-only roles) and the per-session
       Grafana root (`envs/dev-console`, `make console-session`); remove the

@@ -132,10 +132,11 @@ run-latency SLO with 2.4 times headroom. Before milestone 8, a full
 data-quality audit re-checked every bronze key against silver: all
 137,113,940 events matched.
 
-⬜ Phase 9 (demo console) — planned. A browser console on one start/stop
-EC2 instance: architecture and latest-run views, Grafana and Prometheus
-panels, and a terminal panel limited to a read-only `cerberus` command
-set, behind CloudFront and Cognito (or an SSO tunnel), with no idle cost.
+🔨 Phase 9 (demo console) — in progress. A serverless browser console
+(S3, CloudFront, Cognito, API Gateway and a command Lambda): architecture
+and latest-run views, a live Grafana built per session, and a terminal
+panel limited to a read-only `cerberus` command set, with no idle cost
+(ADR 0024).
 ⬜ Phase 10 (pipeline status & alerting) — planned. A Prometheus exporter
 for the batch pipeline, Grafana dashboards and alert rules as code, SLO
 burn-rate alerts, and a terminal status view, with no idle cost.

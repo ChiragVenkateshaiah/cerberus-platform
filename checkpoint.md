@@ -254,8 +254,18 @@ Run `git fetch && git switch main && git pull` first; check `gh pr list`.
    (`observability/scale/audits/dq-full-20261015.json`) and the 8.10
    results. Closing 8.11 (with 8.10) completes Phase 8: flip Phases.md,
    plan.md's roadmap row and README.
-3. **Then Phase 9**, starting with **9.1** (the console ADR); it must
-   settle the shared Grafana with ADR 0021.
+3. **Phase 9 started 2026-11-09.** 9.1 is checked off (ADR 0024 Accepted
+   2026-10-27). The 8.10 take (`demo-100m-20261108T135119Z`, #136) meets
+   the "after the take" gates. Merge order for the open Phase 9 PRs (all
+   merge cleanly into main; no Terraform change on main since they branched):
+   1. #129 -- ADR 0024 amendment, docs only; needs "accept the amendment".
+   2. #126 -- local Grafana on short-lived read-only credentials; no Terraform.
+   3. #127 -- console Athena workgroup and read grants; CI plan must be
+      1 add + 2 in place (+ the known Faker/`ingest_payments` layer churn).
+   4. #128 -- the command set; then the live `make cerberus` check.
+   5. #130 -- retarget to main; local first apply as `cerberus-admin`
+      (plan A2), token check (A3), then merge (A4). No exercise running.
+   6. #131 -- retarget to main after #128; then 8b (publish) and 8c.
 
 **Open from the 2026-10-15 review, not blocking 8.11** (listed in 8.10's
 "What was not isolated"): bytes written are not measured; Athena computed
