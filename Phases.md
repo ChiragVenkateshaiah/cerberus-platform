@@ -170,7 +170,8 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
       in-cluster Grafana after 8.10
       IAM prerequisites done 2026-10-27 (#123); VPC-origin spike done
       2026-10-27 (#124): wake 12–15 min, destroy about 11 min; standing
-      edge still to build; read-only roles, console subnet and AMP
+      edge applied locally 2026-11-09 (#130; three `cerberus-admin` root
+      pastes for API Gateway tags and log delivery); read-only roles, console subnet and AMP
       retention 400 days done 2026-10-29 (#125); local Grafana on
       short-lived credentials (#126), merged after the 8.10 take (#136)
 - [ ] 9.3 The read-only command set: `cerberus status`, `runs`, `run <id>`,

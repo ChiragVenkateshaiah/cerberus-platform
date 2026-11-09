@@ -382,3 +382,29 @@ Whether 401 responses are billed, and whether throttling applies before the auth
 Answered 2026-11-02; see User decisions at the top. Optional, no answer needed: file the free Lambda quota request at root (option C).
 
 Sources: [Lambda reserved concurrency](https://docs.aws.amazon.com/lambda/latest/dg/configuration-concurrency.html), [Lambda quotas](https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html), [Cognito feature plans](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-sign-in-feature-plans.html), [Cognito pricing](https://aws.amazon.com/cognito/pricing/), [Managed login branding](https://docs.aws.amazon.com/cognito/latest/developerguide/managed-login-branding.html), [DeleteManagedLoginBranding](https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_DeleteManagedLoginBranding.html), [HTTP API JWT authorizers](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-jwt-authorizer.html), [HTTP API logging](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-logging.html), [HTTP API logging variables](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-logging-variables.html), [CloudFront custom headers and Authorization](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/add-origin-custom-headers.html), [Knowledge Center: CloudFront Authorization header](https://repost.aws/knowledge-center/cloudfront-authorization-header), [Athena result reuse](https://docs.aws.amazon.com/athena/latest/ug/reusing-query-results.html).
+
+## 13. Outcome of A1 and A2 (2026-11-09)
+
+- **A2 pass 1** (`Plan: 23 to add, 1 to change, 1 to destroy`, as measured on
+  2026-11-02): 15 resources created, then `CreateApi` failed with
+  `AccessDenied` on `apigateway:POST` for `/tags/*` (risk 10).
+- **A1:** `cerberus-admin-console-edge` gained `ApiGatewayTags` (`/tags/*`)
+  and `HttpApiLogDelivery` (the five `logs:*LogDelivery` actions, which
+  `simulate-principal-policy` showed as `implicitDeny`). Pasted by the owner.
+- **A2 pass 2** (`9 to add`): 8 created, including the distribution (2 min
+  50 s), then `CreateStage` failed with `AccessDenied` on
+  `apigateway:TagResource` for `/apis/<id>/stages`. This action was not in
+  the plan. A third statement, `ApiGatewayStageTags` (`TagResource`,
+  `UntagResource` on `/apis/*`), was pasted. Policy size: 4,730 of 6,144.
+- **A2 pass 3** (`1 to add`): the stage. `Apply complete`.
+- **A local plan in a fresh worktree** needs the Faker layer built first
+  (`pip install -r ingestion/lambda/requirements.txt -t
+  terraform/modules/lambda_ingestion/build/layer/python`), as CI does.
+- **Section 9 checks after A2, all as expected:** POST `/api/command` with
+  no token 401; GET 404; `healthz.txt` 200 with all six headers; direct S3
+  403; pool `ESSENTIALS True ACTIVE OFF`; stage throttling `1.0 3`; route
+  `POST /api/command` JWT `openid`; Lambda `python3.12 arm64 256 25
+  /var/task/runs`, unreserved; `cerberus-console-cli` `PutLogEvents`
+  allowed, `CreateLogGroup` denied.
+- **Still to do:** A3 (the owner's check account and the token check), then
+  A4 (merge; the CI apply must show no `console_edge` change).
