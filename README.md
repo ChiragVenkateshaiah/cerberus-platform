@@ -155,7 +155,7 @@ Databricks is a complement, not a replacement. In Phase 11 (planned), Databricks
 | 6 | Observability and data quality | Done | [0013](docs/adr/0013-lineage-openlineage-serverless-collector.md) |
 | 7 | End-to-end validation | Done | [0015](docs/adr/0015-phase-7-well-architected-review.md), [0016](docs/adr/0016-prometheus-for-eks-spark.md) |
 | 8 | Scale validation | In progress: results write-up, demo video, Well-Architected milestone | [0017](docs/adr/0017-iceberg-incremental-processing.md)-[0020](docs/adr/0020-dev-compute-node-autoscaling-and-spot.md), [0022](docs/adr/0022-live-observability-for-a-recorded-run.md), [0023](docs/adr/0023-phase-8-well-architected-review.md) |
-| 9 | Demo console | Planned: design accepted (ADR 0024), prerequisites built | [0024](docs/adr/0024-demo-console.md) |
+| 9 | Demo console | In progress: design accepted (ADR 0024), prerequisites built | [0024](docs/adr/0024-demo-console.md) |
 | 10 | Pipeline status and alerting | Planned: design accepted | [0021](docs/adr/0021-pipeline-status-and-alerting.md) |
 | 11 | Databricks interoperability | Planned | none yet |
 | 12 | Platform tooling in Go | Planned | none yet |
