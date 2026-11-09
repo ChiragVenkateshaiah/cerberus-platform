@@ -351,7 +351,7 @@ rewritten. If this ADR is not accepted, the notes are removed.
 
 ## Amendment (2026-11-02): rate bounds and sign-in pages for the standing edge
 
-Status: Proposed. The plan is
+Status: Accepted (2026-11-09). The plan is
 [2026-11-02-standing-edge.md](../plans/2026-11-02-standing-edge.md). It
 changes the text of rule 8 (reserved concurrency), the first "Sign-in and
 sessions" point (managed login), and the "reserved concurrency" bound in
