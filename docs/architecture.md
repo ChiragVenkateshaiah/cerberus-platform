@@ -24,13 +24,20 @@ These shape every architectural decision in this repo (see
   generated payments data. Phase 0's weather ingestion was a placeholder to
   prove the mechanism and remains only as that phase's artifact.
 
-## Current state — Phase 1 MVP (built and verified)
+## Phase 1 MVP (as first built)
+
+_This section records the platform as it stood at the end of Phase 1.
+Since then, Phase 2 retired the systemd timer for a Lambda on an
+EventBridge Scheduler (ADR 0005, ADR 0006), Phase 3 added Spark on EKS,
+Phase 4 added Step Functions and Phase 5 moved delivery to GitHub Actions
+with OIDC (ADR 0011). The [README](../README.md) shows the current state._
 
 Phase 0's hand-built resources (the bronze bucket, the Terraform state
 backend) are no longer a separate, uncodified layer — they were adopted into
 Terraform in 1.4/1.5 and are now part of the same `terraform apply` as
-everything else below. The one Phase 0 piece that's still running as
-originally built is the systemd timer; everything it feeds into is new.
+everything else below. At the end of Phase 1, the one Phase 0 piece still
+running as originally built was the systemd timer (retired in Phase 2);
+everything it fed into was new.
 
 ```mermaid
 flowchart TB
@@ -156,8 +163,8 @@ flowchart TB
     subgraph PIPE["Lakehouse pipeline"]
         direction LR
         SAMPLE["Sample data<br/>payments-shaped<br/>(NovaPay-echo)"]
-        ING1["Bash + AWS CLI<br/>systemd timer (Phase 0)"]
-        ING2["AWS Lambda<br/>event-driven (Phase 2)"]
+        ING1["Bash + AWS CLI<br/>systemd timer (Phase 0, retired)"]
+        ING2["AWS Lambda<br/>EventBridge Scheduler (Phase 2)"]
         BRZ[("S3 Bronze<br/>raw")]
         SPARK["Apache Spark on EKS<br/>spin-up / destroy"]
         SLV[("S3 Silver<br/>cleaned")]
@@ -165,8 +172,8 @@ flowchart TB
         GLD[("S3 Gold<br/>curated")]
         ATH{{"Amazon Athena<br/>serverless SQL"}}
 
-        SAMPLE --> ING1 --> BRZ
-        SAMPLE -.-> ING2 -.-> BRZ
+        SAMPLE -.-> ING1 -.-> BRZ
+        SAMPLE --> ING2 --> BRZ
         BRZ --> SPARK --> SLV --> DBT --> GLD --> ATH
     end
 
@@ -175,7 +182,7 @@ flowchart TB
         TF["Terraform BUSL 1.1<br/>OpenTofu-swappable via TF_BIN"]
         TFSTATE[("Terraform state<br/>S3 bucket + DynamoDB lock")]
         IAM["AWS IAM<br/>least privilege per component"]
-        CICD["CI/CD - Phase 5<br/>AWS CodePipeline"]
+        CICD["CI/CD - Phase 5<br/>GitHub Actions + OIDC"]
         TF --- TFSTATE
         CICD -. plan / apply .-> TF
     end
@@ -219,15 +226,15 @@ Airflow is still worth recording as an ADR when Phase 4 starts (see
 | Provisioning / IaC | Terraform (BUSL 1.1) | **Built.** `TF_BIN` in the [Makefile](../Makefile) makes OpenTofu a drop-in swap |
 | Storage | Amazon S3 | **Built.** Medallion layout: bronze (raw) → silver (event history) → gold (curated, denormalized + dbt marts) |
 | Storage | Amazon DynamoDB | **Built.** Terraform state lock table, paired with an S3 state bucket for the backend |
-| Ingestion | Bash + AWS CLI | **Built** (Phase 0, still active). Scheduled with a systemd timer |
-| Ingestion | AWS Lambda | Event-driven ingestion, replaces the bash script (Phase 2) |
+| Ingestion | Bash + AWS CLI | Built in Phase 0 with a systemd timer; retired in Phase 2 |
+| Ingestion | AWS Lambda | **Built** (Phase 2). Runs on an EventBridge Scheduler and replaces the bash script ([ADR 0005](adr/0005-push-vs-pull-ingestion.md), [ADR 0006](adr/0006-phase-2-well-architected-review.md)) |
 | Orchestration | AWS Step Functions | Ingest → transform → serve as one state machine (Phase 4) |
 | Transform / compute | Python (boto3 + pandas + pyarrow) | **Built** (1.7). Full rebuild each run; Spark below is the Phase 3 upgrade path |
 | Transform / compute | Apache Spark on Amazon EKS | Heavy transform layer; spin-up-and-destroy since EKS isn't free-tier (Phase 3) |
 | Serving / query | Amazon Athena | **Built** (1.9/1.10). Serverless SQL over S3 |
 | Serving / query | dbt | **Built** (1.9). Fact/dimension models for the silver → gold serving layer |
 | Access control | AWS IAM | **Built** (1.6/1.8/1.9/1.10). Least-privilege roles/policies per component |
-| CI/CD | AWS CodePipeline | `git push` → plan/apply + deploy (Phase 5) |
+| CI/CD | GitHub Actions + OIDC | **Built** (Phase 5). `terraform plan` on each PR, `apply` of the standing layer on merge, no long-lived keys ([ADR 0011](adr/0011-ci-cd-github-actions-oidc.md)) |
 | Observability | Amazon CloudWatch | Dashboards, alarms, log insights (Phase 6) |
 | Foundation / tooling | Git + GitHub | Public repo |
 | Foundation / tooling | Markdown ADRs | Decision log in [docs/adr/](adr/) |
