@@ -264,6 +264,6 @@ their numbers. ADR 0025._
 
 When every subtask in a phase is checked: mark that phase ✅ Complete here,
 flip its status cell in [docs/plan.md](docs/plan.md)'s roadmap table,
-record the completion in [checkpoint.md](checkpoint.md), and reconcile
-[README.md](README.md)'s status badges and roadmap references —
+record the completion in [checkpoint.md](checkpoint.md), and update
+[README.md](README.md)'s Roadmap table —
 `/end-day` keeps all four in sync together.

@@ -11,8 +11,8 @@ the repo at `/home/chirag/projects/cerberus`.
 
 ## Rules
 
-- Work on a feature branch. Never commit to `main`, except a checkpoint
-  commit when the caller says it comes from `/end-day`.
+- Work on a feature branch. Never commit to `main`. `/end-day` changes go
+  on `end-day-YYYY-MM-DD` through a PR like any other change.
 - Stage only the paths the caller names (`git add <paths>`). Never
   `git add -A` or `git add .`.
 - Before a commit, show `git status --short` and `git diff --cached --stat`.
