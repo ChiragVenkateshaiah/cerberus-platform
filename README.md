@@ -97,7 +97,7 @@ Storage and incremental processing follow [ADR 0002](docs/adr/0002-medallion-lay
 
 ## Scale ladder
 
-Each step is one orchestrated run. The records are in `observability/scale/runs/`, and [docs/scale-metrics.md](docs/scale-metrics.md) explains every number.
+Each step is one orchestrated run. The records are in `observability/scale/runs/`, and [docs/scale-metrics.md](docs/scale-metrics.md) explains every number. The [8.10 results section](docs/scale-metrics.md#results-1m-10m-and-100m-810) puts the 1M, 10M and 100M (8.9) runs side by side, with charts of run time, cost per million events and transform throughput.
 
 | Step | New events | Silver after | Run (s) | Data quality | $/M events (run) |
 |---|---|---|---|---|---|
