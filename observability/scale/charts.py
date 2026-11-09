@@ -30,7 +30,7 @@ OUT = ROOT / "docs" / "img" / "scale"
 LADDER = [
     ("1M", "exercise-20261015T145812Z"),
     ("10M", "exercise-20261009T074853Z"),
-    ("100M", "exercise-20261013T055859Z"),
+    ("100M (8.9)", "exercise-20261013T055859Z"),
 ]
 STATES = ["InvokeIngestion", "RunTransform", "RunDbt", "RunServingQuery"]
 
@@ -42,7 +42,7 @@ THROUGHPUT_RUNS = [
     ("10M, 2 × 2 GB", "exercise-20261009T101830Z", 2),
     ("9M load test", "exercise-20261012T111304Z", 8),
     ("9M Spot interruption", "exercise-20261012T133620Z", 12),
-    ("100M", "exercise-20261013T055859Z", 16),
+    ("100M (8.9)", "exercise-20261013T055859Z", 16),
     ("1M on 137M silver", "exercise-20261015T145812Z", 16),
 ]
 

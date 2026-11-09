@@ -68,7 +68,7 @@
 <text class="tick ink2" fill="#52514e" x="406.7" y="331.8">9M Spot interruption · 16 MB/s</text>
 <circle class="s1" fill="#2a78d6" cx="505.6" cy="121.1" r="5"/>
 <circle cx="505.6" cy="121.1" r="5" fill="none" class="gap" stroke-width="2"/>
-<text class="tick ink2" fill="#52514e" x="515.6" y="125.1">100M · 103 MB/s</text>
+<text class="tick ink2" fill="#52514e" x="515.6" y="125.1">100M (8.9) · 103 MB/s</text>
 <circle class="s1" fill="#2a78d6" cx="505.6" cy="305.8" r="5"/>
 <circle cx="505.6" cy="305.8" r="5" fill="none" class="gap" stroke-width="2"/>
 <text class="tick ink2" fill="#52514e" x="515.6" y="297.8">1M on 137M silver · 18 MB/s</text>

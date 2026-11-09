@@ -46,7 +46,7 @@
 <circle class="s1" fill="#2a78d6" cx="365.6" cy="132" r="6"/>
 <circle cx="365.6" cy="132" r="6" fill="none" class="gap" stroke-width="2"/>
 <text class="l ink" fill="#0b0b0b" x="365.6" y="121" text-anchor="end">$0.0112 per M · run $0.10</text>
-<text class="l ink" fill="#0b0b0b" x="20" y="188">100M new events</text>
+<text class="l ink" fill="#0b0b0b" x="20" y="188">100M (8.9) new events</text>
 <line class="axis" stroke="#c3c2b7" x1="175" y1="184" x2="278.2" y2="184" stroke-width="2"/>
 <circle class="s1" fill="#2a78d6" cx="278.2" cy="184" r="6"/>
 <circle cx="278.2" cy="184" r="6" fill="none" class="gap" stroke-width="2"/>

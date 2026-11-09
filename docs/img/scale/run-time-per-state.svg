@@ -79,7 +79,7 @@
 <path class="s4" fill="#eda100" d="M494.4,172 h39.2 a4,4 0 0 1 4,4 v16 a4,4 0 0 1 -4,4 h-39.2 z"/>
 <line class="gap" stroke="#fcfcfb" x1="494.4" y1="172" x2="494.4" y2="196" stroke-width="2"/>
 <text class="l ink" fill="#0b0b0b" x="545.6" y="188">523 s</text>
-<text class="l ink" fill="#0b0b0b" x="20" y="245">100M new events</text>
+<text class="l ink" fill="#0b0b0b" x="20" y="245">100M (8.9) new events</text>
 <text class="tick muted" fill="#898781" x="20" y="260">20261013T055859Z</text>
 <rect class="s1" fill="#2a78d6" x="175.0" y="234" width="2.9" height="24"/>
 <rect class="s2" fill="#eb6834" x="177.9" y="234" width="354.9" height="24"/>

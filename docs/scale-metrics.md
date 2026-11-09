@@ -22,7 +22,13 @@ rendered from the run records by
 [`observability/scale/charts.py`](../observability/scale/charts.py); the
 tables below carry the same numbers.
 
-| | 1M | 10M | 100M |
+The 100M column is the 8.9 run of 2026-10-13, the clean run at that step
+with a billed cost. The recorded 100M take of 2026-11-08 has its own
+subsection, [8.10: the recorded 100M take](#810-the-recorded-100m-take).
+Its billed cost is not posted yet, so it is not in this table or the
+charts.
+
+| | 1M | 10M | 100M (8.9) |
 |---|---|---|---|
 | Run | `exercise-20261015T145812Z` | `exercise-20261009T074853Z` | `exercise-20261013T055859Z` |
 | New events promoted | 1,005,920 | 9,005,590 | 100,008,511 |
@@ -45,9 +51,9 @@ So each run started on a different silver table, and the 1M run on the
 largest. The 10M column is 8.6's "before" run (one 1 GB executor); its
 "after" run had a failed RunDbt, so it is not the clean one.
 
-![Run time per state for the 1M, 10M and 100M runs](img/scale/run-time-per-state.svg)
+![Run time per state for the 1M, 10M and 100M (8.9) runs](img/scale/run-time-per-state.svg)
 
-![Cost per million events for the 1M, 10M and 100M runs, log scale](img/scale/cost-per-million-events.svg)
+![Cost per million events for the 1M, 10M and 100M (8.9) runs, log scale](img/scale/cost-per-million-events.svg)
 
 ![RunTransform input throughput against the silver job's executors](img/scale/transform-throughput.svg)
 
@@ -57,7 +63,7 @@ largest. The 10M column is 8.6's "before" run (one 1 GB executor); its
 | 10M, 2 × 2 GB (`…20261009T101830Z`) | 2 | 4.20 GB | 241.6 | 17 |
 | 9M load test (`…20261012T111304Z`) | 8 | 5.56 GB | 295.7 | 19 |
 | 9M Spot interruption (`…20261012T133620Z`) | 12 | 4.96 GB | 314.1 | 16 |
-| 100M (`…20261013T055859Z`) | 16 | 52.62 GB | 511.6 | 103 |
+| 100M, 8.9 (`…20261013T055859Z`) | 16 | 52.62 GB | 511.6 | 103 |
 | 1M on 137M silver (`…20261015T145812Z`) | 16 | 4.13 GB | 234.3 | 18 |
 
 Executors are counted from each driver log's registrations, so the Spot
@@ -72,15 +78,15 @@ at most that number.
   cost 1.3 times as much, so the cost per million events fell about 80
   times from 1M to 100M.
 - **Run time is set by fixed work and by silver, not by the new events.**
-  The 1M run took 78% of the 100M run's time. About 50 s of each
+  The 1M run took 78% of the 8.9 100M run's time. About 50 s of each
   RunTransform is the ECS wrapper (ADR 0019), RunServingQuery is a ~55 s
   polling floor, and the rest grows with what the step reads: the silver
   job's anti-join reads the silver days a batch touches, so 1M new events
   on 137M silver read 4.13 GB, about as much as 9M on 1.1M (3.92 GB).
 - **RunTransform throughput follows the input size, not the executors.**
   From 1 to 16 executors, every run that read 4–6 GB moved 12–19 MB/s; the
-  100M run, reading 52.6 GB, moved 103 MB/s with the same 16. At a few GB
-  the step is bound by its fixed parts (start-up, the watermark read,
+  8.9 100M run, reading 52.6 GB, moved 103 MB/s with the same 16. At a few
+  GB the step is bound by its fixed parts (start-up, the watermark read,
   compaction), so more executors add little; they pay off once there is
   enough data to spread. Dynamic allocation asked for 16 even at 1M, which
   cost Spot node time for little gain.
@@ -98,47 +104,33 @@ at most that number.
 
 ### What was not isolated
 
-- **Executors against silver size.** Every step changed both, so the
-  ladder shows that throughput follows the input, not how much of the
-  100M speed-up is the 16 executors. Isolating it needs two runs at one
-  input size with a fixed executor count.
+- **Executors against silver size.** Every step changed both, so the ladder
+  shows that throughput follows the input, not how much of the 8.9 run's
+  speed-up is the 16 executors. Isolating it needs two runs at one input
+  size with a fixed executor count.
 - **The cost rate is a day average.** Each run's cost is the day's
   non-Athena cost per EKS cluster-hour times its run time. On 10-08, 10-09
   and 10-12 more than one exercise shared a day, and every day includes
-  apply, generator, waits and destroy (in the 100M exercise, 1,706 s of
+  apply, generator, waits and destroy (in the 8.9 100M exercise, 1,706 s of
   the 3,773 s of cluster time were neither the generator nor the run:
   apply, waits and destroy, not attributed to any step).
-- **EKS cluster-hours read low.** Cost Explorer showed 0.875 h for the
-  100M day against 1.05 h up, and 0.489 h for the 1M day against 0.69 h
-  up. If the observed hours are right, the true rates are 17–29% lower
-  than those used here; the posted day totals are unaffected.
+- **EKS cluster-hours read low.** Cost Explorer showed 0.875 h for the 8.9
+  100M day against 1.05 h up, and 0.489 h for the 1M day against 0.69 h up.
+  If the observed hours are right, the true rates are 17–29% lower than
+  those used here; the posted day totals are unaffected.
 - **Athena billing units.** The collector prices bytes at $5 per 10^12;
-  the 100M day's computed Athena ($0.61) is 7% above the posted $0.574,
+  the 8.9 100M day's computed Athena ($0.61) is 7% above the posted $0.574,
   close to the TB/TiB ratio. Not verified.
 - **Bytes written.** Spark's output bytes are not in the record; only
   input and shuffle are.
 - **One run per step.** The 1M run's Athena queue shows how much a single
   run can vary for reasons outside the platform.
 
-### Demo video script (8.10)
+### Demo video (8.10)
 
-About 3 minutes, recorded from the repository and the AWS console with
-no cluster up (the numbers are in the records), so it costs nothing.
-
-1. **The question (15 s).** README's Phase 8 paragraph: one pipeline,
-   40k to 100M events, measured at each step.
-2. **The ladder (45 s).** This section's table, then the run-time chart:
-   three runs, four states, the 1M run's Athena queue note.
-3. **Cost (30 s).** The cost chart: run cost flat at $0.10–0.37, cost per
-   million events down 80 times; the cost method's Athena fix (2026-10-15).
-4. **What scaling meant (45 s).** The throughput chart, then 8.8's Spot
-   interruption section: 4 executors decommissioned, 0 lost, data quality
-   passed.
-5. **Proof of correctness (30 s).** The `--full` audit record
-   (`observability/scale/audits/dq-full-20261015.json`): 137,113,940
-   events, 0 keys missing either way.
-6. **What was not isolated (15 s).** The list above, read as limits, not
-   results.
+The demo video records the live 100M take (ADR 0022). The runbook is
+[docs/demo-recording.md](demo-recording.md), and the take's numbers are
+in [8.10: the recorded 100M take](#810-the-recorded-100m-take).
 
 ## The metric set
 
