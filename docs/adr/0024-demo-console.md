@@ -278,7 +278,7 @@ rewritten. If this ADR is not accepted, the notes are removed.
 10. The live Grafana session.
 11. Remove the in-cluster Grafana, only after the 8.10 take.
 12. Safety suite and live check (9.6).
-13. Well-Architected pass, ADR 0025, and milestone (9.7).
+13. Well-Architected pass, the next free ADR number, and milestone (9.7).
 
 ## Consequences
 

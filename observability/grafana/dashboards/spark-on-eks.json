@@ -1,6 +1,6 @@
 {
   "uid": "cerberus-spark-on-eks",
-  "title": "Cerberus: Spark on EKS",
+  "title": "3 \u00b7 Spark and Cluster Diagnostics",
   "tags": [
     "cerberus",
     "spark",
@@ -787,5 +787,17 @@
   },
   "annotations": {
     "list": []
-  }
+  },
+  "links": [
+    {
+      "title": "2 \u00b7 Run Health \u2192",
+      "type": "link",
+      "url": "/d/cerberus-run-live",
+      "icon": "dashboard",
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "tooltip": "Run health: compute and throughput"
+    }
+  ]
 }
