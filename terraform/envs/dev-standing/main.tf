@@ -173,4 +173,24 @@ module "console_roles" {
   amp_workspace_arn  = module.prometheus_workspace.workspace_arn
   state_machine_arn  = module.step_functions.state_machine_arn
   state_machine_name = module.step_functions.state_machine_name
+
+  # 9.3: the console workgroup, its result prefix and the gold metadata read.
+  athena_workgroup_name     = module.athena.console_workgroup_name
+  athena_results_bucket_arn = module.athena.results_bucket_arn
+  athena_results_prefix     = module.athena.console_results_prefix
+  gold_bucket_arn           = module.s3_medallion.bucket_arns["gold"]
+  glue_database_name        = module.glue_catalog.database_name
+}
+
+module "console_edge" {
+  source = "../../modules/console_edge"
+
+  # 9.2 (ADR 0024, amended 2026-11-02): the standing edge -- site bucket,
+  # CloudFront, Cognito, the HTTP API and the command Lambda. Standing,
+  # zero idle cost. Runs as cerberus-console-cli from console_roles.
+  account_id = data.aws_caller_identity.current.account_id
+
+  console_cli_role_arn  = module.console_roles.console_cli_role_arn
+  console_cli_role_name = module.console_roles.console_cli_role_name
+  state_machine_arn     = module.step_functions.state_machine_arn
 }

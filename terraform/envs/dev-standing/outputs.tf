@@ -122,3 +122,53 @@ output "console_cli_role_arn" {
   description = "9.2: cerberus-console-cli IAM role ARN -- the role the console commands run as."
   value       = module.console_roles.console_cli_role_arn
 }
+
+output "console_url" {
+  description = "9.2: the console's public URL (CloudFront)."
+  value       = "https://${module.console_edge.distribution_domain_name}"
+}
+
+output "console_distribution_id" {
+  description = "9.2: CloudFront distribution ID -- 9.4's publish invalidates it."
+  value       = module.console_edge.distribution_id
+}
+
+output "console_site_bucket_name" {
+  description = "9.2: site bucket name -- 9.4's publish syncs the built site here."
+  value       = module.console_edge.site_bucket_name
+}
+
+output "console_user_pool_id" {
+  description = "9.2: Cognito user pool ID -- the owner creates invited users with admin-create-user."
+  value       = module.console_edge.user_pool_id
+}
+
+output "console_client_id" {
+  description = "9.2: Cognito app client ID of the console SPA."
+  value       = module.console_edge.client_id
+}
+
+output "console_auth_domain" {
+  description = "9.2: Cognito hosted-UI base URL."
+  value       = module.console_edge.auth_domain
+}
+
+output "console_api_path" {
+  description = "9.2: path of the command route, same-origin behind CloudFront."
+  value       = "/api/command"
+}
+
+output "console_callback_url" {
+  description = "9.2: the app client's sign-in redirect URL."
+  value       = module.console_edge.callback_url
+}
+
+output "console_api_id" {
+  description = "9.2: API Gateway HTTP API ID of the command route."
+  value       = module.console_edge.api_id
+}
+
+output "console_workgroup_name" {
+  description = "9.3: Athena workgroup of the demo console's fixed query."
+  value       = module.athena.console_workgroup_name
+}

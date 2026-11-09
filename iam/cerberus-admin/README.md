@@ -173,3 +173,21 @@ larger and is not the limit.
   `aps:UpdateWorkspaceConfiguration` on the workspace is allowed. The CI
   role's side is recorded in the plan's outcome section
   ([docs/plans/2026-10-27-console-iam-prerequisites.md](../../docs/plans/2026-10-27-console-iam-prerequisites.md)).
+- **2026-11-09 (9.2, standing edge, plan A1 and risk 10):**
+  `cerberus-admin-console-edge` gained two statements. `ApiGatewayTags`
+  allows `apigateway:GET`, `POST` and `DELETE` on
+  `arn:aws:apigateway:us-east-1::/tags/*`: the first local apply of the
+  standing edge failed on `CreateApi` with `AccessDenied` on
+  `/tags/arn:aws:apigateway:us-east-1::/v2/apis/*`, so creating a tagged
+  HTTP API needs it. `HttpApiLogDelivery` allows `logs:CreateLogDelivery`,
+  `GetLogDelivery`, `UpdateLogDelivery`, `DeleteLogDelivery` and
+  `ListLogDeliveries` on `*` (these actions take no resource ARN), for the
+  stage's access log. `iam simulate-principal-policy` showed all five as
+  `implicitDeny` before the change. A second apply then failed on
+  `CreateStage` with `AccessDenied` on `apigateway:TagResource` for
+  `/apis/<id>/stages`, so a third statement, `ApiGatewayStageTags`, allows
+  `apigateway:TagResource` and `UntagResource` on
+  `arn:aws:apigateway:us-east-1::/apis/*`. Counted size after the change:
+  4,730 of 6,144 characters. `cerberus-ci-apply-console` does not get either
+  statement: CI changes the API's tags or the stage's log settings only
+  when they change ([the standing-edge plan](../../docs/plans/2026-11-02-standing-edge.md)).

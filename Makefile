@@ -61,23 +61,19 @@ exercise-check: ## read-only preflight for an exercise: no cluster, empty dev-co
 	orchestration/exercise.sh --check
 
 .PHONY: grafana-up grafana-down grafana-logs grafana-token
-# The AMP query endpoint is read from AWS (read-only); override with AMP_URL=...
+# up.sh looks up the AMP endpoint and assumes cerberus-grafana-read (ADR 0024).
+# down and logs only need placeholders to satisfy the compose interpolation.
 GRAFANA_COMPOSE := docker compose -f observability/grafana/compose.yaml --env-file observability/grafana/.env
-grafana-up: ## start the local Grafana on 127.0.0.1:3000 (ADR 0022; needs observability/grafana/.env)
+GRAFANA_STUB_ENV := AMP_URL=unused AWS_ACCESS_KEY_ID=unused AWS_SECRET_ACCESS_KEY=unused AWS_SESSION_TOKEN=unused
+grafana-up: ## start the local Grafana on 127.0.0.1:3000 with short-lived cerberus-grafana-read credentials (ADR 0024; needs observability/grafana/.env)
 	@test -f observability/grafana/.env || { echo "create observability/grafana/.env (see observability/grafana/.env.example)"; exit 1; }
-	@amp_url="$${AMP_URL:-}"; \
-	if [ -z "$$amp_url" ]; then \
-		id="$$(aws amp list-workspaces --region us-east-1 --query "workspaces[?alias=='cerberus-platform'].workspaceId | [0]" --output text)"; \
-		case "$$id" in ws-*) ;; *) echo "AMP workspace cerberus-platform not found (got '$$id')"; exit 1;; esac; \
-		amp_url="https://aps-workspaces.us-east-1.amazonaws.com/workspaces/$$id/"; \
-	fi; \
-	AMP_URL="$$amp_url" GRAFANA_UID="$$(id -u)" GRAFANA_GID="$$(id -g)" $(GRAFANA_COMPOSE) up -d
+	@observability/grafana/up.sh
 
 grafana-down: ## stop and remove the local Grafana container (keeps the data volume and repo files)
-	AMP_URL=unused $(GRAFANA_COMPOSE) down
+	$(GRAFANA_STUB_ENV) $(GRAFANA_COMPOSE) down
 
 grafana-logs: ## follow the local Grafana logs
-	AMP_URL=unused $(GRAFANA_COMPOSE) logs -f grafana
+	$(GRAFANA_STUB_ENV) $(GRAFANA_COMPOSE) logs -f grafana
 
 grafana-token: ## make the Grafana service account and its 30-day annotation token (needs grafana-up)
 	@observability/grafana/token.sh

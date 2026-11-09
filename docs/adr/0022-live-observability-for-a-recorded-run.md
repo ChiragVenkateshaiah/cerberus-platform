@@ -13,6 +13,8 @@ Amended 2026-10-25: story dashboard, Spark progress exporter and run annotations
 
 Amended by [ADR 0024](0024-demo-console.md) (2026-10-27): a read-only role replaces the mounted keys, and console annotations come from the run records.
 
+Amended 2026-11-07: 10M rehearsal, landscape capture and the GNOME recorder (see Amendment below).
+
 ## Context
 
 The last open part of Phase 8 is the 8.10 demo video: a public, sped-up
@@ -319,6 +321,22 @@ The user accepted it on 2026-10-25 (step 6a).
   Erratum (6d, 2026-10-25): the rate is corrected to $1.72/h. The $1.15/h rate
   divided by the 3,773 s exercise time, which includes apply and destroy;
   $1.207592 over 0.704 h of node time gives $1.72/h.
+  Erratum (8.10 polish, 2026-11-07): the tile counts from the run start (the
+  dashboard start time) at $1.15/h, the 2026-10-13 rate over the observed
+  cluster time ($1.207592 / 1.048 h). The $1.72/h of the earlier erratum
+  divided by node time only (0.704 h), so it read high on a run that counts
+  from the start. The $1.34-1.38/h in the cost rows is per Cost Explorer EKS
+  cluster-hour, which reads 17-29% low, so no one rate fits all three time
+  bases. The tile now adds the Athena queries live from CloudWatch
+  `ProcessedBytes` at $5 per 10^12 bytes. "Now" and the two result tiles read
+  the run's annotations (tags `cerberus-now`, `cerberus-dq`,
+  `cerberus-teardown`), which ADR 0024's annotation rebuild replays. The cost
+  tile needs ADR 0024's AMP-only fallback on the console (Phase 9).
+  Erratum (8.10 journey and freeze, 2026-11-08): after the run, "Time since
+  start" and the cost tile stop at the cluster's last AMP sample plus 780 s
+  for the destroy (hidden variable `teardown_s`; measured 660 s on the 1M and
+  786 s on the 10M rehearsal), so they no longer grow after the clean-up. The
+  rate and the Athena term are unchanged.
 - Rejected: J2 (Grafana Live, memory only) and J3 (ADR 0021's publisher
   built early; Phase 10, and it needs an ADR 0021 change).
 - Build steps 6a-6f go between steps 6 and 7. Steps 7-10 keep their numbers.
@@ -344,3 +362,59 @@ The user accepted it on 2026-10-25 (step 6a).
   `cerberus_step_duration_seconds`.
 - With Phase 10's two dashboards, the local stack reaches about five
   dashboards, which is ADR 0021's revisit point.
+
+## Amendment (2026-11-07): 10M rehearsal, landscape capture and the GNOME recorder
+
+Status: Accepted (2026-11-08). The plan is
+[2026-11-07-runbook-landscape.md](../plans/2026-11-07-runbook-landscape.md).
+
+### Context
+
+- The dress rehearsal (Decision, "A dress rehearsal at 1M"; build step 8)
+  moves to 10M with the take's flags. Eight generator executors have only run
+  at 100M: the 1M reference used 2 executors and 1 Spot node. A 10M run gives a
+  second publishable data point, and the Athena headroom allows it.
+- The only screen is a landscape 1920x1080 monitor with the laptop lid closed;
+  portrait is not possible.
+- OBS is replaced by the built-in recorder of GNOME Shell 50.1: the whole
+  monitor, no scenes or crop. On this machine it writes VP8 WebM with a
+  variable frame rate.
+- The ingestion Lambda only no-ops since 2026-10-30. The rehearsal is the first
+  orchestrated run after that date.
+
+### Decision
+
+- Build step 8 becomes "Dress rehearsal at 10M":
+  `--generate 10000000 --generator-executors 8 --executor-nodes 2 --name rehearsal`.
+- Recorder: the GNOME screen recorder, full screen, 16:9 1920x1080 output. Both
+  runs are recorded whole, in one file each. The edit speeds up the quiet
+  parts.
+- Secrets stay off screen by layout: the run sits in a detached `tmux` session,
+  and the console top bar is masked in the edit with ffmpeg `drawbox`.
+- The OBS settings and "sets OBS to NVENC" (Laptop load) no longer describe the
+  recorder. NVENC stays the encoder for the edit.
+- The Grafana dashboards get a look review, and separate dashboard-polish
+  PRs land before the take (PRs #133 and #134; they used the 10M rehearsal as
+  replay data).
+
+### Consequences
+
+- Rehearsal cost about $1.0-1.4 (estimate), replacing about $0.9-1.2.
+- After the take, silver is about 249.1M (149.1M after the two rehearsals,
+  plus about 100.0M), the dbt merge about 21.9 GiB (87.5% of 25 GiB) and the
+  largest data quality check about 14.2 GiB (71% of 20 GiB). A second 100M
+  still does not fit (dbt about 30.6 GiB).
+- Given up: live masking (the raw file has the account ID and must stay outside
+  the repo); the OBS memory guess and the NVENC capture test in "Laptop load"
+  no longer apply. The recorder CPU load and a 63-minute recording are
+  unverified until the $0 pre-test and the rehearsal.
+- The 2026-10-25 amendment's "first proven in the 1M rehearsal (step 8)" now
+  reads 10M.
+- The 10M rehearsal ran on 2026-11-07 (`rehearsal-20261107T081206Z`), with
+  a clean teardown. A 1M check run on 2026-11-08
+  (`rehearsal-1m-20261108T060517Z`) tested the dashboard fixes; it is not build
+  step 8. The erratum "8.10 journey and freeze" calls it "the 1M rehearsal".
+  Both runs confirm the retired ingestion path: `InvokeIngestion` succeeded,
+  and the silver gain equalled the generated events exactly.
+- Portrait and 1080x1350 were never in this ADR; they change only in the
+  runbook.
