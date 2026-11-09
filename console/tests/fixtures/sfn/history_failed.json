@@ -1,0 +1,58 @@
+{
+  "events": [
+    {
+      "id": 1,
+      "type": "ExecutionStarted",
+      "timestamp": "2026-10-08T09:13:33+00:00"
+    },
+    {
+      "id": 2,
+      "type": "TaskStateEntered",
+      "timestamp": "2026-10-08T09:13:34+00:00",
+      "stateEnteredEventDetails": {
+        "name": "InvokeIngestion"
+      }
+    },
+    {
+      "id": 3,
+      "type": "TaskStateExited",
+      "timestamp": "2026-10-08T09:13:38+00:00",
+      "stateExitedEventDetails": {
+        "name": "InvokeIngestion"
+      }
+    },
+    {
+      "id": 4,
+      "type": "TaskStateEntered",
+      "timestamp": "2026-10-08T09:13:38+00:00",
+      "stateEnteredEventDetails": {
+        "name": "RunTransform"
+      }
+    },
+    {
+      "id": 5,
+      "type": "TaskStateExited",
+      "timestamp": "2026-10-08T09:17:25+00:00",
+      "stateExitedEventDetails": {
+        "name": "RunTransform"
+      }
+    },
+    {
+      "id": 6,
+      "type": "TaskStateEntered",
+      "timestamp": "2026-10-08T09:17:25+00:00",
+      "stateEnteredEventDetails": {
+        "name": "RunDbt"
+      }
+    },
+    {
+      "id": 7,
+      "type": "ExecutionFailed",
+      "timestamp": "2026-10-08T09:23:05+00:00",
+      "executionFailedEventDetails": {
+        "error": "States.TaskFailed\u001b[31m",
+        "cause": "SECRET-CAUSE-TEXT"
+      }
+    }
+  ]
+}
