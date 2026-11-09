@@ -167,7 +167,7 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
       2026-10-27 (#124): wake 12–15 min, destroy about 11 min; standing
       edge still to build; read-only roles, console subnet and AMP
       retention 400 days done 2026-10-29 (#125); local Grafana on
-      short-lived credentials built, merges after 8.10
+      short-lived credentials (#126), merged after the 8.10 take (#136)
 - [ ] 9.3 The read-only command set: `cerberus status`, `runs`, `run <id>`,
       `cost`, `dq`, `slo`; an allowlist, no shell, no write, fail-closed;
       reads run records, Step Functions, Athena and AMP
