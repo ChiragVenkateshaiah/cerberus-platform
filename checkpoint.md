@@ -239,14 +239,34 @@ numbers. **Model:** Opus 5.5 for 8.10 and 8.11.
 
 Run `git fetch && git switch main && git pull` first; check `gh pr list`.
 
-1. **8.10 -- the demo video (the user records it).** The script is in
-   docs/scale-metrics.md, "Demo video script (8.10)": 6 shots, about 3 min,
-   from the repo and the AWS console with no cluster up ($0). Check the
-   three charts in draft PR #107 on GitHub in light and dark mode first
-   (they were only checked as ImageMagick renders; headless Firefox
-   screenshots failed). When the user gives the video's location: link it
-   in the 8.10 section, check off 8.10 in Phases.md, mark #107 ready and
-   merge it (`--merge`).
+1. **8.10 -- check off (handed over from the 8.10/README session,
+   2026-11-09).** The take was recorded 2026-11-08
+   (`demo-100m-20261108T135119Z`, #136); the write-up and charts merged in
+   #107 (main `250c315`). The user published the video on LinkedIn: get the
+   link from the user, then link it in Phases.md 8.10, replace the stale
+   note ("video script in #107 ... still to record"), and check off 8.10.
+   - **Take cost (2026-11-10):** run `--cost-only` for
+     `demo-100m-20261108T135119Z`, `rehearsal-20261107T081206Z` and
+     `rehearsal-1m-20261108T060517Z`
+     (`uv run --no-project --with boto3 python observability/scale/collect_run_metrics.py --execution <name> --cost-only`,
+     `cerberus-admin`, 1 Cost Explorer request each, $0.01). Uncommitted
+     attempt in worktree `cerberus-8.10-take-costs` (branch
+     `8.10-take-costs`): 2026-11-08 showed 1.341 EKS cluster-hours of about
+     1.7 expected. Commit only when it reaches about 1.7. Two runs share
+     2026-11-08 (day-average rate). Then update the README "Scale ladder"
+     take cost cell ("not posted yet") and docs/scale-metrics.md.
+   - **Then charts (user approved):** add the take to the three charts in
+     `observability/scale/charts.py` (guard a missing `cost` in
+     `cost_chart()`, a shared-day note, fix the transform-throughput label
+     overlaps: "9M load test" on a gridline, two 10M labels too close).
+   - **Docs drift:** docs/architecture.md and the docs/plan.md north-star
+     diagram still show CodePipeline and systemd; docs/demo-recording.md
+     line 3 says "from an empty account to an empty account" (README rule:
+     "from no compute back to no compute").
+   - **Worktree cleanup:** the merged `cerberus-8.10-*`,
+     `cerberus-decision-ai-ops-agents`, `cerberus-docs-readme-refresh` and
+     `cerberus-phase-8-10-results` worktrees can go; keep
+     `cerberus-8.10-take-costs` until the take cost is committed.
 2. **8.11 -- Well-Architected pass + ADR 0022** (Opus): Phase 8's pass, WA
    Tool milestone 8 (`phase-8-scale-validation-complete`; last tracked
    23 HIGH / 19 MEDIUM, verified 2026-09-07); confirm the ADR 0018/0020
@@ -258,7 +278,8 @@ Run `git fetch && git switch main && git pull` first; check `gh pr list`.
    2026-10-27). The 8.10 take (`demo-100m-20261108T135119Z`, #136) meets
    the "after the take" gates. Merge order for the open Phase 9 PRs (all
    merge cleanly into main; no Terraform change on main since they branched):
-   1. #129 -- ADR 0024 amendment, docs only; needs "accept the amendment".
+   Drafts need "Ready for review" (`gh pr ready N`) before `--merge`.
+   1. #129 -- ADR 0024 amendment, docs only; accepted 2026-11-09.
    2. #126 -- local Grafana on short-lived read-only credentials; no Terraform.
    3. #127 -- console Athena workgroup and read grants; CI plan must be
       1 add + 2 in place (+ the known Faker/`ingest_payments` layer churn).
