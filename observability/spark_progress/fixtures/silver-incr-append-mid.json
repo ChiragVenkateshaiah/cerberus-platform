@@ -1,0 +1,418 @@
+{
+  "capturedAt": "2026-10-25T08:38:53.876Z",
+  "applications": [
+    {
+      "id": "local-1792917507873",
+      "name": "cerberus-promote-payments",
+      "completed": false
+    }
+  ],
+  "jobs": [
+    {
+      "jobId": 3,
+      "name": "append at NativeMethodAccessorImpl.java:0",
+      "status": "RUNNING",
+      "numTasks": 26,
+      "numActiveTasks": 2,
+      "numCompletedTasks": 5,
+      "stageIds": [
+        5,
+        3,
+        4
+      ]
+    },
+    {
+      "jobId": 2,
+      "name": "append at NativeMethodAccessorImpl.java:0",
+      "status": "SUCCEEDED",
+      "numTasks": 14,
+      "numActiveTasks": 0,
+      "numCompletedTasks": 14,
+      "stageIds": [
+        2
+      ]
+    },
+    {
+      "jobId": 1,
+      "name": "append at NativeMethodAccessorImpl.java:0",
+      "status": "SUCCEEDED",
+      "numTasks": 5,
+      "numActiveTasks": 0,
+      "numCompletedTasks": 5,
+      "stageIds": [
+        1
+      ]
+    },
+    {
+      "jobId": 0,
+      "name": "collect at /opt/jobs/promote_payments_spark.py:216",
+      "status": "SUCCEEDED",
+      "numTasks": 1,
+      "numActiveTasks": 0,
+      "numCompletedTasks": 1,
+      "stageIds": [
+        0
+      ]
+    }
+  ],
+  "stages": [
+    {
+      "stageId": 5,
+      "attemptId": 0,
+      "name": "append at NativeMethodAccessorImpl.java:0",
+      "status": "ACTIVE",
+      "numTasks": 7,
+      "numActiveTasks": 2,
+      "numCompleteTasks": 5,
+      "inputRecords": 0,
+      "outputRecords": 0,
+      "shuffleReadRecords": 6164533,
+      "shuffleWriteRecords": 200802,
+      "inputBytes": 0,
+      "outputBytes": 0,
+      "submissionTime": "2026-10-25T08:38:47.382GMT",
+      "completionTime": null
+    },
+    {
+      "stageId": 4,
+      "attemptId": 0,
+      "name": "append at NativeMethodAccessorImpl.java:0",
+      "status": "PENDING",
+      "numTasks": 5,
+      "numActiveTasks": 0,
+      "numCompleteTasks": 0,
+      "inputRecords": 0,
+      "outputRecords": 0,
+      "shuffleReadRecords": 0,
+      "shuffleWriteRecords": 0,
+      "inputBytes": 0,
+      "outputBytes": 0,
+      "submissionTime": null,
+      "completionTime": null
+    },
+    {
+      "stageId": 3,
+      "attemptId": 0,
+      "name": "append at NativeMethodAccessorImpl.java:0",
+      "status": "PENDING",
+      "numTasks": 14,
+      "numActiveTasks": 0,
+      "numCompleteTasks": 0,
+      "inputRecords": 0,
+      "outputRecords": 0,
+      "shuffleReadRecords": 0,
+      "shuffleWriteRecords": 0,
+      "inputBytes": 0,
+      "outputBytes": 0,
+      "submissionTime": null,
+      "completionTime": null
+    },
+    {
+      "stageId": 2,
+      "attemptId": 0,
+      "name": "append at NativeMethodAccessorImpl.java:0",
+      "status": "COMPLETE",
+      "numTasks": 14,
+      "numActiveTasks": 0,
+      "numCompleteTasks": 14,
+      "inputRecords": 8900216,
+      "outputRecords": 0,
+      "shuffleReadRecords": 0,
+      "shuffleWriteRecords": 8900216,
+      "inputBytes": 324434378,
+      "outputBytes": 0,
+      "submissionTime": "2026-10-25T08:38:35.415GMT",
+      "completionTime": "2026-10-25T08:38:47.173GMT"
+    },
+    {
+      "stageId": 1,
+      "attemptId": 0,
+      "name": "append at NativeMethodAccessorImpl.java:0",
+      "status": "COMPLETE",
+      "numTasks": 5,
+      "numActiveTasks": 0,
+      "numCompleteTasks": 5,
+      "inputRecords": 300023,
+      "outputRecords": 0,
+      "shuffleReadRecords": 0,
+      "shuffleWriteRecords": 300023,
+      "inputBytes": 130809623,
+      "outputBytes": 0,
+      "submissionTime": "2026-10-25T08:38:35.331GMT",
+      "completionTime": "2026-10-25T08:38:41.937GMT"
+    },
+    {
+      "stageId": 0,
+      "attemptId": 0,
+      "name": "collect at /opt/jobs/promote_payments_spark.py:216",
+      "status": "COMPLETE",
+      "numTasks": 1,
+      "numActiveTasks": 0,
+      "numCompleteTasks": 1,
+      "inputRecords": 4,
+      "outputRecords": 0,
+      "shuffleReadRecords": 0,
+      "shuffleWriteRecords": 0,
+      "inputBytes": 0,
+      "outputBytes": 0,
+      "submissionTime": "2026-10-25T08:38:32.981GMT",
+      "completionTime": "2026-10-25T08:38:33.398GMT"
+    }
+  ],
+  "sql": [
+    {
+      "id": 0,
+      "status": "COMPLETED",
+      "description": "sql at NativeMethodAccessorImpl.java:0",
+      "runningJobIds": [],
+      "successJobIds": [],
+      "nodes": [
+        {
+          "nodeName": "CreateNamespace",
+          "metrics": []
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "status": "COMPLETED",
+      "description": "sql at NativeMethodAccessorImpl.java:0",
+      "runningJobIds": [],
+      "successJobIds": [],
+      "nodes": [
+        {
+          "nodeName": "CreateTable",
+          "metrics": []
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "status": "COMPLETED",
+      "description": "collect at /opt/jobs/promote_payments_spark.py:216",
+      "runningJobIds": [],
+      "successJobIds": [
+        0
+      ],
+      "nodes": [
+        {
+          "nodeName": "BatchScan glue.cerberus_platform.payments_events.snapshots",
+          "metrics": [
+            {
+              "name": "number of row deletes applied",
+              "value": "0"
+            },
+            {
+              "name": "number of skipped delete files",
+              "value": "0"
+            },
+            {
+              "name": "number of skipped data files",
+              "value": "0"
+            },
+            {
+              "name": "total data manifests",
+              "value": "0"
+            },
+            {
+              "name": "total planning duration (ms)",
+              "value": "0"
+            },
+            {
+              "name": "total data file size (bytes)",
+              "value": "0"
+            },
+            {
+              "name": "number of indexed delete files",
+              "value": "0"
+            },
+            {
+              "name": "number of scanned delete manifests",
+              "value": "0"
+            },
+            {
+              "name": "number of positional delete files",
+              "value": "0"
+            },
+            {
+              "name": "number of result delete files",
+              "value": "0"
+            },
+            {
+              "name": "number of file splits read",
+              "value": "1"
+            },
+            {
+              "name": "number of output rows",
+              "value": "4"
+            },
+            {
+              "name": "total delete file size (bytes)",
+              "value": "0"
+            },
+            {
+              "name": "number of scanned data manifests",
+              "value": "0"
+            },
+            {
+              "name": "number of skipped delete manifest",
+              "value": "0"
+            },
+            {
+              "name": "total delete manifests",
+              "value": "0"
+            },
+            {
+              "name": "number of equality delete files",
+              "value": "0"
+            },
+            {
+              "name": "number of result data files",
+              "value": "0"
+            },
+            {
+              "name": "number of skipped data manifests",
+              "value": "0"
+            }
+          ]
+        },
+        {
+          "nodeName": "Filter",
+          "metrics": [
+            {
+              "name": "number of output rows",
+              "value": "4"
+            }
+          ]
+        },
+        {
+          "nodeName": "Project",
+          "metrics": []
+        },
+        {
+          "nodeName": "WholeStageCodegen (1)",
+          "metrics": [
+            {
+              "name": "duration",
+              "value": "55 ms"
+            }
+          ]
+        },
+        {
+          "nodeName": "TakeOrderedAndProject",
+          "metrics": []
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "status": "RUNNING",
+      "description": "append at NativeMethodAccessorImpl.java:0",
+      "runningJobIds": [
+        3
+      ],
+      "successJobIds": [
+        1,
+        2
+      ],
+      "nodes": [
+        {
+          "nodeName": "BatchScan glue.cerberus_platform.payments_events",
+          "metrics": []
+        },
+        {
+          "nodeName": "ColumnarToRow",
+          "metrics": []
+        },
+        {
+          "nodeName": "Filter",
+          "metrics": []
+        },
+        {
+          "nodeName": "Project",
+          "metrics": []
+        },
+        {
+          "nodeName": "WholeStageCodegen (2)",
+          "metrics": []
+        },
+        {
+          "nodeName": "Exchange",
+          "metrics": []
+        },
+        {
+          "nodeName": "AQEShuffleRead",
+          "metrics": []
+        },
+        {
+          "nodeName": "Sort",
+          "metrics": []
+        },
+        {
+          "nodeName": "WholeStageCodegen (4)",
+          "metrics": []
+        },
+        {
+          "nodeName": "Scan json",
+          "metrics": []
+        },
+        {
+          "nodeName": "Project",
+          "metrics": []
+        },
+        {
+          "nodeName": "Sort",
+          "metrics": []
+        },
+        {
+          "nodeName": "WholeStageCodegen (1)",
+          "metrics": []
+        },
+        {
+          "nodeName": "SortAggregate",
+          "metrics": []
+        },
+        {
+          "nodeName": "Exchange",
+          "metrics": []
+        },
+        {
+          "nodeName": "AQEShuffleRead",
+          "metrics": []
+        },
+        {
+          "nodeName": "Sort",
+          "metrics": []
+        },
+        {
+          "nodeName": "WholeStageCodegen (3)",
+          "metrics": []
+        },
+        {
+          "nodeName": "SortAggregate",
+          "metrics": []
+        },
+        {
+          "nodeName": "SortMergeJoin",
+          "metrics": []
+        },
+        {
+          "nodeName": "WholeStageCodegen (5)",
+          "metrics": []
+        },
+        {
+          "nodeName": "Exchange",
+          "metrics": []
+        },
+        {
+          "nodeName": "AdaptiveSparkPlan",
+          "metrics": []
+        },
+        {
+          "nodeName": "AppendData",
+          "metrics": []
+        }
+      ]
+    }
+  ]
+}

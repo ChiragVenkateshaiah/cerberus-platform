@@ -1,0 +1,315 @@
+{
+  "capturedAt": "2026-10-25T08:31:19.224Z",
+  "applications": [
+    {
+      "id": "local-1792917033143",
+      "name": "cerberus-generate-bulk-payments",
+      "completed": false
+    }
+  ],
+  "jobs": [
+    {
+      "jobId": 1,
+      "name": "json at NativeMethodAccessorImpl.java:0",
+      "status": "SUCCEEDED",
+      "numTasks": 36,
+      "numActiveTasks": 0,
+      "numCompletedTasks": 32,
+      "stageIds": [
+        1,
+        2
+      ]
+    },
+    {
+      "jobId": 0,
+      "name": "json at NativeMethodAccessorImpl.java:0",
+      "status": "SUCCEEDED",
+      "numTasks": 4,
+      "numActiveTasks": 0,
+      "numCompletedTasks": 4,
+      "stageIds": [
+        0
+      ]
+    }
+  ],
+  "stages": [
+    {
+      "stageId": 2,
+      "attemptId": 0,
+      "name": "json at NativeMethodAccessorImpl.java:0",
+      "status": "COMPLETE",
+      "numTasks": 32,
+      "numActiveTasks": 0,
+      "numCompleteTasks": 32,
+      "inputRecords": 0,
+      "outputRecords": 8000122,
+      "shuffleReadRecords": 8000122,
+      "shuffleWriteRecords": 0,
+      "inputBytes": 0,
+      "outputBytes": 3460859951,
+      "submissionTime": "2026-10-25T08:30:57.115GMT",
+      "completionTime": "2026-10-25T08:31:19.067GMT"
+    },
+    {
+      "stageId": 1,
+      "attemptId": 0,
+      "name": "json at NativeMethodAccessorImpl.java:0",
+      "status": "SKIPPED",
+      "numTasks": 4,
+      "numActiveTasks": 0,
+      "numCompleteTasks": 0,
+      "inputRecords": 0,
+      "outputRecords": 0,
+      "shuffleReadRecords": 0,
+      "shuffleWriteRecords": 0,
+      "inputBytes": 0,
+      "outputBytes": 0,
+      "submissionTime": null,
+      "completionTime": null
+    },
+    {
+      "stageId": 0,
+      "attemptId": 0,
+      "name": "json at NativeMethodAccessorImpl.java:0",
+      "status": "COMPLETE",
+      "numTasks": 4,
+      "numActiveTasks": 0,
+      "numCompleteTasks": 4,
+      "inputRecords": 2625103,
+      "outputRecords": 0,
+      "shuffleReadRecords": 0,
+      "shuffleWriteRecords": 8000122,
+      "inputBytes": 0,
+      "outputBytes": 0,
+      "submissionTime": "2026-10-25T08:30:40.055GMT",
+      "completionTime": "2026-10-25T08:30:56.778GMT"
+    }
+  ],
+  "sql": [
+    {
+      "id": 0,
+      "status": "COMPLETED",
+      "description": "json at NativeMethodAccessorImpl.java:0",
+      "runningJobIds": [],
+      "successJobIds": [
+        0,
+        1
+      ],
+      "nodes": [
+        {
+          "nodeName": "Range",
+          "metrics": [
+            {
+              "name": "number of output rows",
+              "value": "2,625,103"
+            }
+          ]
+        },
+        {
+          "nodeName": "Filter",
+          "metrics": [
+            {
+              "name": "number of output rows",
+              "value": "2,625,103"
+            }
+          ]
+        },
+        {
+          "nodeName": "Project",
+          "metrics": []
+        },
+        {
+          "nodeName": "Generate",
+          "metrics": [
+            {
+              "name": "number of output rows",
+              "value": "13,125,515"
+            }
+          ]
+        },
+        {
+          "nodeName": "Filter",
+          "metrics": [
+            {
+              "name": "number of output rows",
+              "value": "8,000,122"
+            }
+          ]
+        },
+        {
+          "nodeName": "Project",
+          "metrics": []
+        },
+        {
+          "nodeName": "WholeStageCodegen (1)",
+          "metrics": [
+            {
+              "name": "duration",
+              "value": "total (min, med, max (stageId: taskId))\n1.0 m (15.0 s, 15.3 s, 15.7 s (stage 0.0: task 2))"
+            }
+          ]
+        },
+        {
+          "nodeName": "Exchange",
+          "metrics": [
+            {
+              "name": "shuffle records written",
+              "value": "8,000,122"
+            },
+            {
+              "name": "local merged chunks fetched",
+              "value": "0"
+            },
+            {
+              "name": "shuffle write time",
+              "value": "total (min, med, max (stageId: taskId))\n4.9 s (908 ms, 1.3 s, 1.4 s (stage 0.0: task 0))"
+            },
+            {
+              "name": "remote merged bytes read",
+              "value": "0.0 B"
+            },
+            {
+              "name": "local merged blocks fetched",
+              "value": "0"
+            },
+            {
+              "name": "corrupt merged block chunks",
+              "value": "0"
+            },
+            {
+              "name": "remote merged reqs duration",
+              "value": "0 ms"
+            },
+            {
+              "name": "remote merged blocks fetched",
+              "value": "0"
+            },
+            {
+              "name": "records read",
+              "value": "8,000,122"
+            },
+            {
+              "name": "local bytes read",
+              "value": "total (min, med, max (stageId: taskId))\n948.6 MiB (13.8 MiB, 33.8 MiB, 96.0 MiB (stage 2.0: task 26))"
+            },
+            {
+              "name": "fetch wait time",
+              "value": "total (min, med, max (stageId: taskId))\n0 ms (0 ms, 0 ms, 0 ms (stage 2.0: task 7))"
+            },
+            {
+              "name": "remote bytes read",
+              "value": "0.0 B"
+            },
+            {
+              "name": "merged fetch fallback count",
+              "value": "0"
+            },
+            {
+              "name": "local blocks read",
+              "value": "100"
+            },
+            {
+              "name": "remote merged chunks fetched",
+              "value": "0"
+            },
+            {
+              "name": "remote blocks read",
+              "value": "0"
+            },
+            {
+              "name": "data size",
+              "value": "total (min, med, max (stageId: taskId))\n3.2 GiB (828.2 MiB, 828.3 MiB, 828.3 MiB (stage 0.0: task 2))"
+            },
+            {
+              "name": "local merged bytes read",
+              "value": "0.0 B"
+            },
+            {
+              "name": "number of partitions",
+              "value": "32"
+            },
+            {
+              "name": "remote reqs duration",
+              "value": "0 ms"
+            },
+            {
+              "name": "remote bytes read to disk",
+              "value": "0.0 B"
+            },
+            {
+              "name": "shuffle bytes written",
+              "value": "total (min, med, max (stageId: taskId))\n948.6 MiB (237.1 MiB, 237.1 MiB, 237.2 MiB (stage 0.0: task 3))"
+            }
+          ]
+        },
+        {
+          "nodeName": "Project",
+          "metrics": []
+        },
+        {
+          "nodeName": "Sort",
+          "metrics": [
+            {
+              "name": "sort time",
+              "value": "total (min, med, max (stageId: taskId))\n3.1 s (0 ms, 51 ms, 570 ms (stage 2.0: task 4))"
+            },
+            {
+              "name": "peak memory",
+              "value": "total (min, med, max (stageId: taskId))\n3.8 GiB (64.0 KiB, 136.0 MiB, 400.0 MiB (stage 2.0: task 26))"
+            },
+            {
+              "name": "spill size",
+              "value": "total (min, med, max (stageId: taskId))\n0.0 B (0.0 B, 0.0 B, 0.0 B (stage 2.0: task 7))"
+            }
+          ]
+        },
+        {
+          "nodeName": "WholeStageCodegen (2)",
+          "metrics": [
+            {
+              "name": "duration",
+              "value": "total (min, med, max (stageId: taskId))\n1.3 m (6 ms, 2.3 s, 6.0 s (stage 2.0: task 4))"
+            }
+          ]
+        },
+        {
+          "nodeName": "WriteFiles",
+          "metrics": []
+        },
+        {
+          "nodeName": "Execute InsertIntoHadoopFsRelationCommand",
+          "metrics": [
+            {
+              "name": "task commit time",
+              "value": "total (min, med, max (stageId: taskId))\n98 ms (0 ms, 1 ms, 17 ms (stage 2.0: task 7))"
+            },
+            {
+              "name": "number of written files",
+              "value": "32"
+            },
+            {
+              "name": "job commit time",
+              "value": "72 ms"
+            },
+            {
+              "name": "number of output rows",
+              "value": "8,000,122"
+            },
+            {
+              "name": "number of dynamic part",
+              "value": "8"
+            },
+            {
+              "name": "written output",
+              "value": "3.2 GiB"
+            }
+          ]
+        },
+        {
+          "nodeName": "AdaptiveSparkPlan",
+          "metrics": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1439 @@
+{
+  "capturedAt": "2026-10-25T08:38:58.234Z",
+  "applications": [
+    {
+      "id": "local-1792917507873",
+      "name": "cerberus-promote-payments",
+      "completed": false
+    }
+  ],
+  "jobs": [
+    {
+      "jobId": 10,
+      "name": "save at SparkBinPackFileRewriteRunner.java:62",
+      "status": "RUNNING",
+      "numTasks": 1,
+      "numActiveTasks": 0,
+      "numCompletedTasks": 0,
+      "stageIds": [
+        15
+      ]
+    },
+    {
+      "jobId": 9,
+      "name": "save at SparkBinPackFileRewriteRunner.java:62",
+      "status": "RUNNING",
+      "numTasks": 1,
+      "numActiveTasks": 1,
+      "numCompletedTasks": 0,
+      "stageIds": [
+        14
+      ]
+    },
+    {
+      "jobId": 8,
+      "name": "save at SparkBinPackFileRewriteRunner.java:62",
+      "status": "RUNNING",
+      "numTasks": 1,
+      "numActiveTasks": 1,
+      "numCompletedTasks": 0,
+      "stageIds": [
+        13
+      ]
+    },
+    {
+      "jobId": 7,
+      "name": "save at SparkBinPackFileRewriteRunner.java:62",
+      "status": "RUNNING",
+      "numTasks": 1,
+      "numActiveTasks": 1,
+      "numCompletedTasks": 0,
+      "stageIds": [
+        12
+      ]
+    },
+    {
+      "jobId": 6,
+      "name": "save at SparkBinPackFileRewriteRunner.java:62",
+      "status": "RUNNING",
+      "numTasks": 1,
+      "numActiveTasks": 1,
+      "numCompletedTasks": 0,
+      "stageIds": [
+        11
+      ]
+    },
+    {
+      "jobId": 5,
+      "name": "collect at /opt/jobs/promote_payments_spark.py:333",
+      "status": "SUCCEEDED",
+      "numTasks": 1,
+      "numActiveTasks": 0,
+      "numCompletedTasks": 1,
+      "stageIds": [
+        10
+      ]
+    },
+    {
+      "jobId": 4,
+      "name": "append at NativeMethodAccessorImpl.java:0",
+      "status": "SUCCEEDED",
+      "numTasks": 31,
+      "numActiveTasks": 0,
+      "numCompletedTasks": 5,
+      "stageIds": [
+        9,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "jobId": 3,
+      "name": "append at NativeMethodAccessorImpl.java:0",
+      "status": "SUCCEEDED",
+      "numTasks": 26,
+      "numActiveTasks": 0,
+      "numCompletedTasks": 7,
+      "stageIds": [
+        5,
+        3,
+        4
+      ]
+    },
+    {
+      "jobId": 2,
+      "name": "append at NativeMethodAccessorImpl.java:0",
+      "status": "SUCCEEDED",
+      "numTasks": 14,
+      "numActiveTasks": 0,
+      "numCompletedTasks": 14,
+      "stageIds": [
+        2
+      ]
+    },
+    {
+      "jobId": 1,
+      "name": "append at NativeMethodAccessorImpl.java:0",
+      "status": "SUCCEEDED",
+      "numTasks": 5,
+      "numActiveTasks": 0,
+      "numCompletedTasks": 5,
+      "stageIds": [
+        1
+      ]
+    },
+    {
+      "jobId": 0,
+      "name": "collect at /opt/jobs/promote_payments_spark.py:216",
+      "status": "SUCCEEDED",
+      "numTasks": 1,
+      "numActiveTasks": 0,
+      "numCompletedTasks": 1,
+      "stageIds": [
+        0
+      ]
+    }
+  ],
+  "stages": [
+    {
+      "stageId": 15,
+      "attemptId": 0,
+      "name": "save at SparkBinPackFileRewriteRunner.java:62",
+      "status": "ACTIVE",
+      "numTasks": 1,
+      "numActiveTasks": 0,
+      "numCompleteTasks": 0,
+      "inputRecords": 0,
+      "outputRecords": 0,
+      "shuffleReadRecords": 0,
+      "shuffleWriteRecords": 0,
+      "inputBytes": 0,
+      "outputBytes": 0,
+      "submissionTime": "2026-10-25T08:38:56.574GMT",
+      "completionTime": null
+    },
+    {
+      "stageId": 14,
+      "attemptId": 0,
+      "name": "save at SparkBinPackFileRewriteRunner.java:62",
+      "status": "ACTIVE",
+      "numTasks": 1,
+      "numActiveTasks": 1,
+      "numCompleteTasks": 0,
+      "inputRecords": 0,
+      "outputRecords": 0,
+      "shuffleReadRecords": 0,
+      "shuffleWriteRecords": 0,
+      "inputBytes": 0,
+      "outputBytes": 0,
+      "submissionTime": "2026-10-25T08:38:56.558GMT",
+      "completionTime": null
+    },
+    {
+      "stageId": 13,
+      "attemptId": 0,
+      "name": "save at SparkBinPackFileRewriteRunner.java:62",
+      "status": "ACTIVE",
+      "numTasks": 1,
+      "numActiveTasks": 1,
+      "numCompleteTasks": 0,
+      "inputRecords": 0,
+      "outputRecords": 0,
+      "shuffleReadRecords": 0,
+      "shuffleWriteRecords": 0,
+      "inputBytes": 0,
+      "outputBytes": 0,
+      "submissionTime": "2026-10-25T08:38:56.544GMT",
+      "completionTime": null
+    },
+    {
+      "stageId": 12,
+      "attemptId": 0,
+      "name": "save at SparkBinPackFileRewriteRunner.java:62",
+      "status": "ACTIVE",
+      "numTasks": 1,
+      "numActiveTasks": 1,
+      "numCompleteTasks": 0,
+      "inputRecords": 0,
+      "outputRecords": 0,
+      "shuffleReadRecords": 0,
+      "shuffleWriteRecords": 0,
+      "inputBytes": 0,
+      "outputBytes": 0,
+      "submissionTime": "2026-10-25T08:38:56.532GMT",
+      "completionTime": null
+    },
+    {
+      "stageId": 11,
+      "attemptId": 0,
+      "name": "save at SparkBinPackFileRewriteRunner.java:62",
+      "status": "ACTIVE",
+      "numTasks": 1,
+      "numActiveTasks": 1,
+      "numCompleteTasks": 0,
+      "inputRecords": 0,
+      "outputRecords": 0,
+      "shuffleReadRecords": 0,
+      "shuffleWriteRecords": 0,
+      "inputBytes": 0,
+      "outputBytes": 0,
+      "submissionTime": "2026-10-25T08:38:56.519GMT",
+      "completionTime": null
+    },
+    {
+      "stageId": 10,
+      "attemptId": 0,
+      "name": "collect at /opt/jobs/promote_payments_spark.py:333",
+      "status": "COMPLETE",
+      "numTasks": 1,
+      "numActiveTasks": 0,
+      "numCompleteTasks": 1,
+      "inputRecords": 5,
+      "outputRecords": 0,
+      "shuffleReadRecords": 0,
+      "shuffleWriteRecords": 0,
+      "inputBytes": 0,
+      "outputBytes": 0,
+      "submissionTime": "2026-10-25T08:38:56.034GMT",
+      "completionTime": "2026-10-25T08:38:56.062GMT"
+    },
+    {
+      "stageId": 9,
+      "attemptId": 0,
+      "name": "append at NativeMethodAccessorImpl.java:0",
+      "status": "COMPLETE",
+      "numTasks": 5,
+      "numActiveTasks": 0,
+      "numCompleteTasks": 5,
+      "inputRecords": 0,
+      "outputRecords": 300023,
+      "shuffleReadRecords": 300023,
+      "shuffleWriteRecords": 0,
+      "inputBytes": 0,
+      "outputBytes": 15272166,
+      "submissionTime": "2026-10-25T08:38:53.944GMT",
+      "completionTime": "2026-10-25T08:38:55.715GMT"
+    },
+    {
+      "stageId": 8,
+      "attemptId": 0,
+      "name": "append at NativeMethodAccessorImpl.java:0",
+      "status": "SKIPPED",
+      "numTasks": 7,
+      "numActiveTasks": 0,
+      "numCompleteTasks": 0,
+      "inputRecords": 0,
+      "outputRecords": 0,
+      "shuffleReadRecords": 0,
+      "shuffleWriteRecords": 0,
+      "inputBytes": 0,
+      "outputBytes": 0,
+      "submissionTime": null,
+      "completionTime": null
+    },
+    {
+      "stageId": 7,
+      "attemptId": 0,
+      "name": "append at NativeMethodAccessorImpl.java:0",
+      "status": "SKIPPED",
+      "numTasks": 5,
+      "numActiveTasks": 0,
+      "numCompleteTasks": 0,
+      "inputRecords": 0,
+      "outputRecords": 0,
+      "shuffleReadRecords": 0,
+      "shuffleWriteRecords": 0,
+      "inputBytes": 0,
+      "outputBytes": 0,
+      "submissionTime": null,
+      "completionTime": null
+    },
+    {
+      "stageId": 6,
+      "attemptId": 0,
+      "name": "append at NativeMethodAccessorImpl.java:0",
+      "status": "SKIPPED",
+      "numTasks": 14,
+      "numActiveTasks": 0,
+      "numCompleteTasks": 0,
+      "inputRecords": 0,
+      "outputRecords": 0,
+      "shuffleReadRecords": 0,
+      "shuffleWriteRecords": 0,
+      "inputBytes": 0,
+      "outputBytes": 0,
+      "submissionTime": null,
+      "completionTime": null
+    },
+    {
+      "stageId": 5,
+      "attemptId": 0,
+      "name": "append at NativeMethodAccessorImpl.java:0",
+      "status": "COMPLETE",
+      "numTasks": 7,
+      "numActiveTasks": 0,
+      "numCompleteTasks": 7,
+      "inputRecords": 0,
+      "outputRecords": 0,
+      "shuffleReadRecords": 9200239,
+      "shuffleWriteRecords": 300023,
+      "inputBytes": 0,
+      "outputBytes": 0,
+      "submissionTime": "2026-10-25T08:38:47.382GMT",
+      "completionTime": "2026-10-25T08:38:53.892GMT"
+    },
+    {
+      "stageId": 4,
+      "attemptId": 0,
+      "name": "append at NativeMethodAccessorImpl.java:0",
+      "status": "SKIPPED",
+      "numTasks": 5,
+      "numActiveTasks": 0,
+      "numCompleteTasks": 0,
+      "inputRecords": 0,
+      "outputRecords": 0,
+      "shuffleReadRecords": 0,
+      "shuffleWriteRecords": 0,
+      "inputBytes": 0,
+      "outputBytes": 0,
+      "submissionTime": null,
+      "completionTime": null
+    },
+    {
+      "stageId": 3,
+      "attemptId": 0,
+      "name": "append at NativeMethodAccessorImpl.java:0",
+      "status": "SKIPPED",
+      "numTasks": 14,
+      "numActiveTasks": 0,
+      "numCompleteTasks": 0,
+      "inputRecords": 0,
+      "outputRecords": 0,
+      "shuffleReadRecords": 0,
+      "shuffleWriteRecords": 0,
+      "inputBytes": 0,
+      "outputBytes": 0,
+      "submissionTime": null,
+      "completionTime": null
+    },
+    {
+      "stageId": 2,
+      "attemptId": 0,
+      "name": "append at NativeMethodAccessorImpl.java:0",
+      "status": "COMPLETE",
+      "numTasks": 14,
+      "numActiveTasks": 0,
+      "numCompleteTasks": 14,
+      "inputRecords": 8900216,
+      "outputRecords": 0,
+      "shuffleReadRecords": 0,
+      "shuffleWriteRecords": 8900216,
+      "inputBytes": 324434378,
+      "outputBytes": 0,
+      "submissionTime": "2026-10-25T08:38:35.415GMT",
+      "completionTime": "2026-10-25T08:38:47.173GMT"
+    },
+    {
+      "stageId": 1,
+      "attemptId": 0,
+      "name": "append at NativeMethodAccessorImpl.java:0",
+      "status": "COMPLETE",
+      "numTasks": 5,
+      "numActiveTasks": 0,
+      "numCompleteTasks": 5,
+      "inputRecords": 300023,
+      "outputRecords": 0,
+      "shuffleReadRecords": 0,
+      "shuffleWriteRecords": 300023,
+      "inputBytes": 130809623,
+      "outputBytes": 0,
+      "submissionTime": "2026-10-25T08:38:35.331GMT",
+      "completionTime": "2026-10-25T08:38:41.937GMT"
+    },
+    {
+      "stageId": 0,
+      "attemptId": 0,
+      "name": "collect at /opt/jobs/promote_payments_spark.py:216",
+      "status": "COMPLETE",
+      "numTasks": 1,
+      "numActiveTasks": 0,
+      "numCompleteTasks": 1,
+      "inputRecords": 4,
+      "outputRecords": 0,
+      "shuffleReadRecords": 0,
+      "shuffleWriteRecords": 0,
+      "inputBytes": 0,
+      "outputBytes": 0,
+      "submissionTime": "2026-10-25T08:38:32.981GMT",
+      "completionTime": "2026-10-25T08:38:33.398GMT"
+    }
+  ],
+  "sql": [
+    {
+      "id": 0,
+      "status": "COMPLETED",
+      "description": "sql at NativeMethodAccessorImpl.java:0",
+      "runningJobIds": [],
+      "successJobIds": [],
+      "nodes": [
+        {
+          "nodeName": "CreateNamespace",
+          "metrics": []
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "status": "COMPLETED",
+      "description": "sql at NativeMethodAccessorImpl.java:0",
+      "runningJobIds": [],
+      "successJobIds": [],
+      "nodes": [
+        {
+          "nodeName": "CreateTable",
+          "metrics": []
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "status": "COMPLETED",
+      "description": "collect at /opt/jobs/promote_payments_spark.py:216",
+      "runningJobIds": [],
+      "successJobIds": [
+        0
+      ],
+      "nodes": [
+        {
+          "nodeName": "BatchScan glue.cerberus_platform.payments_events.snapshots",
+          "metrics": [
+            {
+              "name": "number of row deletes applied",
+              "value": "0"
+            },
+            {
+              "name": "number of skipped delete files",
+              "value": "0"
+            },
+            {
+              "name": "number of skipped data files",
+              "value": "0"
+            },
+            {
+              "name": "total data manifests",
+              "value": "0"
+            },
+            {
+              "name": "total planning duration (ms)",
+              "value": "0"
+            },
+            {
+              "name": "total data file size (bytes)",
+              "value": "0"
+            },
+            {
+              "name": "number of indexed delete files",
+              "value": "0"
+            },
+            {
+              "name": "number of scanned delete manifests",
+              "value": "0"
+            },
+            {
+              "name": "number of positional delete files",
+              "value": "0"
+            },
+            {
+              "name": "number of result delete files",
+              "value": "0"
+            },
+            {
+              "name": "number of file splits read",
+              "value": "1"
+            },
+            {
+              "name": "number of output rows",
+              "value": "4"
+            },
+            {
+              "name": "total delete file size (bytes)",
+              "value": "0"
+            },
+            {
+              "name": "number of scanned data manifests",
+              "value": "0"
+            },
+            {
+              "name": "number of skipped delete manifest",
+              "value": "0"
+            },
+            {
+              "name": "total delete manifests",
+              "value": "0"
+            },
+            {
+              "name": "number of equality delete files",
+              "value": "0"
+            },
+            {
+              "name": "number of result data files",
+              "value": "0"
+            },
+            {
+              "name": "number of skipped data manifests",
+              "value": "0"
+            }
+          ]
+        },
+        {
+          "nodeName": "Filter",
+          "metrics": [
+            {
+              "name": "number of output rows",
+              "value": "4"
+            }
+          ]
+        },
+        {
+          "nodeName": "Project",
+          "metrics": []
+        },
+        {
+          "nodeName": "WholeStageCodegen (1)",
+          "metrics": [
+            {
+              "name": "duration",
+              "value": "55 ms"
+            }
+          ]
+        },
+        {
+          "nodeName": "TakeOrderedAndProject",
+          "metrics": []
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "status": "COMPLETED",
+      "description": "append at NativeMethodAccessorImpl.java:0",
+      "runningJobIds": [],
+      "successJobIds": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "nodes": [
+        {
+          "nodeName": "BatchScan glue.cerberus_platform.payments_events",
+          "metrics": [
+            {
+              "name": "number of row deletes applied",
+              "value": "0"
+            },
+            {
+              "name": "number of skipped delete files",
+              "value": "0"
+            },
+            {
+              "name": "number of skipped data files",
+              "value": "0"
+            },
+            {
+              "name": "total data manifests",
+              "value": "4"
+            },
+            {
+              "name": "total planning duration (ms)",
+              "value": "269"
+            },
+            {
+              "name": "total data file size (bytes)",
+              "value": "565486487"
+            },
+            {
+              "name": "number of indexed delete files",
+              "value": "0"
+            },
+            {
+              "name": "number of scanned delete manifests",
+              "value": "0"
+            },
+            {
+              "name": "number of positional delete files",
+              "value": "0"
+            },
+            {
+              "name": "number of result delete files",
+              "value": "0"
+            },
+            {
+              "name": "number of file splits read",
+              "value": "32"
+            },
+            {
+              "name": "number of output rows",
+              "value": "8,900,216"
+            },
+            {
+              "name": "total delete file size (bytes)",
+              "value": "0"
+            },
+            {
+              "name": "number of scanned data manifests",
+              "value": "4"
+            },
+            {
+              "name": "number of skipped delete manifest",
+              "value": "0"
+            },
+            {
+              "name": "total delete manifests",
+              "value": "0"
+            },
+            {
+              "name": "number of equality delete files",
+              "value": "0"
+            },
+            {
+              "name": "number of result data files",
+              "value": "32"
+            },
+            {
+              "name": "number of skipped data manifests",
+              "value": "0"
+            }
+          ]
+        },
+        {
+          "nodeName": "ColumnarToRow",
+          "metrics": [
+            {
+              "name": "number of output rows",
+              "value": "8,900,216"
+            },
+            {
+              "name": "number of input batches",
+              "value": "1,792"
+            }
+          ]
+        },
+        {
+          "nodeName": "Filter",
+          "metrics": [
+            {
+              "name": "number of output rows",
+              "value": "8,900,216"
+            }
+          ]
+        },
+        {
+          "nodeName": "Project",
+          "metrics": []
+        },
+        {
+          "nodeName": "WholeStageCodegen (2)",
+          "metrics": [
+            {
+              "name": "duration",
+              "value": "total (min, med, max (stageId: taskId))\n19.3 s (266 ms, 1.4 s, 3.3 s (stage 2.0: task 6))"
+            }
+          ]
+        },
+        {
+          "nodeName": "Exchange",
+          "metrics": [
+            {
+              "name": "shuffle records written",
+              "value": "8,900,216"
+            },
+            {
+              "name": "local merged chunks fetched",
+              "value": "0"
+            },
+            {
+              "name": "shuffle write time",
+              "value": "total (min, med, max (stageId: taskId))\n2.2 s (33 ms, 167 ms, 321 ms (stage 2.0: task 6))"
+            },
+            {
+              "name": "remote merged bytes read",
+              "value": "0.0 B"
+            },
+            {
+              "name": "local merged blocks fetched",
+              "value": "0"
+            },
+            {
+              "name": "corrupt merged block chunks",
+              "value": "0"
+            },
+            {
+              "name": "remote merged reqs duration",
+              "value": "0 ms"
+            },
+            {
+              "name": "remote merged blocks fetched",
+              "value": "0"
+            },
+            {
+              "name": "records read",
+              "value": "8,900,216"
+            },
+            {
+              "name": "local bytes read",
+              "value": "total (min, med, max (stageId: taskId))\n308.7 MiB (1577.4 KiB, 50.9 MiB, 52.5 MiB (stage 5.0: task 23))"
+            },
+            {
+              "name": "fetch wait time",
+              "value": "total (min, med, max (stageId: taskId))\n0 ms (0 ms, 0 ms, 0 ms (stage 5.0: task 23))"
+            },
+            {
+              "name": "remote bytes read",
+              "value": "0.0 B"
+            },
+            {
+              "name": "merged fetch fallback count",
+              "value": "0"
+            },
+            {
+              "name": "local blocks read",
+              "value": "98"
+            },
+            {
+              "name": "remote merged chunks fetched",
+              "value": "0"
+            },
+            {
+              "name": "remote blocks read",
+              "value": "0"
+            },
+            {
+              "name": "data size",
+              "value": "total (min, med, max (stageId: taskId))\n633.4 MiB (9.5 MiB, 64.8 MiB, 80.4 MiB (stage 2.0: task 6))"
+            },
+            {
+              "name": "local merged bytes read",
+              "value": "0.0 B"
+            },
+            {
+              "name": "number of partitions",
+              "value": "200"
+            },
+            {
+              "name": "remote reqs duration",
+              "value": "0 ms"
+            },
+            {
+              "name": "remote bytes read to disk",
+              "value": "0.0 B"
+            },
+            {
+              "name": "shuffle bytes written",
+              "value": "total (min, med, max (stageId: taskId))\n308.7 MiB (4.8 MiB, 31.3 MiB, 39.1 MiB (stage 2.0: task 6))"
+            }
+          ]
+        },
+        {
+          "nodeName": "AQEShuffleRead",
+          "metrics": [
+            {
+              "name": "number of partitions",
+              "value": "7"
+            },
+            {
+              "name": "partition data size",
+              "value": "total (min, med, max (stageId: taskId))\n327.8 MiB (1692.2 KiB, 54.1 MiB, 55.6 MiB (driver))"
+            },
+            {
+              "name": "number of coalesced partitions",
+              "value": "6"
+            }
+          ]
+        },
+        {
+          "nodeName": "Sort",
+          "metrics": [
+            {
+              "name": "sort time",
+              "value": "total (min, med, max (stageId: taskId))\n5.3 s (6 ms, 944 ms, 1.1 s (stage 5.0: task 22))"
+            },
+            {
+              "name": "peak memory",
+              "value": "total (min, med, max (stageId: taskId))\n1090.0 MiB (18.0 MiB, 176.0 MiB, 192.0 MiB (stage 5.0: task 23))"
+            },
+            {
+              "name": "spill size",
+              "value": "total (min, med, max (stageId: taskId))\n0.0 B (0.0 B, 0.0 B, 0.0 B (stage 5.0: task 23))"
+            }
+          ]
+        },
+        {
+          "nodeName": "WholeStageCodegen (4)",
+          "metrics": [
+            {
+              "name": "duration",
+              "value": "0 ms"
+            }
+          ]
+        },
+        {
+          "nodeName": "Scan json",
+          "metrics": [
+            {
+              "name": "number of output rows",
+              "value": "300,023"
+            },
+            {
+              "name": "number of files read",
+              "value": "8"
+            },
+            {
+              "name": "metadata time",
+              "value": "5 ms"
+            },
+            {
+              "name": "size of files read",
+              "value": "123.8 MiB"
+            }
+          ]
+        },
+        {
+          "nodeName": "Project",
+          "metrics": []
+        },
+        {
+          "nodeName": "Sort",
+          "metrics": [
+            {
+              "name": "sort time",
+              "value": "total (min, med, max (stageId: taskId))\n491 ms (6 ms, 92 ms, 204 ms (stage 1.0: task 2))"
+            },
+            {
+              "name": "peak memory",
+              "value": "total (min, med, max (stageId: taskId))\n135.5 MiB (16.5 MiB, 34.0 MiB, 34.0 MiB (stage 1.0: task 4))"
+            },
+            {
+              "name": "spill size",
+              "value": "total (min, med, max (stageId: taskId))\n0.0 B (0.0 B, 0.0 B, 0.0 B (stage 1.0: task 1))"
+            }
+          ]
+        },
+        {
+          "nodeName": "WholeStageCodegen (1)",
+          "metrics": [
+            {
+              "name": "duration",
+              "value": "total (min, med, max (stageId: taskId))\n23.9 s (1.1 s, 5.7 s, 6.1 s (stage 1.0: task 2))"
+            }
+          ]
+        },
+        {
+          "nodeName": "SortAggregate",
+          "metrics": [
+            {
+              "name": "number of output rows",
+              "value": "300,023"
+            }
+          ]
+        },
+        {
+          "nodeName": "Exchange",
+          "metrics": [
+            {
+              "name": "shuffle records written",
+              "value": "300,023"
+            },
+            {
+              "name": "local merged chunks fetched",
+              "value": "0"
+            },
+            {
+              "name": "shuffle write time",
+              "value": "total (min, med, max (stageId: taskId))\n439 ms (52 ms, 91 ms, 135 ms (stage 1.0: task 1))"
+            },
+            {
+              "name": "remote merged bytes read",
+              "value": "0.0 B"
+            },
+            {
+              "name": "local merged blocks fetched",
+              "value": "0"
+            },
+            {
+              "name": "corrupt merged block chunks",
+              "value": "0"
+            },
+            {
+              "name": "remote merged reqs duration",
+              "value": "0 ms"
+            },
+            {
+              "name": "remote merged blocks fetched",
+              "value": "0"
+            },
+            {
+              "name": "records read",
+              "value": "300,023"
+            },
+            {
+              "name": "local bytes read",
+              "value": "total (min, med, max (stageId: taskId))\n46.8 MiB (228.4 KiB, 7.7 MiB, 7.9 MiB (stage 5.0: task 23))"
+            },
+            {
+              "name": "fetch wait time",
+              "value": "total (min, med, max (stageId: taskId))\n0 ms (0 ms, 0 ms, 0 ms (stage 5.0: task 23))"
+            },
+            {
+              "name": "remote bytes read",
+              "value": "0.0 B"
+            },
+            {
+              "name": "merged fetch fallback count",
+              "value": "0"
+            },
+            {
+              "name": "local blocks read",
+              "value": "35"
+            },
+            {
+              "name": "remote merged chunks fetched",
+              "value": "0"
+            },
+            {
+              "name": "remote blocks read",
+              "value": "0"
+            },
+            {
+              "name": "data size",
+              "value": "total (min, med, max (stageId: taskId))\n128.8 MiB (8.3 MiB, 30.9 MiB, 36.3 MiB (stage 1.0: task 2))"
+            },
+            {
+              "name": "local merged bytes read",
+              "value": "0.0 B"
+            },
+            {
+              "name": "number of partitions",
+              "value": "200"
+            },
+            {
+              "name": "remote reqs duration",
+              "value": "0 ms"
+            },
+            {
+              "name": "remote bytes read to disk",
+              "value": "0.0 B"
+            },
+            {
+              "name": "shuffle bytes written",
+              "value": "total (min, med, max (stageId: taskId))\n46.8 MiB (3.1 MiB, 11.3 MiB, 13.2 MiB (stage 1.0: task 2))"
+            }
+          ]
+        },
+        {
+          "nodeName": "AQEShuffleRead",
+          "metrics": [
+            {
+              "name": "number of partitions",
+              "value": "7"
+            },
+            {
+              "name": "partition data size",
+              "value": "total (min, med, max (stageId: taskId))\n49.0 MiB (243.1 KiB, 8.1 MiB, 8.3 MiB (driver))"
+            },
+            {
+              "name": "number of coalesced partitions",
+              "value": "6"
+            }
+          ]
+        },
+        {
+          "nodeName": "Sort",
+          "metrics": [
+            {
+              "name": "sort time",
+              "value": "total (min, med, max (stageId: taskId))\n336 ms (0 ms, 38 ms, 148 ms (stage 5.0: task 20))"
+            },
+            {
+              "name": "peak memory",
+              "value": "total (min, med, max (stageId: taskId))\n220.1 MiB (16.1 MiB, 34.0 MiB, 34.0 MiB (stage 5.0: task 23))"
+            },
+            {
+              "name": "spill size",
+              "value": "total (min, med, max (stageId: taskId))\n0.0 B (0.0 B, 0.0 B, 0.0 B (stage 5.0: task 23))"
+            }
+          ]
+        },
+        {
+          "nodeName": "WholeStageCodegen (3)",
+          "metrics": [
+            {
+              "name": "duration",
+              "value": "total (min, med, max (stageId: taskId))\n22.4 s (115 ms, 4.4 s, 5.0 s (stage 5.0: task 22))"
+            }
+          ]
+        },
+        {
+          "nodeName": "SortAggregate",
+          "metrics": [
+            {
+              "name": "number of output rows",
+              "value": "300,023"
+            }
+          ]
+        },
+        {
+          "nodeName": "SortMergeJoin",
+          "metrics": [
+            {
+              "name": "number of output rows",
+              "value": "300,023"
+            },
+            {
+              "name": "spill size",
+              "value": "total (min, med, max (stageId: taskId))\n0.0 B (0.0 B, 0.0 B, 0.0 B (stage 5.0: task 23))"
+            }
+          ]
+        },
+        {
+          "nodeName": "WholeStageCodegen (5)",
+          "metrics": [
+            {
+              "name": "duration",
+              "value": "total (min, med, max (stageId: taskId))\n19.3 s (40 ms, 3.8 s, 4.3 s (stage 5.0: task 22))"
+            }
+          ]
+        },
+        {
+          "nodeName": "Exchange",
+          "metrics": [
+            {
+              "name": "shuffle records written",
+              "value": "300,023"
+            },
+            {
+              "name": "local merged chunks fetched",
+              "value": "0"
+            },
+            {
+              "name": "shuffle write time",
+              "value": "total (min, med, max (stageId: taskId))\n227 ms (4 ms, 34 ms, 60 ms (stage 5.0: task 21))"
+            },
+            {
+              "name": "remote merged bytes read",
+              "value": "0.0 B"
+            },
+            {
+              "name": "local merged blocks fetched",
+              "value": "0"
+            },
+            {
+              "name": "corrupt merged block chunks",
+              "value": "0"
+            },
+            {
+              "name": "remote merged reqs duration",
+              "value": "0 ms"
+            },
+            {
+              "name": "remote merged blocks fetched",
+              "value": "0"
+            },
+            {
+              "name": "records read",
+              "value": "300,023"
+            },
+            {
+              "name": "local bytes read",
+              "value": "total (min, med, max (stageId: taskId))\n41.0 MiB (5.8 MiB, 8.5 MiB, 10.5 MiB (stage 9.0: task 28))"
+            },
+            {
+              "name": "fetch wait time",
+              "value": "total (min, med, max (stageId: taskId))\n0 ms (0 ms, 0 ms, 0 ms (stage 9.0: task 27))"
+            },
+            {
+              "name": "remote bytes read",
+              "value": "0.0 B"
+            },
+            {
+              "name": "merged fetch fallback count",
+              "value": "0"
+            },
+            {
+              "name": "local blocks read",
+              "value": "35"
+            },
+            {
+              "name": "remote merged chunks fetched",
+              "value": "0"
+            },
+            {
+              "name": "remote blocks read",
+              "value": "0"
+            },
+            {
+              "name": "data size",
+              "value": "total (min, med, max (stageId: taskId))\n96.8 MiB (470.8 KiB, 16.0 MiB, 16.4 MiB (stage 5.0: task 23))"
+            },
+            {
+              "name": "local merged bytes read",
+              "value": "0.0 B"
+            },
+            {
+              "name": "number of partitions",
+              "value": "200"
+            },
+            {
+              "name": "remote reqs duration",
+              "value": "0 ms"
+            },
+            {
+              "name": "remote bytes read to disk",
+              "value": "0.0 B"
+            },
+            {
+              "name": "shuffle bytes written",
+              "value": "total (min, med, max (stageId: taskId))\n41.0 MiB (211.2 KiB, 6.8 MiB, 6.9 MiB (stage 5.0: task 23))"
+            }
+          ]
+        },
+        {
+          "nodeName": "AQEShuffleRead",
+          "metrics": [
+            {
+              "name": "number of partitions",
+              "value": "5"
+            },
+            {
+              "name": "partition data size",
+              "value": "total (min, med, max (stageId: taskId))\n43.5 MiB (6.2 MiB, 9.0 MiB, 11.3 MiB (driver))"
+            },
+            {
+              "name": "number of coalesced partitions",
+              "value": "4"
+            }
+          ]
+        },
+        {
+          "nodeName": "AdaptiveSparkPlan",
+          "metrics": []
+        },
+        {
+          "nodeName": "AppendData",
+          "metrics": []
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "status": "COMPLETED",
+      "description": "sql at NativeMethodAccessorImpl.java:0",
+      "runningJobIds": [],
+      "successJobIds": [],
+      "nodes": [
+        {
+          "nodeName": "RefreshTable",
+          "metrics": []
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "status": "COMPLETED",
+      "description": "collect at /opt/jobs/promote_payments_spark.py:333",
+      "runningJobIds": [],
+      "successJobIds": [
+        5
+      ],
+      "nodes": [
+        {
+          "nodeName": "BatchScan glue.cerberus_platform.payments_events.snapshots",
+          "metrics": [
+            {
+              "name": "number of row deletes applied",
+              "value": "0"
+            },
+            {
+              "name": "number of skipped delete files",
+              "value": "0"
+            },
+            {
+              "name": "number of skipped data files",
+              "value": "0"
+            },
+            {
+              "name": "total data manifests",
+              "value": "0"
+            },
+            {
+              "name": "total planning duration (ms)",
+              "value": "0"
+            },
+            {
+              "name": "total data file size (bytes)",
+              "value": "0"
+            },
+            {
+              "name": "number of indexed delete files",
+              "value": "0"
+            },
+            {
+              "name": "number of scanned delete manifests",
+              "value": "0"
+            },
+            {
+              "name": "number of positional delete files",
+              "value": "0"
+            },
+            {
+              "name": "number of result delete files",
+              "value": "0"
+            },
+            {
+              "name": "number of file splits read",
+              "value": "1"
+            },
+            {
+              "name": "number of output rows",
+              "value": "5"
+            },
+            {
+              "name": "total delete file size (bytes)",
+              "value": "0"
+            },
+            {
+              "name": "number of scanned data manifests",
+              "value": "0"
+            },
+            {
+              "name": "number of skipped delete manifest",
+              "value": "0"
+            },
+            {
+              "name": "total delete manifests",
+              "value": "0"
+            },
+            {
+              "name": "number of equality delete files",
+              "value": "0"
+            },
+            {
+              "name": "number of result data files",
+              "value": "0"
+            },
+            {
+              "name": "number of skipped data manifests",
+              "value": "0"
+            }
+          ]
+        },
+        {
+          "nodeName": "Project",
+          "metrics": []
+        },
+        {
+          "nodeName": "WholeStageCodegen (1)",
+          "metrics": [
+            {
+              "name": "duration",
+              "value": "1 ms"
+            }
+          ]
+        },
+        {
+          "nodeName": "TakeOrderedAndProject",
+          "metrics": []
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "status": "RUNNING",
+      "description": "sql at NativeMethodAccessorImpl.java:0",
+      "runningJobIds": [],
+      "successJobIds": [],
+      "nodes": [
+        {
+          "nodeName": "Call",
+          "metrics": []
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "status": "RUNNING",
+      "description": "Rewriting 5 files (BIN-PACK, file group 2/8, PartitionData{event_timestamp_day=20746} (1/1)) in glue.cerberus_platform.payments_events",
+      "runningJobIds": [
+        6
+      ],
+      "successJobIds": [],
+      "nodes": [
+        {
+          "nodeName": "BatchScan glue.cerberus_platform.payments_events",
+          "metrics": []
+        },
+        {
+          "nodeName": "ColumnarToRow",
+          "metrics": []
+        },
+        {
+          "nodeName": "WholeStageCodegen (1)",
+          "metrics": []
+        },
+        {
+          "nodeName": "AppendData",
+          "metrics": []
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "status": "RUNNING",
+      "description": "Rewriting 5 files (BIN-PACK, file group 3/8, PartitionData{event_timestamp_day=20745} (1/1)) in glue.cerberus_platform.payments_events",
+      "runningJobIds": [
+        7
+      ],
+      "successJobIds": [],
+      "nodes": [
+        {
+          "nodeName": "BatchScan glue.cerberus_platform.payments_events",
+          "metrics": []
+        },
+        {
+          "nodeName": "ColumnarToRow",
+          "metrics": []
+        },
+        {
+          "nodeName": "WholeStageCodegen (1)",
+          "metrics": []
+        },
+        {
+          "nodeName": "AppendData",
+          "metrics": []
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "status": "RUNNING",
+      "description": "Rewriting 5 files (BIN-PACK, file group 1/8, PartitionData{event_timestamp_day=20744} (1/1)) in glue.cerberus_platform.payments_events",
+      "runningJobIds": [
+        8
+      ],
+      "successJobIds": [],
+      "nodes": [
+        {
+          "nodeName": "BatchScan glue.cerberus_platform.payments_events",
+          "metrics": []
+        },
+        {
+          "nodeName": "ColumnarToRow",
+          "metrics": []
+        },
+        {
+          "nodeName": "WholeStageCodegen (1)",
+          "metrics": []
+        },
+        {
+          "nodeName": "AppendData",
+          "metrics": []
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "status": "RUNNING",
+      "description": "Rewriting 5 files (BIN-PACK, file group 5/8, PartitionData{event_timestamp_day=20747} (1/1)) in glue.cerberus_platform.payments_events",
+      "runningJobIds": [
+        9
+      ],
+      "successJobIds": [],
+      "nodes": [
+        {
+          "nodeName": "BatchScan glue.cerberus_platform.payments_events",
+          "metrics": []
+        },
+        {
+          "nodeName": "ColumnarToRow",
+          "metrics": []
+        },
+        {
+          "nodeName": "WholeStageCodegen (1)",
+          "metrics": []
+        },
+        {
+          "nodeName": "AppendData",
+          "metrics": []
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "status": "RUNNING",
+      "description": "Rewriting 5 files (BIN-PACK, file group 4/8, PartitionData{event_timestamp_day=20749} (1/1)) in glue.cerberus_platform.payments_events",
+      "runningJobIds": [
+        10
+      ],
+      "successJobIds": [],
+      "nodes": [
+        {
+          "nodeName": "BatchScan glue.cerberus_platform.payments_events",
+          "metrics": []
+        },
+        {
+          "nodeName": "ColumnarToRow",
+          "metrics": []
+        },
+        {
+          "nodeName": "WholeStageCodegen (1)",
+          "metrics": []
+        },
+        {
+          "nodeName": "AppendData",
+          "metrics": []
+        }
+      ]
+    }
+  ]
+}

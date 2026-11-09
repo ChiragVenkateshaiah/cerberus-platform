@@ -9,6 +9,7 @@ set -euo pipefail
 #   orchestration/exercise.sh [--yes] [--generate EVENTS] [--generator-executors N]
 #                             [--executor-nodes N]
 #                             [--interrupt-spot] [--name PREFIX] [--keep]
+#                             [--no-annotate]
 #   orchestration/exercise.sh --check
 #
 #   --check           preflight only: identity, empty dev-compute state, no
@@ -31,6 +32,8 @@ set -euo pipefail
 #                     and data quality must still pass. FIS bills about
 #                     $0.10 per action-minute.
 #   --name PREFIX     execution name prefix (default: exercise).
+#   --no-annotate     do not post run annotations to the local Grafana
+#                     (orchestration/annotate.sh; fail-open, ADR 0022).
 #   --keep            skip the destroy. For a debugging session only; the
 #                     cluster costs about $0.40/hour until
 #                     `make compute-destroy`.
@@ -64,6 +67,8 @@ CLUSTER_NAME="cerberus-platform-eks"
 SCHEDULE_NAME="cerberus-ingest-payments-daily"
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPUTE_DIR="$REPO/terraform/envs/dev-compute"
+# shellcheck source=orchestration/annotate.sh
+source "$REPO/orchestration/annotate.sh"
 TF="${TF_BIN:-terraform}"
 # Prometheus agent's remote-write runs every few seconds; this lets the
 # last Spark samples reach AMP before the agent is destroyed (2026-10-06
@@ -83,6 +88,7 @@ while [[ $# -gt 0 ]]; do
     --executor-nodes) EXECUTOR_NODES="$2"; shift ;;
     --interrupt-spot) INTERRUPT_SPOT=true ;;
     --name) PREFIX="$2"; shift ;;
+    --no-annotate) ANNOTATE_ENABLED=false ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
   shift
@@ -93,6 +99,7 @@ LOG_DIR="$REPO/observability/scale/exercises"
 LOG="$LOG_DIR/$PREFIX-$STAMP.log"
 EXECUTION_NAME="$PREFIX-$STAMP"
 CLUSTER_UP=""
+annotate_init "$EXECUTION_NAME"
 
 aws_() { aws --profile "$PROFILE" --region "$REGION" "$@"; }
 log() { echo "[$(date -u +%FT%TZ)] $*"; }
@@ -163,13 +170,16 @@ teardown() {
   log "waiting ${FLUSH_SECONDS}s for the last metrics to reach AMP"
   sleep "$FLUSH_SECONDS"
   log "destroying dev-compute -- let it finish; Ctrl-C is ignored from here"
-  local destroy_start=$SECONDS
+  local destroy_start=$SECONDS destroy_ms
+  destroy_ms="$(annotate_now_ms)"
+  { annotate_step "Delete servers started" "$destroy_ms"; } || true
   # -lock-timeout: an interrupted apply can hold the state lock for a moment.
   if ! tf destroy -auto-approve -input=false -lock-timeout=120s; then
     log "destroy failed once, retrying"
     tf destroy -auto-approve -input=false -lock-timeout=120s || {
       log "DESTROY FAILED. The cluster may still be running and billing."
       log "Check: make compute-destroy, then the AWS console (EKS, NAT gateways, EC2)."
+      { annotate_teardown_failed "$(annotate_now_ms)"; } || true
       exit 1
     }
   fi
@@ -188,6 +198,10 @@ teardown() {
     log "WARNING: something billable is still up -- check before you leave"
     status=1
   fi
+  {
+    annotate_step "Delete servers" "$destroy_ms" "$(annotate_now_ms)"
+    annotate_teardown_check "$eks" "$nat" "$eip" "$ec2" "$(annotate_now_ms)"
+  } || true
   log "cluster up for $((SECONDS - CLUSTER_UP))s in total"
   exit "$status"
 }
@@ -250,10 +264,13 @@ trap 'exit 130' INT TERM
 PLAN="$(mktemp -d)/dev-compute.tfplan"
 CLUSTER_UP=$SECONDS
 apply_start=$SECONDS
+apply_ms="$(annotate_now_ms)"
+{ annotate_placeholders "$apply_ms"; annotate_step "Start servers started" "$apply_ms"; } || true
 log "spot executor nodes: $EXECUTOR_NODES"
 tf plan -input=false -var "executor_nodes=$EXECUTOR_NODES" -out="$PLAN" >/dev/null
 tf apply -input=false "$PLAN"
 log "apply took $((SECONDS - apply_start))s"
+{ annotate_step "Start servers" "$apply_ms" "$(annotate_now_ms)"; } || true
 
 aws_ eks update-kubeconfig --name "$CLUSTER_NAME" >/dev/null
 kubectl wait --for=condition=Ready nodes --all --timeout=300s
@@ -263,6 +280,8 @@ GENERATOR_ARGS=()
 if [[ -n "$GENERATE" ]]; then
   log "generator: $GENERATE events"
   gen_start=$SECONDS
+  gen_ms="$(annotate_now_ms)"
+  { annotate_step "Generate started" "$gen_ms"; } || true
   gen_log="$(mktemp)"
   EXECUTORS="$GENERATOR_EXECUTORS" "$REPO/transform/spark/generate_bulk.sh" "$GENERATE" \
     | tee "$gen_log"
@@ -271,6 +290,7 @@ if [[ -n "$GENERATE" ]]; then
   # collector records and the data-quality suite checks against bronze.
   GENERATOR_ARGS=(--generator-run-id "$run_id" --generator-log "$gen_log")
   log "generator took $((SECONDS - gen_start))s (run_id $run_id)"
+  { annotate_step "Generate" "$gen_ms" "$(annotate_now_ms)"; } || true
 fi
 
 # 8.8 step 4: runs in the background next to the execution. Waits for the
@@ -310,8 +330,10 @@ interrupt_spot() {
 
 log "starting execution $EXECUTION_NAME"
 run_start=$SECONDS
+run_ms="$(annotate_now_ms)"
 execution_arn="$(aws_ stepfunctions start-execution --state-machine-arn "$STATE_MACHINE" \
   --name "$EXECUTION_NAME" --query executionArn --output text)"
+{ annotate_step "Pipeline run started" "$run_ms"; } || true
 interrupt_pid=""
 if [[ "$INTERRUPT_SPOT" == true ]]; then
   interrupt_spot &
@@ -322,8 +344,13 @@ while [[ "$status" == "RUNNING" ]]; do
   sleep 15
   status="$(aws_ stepfunctions describe-execution --execution-arn "$execution_arn" \
     --query status --output text)"
+  { annotate_sfn_history "$execution_arn" "run:$EXECUTION_NAME"; } || true
 done
 log "execution $status after $((SECONDS - run_start))s"
+{
+  annotate_sfn_history "$execution_arn" "run:$EXECUTION_NAME"
+  annotate_step "Pipeline run $status" "$(annotate_now_ms)"
+} || true
 if [[ -n "$interrupt_pid" ]]; then
   # Normally long finished; if the job never reached its executors, stop
   # the waiter rather than hold the teardown.
@@ -346,6 +373,7 @@ case "$collector_rc" in
   3) log "DATA QUALITY FAILED -- see data_quality in observability/scale/runs/$EXECUTION_NAME.json" ;;
   *) log "collector failed -- re-run it by hand: collect_run_metrics.py --execution $EXECUTION_NAME" ;;
 esac
+{ annotate_dq_verdict "$collector_rc" "$(annotate_now_ms)"; } || true
 
 [[ "$status" == "SUCCEEDED" ]] || { log "execution did not succeed"; exit 1; }
 [[ "$collector_rc" != 3 ]] || exit 3

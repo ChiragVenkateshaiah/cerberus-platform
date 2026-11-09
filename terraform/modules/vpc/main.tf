@@ -15,6 +15,12 @@
 # declares no inline NAT route for exactly that reason: vpc_nat attaches it
 # as a standalone aws_route resource once NAT actually exists, and removes
 # it on teardown, without this module ever needing to know NAT exists.
+#
+# ADR 0024 (9.2) amends ADR 0007 with a third, standalone console subnet and
+# its own route table (local route only, no NAT route at rest) for the demo
+# console's session host. It is not in local.private_subnets, which feeds
+# EKS and the ECS tasks. The S3 gateway endpoint is not attached to it yet;
+# that waits for the step that needs it.
 
 locals {
   public_subnets = {
@@ -139,4 +145,44 @@ resource "aws_vpc_endpoint" "s3" {
     Name  = "cerberus-platform-s3-endpoint"
     Phase = "3"
   }
+}
+
+# --- Console subnet (ADR 0024): the demo console's session host. Same AZ as
+# public-a, where a session NAT would sit, so there is no cross-AZ NAT
+# traffic. CloudFront VPC origins do not support use1-az3, and CI is denied
+# ec2:DescribeAvailabilityZones, so the AZ ID is checked after creation
+# instead of through a data source. ---
+
+resource "aws_subnet" "console" {
+  vpc_id                  = aws_vpc.this.id
+  availability_zone       = var.console_availability_zone
+  cidr_block              = var.console_subnet_cidr
+  map_public_ip_on_launch = false
+
+  tags = {
+    Name  = "cerberus-platform-console"
+    Phase = "9"
+  }
+
+  lifecycle {
+    postcondition {
+      condition     = self.availability_zone_id != "use1-az3"
+      error_message = "CloudFront VPC origins do not support use1-az3. Choose another availability zone for the console subnet."
+    }
+  }
+}
+
+# No routes: local traffic only until a session adds a NAT route.
+resource "aws_route_table" "console" {
+  vpc_id = aws_vpc.this.id
+
+  tags = {
+    Name  = "cerberus-platform-console-rt"
+    Phase = "9"
+  }
+}
+
+resource "aws_route_table_association" "console" {
+  subnet_id      = aws_subnet.console.id
+  route_table_id = aws_route_table.console.id
 }

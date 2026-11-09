@@ -6,6 +6,8 @@ Date: 2026-08-12
 
 Accepted
 
+Amended by [ADR 0024](0024-demo-console.md) (2026-10-27): a console subnet and a session NAT gateway.
+
 ## Context
 
 Phase 3's stack ([plan.md](../plan.md#phase-3--scalable-compute)) is Spark

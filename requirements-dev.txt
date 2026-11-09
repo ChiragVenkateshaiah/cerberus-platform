@@ -3,3 +3,5 @@
 # ingestion/requirements.txt and transform/requirements.txt for that reason.
 ruff==0.16.4
 sqlfluff==4.3.0
+# Spark progress exporter tests (ADR 0022 amendment, step 6c). Dev/CI only.
+pytest==9.1.1

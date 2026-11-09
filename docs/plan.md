@@ -151,6 +151,7 @@ layered on top of a platform that already works.
 | 11 | Databricks interoperability | Unity Catalog federation to AWS Glue (Cerberus's Iceberg tables, no copy), Databricks Terraform provider, serverless SQL and jobs, Lakeflow | _(Databricks Academy; Databricks docs)_ | ⬜ Planned |
 | 12 | Platform tooling in Go | Go, AWS SDK for Go v2, `cerberusctl` CLI | _(Go docs, AWS SDK for Go v2 examples)_ | ⬜ Planned |
 | 13 | Streaming ingestion | Apache Kafka (KRaft, one start/stop EC2 instance), Go producer and consumer | _(Kafka docs; KodeKloud Kafka if available)_ | ⬜ Planned |
+| 14 | AI operations agents | Claude on Amazon Bedrock (Converse API tool use), a local MCP server over the read-only command set, an evaluation set replayed from past runs | _(Amazon Bedrock docs; MCP specification; Anthropic tool-use and evaluation docs)_ | ⬜ Planned |
 
 🎯 **MVP is complete at the end of Phase 1.**
 
@@ -332,17 +333,16 @@ the phases after it by one._
   and JSON run records. None of that works as a 10-minute walk-through for
   a stranger.
 - **Why this skill set:** it joins network edge, identity and compute
-  design: CloudFront and Cognito for access, an instance with a
-  least-privilege read-only role, and a terminal that is safe to expose.
+  design: CloudFront and Cognito for access, least-privilege read-only
+  roles for the command Lambda and a per-session Grafana instance, and a
+  terminal that is safe to expose.
   The skill that sets an engineer apart here is designing the safe
   boundary, not the page.
-- **Stack:** one small EC2 instance that starts and stops on demand (the
-  `dev-compute` and Kafka pattern, so it costs cents, not a monthly
-  instance fee); a web terminal (ttyd or an xterm.js front end) that runs
-  only an allowlisted `cerberus` command set, never a shell; CloudFront
-  with Cognito sign-in, or an SSO tunnel, so no port is open to the
-  internet; Grafana and Prometheus views fed by the standing AMP workspace
-  (ADR 0016) and the run records; a Python implementation of the commands
+- **Stack:** a serverless read-only terminal and landing page (S3 +
+  CloudFront + Cognito + API Gateway + a command Lambda, xterm.js with a
+  structured API, never a shell), standing and $0 idle (ADR 0024); a live
+  Grafana on AMP built per session and destroyed after; the run records for
+  data while `dev-compute` is down; a Python implementation of the commands
   now, moved to `cerberusctl` in Phase 12.
 - **The central decision (its own ADR):** how a public-facing terminal
   stays safe. The command set is an allowlist with fixed arguments, the
@@ -560,6 +560,48 @@ re-check them in the phase's ADR._
 - **Done when:** a sustained stream lands in bronze, the silver job
   ingests it incrementally with the data-quality suite clean (bronze →
   silver reconciles the new prefix too), and the stack tears down to $0.
+
+### Phase 14 — AI operations agents
+_Added 2026-11-08, after Phase 10 (the signals these agents read) and
+numbered 14 so Phases 11–13 keep the numbers cited in ADR 0019, the README
+and the checkpoint. ADR 0025 (Accepted 2026-11-08)._
+
+- **Goal:** Review every run and explain every failure with evidence:
+  GenAI agents read the run record, the Spark logs, the metrics and the
+  Step Functions history, say what happened and why, cite the lines and
+  values behind each claim, and propose a fix. A person approves anything
+  that leaves the laptop.
+- **Gap it closes:** the evidence for one run lives in six places (the run
+  record in git, local git-ignored logs of up to about 245 KB per run, plus Spark logs, AMP, CloudWatch,
+  the Step Functions history, data-quality results). Phase 10 alerts say
+  that something is wrong. Nothing explains why across layers, and the
+  owner reads the logs by hand. Headroom (the Athena scan against its
+  cutoff) is also checked by hand before a larger run.
+- **Why this skill set:** applied GenAI in operations is now a platform
+  skill, and the hard parts are engineering, not prompting: tool design on
+  a read-only boundary, injection and leak defences for attacker-shaped
+  log text, cost caps enforced in code, and a measured evaluation rather
+  than a demo claim. It is built on Cerberus's own rules and evidence, so
+  it complements Databricks instead of competing with it.
+- **Stack:** Claude on Amazon Bedrock through the Converse API with tool
+  use; one tool registry built on the 9.3 command set, exposed in-process
+  and as a local stdio MCP server; a read-only IAM role,
+  `cerberus-ops-agent`; a deterministic core (per-step deltas against
+  same-scale baselines, a linear headroom projection) that computes the
+  evidence before any model runs; an evaluation set replayed from the
+  labelled past incidents.
+- **The central decision (ADR 0025):** how to add GenAI agents without
+  breaking $0 idle, the read-only and human-approval rules, or ADR 0021's
+  alerting design. Rules detect, the model explains and proposes, a human
+  approves. The trigger is local and fail-open, the review goes in its own
+  file, no AI action changes AWS, and monthly AI spend is capped at $2 in
+  code.
+- **Out of scope:** autonomous AWS changes, an always-on agent,
+  fine-tuning, and a visitor-facing agent on the console.
+- **Done when:** the live check (14.7) passes, the evaluation bar in ADR
+  0025 is met, and the stack is $0 idle.
+- **Artifact:** a short video of a failed run triaged with citations, the
+  ADR, and Well-Architected milestone 14.
 
 ## Planned later work (no phase number yet)
 

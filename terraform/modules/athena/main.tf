@@ -101,6 +101,8 @@ resource "aws_athena_workgroup" "this" {
 # The full-bronze scans themselves are the 100M problem (about 45 GB of
 # bronze, over $1 a run): 8.9 needs cheaper bronze checks, not a bigger
 # cutoff.
+# 2026-10-25: the cutoff is 20 GiB for the recorded 100M run (ADR 0022);
+# see the variable description for the measured per-check scans.
 resource "aws_athena_workgroup" "data_quality" {
   name          = "cerberus_platform_dq"
   force_destroy = true

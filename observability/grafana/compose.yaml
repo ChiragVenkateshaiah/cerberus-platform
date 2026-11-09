@@ -1,0 +1,47 @@
+# Local Grafana for the Cerberus run views (ADR 0022). Start it with
+# `make grafana-up` from the repo root; see README.md in this directory.
+name: cerberus-grafana
+
+services:
+  grafana:
+    image: grafana/grafana:13.2.3
+    # Run as the host user, not the image's uid 472, so Grafana can read
+    # ~/.aws when the keys are mode 600 (owner-only). The named volume starts
+    # owned by uid 472, so grafana-init gives it to this uid.
+    user: "${GRAFANA_UID:-1000}:${GRAFANA_GID:-1000}"
+    depends_on:
+      grafana-init:
+        condition: service_completed_successfully
+    ports:
+      # Loopback only: the AWS credentials in this container must not be
+      # reachable from the network.
+      - "127.0.0.1:3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: "${GF_SECURITY_ADMIN_PASSWORD:?set it in observability/grafana/.env}"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      # Same plugin version as the in-cluster Grafana (var.amp_plugin_version).
+      GF_PLUGINS_PREINSTALL_SYNC: grafana-amazonprometheus-datasource@3.2.0
+      AMP_URL: "${AMP_URL:?set by make grafana-up}"
+      AWS_PROFILE: "${AWS_PROFILE:-cerberus-admin}"
+      AWS_SDK_LOAD_CONFIG: "1"
+      AWS_SHARED_CREDENTIALS_FILE: /aws/credentials
+      AWS_CONFIG_FILE: /aws/config
+      # External plugins only see the host env vars listed here.
+      GF_PLUGINS_FORWARD_HOST_ENV_VARS: grafana-amazonprometheus-datasource
+      HOME: /tmp
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ${HOME}/.aws:/aws:ro
+      - ./provisioning:/etc/grafana/provisioning:ro
+      - ./dashboards:/var/lib/grafana/dashboards/cerberus:ro
+
+  grafana-init:
+    image: grafana/grafana:13.2.3
+    user: root
+    entrypoint: ["chown", "-R", "${GRAFANA_UID:-1000}:${GRAFANA_GID:-1000}", "/var/lib/grafana"]
+    volumes:
+      - grafana-data:/var/lib/grafana
+
+volumes:
+  grafana-data:

@@ -539,13 +539,197 @@ resource "aws_iam_role_policy" "ci_apply" {
         Action = [
           "iam:GetRole", "iam:GetRolePolicy", "iam:ListRolePolicies", "iam:ListAttachedRolePolicies", "iam:ListRoleTags",
           "iam:GetOpenIDConnectProvider", "iam:ListOpenIDConnectProviderTags",
+          # 9.2: refresh of the cerberus-ci-apply-console managed policy
+          # below. Read-only, like the rest of this statement.
+          "iam:GetPolicy", "iam:GetPolicyVersion", "iam:ListPolicyVersions", "iam:ListPolicyTags",
         ]
         Resource = [
           aws_iam_role.ci_plan.arn,
           aws_iam_role.ci_apply.arn,
           aws_iam_openid_connect_provider.github_actions.arn,
+          aws_iam_policy.ci_apply_console.arn,
         ]
       }
     ]
   })
+}
+
+# --- cerberus-ci-apply: the demo console's standing grants (9.2, ADR 0024) --
+# A customer-managed policy, not more statements in the inline policy above.
+# The inline policy is 7,060 of the 10,240 characters IAM allows for all
+# inline policies on one role, and these grants need 4,143 more (measured with a dummy account ID). A
+# managed policy has its own 6,144-character limit and counts separately.
+# This is the fourth exception to the module's inline-only convention
+# (after ReadOnlyAccess, AWSLambdaBasicExecutionRole and
+# AmazonECSTaskExecutionRolePolicy). It is still a project-specific,
+# name-scoped grant: cerberus-admin can manage only policy/cerberus-ci-apply-*
+# (iam/cerberus-admin/policies/cerberus-admin-console-host.json), and
+# cerberus-ci-apply can only read this policy (ReadOwnCiIdentity), never
+# change it.
+#
+# CloudFront and Cognito: no VPC-origin, EC2-instance or Session Manager
+# actions and no Cognito user actions here. envs/dev-console is human-run,
+# and users stay outside Terraform (ADR 0024, decision 2). Tag conditions
+# are used where CloudFront supports them; the policy types and Cognito
+# pools have no tag keys, so they are scoped by resource type instead.
+
+resource "aws_iam_policy" "ci_apply_console" {
+  name = "cerberus-ci-apply-console"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "ManageConsoleSiteBucket"
+        Effect = "Allow"
+        Action = "s3:*"
+        Resource = [
+          "arn:aws:s3:::cerberus-platform-console-${var.account_id}",
+          "arn:aws:s3:::cerberus-platform-console-${var.account_id}/*",
+        ]
+      },
+      {
+        # Exactly the two standing console roles, not a prefix: the session
+        # roles (cerberus-console-grafana*) belong to envs/dev-console and
+        # are created by hand, not by CI. Same actions as
+        # ManageStandingIamRoles, without iam:PassRole (see below).
+        Sid    = "ManageConsoleIamRoles"
+        Effect = "Allow"
+        Action = [
+          "iam:CreateRole", "iam:DeleteRole", "iam:GetRole", "iam:UpdateRole", "iam:TagRole", "iam:UntagRole",
+          "iam:PutRolePolicy", "iam:DeleteRolePolicy", "iam:GetRolePolicy", "iam:ListRolePolicies",
+          "iam:AttachRolePolicy", "iam:DetachRolePolicy", "iam:ListAttachedRolePolicies",
+          "iam:ListInstanceProfilesForRole",
+        ]
+        Resource = [
+          "arn:aws:iam::${var.account_id}:role/cerberus-console-cli",
+          "arn:aws:iam::${var.account_id}:role/cerberus-grafana-read",
+        ]
+      },
+      {
+        # The command Lambda's execution role goes to Lambda only.
+        Sid      = "PassConsoleCliRole"
+        Effect   = "Allow"
+        Action   = "iam:PassRole"
+        Resource = "arn:aws:iam::${var.account_id}:role/cerberus-console-cli"
+        Condition = {
+          StringEquals = { "iam:PassedToService" = "lambda.amazonaws.com" }
+        }
+      },
+      {
+        Sid      = "ManageConsoleLambda"
+        Effect   = "Allow"
+        Action   = "lambda:*"
+        Resource = "arn:aws:lambda:${var.region}:${var.account_id}:function:cerberus-console-*"
+      },
+      {
+        Sid    = "ManageConsoleLogGroups"
+        Effect = "Allow"
+        Action = "logs:*"
+        Resource = [
+          "arn:aws:logs:${var.region}:${var.account_id}:log-group:/aws/lambda/cerberus-console-*",
+          "arn:aws:logs:${var.region}:${var.account_id}:log-group:/aws/apigateway/cerberus-console-*",
+        ]
+      },
+      {
+        Sid      = "ManageConsoleAthenaWorkgroup"
+        Effect   = "Allow"
+        Action   = "athena:*"
+        Resource = "arn:aws:athena:${var.region}:${var.account_id}:workgroup/cerberus_platform_console"
+      },
+      {
+        # CreateDistribution has no resource type but supports
+        # aws:RequestTag, so a distribution can only be created with the
+        # project tag (default_tags sets it).
+        Sid      = "CloudFrontCreateTagged"
+        Effect   = "Allow"
+        Action   = "cloudfront:CreateDistribution"
+        Resource = "*"
+        Condition = {
+          StringEquals = { "aws:RequestTag/Project" = "cerberus-platform" }
+        }
+      },
+      {
+        Sid      = "CloudFrontChangeTagged"
+        Effect   = "Allow"
+        Action   = ["cloudfront:UpdateDistribution", "cloudfront:DeleteDistribution"]
+        Resource = "arn:aws:cloudfront::${var.account_id}:distribution/*"
+        Condition = {
+          StringEquals = { "aws:ResourceTag/Project" = "cerberus-platform" }
+        }
+      },
+      {
+        Sid    = "CloudFrontReadTagInvalidate"
+        Effect = "Allow"
+        Action = [
+          "cloudfront:GetDistribution", "cloudfront:GetDistributionConfig",
+          "cloudfront:ListTagsForResource", "cloudfront:TagResource",
+          "cloudfront:CreateInvalidation", "cloudfront:GetInvalidation", "cloudfront:ListInvalidations",
+        ]
+        Resource = "arn:aws:cloudfront::${var.account_id}:distribution/*"
+      },
+      {
+        # UntagResource only when the request does not remove Project, so
+        # the tag conditions above cannot be switched off by untagging.
+        Sid      = "CloudFrontUntagKeepProject"
+        Effect   = "Allow"
+        Action   = "cloudfront:UntagResource"
+        Resource = "arn:aws:cloudfront::${var.account_id}:distribution/*"
+        Condition = {
+          "ForAllValues:StringNotEquals" = { "aws:TagKeys" = ["Project"] }
+        }
+      },
+      {
+        Sid    = "CloudFrontEdgePolicies"
+        Effect = "Allow"
+        Action = "cloudfront:*"
+        Resource = [
+          "arn:aws:cloudfront::${var.account_id}:origin-access-control/*",
+          "arn:aws:cloudfront::${var.account_id}:response-headers-policy/*",
+          "arn:aws:cloudfront::${var.account_id}:origin-request-policy/*",
+          "arn:aws:cloudfront::${var.account_id}:cache-policy/*",
+        ]
+      },
+      {
+        # These actions have no resource type (or no tag keys), so only "*"
+        # can grant them: the four CloudFront Create* policy actions, the
+        # three List*Policies reads, and two Cognito account-level actions.
+        Sid    = "CreateConsoleEdgeAndPool"
+        Effect = "Allow"
+        Action = [
+          "cloudfront:CreateOriginAccessControl", "cloudfront:CreateResponseHeadersPolicy",
+          "cloudfront:CreateOriginRequestPolicy", "cloudfront:CreateCachePolicy",
+          "cloudfront:ListCachePolicies", "cloudfront:ListOriginRequestPolicies",
+          "cloudfront:ListResponseHeadersPolicies",
+          "cognito-idp:CreateUserPool", "cognito-idp:DescribeUserPoolDomain",
+        ]
+        Resource = "*"
+      },
+      {
+        # Pool IDs are generated, so the pool is scoped by type and region.
+        # Cognito has no tag condition keys. No Admin*User or ListUsers
+        # action: users stay outside Terraform.
+        Sid    = "ManageConsoleUserPool"
+        Effect = "Allow"
+        Action = [
+          "cognito-idp:DescribeUserPool", "cognito-idp:UpdateUserPool", "cognito-idp:DeleteUserPool",
+          "cognito-idp:GetUserPoolMfaConfig", "cognito-idp:SetUserPoolMfaConfig",
+          "cognito-idp:CreateUserPoolClient", "cognito-idp:DescribeUserPoolClient",
+          "cognito-idp:UpdateUserPoolClient", "cognito-idp:DeleteUserPoolClient", "cognito-idp:ListUserPoolClients",
+          "cognito-idp:CreateUserPoolDomain", "cognito-idp:UpdateUserPoolDomain", "cognito-idp:DeleteUserPoolDomain",
+          "cognito-idp:CreateManagedLoginBranding", "cognito-idp:DescribeManagedLoginBranding",
+          "cognito-idp:DescribeManagedLoginBrandingByClient", "cognito-idp:UpdateManagedLoginBranding",
+          "cognito-idp:DeleteManagedLoginBranding",
+          "cognito-idp:GetUICustomization", "cognito-idp:GetLogDeliveryConfiguration",
+          "cognito-idp:ListTagsForResource", "cognito-idp:TagResource", "cognito-idp:UntagResource",
+        ]
+        Resource = "arn:aws:cognito-idp:${var.region}:${var.account_id}:userpool/*"
+      },
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ci_apply_console" {
+  role       = aws_iam_role.ci_apply.name
+  policy_arn = aws_iam_policy.ci_apply_console.arn
 }

@@ -1,0 +1,159 @@
+{
+  "capturedAt": "2026-10-25T08:31:08.869Z",
+  "applications": [
+    {
+      "id": "local-1792917033143",
+      "name": "cerberus-generate-bulk-payments",
+      "completed": false
+    }
+  ],
+  "jobs": [
+    {
+      "jobId": 1,
+      "name": "json at NativeMethodAccessorImpl.java:0",
+      "status": "RUNNING",
+      "numTasks": 36,
+      "numActiveTasks": 5,
+      "numCompletedTasks": 11,
+      "stageIds": [
+        1,
+        2
+      ]
+    },
+    {
+      "jobId": 0,
+      "name": "json at NativeMethodAccessorImpl.java:0",
+      "status": "SUCCEEDED",
+      "numTasks": 4,
+      "numActiveTasks": 0,
+      "numCompletedTasks": 4,
+      "stageIds": [
+        0
+      ]
+    }
+  ],
+  "stages": [
+    {
+      "stageId": 2,
+      "attemptId": 0,
+      "name": "json at NativeMethodAccessorImpl.java:0",
+      "status": "ACTIVE",
+      "numTasks": 32,
+      "numActiveTasks": 5,
+      "numCompleteTasks": 11,
+      "inputRecords": 0,
+      "outputRecords": 3262330,
+      "shuffleReadRecords": 3262330,
+      "shuffleWriteRecords": 0,
+      "inputBytes": 0,
+      "outputBytes": 1411164949,
+      "submissionTime": "2026-10-25T08:30:57.115GMT",
+      "completionTime": null
+    },
+    {
+      "stageId": 1,
+      "attemptId": 0,
+      "name": "json at NativeMethodAccessorImpl.java:0",
+      "status": "PENDING",
+      "numTasks": 4,
+      "numActiveTasks": 0,
+      "numCompleteTasks": 0,
+      "inputRecords": 0,
+      "outputRecords": 0,
+      "shuffleReadRecords": 0,
+      "shuffleWriteRecords": 0,
+      "inputBytes": 0,
+      "outputBytes": 0,
+      "submissionTime": null,
+      "completionTime": null
+    },
+    {
+      "stageId": 0,
+      "attemptId": 0,
+      "name": "json at NativeMethodAccessorImpl.java:0",
+      "status": "COMPLETE",
+      "numTasks": 4,
+      "numActiveTasks": 0,
+      "numCompleteTasks": 4,
+      "inputRecords": 2625103,
+      "outputRecords": 0,
+      "shuffleReadRecords": 0,
+      "shuffleWriteRecords": 8000122,
+      "inputBytes": 0,
+      "outputBytes": 0,
+      "submissionTime": "2026-10-25T08:30:40.055GMT",
+      "completionTime": "2026-10-25T08:30:56.778GMT"
+    }
+  ],
+  "sql": [
+    {
+      "id": 0,
+      "status": "RUNNING",
+      "description": "json at NativeMethodAccessorImpl.java:0",
+      "runningJobIds": [
+        1
+      ],
+      "successJobIds": [
+        0
+      ],
+      "nodes": [
+        {
+          "nodeName": "Range",
+          "metrics": []
+        },
+        {
+          "nodeName": "Filter",
+          "metrics": []
+        },
+        {
+          "nodeName": "Project",
+          "metrics": []
+        },
+        {
+          "nodeName": "Generate",
+          "metrics": []
+        },
+        {
+          "nodeName": "Filter",
+          "metrics": []
+        },
+        {
+          "nodeName": "Project",
+          "metrics": []
+        },
+        {
+          "nodeName": "WholeStageCodegen (1)",
+          "metrics": []
+        },
+        {
+          "nodeName": "Exchange",
+          "metrics": []
+        },
+        {
+          "nodeName": "Project",
+          "metrics": []
+        },
+        {
+          "nodeName": "Sort",
+          "metrics": []
+        },
+        {
+          "nodeName": "WholeStageCodegen (2)",
+          "metrics": []
+        },
+        {
+          "nodeName": "WriteFiles",
+          "metrics": []
+        },
+        {
+          "nodeName": "Execute InsertIntoHadoopFsRelationCommand",
+          "metrics": []
+        },
+        {
+          "nodeName": "AdaptiveSparkPlan",
+          "metrics": []
+        }
+      ]
+    }
+  ]
+}

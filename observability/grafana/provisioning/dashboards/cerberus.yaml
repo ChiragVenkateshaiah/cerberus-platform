@@ -1,0 +1,11 @@
+# Loads every JSON in observability/grafana/dashboards/ (mounted read-only).
+apiVersion: 1
+providers:
+  - name: cerberus
+    orgId: 1
+    folder: Cerberus
+    type: file
+    disableDeletion: true
+    editable: false
+    options:
+      path: /var/lib/grafana/dashboards/cerberus

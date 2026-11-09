@@ -646,6 +646,58 @@ query's own engine time, which the collector records since 2026-10-15
 run from 40k to 138M silver events, so the serving query has not grown
 near its limit.
 
+### 8.10: the recorded 100M take
+
+The live 100M take for the demo video ran on 2026-11-08 as execution
+`demo-100m-20261108T135119Z` (run record:
+`observability/scale/runs/demo-100m-20261108T135119Z.json`). Command, from
+[docs/demo-recording.md](demo-recording.md): `make exercise ARGS="--yes
+--generate 100000000 --generator-executors 8 --executor-nodes 2 --name
+demo-100m"`.
+
+From the run record:
+
+| Measure | Value |
+|---|---|
+| Result | SUCCEEDED, 859.1 s in Step Functions |
+| New events | 100,001,897 (116,409 events/s over the run) |
+| States | InvokeIngestion 1.1 s, RunTransform 618.3 s, RunDbt 178.3 s, RunServingQuery 61.3 s |
+| Silver after | 249,121,312 events, 81,745,183 transactions |
+| Data quality | Passed: 26 checks, 0 errors, 1 warning (`token_digit_runs`, legacy hex tokens) |
+| Bronze to silver | 249,121,312 = 249,121,312 |
+| Suite scan | 153.1 GB in 34.0 s |
+| Generator | 8 partitions, 1,180.8 s write, 84,687 events/s |
+| Prometheus peak | 9,424 active series |
+
+Whole-exercise timings come from the exercise log. That log is not
+committed, so these figures have no committed source other than this page:
+
+| Step | Time |
+|---|---|
+| Start | 13:51:19Z |
+| `terraform apply` | 790 s |
+| Generator | 1,264 s |
+| Execution (harness clock) | 870 s, against 859.1 s in Step Functions |
+| `terraform destroy` | 807 s |
+| Cluster up in total | 3,906 s |
+| End | 14:56:46Z, 65 min after the start |
+
+After the destroy the account held EKS 0, NAT 0, EIP 0 and running
+instances 0.
+
+Dashboard readings (estimates, read from dashboards 1 and 2, replayed from
+the run's recorded metrics on 2026-11-09):
+
+- Dashboard 1 · Run Overview at Finished: cost estimate $2.20 (servers $1.25
+  plus Athena $0.95), 65 min since start, 26 checks passed with 0 errors and
+  1 warning, 50.9 GB read.
+- Dashboard 2 · Run Health: Spot executor nodes scaled from 2 to 4 during
+  RunTransform (16 executors).
+
+The $2.20 is the dashboard's estimate, not a billed figure. The billed
+figure follows once Cost Explorer has fully posted, through
+`collect_run_metrics.py --execution demo-100m-20261108T135119Z --cost-only`.
+
 ## Data-quality suite
 
 Added in 8.4. [`observability/scale/data_quality.py`](../observability/scale/data_quality.py)

@@ -1,0 +1,182 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ConsoleSiteBucket",
+      "Effect": "Allow",
+      "Action": "s3:*",
+      "Resource": [
+        "arn:aws:s3:::cerberus-platform-console-<ACCOUNT_ID>",
+        "arn:aws:s3:::cerberus-platform-console-<ACCOUNT_ID>/*"
+      ]
+    },
+    {
+      "Sid": "ConsoleAthenaWorkgroup",
+      "Effect": "Allow",
+      "Action": [
+        "athena:GetWorkGroup",
+        "athena:CreateWorkGroup",
+        "athena:UpdateWorkGroup",
+        "athena:DeleteWorkGroup",
+        "athena:ListTagsForResource",
+        "athena:TagResource",
+        "athena:UntagResource",
+        "athena:GetQueryExecution",
+        "athena:ListQueryExecutions"
+      ],
+      "Resource": "arn:aws:athena:us-east-1:<ACCOUNT_ID>:workgroup/cerberus_platform_console"
+    },
+    {
+      "Sid": "ConsoleLambda",
+      "Effect": "Allow",
+      "Action": "lambda:*",
+      "Resource": "arn:aws:lambda:us-east-1:<ACCOUNT_ID>:function:cerberus-console-*"
+    },
+    {
+      "Sid": "CloudFrontCreateTagged",
+      "Effect": "Allow",
+      "Action": [
+        "cloudfront:CreateDistribution",
+        "cloudfront:CreateVpcOrigin"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/Project": "cerberus-platform"
+        }
+      }
+    },
+    {
+      "Sid": "CloudFrontChangeTagged",
+      "Effect": "Allow",
+      "Action": [
+        "cloudfront:UpdateDistribution",
+        "cloudfront:DeleteDistribution",
+        "cloudfront:UpdateVpcOrigin",
+        "cloudfront:DeleteVpcOrigin"
+      ],
+      "Resource": [
+        "arn:aws:cloudfront::<ACCOUNT_ID>:distribution/*",
+        "arn:aws:cloudfront::<ACCOUNT_ID>:vpcorigin/*"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceTag/Project": "cerberus-platform"
+        }
+      }
+    },
+    {
+      "Sid": "CloudFrontReadTagInvalidate",
+      "Effect": "Allow",
+      "Action": [
+        "cloudfront:GetDistribution",
+        "cloudfront:GetDistributionConfig",
+        "cloudfront:GetVpcOrigin",
+        "cloudfront:ListTagsForResource",
+        "cloudfront:TagResource",
+        "cloudfront:CreateInvalidation",
+        "cloudfront:GetInvalidation",
+        "cloudfront:ListInvalidations"
+      ],
+      "Resource": [
+        "arn:aws:cloudfront::<ACCOUNT_ID>:distribution/*",
+        "arn:aws:cloudfront::<ACCOUNT_ID>:vpcorigin/*"
+      ]
+    },
+    {
+      "Sid": "CloudFrontUntagKeepProject",
+      "Effect": "Allow",
+      "Action": "cloudfront:UntagResource",
+      "Resource": [
+        "arn:aws:cloudfront::<ACCOUNT_ID>:distribution/*",
+        "arn:aws:cloudfront::<ACCOUNT_ID>:vpcorigin/*"
+      ],
+      "Condition": {
+        "ForAllValues:StringNotEquals": {
+          "aws:TagKeys": [
+            "Project"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "CloudFrontEdgePolicies",
+      "Effect": "Allow",
+      "Action": "cloudfront:*",
+      "Resource": [
+        "arn:aws:cloudfront::<ACCOUNT_ID>:origin-access-control/*",
+        "arn:aws:cloudfront::<ACCOUNT_ID>:response-headers-policy/*",
+        "arn:aws:cloudfront::<ACCOUNT_ID>:origin-request-policy/*",
+        "arn:aws:cloudfront::<ACCOUNT_ID>:cache-policy/*"
+      ]
+    },
+    {
+      "Sid": "ConsoleAccount",
+      "Effect": "Allow",
+      "Action": [
+        "cloudfront:CreateOriginAccessControl",
+        "cloudfront:CreateResponseHeadersPolicy",
+        "cloudfront:CreateOriginRequestPolicy",
+        "cloudfront:CreateCachePolicy",
+        "cloudfront:ListDistributions",
+        "cloudfront:ListVpcOrigins",
+        "cloudfront:ListOriginAccessControls",
+        "cloudfront:ListCachePolicies",
+        "cloudfront:ListOriginRequestPolicies",
+        "cloudfront:ListResponseHeadersPolicies",
+        "cloudfront:ListDistributionsByVpcOriginId",
+        "elasticloadbalancing:DescribeLoadBalancers",
+        "lambda:GetAccountSettings"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CognitoAccount",
+      "Effect": "Allow",
+      "Action": [
+        "cognito-idp:CreateUserPool",
+        "cognito-idp:ListUserPools",
+        "cognito-idp:DescribeUserPoolDomain"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CognitoUserPool",
+      "Effect": "Allow",
+      "Action": [
+        "cognito-idp:DescribeUserPool",
+        "cognito-idp:UpdateUserPool",
+        "cognito-idp:DeleteUserPool",
+        "cognito-idp:GetUserPoolMfaConfig",
+        "cognito-idp:SetUserPoolMfaConfig",
+        "cognito-idp:CreateUserPoolClient",
+        "cognito-idp:DescribeUserPoolClient",
+        "cognito-idp:UpdateUserPoolClient",
+        "cognito-idp:DeleteUserPoolClient",
+        "cognito-idp:ListUserPoolClients",
+        "cognito-idp:CreateUserPoolDomain",
+        "cognito-idp:UpdateUserPoolDomain",
+        "cognito-idp:DeleteUserPoolDomain",
+        "cognito-idp:CreateManagedLoginBranding",
+        "cognito-idp:DescribeManagedLoginBranding",
+        "cognito-idp:DescribeManagedLoginBrandingByClient",
+        "cognito-idp:UpdateManagedLoginBranding",
+        "cognito-idp:DeleteManagedLoginBranding",
+        "cognito-idp:GetUICustomization",
+        "cognito-idp:GetLogDeliveryConfiguration",
+        "cognito-idp:ListTagsForResource",
+        "cognito-idp:TagResource",
+        "cognito-idp:UntagResource",
+        "cognito-idp:AdminCreateUser",
+        "cognito-idp:AdminGetUser",
+        "cognito-idp:AdminDeleteUser",
+        "cognito-idp:AdminDisableUser",
+        "cognito-idp:AdminEnableUser",
+        "cognito-idp:AdminResetUserPassword",
+        "cognito-idp:AdminUserGlobalSignOut",
+        "cognito-idp:ListUsers"
+      ],
+      "Resource": "arn:aws:cognito-idp:us-east-1:<ACCOUNT_ID>:userpool/*"
+    }
+  ]
+}

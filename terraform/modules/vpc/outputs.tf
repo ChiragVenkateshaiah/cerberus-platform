@@ -22,3 +22,13 @@ output "private_route_table_id" {
   description = "Private route table ID -- vpc_nat (envs/dev-compute) attaches the NAT route to this table once NAT exists."
   value       = aws_route_table.private.id
 }
+
+output "console_subnet_id" {
+  description = "Console subnet ID (ADR 0024) -- read by the future envs/dev-console via terraform_remote_state."
+  value       = aws_subnet.console.id
+}
+
+output "console_route_table_id" {
+  description = "Console route table ID -- a session NAT route is attached to this table, never to the private one."
+  value       = aws_route_table.console.id
+}

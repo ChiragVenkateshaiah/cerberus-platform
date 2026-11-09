@@ -6,6 +6,8 @@ Date: 2026-08-21
 
 Accepted
 
+Amended by [ADR 0024](0024-demo-console.md) (2026-10-27): a third Terraform root, `dev-console`, with the `dev-compute` destroy contract.
+
 ## Context
 
 Phase 5's goal ([plan.md](../plan.md#phase-5--cicd)) is "no manual `apply`

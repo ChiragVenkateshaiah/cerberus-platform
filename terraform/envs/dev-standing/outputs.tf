@@ -102,3 +102,23 @@ output "prometheus_remote_write_url" {
   description = "7.7: AMP remote-write URL -- read by envs/dev-compute for the in-cluster Prometheus agent."
   value       = module.prometheus_workspace.remote_write_url
 }
+
+output "console_subnet_id" {
+  description = "9.2: console subnet ID (ADR 0024) -- read by the future envs/dev-console via terraform_remote_state."
+  value       = module.vpc.console_subnet_id
+}
+
+output "console_route_table_id" {
+  description = "9.2: console route table ID -- read by the future envs/dev-console via terraform_remote_state, to attach a session NAT route."
+  value       = module.vpc.console_route_table_id
+}
+
+output "grafana_read_role_arn" {
+  description = "9.2: cerberus-grafana-read IAM role ARN -- assumed by `make grafana-up` for the local Grafana."
+  value       = module.console_roles.grafana_read_role_arn
+}
+
+output "console_cli_role_arn" {
+  description = "9.2: cerberus-console-cli IAM role ARN -- the role the console commands run as."
+  value       = module.console_roles.console_cli_role_arn
+}

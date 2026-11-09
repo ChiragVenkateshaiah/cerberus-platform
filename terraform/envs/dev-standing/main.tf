@@ -161,3 +161,16 @@ module "github_oidc" {
   athena_results_bucket_arn = module.athena.results_bucket_arn
   lineage_bucket_arn        = module.lineage.bucket_arn
 }
+
+module "console_roles" {
+  source = "../../modules/console_roles"
+
+  # 9.2 (ADR 0024): the read-only roles for the demo console and the local
+  # Grafana. Standing, zero idle cost.
+  account_id            = data.aws_caller_identity.current.account_id
+  trusted_principal_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:user/cerberus-admin"
+
+  amp_workspace_arn  = module.prometheus_workspace.workspace_arn
+  state_machine_arn  = module.step_functions.state_machine_arn
+  state_machine_name = module.step_functions.state_machine_name
+}
