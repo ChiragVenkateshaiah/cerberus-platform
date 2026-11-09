@@ -122,3 +122,8 @@ output "console_cli_role_arn" {
   description = "9.2: cerberus-console-cli IAM role ARN -- the role the console commands run as."
   value       = module.console_roles.console_cli_role_arn
 }
+
+output "console_workgroup_name" {
+  description = "9.3: Athena workgroup of the demo console's fixed query."
+  value       = module.athena.console_workgroup_name
+}
