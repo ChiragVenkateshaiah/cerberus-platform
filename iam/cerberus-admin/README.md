@@ -183,7 +183,11 @@ larger and is not the limit.
   `GetLogDelivery`, `UpdateLogDelivery`, `DeleteLogDelivery` and
   `ListLogDeliveries` on `*` (these actions take no resource ARN), for the
   stage's access log. `iam simulate-principal-policy` showed all five as
-  `implicitDeny` before the change. Counted size after the change: 4,569
-  of 6,144 characters. `cerberus-ci-apply-console` does not get either
+  `implicitDeny` before the change. A second apply then failed on
+  `CreateStage` with `AccessDenied` on `apigateway:TagResource` for
+  `/apis/<id>/stages`, so a third statement, `ApiGatewayStageTags`, allows
+  `apigateway:TagResource` and `UntagResource` on
+  `arn:aws:apigateway:us-east-1::/apis/*`. Counted size after the change:
+  4,730 of 6,144 characters. `cerberus-ci-apply-console` does not get either
   statement: CI changes the API's tags or the stage's log settings only
   when they change ([the standing-edge plan](../../docs/plans/2026-11-02-standing-edge.md)).

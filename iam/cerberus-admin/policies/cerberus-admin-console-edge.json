@@ -189,6 +189,15 @@
       "Resource": "arn:aws:apigateway:us-east-1::/tags/*"
     },
     {
+      "Sid": "ApiGatewayStageTags",
+      "Effect": "Allow",
+      "Action": [
+        "apigateway:TagResource",
+        "apigateway:UntagResource"
+      ],
+      "Resource": "arn:aws:apigateway:us-east-1::/apis/*"
+    },
+    {
       "Sid": "HttpApiLogDelivery",
       "Effect": "Allow",
       "Action": [
