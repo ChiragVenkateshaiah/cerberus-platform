@@ -177,6 +177,28 @@
         "cognito-idp:ListUsers"
       ],
       "Resource": "arn:aws:cognito-idp:us-east-1:<ACCOUNT_ID>:userpool/*"
+    },
+    {
+      "Sid": "ApiGatewayTags",
+      "Effect": "Allow",
+      "Action": [
+        "apigateway:GET",
+        "apigateway:POST",
+        "apigateway:DELETE"
+      ],
+      "Resource": "arn:aws:apigateway:us-east-1::/tags/*"
+    },
+    {
+      "Sid": "HttpApiLogDelivery",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogDelivery",
+        "logs:GetLogDelivery",
+        "logs:UpdateLogDelivery",
+        "logs:DeleteLogDelivery",
+        "logs:ListLogDeliveries"
+      ],
+      "Resource": "*"
     }
   ]
 }
