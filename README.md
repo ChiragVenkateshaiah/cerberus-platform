@@ -1,387 +1,215 @@
-# cerberus-platform
+# Cerberus
+
+*cerberus-platform*
 
 [![terraform plan](https://github.com/ChiragVenkateshaiah/cerberus-platform/actions/workflows/terraform-plan.yml/badge.svg)](https://github.com/ChiragVenkateshaiah/cerberus-platform/actions/workflows/terraform-plan.yml)
 [![terraform apply](https://github.com/ChiragVenkateshaiah/cerberus-platform/actions/workflows/terraform-apply.yml/badge.svg)](https://github.com/ChiragVenkateshaiah/cerberus-platform/actions/workflows/terraform-apply.yml)
 [![code CI](https://github.com/ChiragVenkateshaiah/cerberus-platform/actions/workflows/code-ci.yml/badge.svg)](https://github.com/ChiragVenkateshaiah/cerberus-platform/actions/workflows/code-ci.yml)
 [![dbt docs](https://github.com/ChiragVenkateshaiah/cerberus-platform/actions/workflows/dbt-docs.yml/badge.svg)](https://github.com/ChiragVenkateshaiah/cerberus-platform/actions/workflows/dbt-docs.yml)
 
-A portfolio project that builds a working AWS lakehouse end to end — ingestion,
-medallion storage, transformation, a queryable serving layer, orchestration,
-observability, and IaC — demonstrating Data Platform, Platform, and Cloud
-Engineering competence in one repository.
+**A production-style AWS lakehouse, built and operated as code by one engineer. Compute exists only while a run needs it.**
 
-## Status
+![Dashboard 1, Run Overview, replaying the 100M take](docs/assets/cerberus-100m-run-overview.gif)
 
-✅ Phase 0 (foundation, built by hand) — complete.
-✅ Phase 1 (MVP: end-to-end lakehouse) — complete. A reviewer can run a
-real Athena query against gold and get a result; `terraform apply` and
-`terraform destroy` were verified live against the whole stack.
-✅ Phase 2 (event-driven ingestion) — complete. Ingestion runs on a Lambda
-(driven by the Phase 4 state machine) instead of the retired Phase 0
-systemd timer, verified firing unattended. Its schedule is gated behind a
-`pipeline_active` switch (ADR 0011, amended) — enabled only during a
-compute exercise, since the full pipeline needs the spin-up/destroy EKS
-layer to complete.
-✅ Phase 3 (scalable compute) — complete. ADR 0007 (VPC network design for
-Spark-on-EKS) is accepted; the full stack (VPC, EKS, Spark Operator, Spark
-job) was applied live, a real Spark job ran on EKS and wrote verified
-output to silver, and the stack was destroyed cleanly.
-✅ Phase 4 (orchestration) — complete. ADR 0009 chose AWS Step Functions
-over Airflow; a state machine (Lambda → Spark-on-EKS/dbt via ECS Fargate →
-Athena) orchestrates the full ingest → transform → serve flow, tuned for
-retries and execution visibility, retargeted from EventBridge Scheduler,
-and verified with a real live execution end to end.
-✅ Phase 5 (CI/CD) — complete. ADR 0011 chose GitHub Actions + OIDC
-federation over AWS CodePipeline and split `envs/dev` into `dev-standing`
-(CI-managed, no idle cost) and `dev-compute` (human-run only);
-`terraform plan` runs on every PR and `terraform apply` runs unattended on
-merge to `main`, both verified live against real AWS, including closing 9
-real IAM permission gaps discovered across three live-apply attempts. A
-`code-ci.yml` workflow lints Python (ruff) and validates the dbt project
-(`dbt parse` + sqlfluff) on every PR; ADR 0012 closes the phase's
-Well-Architected pass (milestone 5, `phase-5-cicd-complete`).
-✅ Phase 6 (observability & data quality) — complete. A
-`terraform/modules/observability` module adds a CloudWatch dashboard
-(`cerberus-platform-pipeline`) over the pipeline's Step Functions / Lambda
-/ Athena metrics plus an hourly "freshness probe" Lambda publishing
-`Cerberus/Pipeline` custom metrics for data/run staleness (6.1); seven
-CloudWatch alarms — two unconditional, five gated on `pipeline_active` —
-notify a dedicated `cerberus-pipeline-alerts` SNS topic (6.2); the dbt
-project gained schema/data-quality tests and the orchestrated step runs
-`dbt build`, so bad data fails the run loudly instead of landing silently
-(6.3). Data lineage (6.4) is a curated
-[docs/lineage.md](docs/lineage.md) plus two generated companions on
-[GitHub Pages](https://chiragvenkateshaiah.github.io/cerberus-platform/) —
-dbt's model DAG and a runtime graph rendered from OpenLineage events a
-serverless collector captures from the Spark and dbt steps (ADR 0013),
-verified live on EKS. [docs/slo.md](docs/slo.md) defines six SLOs against
-those metrics (6.5). ADR 0014 closes the phase's Well-Architected pass
-(milestone 6, `phase-6-observability-and-data-quality-complete`) — the
-first pass since milestone 1 to move risk buckets: 25→23 HIGH, as
-`workload-observability`, `monitor-aws-resources`, and Performance's
-`process-culture` each improved.
-✅ Phase 7 (end-to-end platform validation) — complete. 7.1 scaled the
-ingestion Lambda's synthetic payments workload 10x (`TRANSACTION_COUNT`
-200 → 2000); 7.2 exercised the full orchestrated pipeline live in a
-`dev-compute` window — 3 manually-started state-machine executions all
-succeeded end to end (ingestion → Spark-on-EKS transform → dbt build →
-Athena serving query), verified at every layer including OpenLineage
-capture, with `dev-compute` torn down and `pipeline_active` returned to
-`false` afterward. 7.3 replaced `cerberus-admin`'s `AdministratorAccess`
-with six least-privilege policies built from its real CloudTrail history
-([iam/cerberus-admin/](iam/cerberus-admin/)). 7.4 ran the full 57-question
-Well-Architected review (ADR 0015, milestone 7).
-7.5's [cost and security summary](docs/cost-security-summary.md) found the
-whole build cost $5.74 gross, all of it covered by credits, and narrowed
-the lineage collector to unauthenticated-only-during-exercises. Phase 7
-was then extended with Prometheus metrics for the EKS/Spark layer: 7.6's
-ADR 0016 chose an in-cluster agent writing to Amazon Managed Service for
-Prometheus, viewed through self-hosted Grafana. 7.7 verified it live in a
-`dev-compute` exercise on 2026-10-06: remote-write to AMP with no failed
-samples, the Spark driver, executor and operator series on the
-[Grafana dashboard](observability/grafana/dashboards/spark-on-eks.json),
-and a peak of 4,349 active series against ADR 0016's ~10k estimate.
-7.8 recorded one orchestrated run end to end (about 6 minutes, from the
-Step Functions graph through S3, Athena, CloudWatch and Grafana to the
-lineage graph). That exercise also found and fixed a 7.3 permission gap,
-two data-quality issues and two CI gaps.
+*The 100M take on dashboard 1 · Run Overview, replayed from the run's recorded metrics (2026-11-08): 100.0M events, 26 checks passed, cluster deleted, 65 min. This is a replay of recorded metrics, not a live screen capture.*
 
-🔨 Phase 8 (scale validation) — in progress. It takes the pipeline from about
-40k to 100M events in 10x steps, on Apache Iceberg with incremental
-processing ([ADR 0017](docs/adr/0017-iceberg-incremental-processing.md),
-accepted), and measures run time and cost per million events at each step.
-8.3's scale harness is done: a Spark generator that writes 1M–100M events
-to bronze as JSON Lines
-([ADR 0018](docs/adr/0018-bulk-bronze-json-lines.md)), the metric set and
-baseline in [docs/scale-metrics.md](docs/scale-metrics.md), and
-`make exercise`, which runs apply → run → collect → destroy as one
-command. Its first live run wrote 1M events and cut cluster time per
-exercise from 2.1 hours to 42 minutes. 8.4 turned the data-quality checks
-into code: 17 Athena checks reconcile bronze → silver → gold and run with
-every exercise; the first full run passed, with bronze and silver matching
-event for event. 8.5 moved silver and gold to Apache Iceberg with
-incremental processing: each run reads only new bronze files, once, and
-gold merges only the transactions that changed. At about 1M events the
-orchestrated run appended 6,094 new events, merged exactly 2,000 gold rows
-and finished in 340 s, faster than the 39k-event full-rebuild baseline.
-8.6 took the pipeline to 10M new events per run and measured each change
-alone: pre-pulling the Spark image cut 19 s, and two 2 GB executors cut the
-transform step by 25% at 10M (about $0.01 per million events for the run); the job is now
-CPU-bound, with no Spark setting left worth changing. 10M also outgrew two
-guardrails, so Athena's per-query limits were raised and the data-quality
-suite now checks bronze as a ledger of per-run manifests, cutting its scan
-from 49 GB to 8 GB per run
-([ADR 0018](docs/adr/0018-bulk-bronze-json-lines.md), amended).
-[ADR 0019](docs/adr/0019-spark-submission-ecs-wrapper-vs-native-eks.md)
-keeps the ECS wrapper around the Spark job, and
-[ADR 0020](docs/adr/0020-dev-compute-node-autoscaling-and-spot.md) (8.7)
-gives `dev-compute` an On-Demand system node group, a Spot executor group
-and Cluster Autoscaler for the 100M step. 8.8 built that layout and loaded
-it: Spark dynamic allocation grew the silver job from 2 to 8 executors as
-Cluster Autoscaler added a Spot node in about a minute, and an AWS FIS
-Spot interruption in the middle of a 9M-event run was absorbed with no
-failure: the executors on the reclaimed node decommissioned gracefully,
-replacement nodes joined, and silver still matched bronze event for event
-(37,105,429). The 100M step (8.9) has run: 100M new events on top of 37M
-went through the orchestrated pipeline in 742 s with data quality passing,
-the transform step taking 2.1 times as long as at 10M for 11 times the
-events as Cluster Autoscaler grew the Spot group to its four-node maximum.
-The run cost $0.37, 0.37 cents per million events (1.8 cents for the whole
-exercise, generator and data-quality scan included), and met the 30-minute
-run-latency SLO with 2.4 times headroom. Before milestone 8, a full
-data-quality audit re-checked every bronze key against silver: all
-137,113,940 events matched.
+## At a glance
 
-⬜ Phase 9 (demo console) — planned. A browser console on one start/stop
-EC2 instance: architecture and latest-run views, Grafana and Prometheus
-panels, and a terminal panel limited to a read-only `cerberus` command
-set, behind CloudFront and Cognito (or an SSO tunnel), with no idle cost.
-⬜ Phase 10 (pipeline status & alerting) — planned. A Prometheus exporter
-for the batch pipeline, Grafana dashboards and alert rules as code, SLO
-burn-rate alerts, and a terminal status view, with no idle cost.
-[ADR 0021](docs/adr/0021-pipeline-status-and-alerting.md) (10.1, accepted)
-puts status in the existing AMP workspace, with AMP-evaluated alerts and
-a local Grafana.
-⬜ Phase 11 (Databricks interoperability) — planned. Databricks reads
-Cerberus's Iceberg tables through Unity Catalog's AWS Glue federation, with
-no copy, managed in Terraform; the same workload is measured on both.
-⬜ Phase 12 (platform tooling in Go) — planned. A Go CLI, `cerberusctl`,
-replaces the exercise, metric-collection and data-quality scripts with
-concurrent AWS calls and explicit signal handling.
-⬜ Phase 13 (streaming ingestion) — planned. Apache Kafka on a
-start/stop EC2 instance, with a Go producer and consumer writing into
-bronze for the incremental silver job.
+Cerberus moves synthetic payments data through an S3 medallion (bronze, silver, gold), with Spark on EKS, dbt and Athena, on Apache Iceberg. Step Functions orchestrates the runs, Terraform provisions everything, and CloudWatch, Prometheus and Grafana observe it. Every non-obvious choice is an [architecture decision record](docs/adr/) (25 so far), and each phase closes with a Well-Architected review.
 
-See [docs/plan.md](docs/plan.md) for the full phased roadmap (Phases 0–13)
-and [Phases.md](Phases.md) for subtask-level progress.
+## Headline result: 100 million events, from no compute back to no compute
 
-The platform models **synthetic payments data** from Phase 1 onward.
+On 2026-11-08 the platform processed 100 million new events in one orchestrated run. It built the compute layer from nothing, ran the pipeline, and deleted the compute layer again.
+
+| Measure | Result |
+|---|---|
+| New events | 100,001,897 |
+| Pipeline run | 859 s (14.3 min), about 116k events/s |
+| Data quality | 26 checks passed, 0 errors, 1 known warning |
+| Reconciliation | bronze = silver = 249,121,312 events |
+| Whole exercise | 65 min: apply 790 s, generator 1,264 s, pipeline 870 s (harness clock), destroy 807 s |
+| After destroy | EKS 0, NAT 0, EIP 0, running instances 0 |
+| Spot executor nodes | 2 scaled to 4 during the transform (dashboard reading) |
+| Cost | $2.20 estimated (servers $1.25, Athena $0.95), a dashboard estimate; the billed figure is posted later |
+
+Sources: the [run record](observability/scale/runs/demo-100m-20261108T135119Z.json) and the [8.10 subsection of the scale metrics](docs/scale-metrics.md). The earlier 100M run (8.9) was billed: $0.37 for the run, 0.37 cents per million events, and $1.78 for the whole day (Cost Explorer, 2026-10-13).
 
 ## Architecture
 
 ```mermaid
-flowchart TB
-    subgraph FOUND["Foundation & tooling"]
-        direction LR
-        GIT["Git + GitHub<br/>public repo"]
-        ADR["Markdown ADRs"]
-        MK["Makefile<br/>TF_BIN swappable"]
+flowchart LR
+    subgraph CI["Delivery"]
+        GHA["GitHub Actions + OIDC"] -->|"plan on PR, apply on merge"| STAND["Terraform: dev-standing"]
+        HUMAN["make exercise"] -->|"apply, run, destroy"| COMP["Terraform: dev-compute"]
     end
-
-    subgraph PIPE["Lakehouse pipeline"]
-        direction LR
-        SAMPLE["Sample data<br/>payments-shaped<br/>(NovaPay-echo)"]
-        ING1["Bash + AWS CLI<br/>systemd timer (Phase 0)"]
-        ING2["AWS Lambda<br/>event-driven (Phase 2)"]
-        BRZ[("S3 Bronze<br/>raw")]
-        SPARK["Apache Spark on EKS<br/>spin-up / destroy"]
-        SLV[("S3 Silver<br/>cleaned")]
-        DBT["dbt models<br/>silver to gold"]
-        GLD[("S3 Gold<br/>curated")]
-        ATH{{"Amazon Athena<br/>serverless SQL"}}
-
-        SAMPLE --> ING1 --> BRZ
-        SAMPLE -.-> ING2 -.-> BRZ
-        BRZ --> SPARK --> SLV --> DBT --> GLD --> ATH
+    subgraph RUN["AWS Step Functions run"]
+        direction TB
+        S1["InvokeIngestion"] --> S2["RunTransform<br/>ECS Fargate submits Spark"] --> S3["RunDbt<br/>ECS Fargate, dbt-athena"] --> S4["RunServingQuery"]
     end
-
-    subgraph GOV["Provisioning, access and delivery - cross-cutting"]
-        direction LR
-        TF["Terraform BUSL 1.1<br/>OpenTofu-swappable via TF_BIN"]
-        TFSTATE[("Terraform state<br/>S3 bucket + DynamoDB lock")]
-        IAM["AWS IAM<br/>least privilege per component"]
-        CICD["CI/CD - Phase 5<br/>AWS CodePipeline"]
-        TF --- TFSTATE
-        CICD -. plan / apply .-> TF
+    subgraph EKS["EKS, created per exercise, then destroyed"]
+        GEN["Spark bulk generator"]
+        SPARK["Spark job<br/>Spot executors, Cluster Autoscaler"]
+        PROM["Prometheus agent"]
     end
-
-    GIT -. git push .-> CICD
-    TF -. provisions .-> PIPE
-    IAM -. least-privilege .-> PIPE
-
-    classDef storage fill:#dbeafe,stroke:#1e3a8a,color:#1e3a8a
-    classDef compute fill:#dcfce7,stroke:#14532d,color:#14532d
-    classDef provisioning fill:#fef3c7,stroke:#78350f,color:#78350f
-    classDef tooling fill:#f3e8ff,stroke:#4c1d95,color:#4c1d95
-    classDef query fill:#fee2e2,stroke:#7f1d1d,color:#7f1d1d
-
-    class BRZ,SLV,GLD,TFSTATE storage
-    class SPARK,ING1,ING2 compute
-    class TF,IAM,CICD provisioning
-    class GIT,ADR,MK tooling
-    class DBT,ATH query
-    class SAMPLE tooling
+    subgraph LAKE["S3 medallion, Glue Data Catalog"]
+        BRZ[("Bronze<br/>JSON, JSON Lines")]
+        SLV[("Silver<br/>Iceberg")]
+        GLD[("Gold<br/>Iceberg marts")]
+    end
+    S1 --> LAMBDA["Ingestion Lambda"] --> BRZ
+    GEN --> BRZ
+    S2 --> SPARK
+    BRZ -->|"new files only"| SPARK -->|"MERGE"| SLV
+    S3 --> GLD
+    SLV --> GLD
+    S4 --> ATH{{"Athena"}}
+    GLD --> ATH
+    PROM --> AMP["Amazon Managed Prometheus"] --> GRAF["Local Grafana<br/>3 dashboards"]
+    RUN --> CW["CloudWatch dashboard and alarms"] --> SNS["SNS"]
+    SPARK & S3 -. "OpenLineage (not yet for exercises, ADR 0021)" .-> OL["Lineage collector"] -.-> PAGES["GitHub Pages"]
+    GLD -. "Phase 11, planned: Glue federation, no copy" .-> DBX["Databricks SQL"]
+    COMP -.-> EKS
 ```
 
-This is the target end-state, not current state (see [Status](#status)
-above). For current-state notes, the full stack table, and the governing
-constraints behind this diagram, see
-[docs/architecture.md](docs/architecture.md).
+A run is a Step Functions state machine with four states:
+
+- **InvokeIngestion** calls the ingestion Lambda, which writes to bronze.
+- **RunTransform** runs on ECS Fargate and submits the Spark job to EKS, which merges only the new bronze files into silver ([ADR 0019](docs/adr/0019-spark-submission-ecs-wrapper-vs-native-eks.md)).
+- **RunDbt** runs `dbt build` on ECS Fargate through dbt-athena and builds the gold marts, with tests gating the build.
+- **RunServingQuery** runs a demo Athena query against gold.
+- The run then ends in Succeed or Fail.
+
+Storage and incremental processing follow [ADR 0002](docs/adr/0002-medallion-layout.md) and [ADR 0017](docs/adr/0017-iceberg-incremental-processing.md). Spark runs on an On-Demand system node group and a Spot executor group ([ADR 0020](docs/adr/0020-dev-compute-node-autoscaling-and-spot.md)). Orchestration is [ADR 0009](docs/adr/0009-orchestration-step-functions-vs-airflow.md), and live observability is [ADR 0022](docs/adr/0022-live-observability-for-a-recorded-run.md).
+
+## Tech stack
+
+| Layer | Technology | ADR |
+|---|---|---|
+| Storage | S3, Apache Iceberg, Glue Data Catalog | [0002](docs/adr/0002-medallion-layout.md), [0017](docs/adr/0017-iceberg-incremental-processing.md) |
+| Ingestion | Lambda, Spark bulk generator | [0005](docs/adr/0005-push-vs-pull-ingestion.md), [0018](docs/adr/0018-bulk-bronze-json-lines.md) |
+| Compute | Spark on EKS, Spot, Cluster Autoscaler | [0007](docs/adr/0007-vpc-network-design.md), [0020](docs/adr/0020-dev-compute-node-autoscaling-and-spot.md) |
+| Orchestration | Step Functions, ECS Fargate | [0009](docs/adr/0009-orchestration-step-functions-vs-airflow.md), [0019](docs/adr/0019-spark-submission-ecs-wrapper-vs-native-eks.md) |
+| Transform and serving | dbt-athena, Athena | [0017](docs/adr/0017-iceberg-incremental-processing.md) |
+| IaC and CI | Terraform (OpenTofu-swappable), GitHub Actions with OIDC | [0011](docs/adr/0011-ci-cd-github-actions-oidc.md) |
+| Metrics | Prometheus agent, Amazon Managed Prometheus, Grafana | [0016](docs/adr/0016-prometheus-for-eks-spark.md), [0022](docs/adr/0022-live-observability-for-a-recorded-run.md) |
+| Ops metrics | CloudWatch, SNS | [0014](docs/adr/0014-phase-6-well-architected-review.md) |
+| Lineage | OpenLineage, serverless collector | [0013](docs/adr/0013-lineage-openlineage-serverless-collector.md) |
+
+## Scale ladder
+
+Each step is one orchestrated run. The records are in `observability/scale/runs/`, and [docs/scale-metrics.md](docs/scale-metrics.md) explains every number.
+
+| Step | New events | Silver after | Run (s) | Data quality | $/M events (run) |
+|---|---|---|---|---|---|
+| Baseline | 39,222 | 39,222 | 363.4 | suite not built yet | 1.0699 |
+| 10M | 9,005,590 | 10,081,387 | 522.8 | passed | 0.0112 |
+| 100M (8.9) | 100,008,511 | 137,113,940 | 742.0 | passed | 0.0037 |
+| 1M (clean, 8.10) | 1,005,920 | 138,119,860 | 581.2 | passed | 0.2928 |
+| 100M take (8.10) | 100,001,897 | 249,121,312 | 859.1 | passed | not posted yet |
+
+The clean 1M run costs more per event than the 100M runs for two reasons. Each run pays a fixed overhead, and this run happened on top of 138M silver events.
+
+- **SLO headroom:** the 8.9 run took 742 s against the 30-minute run-latency SLO, 2.4 times headroom. The take, at 859 s, is 48% of the limit, about 2.1 times headroom (computed from the run record).
+- **Spot interruption:** an AWS FIS interruption in the middle of a 9M-event run caused no failure, and silver matched bronze at 37,105,429 events (8.8).
+- **Full audit:** the milestone `--full` audit re-checked every bronze key against silver: 137,113,940 = 137,113,940.
+
+## Observability for everyone
+
+Three Grafana dashboards tell the story of a run at three levels:
+
+1. **1 · Run Overview: progress, quality, cost.** For anyone, including finance and product: is the run progressing, did it pass, what did it cost.
+2. **2 · Run Health: compute and throughput.** For engineering and operations: nodes, executors and throughput.
+3. **3 · Spark and Cluster Diagnostics.** For platform and Spark engineers.
+
+Grafana runs locally in Docker Compose against Amazon Managed Prometheus, so no standing server exists ([ADR 0022](docs/adr/0022-live-observability-for-a-recorded-run.md)). A CloudWatch dashboard and alarms feed an SNS topic (most alarms arm only for scheduled runs; ADR 0021 adds exercise alerting in Phase 10), and [six SLOs](docs/slo.md) define the reliability targets. Lineage is collected for scheduled runs; exercise lineage is planned (ADR 0021). It is documented in [docs/lineage.md](docs/lineage.md), with a [dbt model DAG](https://chiragvenkateshaiah.github.io/cerberus-platform/dbt/) and a [runtime lineage graph](https://chiragvenkateshaiah.github.io/cerberus-platform/lineage/) on GitHub Pages.
+
+## Data quality and reliability
+
+- A 26-check suite reconciles bronze, silver and gold on every exercise (`observability/scale/data_quality.py`).
+- dbt tests gate `dbt build`, so bad data fails the run instead of landing silently.
+- Every exercise tears down from an EXIT trap (`orchestration/exercise.sh`), so a failed run does not leave billable resources behind.
+
+## Cost and security
+
+- The budget is $20 a month, with alerts at $15 and $20.
+- Between runs nothing billed by the hour exists. The standing layer is pay-per-request services plus S3 storage.
+- CI has no long-lived keys: GitHub Actions authenticates through OIDC ([ADR 0011](docs/adr/0011-ci-cd-github-actions-oidc.md)), and it applies only the standing layer.
+- The admin user runs on least-privilege policies instead of AdministratorAccess: six built from its CloudTrail history, plus two added for the demo console ([iam/cerberus-admin/](iam/cerberus-admin/)).
+- The Well-Architected review for Phase 8 cut HIGH risks from 23 to 18 ([ADR 0023](docs/adr/0023-phase-8-well-architected-review.md)).
+- The whole build had cost $5.74 gross through 2026-10-02, all covered by credits ([cost and security summary](docs/cost-security-summary.md); a dated figure).
+
+## Where Databricks fits
+
+Databricks is a complement, not a replacement. In Phase 11 (planned), Databricks SQL reads Cerberus's Iceberg gold tables through Unity Catalog's AWS Glue federation, with no copy, managed in Terraform. The same workload is then measured on both engines. Cerberus stays the system of record and the only writer (see "Not a migration" in [docs/plan.md](docs/plan.md)).
+
+## Roadmap
+
+| Phase | Theme | Status | Key ADRs |
+|---|---|---|---|
+| 0 | Foundation, built by hand | Done | [0001](docs/adr/0001-record-architecture-decisions.md) |
+| 1 | MVP: end-to-end lakehouse | Done | [0002](docs/adr/0002-medallion-layout.md), [0003](docs/adr/0003-synthetic-payments-data-model.md) |
+| 2 | Event-driven ingestion | Done | [0005](docs/adr/0005-push-vs-pull-ingestion.md) |
+| 3 | Scalable compute | Done | [0007](docs/adr/0007-vpc-network-design.md) |
+| 4 | Orchestration | Done | [0009](docs/adr/0009-orchestration-step-functions-vs-airflow.md) |
+| 5 | CI/CD | Done | [0011](docs/adr/0011-ci-cd-github-actions-oidc.md) |
+| 6 | Observability and data quality | Done | [0013](docs/adr/0013-lineage-openlineage-serverless-collector.md) |
+| 7 | End-to-end validation | Done | [0015](docs/adr/0015-phase-7-well-architected-review.md), [0016](docs/adr/0016-prometheus-for-eks-spark.md) |
+| 8 | Scale validation | In progress: results write-up, demo video, Well-Architected milestone | [0017](docs/adr/0017-iceberg-incremental-processing.md)-[0020](docs/adr/0020-dev-compute-node-autoscaling-and-spot.md), [0022](docs/adr/0022-live-observability-for-a-recorded-run.md), [0023](docs/adr/0023-phase-8-well-architected-review.md) |
+| 9 | Demo console | Planned: design accepted (ADR 0024), prerequisites built | [0024](docs/adr/0024-demo-console.md) |
+| 10 | Pipeline status and alerting | Planned: design accepted | [0021](docs/adr/0021-pipeline-status-and-alerting.md) |
+| 11 | Databricks interoperability | Planned | none yet |
+| 12 | Platform tooling in Go | Planned | none yet |
+| 13 | Streaming ingestion | Planned | none yet |
+| 14 | AI operations agents | Planned: ADR 0025 accepted 2026-11-08 | [0025](docs/adr/0025-ai-operations-agents.md) |
+
+Subtask-level progress is in [Phases.md](Phases.md), and the full plan is in [docs/plan.md](docs/plan.md).
+
+## Run it yourself
+
+Prerequisites: an AWS account, Terraform or OpenTofu, the AWS CLI with a `cerberus-admin` profile, Docker, and uv. The Terraform state bucket name in `terraform/envs/*/versions.tf` is account-specific, so a fork must change it first.
+
+`make exercise` creates billable resources (EKS, NAT, Spot nodes) and destroys them when it exits.
+
+```bash
+make help
+make bootstrap-init && make bootstrap-apply
+make standing-init && make standing-plan
+make exercise-check
+make exercise ARGS="--yes --generate 1000000"
+make grafana-up
+make compute-destroy   # failure path only
+```
+
+Set `TF_BIN=tofu` to use OpenTofu instead of Terraform.
 
 ## Repository layout
 
 ```
-.
-├── .claude/commands/     # /start-day, /end-day, /write-article,
-│                         #   /note-maker, /git-cleaner session commands
-├── .github/workflows/    # terraform plan on PR, apply on merge (5.1/5.2,
-│                         #   against envs/dev-standing only), plus
-│                         #   code-ci.yml (5.3): Python lint (ruff) + dbt
-│                         #   validate (dbt parse + sqlfluff); dbt-docs.yml
-│                         #   (6.4a/6.4d): builds the dbt DAG + the runtime
-│                         #   lineage graph, deploys both to GitHub Pages on
-│                         #   merge or manual dispatch
-├── docs/                 # plan, architecture notes, ADRs, learning notes,
-│                         #   lineage.md (6.4), slo.md (6.5),
-│                         #   cost-security-summary.md (7.5),
-│                         #   scale-metrics.md (8.3); docs/pages/ =
-│                         #   the Pages landing page
-├── articles/             # weekly engineering articles (see article.md)
-├── terraform/
-│   ├── bootstrap/        # state backend as code (S3 + DynamoDB lock)
-│   ├── modules/          # reusable modules (S3 medallion, IAM, IAM spark,
-│   │                     #   Glue catalog, Athena, Lambda ingestion, VPC,
-│   │                     #   VPC NAT, EKS, Spark Operator, Spark job
-│   │                     #   service account, orchestration runner
-│   │                     #   (ECR/Fargate), Step Functions, observability
-│   │                     #   (dashboard, freshness probe, alarms/SNS),
-│   │                     #   lineage (OpenLineage collector), GitHub OIDC,
-│   │                     #   prometheus_workspace (AMP, 7.7),
-│   │                     #   eks_observability (Prometheus agent + Grafana
-│   │                     #   on EKS, 7.7), cluster_autoscaler (8.8),
-│   │                     #   spot_interruption_test (FIS, 8.8))
-│   ├── envs/dev-standing/  # CI-managed root (5.1): S3/IAM/Glue/Athena/
-│   │                     #   Lambda/orchestration/observability/GitHub OIDC/
-│   │                     #   AMP workspace -- no idle cost, planned on every
-│   │                     #   PR, applied on merge
-│   └── envs/dev-compute/  # human-run root, spin-up/destroy per exercise:
-│                         #   VPC NAT/EIP, EKS, Spark, Prometheus agent +
-│                         #   Grafana -- never touched by CI (ADR 0011)
-├── ingestion/scripts/    # ingestion scripts: synthetic payments generator
-│                         #   + shared payments_lib.py core (Python, Phase
-│                         #   1); ingest_weather.sh (Phase 0, unscheduled —
-│                         #   retired as the active feed); run_payments_
-│                         #   scheduled.sh (Phase 0's systemd wrapper,
-│                         #   unscheduled — retired 2.5, Lambda is now the
-│                         #   only active ingestion path)
-├── ingestion/lambda/     # event-driven ingestion Lambda handler, wraps
-│                         #   payments_lib.py (Phase 2)
-├── transform/scripts/    # bronze → silver → gold transform (Python,
-│                         #   Phase 1): silver = flattened event history,
-│                         #   gold = current-state (still denormalized)
-├── transform/dbt/        # dbt project: gold fact/dimension models (1.9)
-│                         #   + schema/data-quality tests (6.3); Iceberg
-│                         #   gold with incremental fct_transactions (8.5)
-├── transform/spark/      # PySpark bronze -> silver job (3.5; incremental
-│                         #   into Apache Iceberg since 8.5), run on the
-│                         #   EKS cluster via the Spark Operator (3.4);
-│                         #   spark-application.yaml + submit_job.sh (not
-│                         #   Terraform-managed -- see its own header);
-│                         #   bulk payments generator for the Phase 8
-│                         #   scale ladder (8.3, ADR 0018): generate_bulk.sh
-├── orchestration/        # state_machine.asl.json.tftpl -- the orchestration
-│                         #   state machine's ASL definition (4.2/4.3),
-│                         #   templated by terraform/modules/step_functions;
-│                         #   exercise.sh -- `make exercise`, the one-command
-│                         #   apply -> run -> collect -> destroy (8.3)
-├── orchestration/runner/ # container image the state machine's ECS Fargate
-│                         #   transform/dbt steps run: Dockerfile,
-│                         #   entrypoint scripts, shared lib.sh (4.2)
-├── observability/        # freshness_probe/handler.py -- hourly Lambda
-│                         #   publishing pipeline/data freshness as
-│                         #   CloudWatch custom metrics (6.1);
-│                         #   grafana/dashboards/ -- Grafana dashboard JSON
-│                         #   provisioned into the EKS Grafana (7.7);
-│                         #   scale/ -- the Phase 8 metric collector, its
-│                         #   per-run records (8.3) and the cross-layer
-│                         #   data-quality suite (8.4; manifest-ledger
-│                         #   mode and backfill_bulk_manifests.py, 8.6);
-│                         #   scale/exercises/ -- exercise logs;
-│                         #   scale/audits/ -- milestone `--full`
-│                         #   data-quality audit records (8.9)
-├── lineage/              # collector/handler.py -- the OpenLineage event
-│                         #   collector Lambda behind an API Gateway HTTP
-│                         #   API, writing events to S3 (6.4b, ADR 0013);
-│                         #   render/render_graph.py -- renders the captured
-│                         #   events into the Pages site (6.4d)
-├── iam/cerberus-admin/   # cerberus-admin's 6 least-privilege policies (7.3)
-│                         #   as JSON -- the audit trail for policies
-│                         #   applied via CLI/root console, deliberately
-│                         #   not Terraform-managed (see its README)
-├── serving/queries/      # demo Athena SQL against gold (1.10)
-├── serving/scripts/      # runs the demo query as cerberus-serving
-└── data/samples/         # small sample datasets for local testing
-```
-
-## Getting started
-
-This project is being built incrementally; see [docs/plan.md](docs/plan.md)
-for what's done and what's next. Common tasks are wired up in the
-[Makefile](Makefile).
-
-### Working across machines
-
-This project runs on two machines (workstation + WSL2 laptop) synced through
-GitHub. Both are configured with `pull.rebase = true` so `git pull` rebases
-cleanly instead of creating a merge commit.
-
-**First ritual on any machine — run `/git-cleaner` in Claude Code.** It checks
-both repos (`cerberus-platform` and `tessera`) for uncommitted changes, fetches
-and rebases from origin, prunes stale remote-tracking branches, and warns if
-`terraform init` needs re-running (providers are gitignored and don't travel
-between machines).
-
-**Golden rule:** push before switching machines. A clean push means the other
-machine can always fast-forward without conflicts.
-
-On a fresh clone, set the rebase pull strategy once per repo:
-
-```bash
-git config pull.rebase true
+terraform/       bootstrap (state backend), modules, envs/dev-standing (CI-managed),
+                 envs/dev-compute (human-run, per exercise)
+ingestion/       synthetic payments generator and the ingestion Lambda
+transform/       Spark bronze-to-silver job, bulk generator, dbt project
+orchestration/   state machine definition, ECS runner image, exercise.sh
+observability/   Grafana dashboards, scale harness and run records, freshness probe
+lineage/         OpenLineage collector and the Pages graph renderer
+serving/         demo Athena queries against gold
+iam/             cerberus-admin least-privilege policies
+docs/            plan, ADRs, SLOs, scale metrics, runbooks
+articles/        weekly engineering write-ups
 ```
 
 ## Documentation
 
-- [docs/plan.md](docs/plan.md) — the build plan and phased roadmap
-- [docs/architecture.md](docs/architecture.md) — architecture overview
-- [docs/lineage.md](docs/lineage.md) — data lineage (6.4): the curated
-  whole-pipeline view at table and column granularity. Two generated
-  companions on [GitHub Pages](https://chiragvenkateshaiah.github.io/cerberus-platform/):
-  the [dbt model DAG](https://chiragvenkateshaiah.github.io/cerberus-platform/dbt/)
-  (offline from `manifest.json`) and the
-  [runtime lineage graph](https://chiragvenkateshaiah.github.io/cerberus-platform/lineage/)
-  (from the Spark/dbt steps' own OpenLineage events — 6.4b collector, 6.4c
-  producers, 6.4d render)
-- [docs/slo.md](docs/slo.md) — service level objectives (6.5): the platform's
-  reliability targets, the CloudWatch SLIs behind them, and the
-  error-budget policy — all backed by the 6.1/6.2 metrics and alarms
-- [docs/cost-security-summary.md](docs/cost-security-summary.md) — cost and
-  security summary (7.5): what the build actually cost and where it went,
-  how every caller authenticates, and the residual risks accepted on purpose
-- [docs/scale-metrics.md](docs/scale-metrics.md) — the Phase 8 metric set
-  (8.3): what each scale step measures, where every number comes from, the
-  cost method, the baseline at today's volume, the data-quality suite
-  (8.4), 8.6's measured results at 10M events, and 8.8's autoscaling,
-  dynamic allocation and Spot interruption tests, and 8.9's 100M-event run
-  with its cost per step and the milestone `--full` data-quality audit
-- [docs/adr/](docs/adr/) — architecture decision records
-- [docs/courses-map-to-phases.md](docs/courses-map-to-phases.md) — which
-  courses (if any) map to each phase, and where no course exists
-- [docs/notes/](docs/notes/) — day-by-day learning notes: theory explained
-  alongside the actual code written that session, for reference/study
-  rather than status tracking (see [checkpoint.md](checkpoint.md) for that);
-  generated via `/note-maker`
-- [article.md](article.md) — rules for the weekly engineering write-up,
-  generated via `/write-article`; published articles live in
-  [articles/](articles/), indexed in `articles/README.md`
-- `/start-day` / `/end-day` (`.claude/commands/`) — session commands that
-  read and update [checkpoint.md](checkpoint.md) and [Phases.md](Phases.md)
-  at the start and close of each work session
-- `/note-maker` (`.claude/commands/note-maker.md`) — generates the
-  `docs/notes/day-NN.md` learning notes above
-- `/git-cleaner` (`.claude/commands/git-cleaner.md`) — the two-machine
-  sync ritual run at the start of any session; see "Working across
-  machines" above
+- [docs/plan.md](docs/plan.md): the build plan and phased roadmap
+- [Phases.md](Phases.md): subtask-level progress
+- [docs/adr/](docs/adr/): architecture decision records
+- [docs/scale-metrics.md](docs/scale-metrics.md): the Phase 8 metric set, cost method and results at each scale step
+- [docs/slo.md](docs/slo.md): service level objectives and error-budget policy
+- [docs/lineage.md](docs/lineage.md): data lineage at table and column granularity
+- [docs/cost-security-summary.md](docs/cost-security-summary.md): what the build cost, how every caller authenticates, and the accepted residual risks
+- [docs/demo-recording.md](docs/demo-recording.md): the runbook for recording the 100M take
+- [docs/architecture.md](docs/architecture.md): Phase 1 MVP architecture write-up
+- [articles/README.md](articles/README.md): index of the published articles
 
 ## License
 
