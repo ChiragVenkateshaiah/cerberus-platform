@@ -151,8 +151,12 @@ concurrent AWS calls and explicit signal handling.
 ⬜ Phase 13 (streaming ingestion) — planned. Apache Kafka on a
 start/stop EC2 instance, with a Go producer and consumer writing into
 bronze for the incremental silver job.
+⬜ Phase 14 (AI operations agents) — planned. Claude on Amazon Bedrock
+reviews every run and explains failures with cited evidence, over a
+read-only tool set; rules detect, the model explains, a human approves.
+[ADR 0025](docs/adr/0025-ai-operations-agents.md) is proposed.
 
-See [docs/plan.md](docs/plan.md) for the full phased roadmap (Phases 0–13)
+See [docs/plan.md](docs/plan.md) for the full phased roadmap (Phases 0–14)
 and [Phases.md](Phases.md) for subtask-level progress.
 
 The platform models **synthetic payments data** from Phase 1 onward.

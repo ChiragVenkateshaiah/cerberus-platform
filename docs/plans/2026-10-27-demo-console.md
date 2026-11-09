@@ -296,7 +296,7 @@ If the 9.2 spike measures more than 20 minutes up, or a teardown that is not rel
     - Verify: the next exercise plan shows the Grafana release and role gone, and the agent still writes to AMP.
 12. **9.6. Safety and live check.** A CI escape and injection suite (`;`, `$( )`, backticks, newline, NUL, `../`, Unicode, long input, type confusion, ANSI/OSC 52 in data). An IAM deny check. A demo from a clean browser. Teardown to $0.
     - Verify: CI green, a recorded short video, and the account check at zero.
-13. **9.7. Well-Architected pass, ADR 0025, and milestone `phase-9-demo-console-complete`.**
+13. **9.7. Well-Architected pass, the next free ADR number, and milestone `phase-9-demo-console-complete`.**
 
 Proposed Phases.md wording:
 - **9.2:** "Terraform: the standing edge (S3 + CloudFront + Cognito + API Gateway + the command Lambda, read-only roles) and the per-session Grafana root (`envs/dev-console`, `make console-session`); remove the in-cluster Grafana after 8.10."
