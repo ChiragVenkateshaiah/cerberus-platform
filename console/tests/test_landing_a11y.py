@@ -2,8 +2,9 @@
 
 import re
 
-from landing_helpers import build_site, parse, write_charts
+from landing_helpers import PHASES_MD, build_site, parse, write_charts
 
+from cerberus_landing import phases
 from cerberus_landing.build import PKG
 
 
@@ -74,7 +75,7 @@ def test_tables_have_captions_and_scoped_headers(tmp_path):
 def test_status_is_a_word_not_only_a_colour(tmp_path):
     p = parse(_built(tmp_path))
     badges = [a for t, a in p.tags if t == "span" and "badge" in a.get("class", "")]
-    assert len(badges) == 14
+    assert len(badges) == len(phases.parse(PHASES_MD.read_text(encoding="utf-8")))
     html = _built(tmp_path)
     assert re.search(r'class="badge [a-z-]+">(Complete|In progress|Planned)</span>', html)
 

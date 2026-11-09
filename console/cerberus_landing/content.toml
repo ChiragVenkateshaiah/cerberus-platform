@@ -101,3 +101,4 @@ p10 = "Planned: pipeline status such as failed runs and stale data, shown on a d
 p11 = "Planned: Databricks as a partner engine that reads the same open tables through the catalog with no copy, with both engines measured on the same input."
 p12 = "Planned: the platform tooling rewritten as a Go command-line tool for data-quality checks, metrics and exercise runs."
 p13 = "Planned: streaming ingestion with Kafka and Go, next to the existing batch flow."
+p14 = "Planned: AI agents that review each run and triage failures, where rules detect a problem, a model explains it and a person approves any change."

@@ -43,9 +43,9 @@ def test_synthetic_file_parses_with_counts():
     assert got[2].done == ["2.1"] and got[2].open == ["2.2"] and got[2].total == 2
 
 
-def test_real_phases_md_parses_to_phases_0_to_13():
+def test_real_phases_md_parses_to_phases_0_to_14():
     got = phases.parse(PHASES_MD.read_text(encoding="utf-8"))
-    assert [p.number for p in got] == list(range(14))
+    assert [p.number for p in got] == list(range(15))
     for p in got:
         assert p.status in phases.STATUS.values()
         assert p.total > 0
