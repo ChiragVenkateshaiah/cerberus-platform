@@ -194,6 +194,8 @@ Cache headers:
 
 ### 6.6 Publish (`.github/workflows/console-site.yml` and `console/publish_site.sh`)
 
+Superseded in detail by `docs/plans/2026-11-09-landing-page-publish.md` (deviations 1-6).
+
 - Triggers: `push` to main on these paths, plus `workflow_dispatch`:
   - `console/cerberus_landing/**`
   - `console/cerberus_console/records.py`

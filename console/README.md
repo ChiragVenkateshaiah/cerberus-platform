@@ -115,5 +115,22 @@ names carry a hash of their content.
 
 Tests (`tests/test_landing_*.py`) cover determinism, links, the CSP scan (with
 negative fixtures), the `Phases.md` parser, the run cards (including the hostile
-record), the placeholder, accessibility basics and the stylesheet's contrast. The
-publish workflow is a later step (8b).
+record), the placeholder, accessibility basics and the stylesheet's contrast.
+
+**Publish.** `.github/workflows/console-site.yml` runs on a push to main that
+changes the page's inputs (and on manual dispatch). It builds the site, assumes
+`cerberus-ci-apply`, reads the bucket, distribution and URL from the
+`envs/dev-standing` outputs and runs `publish_site.sh`. That script sets the
+type and cache header per file class:
+
+| Object | Content-Type | Cache-Control |
+|---|---|---|
+| `index.html` | `text/html; charset=utf-8` | `no-cache` |
+| `site.*.css` | `text/css; charset=utf-8` | `public, max-age=31536000, immutable` |
+| `favicon.*.svg`, `img/*.svg` | `image/svg+xml` | `public, max-age=31536000, immutable` |
+
+It invalidates `/*` once, waits, then deletes only stale keys that match the
+builder's hashed names (`cerberus_landing/publish.py`). `healthz.txt`,
+`live.json` and anything under `terminal/` can never match, so they are never
+deleted. It then checks the live URL. The owner fallback is
+`make console-site-publish`; it writes to AWS, so it needs approval.

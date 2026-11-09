@@ -86,12 +86,18 @@ demo-forward: ## port-forward the agent UI (:9090) and the current Spark driver 
 cerberus: ## run one read-only console command locally as cerberus-console-cli (CMD="status"; CMD="--json run latest")
 	cd console && uv run --no-project --python 3.12 --with boto3==1.43.67 python -m cerberus_console $(CMD)
 
-.PHONY: console-site console-site-preview
+.PHONY: console-site console-site-preview console-site-publish
 console-site: ## build the public landing page into console/site-dist (zero JavaScript, no AWS; ADR 0024)
 	cd console && rm -rf site-dist && uv run --no-project --python 3.12 python -m cerberus_landing build --out site-dist
 
 console-site-preview: ## serve console/site-dist at http://127.0.0.1:8088/ with the edge CSP (run console-site first)
 	cd console && uv run --no-project --python 3.12 python -m cerberus_landing.serve --dir site-dist
+
+console-site-publish: console-site ## AWS WRITE, needs approval: publish console/site-dist to the standing edge (owner fallback for console-site.yml)
+	console/publish_site.sh console/site-dist \
+	  "$$($(TF_BIN) -chdir=$(TF_STANDING_DIR) output -raw console_site_bucket_name)" \
+	  "$$($(TF_BIN) -chdir=$(TF_STANDING_DIR) output -raw console_distribution_id)" \
+	  "$$($(TF_BIN) -chdir=$(TF_STANDING_DIR) output -raw console_url)"
 
 .PHONY: fmt
 fmt: ## terraform fmt across the whole terraform/ tree
