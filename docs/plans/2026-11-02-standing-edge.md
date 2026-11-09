@@ -406,5 +406,15 @@ Sources: [Lambda reserved concurrency](https://docs.aws.amazon.com/lambda/latest
   `POST /api/command` JWT `openid`; Lambda `python3.12 arm64 256 25
   /var/task/runs`, unreserved; `cerberus-console-cli` `PutLogEvents`
   allowed, `CreateLogGroup` denied.
-- **Still to do:** A3 (the owner's check account and the token check), then
-  A4 (merge; the CI apply must show no `console_edge` change).
+- **CI plan after A2** (`cerberus-ci-plan`, run 42640971124): only the
+  Faker churn (`1 to add, 1 to change, 1 to destroy`), no `console_edge`
+  change, so the Lambda zip hash matches between laptop and runner.
+- **A3 (2026-11-09), passed:** the owner created `console-check`, signed in
+  through the classic hosted UI with PKCE, and called the API through
+  CloudFront with the access token. `runs`: `ok: true`, `total` 17, rows 17.
+  `status`: `ok: true`, gold freshness scanned 11,017 bytes. `status; id`:
+  `ok: false`, `error: refused`. So `Authorization` passes through
+  CloudFront, and the hosted UI works with only `ALLOW_REFRESH_TOKEN_AUTH`.
+  `console-check` stays as the owner's account for 9.5.
+- **Still to do:** A4 (merge; the CI apply must show no `console_edge`
+  change).
