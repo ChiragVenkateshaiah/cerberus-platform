@@ -239,12 +239,12 @@ numbers. **Model:** Opus 5.5 for 8.10 and 8.11.
 
 Run `git fetch && git switch main && git pull` first; check `gh pr list`.
 
-1. **8.10 -- check off (handed over from the 8.10/README session,
-   2026-11-09).** The take was recorded 2026-11-08
+1. **8.10 -- checked off 2026-11-09** (handed over from the 8.10/README
+   session). The take was recorded 2026-11-08
    (`demo-100m-20261108T135119Z`, #136); the write-up and charts merged in
-   #107 (main `250c315`). The user published the video on LinkedIn: get the
-   link from the user, then link it in Phases.md 8.10, replace the stale
-   note ("video script in #107 ... still to record"), and check off 8.10.
+   #107. The video is a LinkedIn post scheduled for **Wednesday
+   2026-11-11**: after it is live, ask the user for the link and add it to
+   Phases.md 8.10 (the user counts the video as published now).
    - **Take cost (2026-11-10):** run `--cost-only` for
      `demo-100m-20261108T135119Z`, `rehearsal-20261107T081206Z` and
      `rehearsal-1m-20261108T060517Z`
@@ -284,6 +284,11 @@ Run `git fetch && git switch main && git pull` first; check `gh pr list`.
    3. #127 -- console Athena workgroup and read grants; CI plan must be
       1 add + 2 in place (+ the known Faker/`ingest_payments` layer churn).
    4. #128 -- the command set; then the live `make cerberus` check.
+   #137, #129, #126, #127 and #128 merged 2026-11-09 (main `5c3550c`).
+   The #127 apply passed (2 added, 3 changed, 1 destroyed: the console
+   workgroup, lifecycle, `console_cli` policy and the known Faker churn).
+   Live `make cerberus` check passed for `status` (Athena scanned 11,017
+   bytes), `run latest`, `dq`, `slo` and `cost`. Next: #130, then #131.
    5. #130 -- retarget to main; local first apply as `cerberus-admin`
       (plan A2), token check (A3), then merge (A4). No exercise running.
    6. #131 -- retarget to main after #128; then 8b (publish) and 8c.
