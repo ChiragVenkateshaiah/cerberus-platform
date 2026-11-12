@@ -45,9 +45,11 @@ locals {
   plugin_artifact  = local.artifacts["grafana-amazonprometheus-datasource"]
 
   # The instance shuts itself down this long after boot: the session, plus
-  # about 15 minutes of wake (spike F6: wake 11:52 to 15:35) and slack.
-  # Value from the plan (§5: boot + MINUTES + 30).
-  shutdown_minutes = var.minutes + 30
+  # about 15 minutes of wake (spike F6: wake 11:52 to 15:35) and slack. The
+  # slack is 45, not 30, because user-data polls Cognito for the app client
+  # for up to 40 minutes (PR E review: a slow apply must not be cut short by
+  # the timer). A dead trap still bills the NAT, not the instance, past it.
+  shutdown_minutes = var.minutes + 45
 
   # time_static.started is the moment the readiness probe passed.
   ends = timeadd(time_static.started.rfc3339, "${var.minutes}m")

@@ -1,5 +1,5 @@
 variable "minutes" {
-  description = "Session length in minutes (ADR 0024: default 90, cap 120 -- Grafana's own login maximum is 2 h). Sets live.json's `ends`. The instance shuts itself down at boot + minutes + 30."
+  description = "Session length in minutes (ADR 0024: default 90, cap 120 -- Grafana's own login maximum is 2 h). Sets live.json's `ends`. The instance shuts itself down at boot + minutes + 45."
   type        = number
   default     = 90
 
