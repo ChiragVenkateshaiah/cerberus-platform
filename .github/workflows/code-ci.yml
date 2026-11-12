@@ -62,7 +62,29 @@ jobs:
         run: pip install --quiet -r requirements-dev.txt
 
       - name: pytest
-        run: pytest observability/spark_progress observability/grafana
+        run: pytest observability/spark_progress
+
+  # 9.2 step 10 (ADR 0024): the console Grafana module (run records to
+  # annotations, dashboard transform, loopback loader, grafana.ini template).
+  # The console host runs it with AL2023's system python3, which is 3.9, so CI
+  # uses 3.9. It replaces the observability/grafana half of exporter-tests, so
+  # these tests run once, on the older interpreter. Pytest 9 needs Python 3.10
+  # or newer (from memory, unverified), so this job installs pytest 8 instead of
+  # requirements-dev.txt. No AWS and no network.
+  grafana-console-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+
+      - name: Install pytest
+        run: pip install --quiet "pytest>=8.4,<9"
+
+      - name: pytest
+        run: pytest observability/grafana/console
 
   # 9.3 (ADR 0024): the read-only console command set. Pure Python plus pytest;
   # the tests use fake AWS clients, so there is no boto3, no AWS and no network.

@@ -5,6 +5,9 @@ target-version = "py312"
 # /note-maker) -- ruff's Markdown code-block formatting would silently
 # rewrite that historical record, so notes are excluded outright.
 extend-exclude = ["docs/notes"]
+# The console session runs observability/grafana/console on the AL2023 host's
+# system python3 (3.9), so that directory is checked against 3.9.
+per-file-target-version = { "observability/grafana/console/**" = "py39" }
 
 [tool.ruff.lint]
 # E/F: pyflakes + pycodestyle errors. I: import sorting (isort). B: bugbear

@@ -52,3 +52,23 @@ posts the annotations of a finished run again.
 The console session (ADR 0024) installs Grafana from private copies, not from the internet. `console/artifacts.json` pins two files: the Grafana OSS 13.2.3 linux arm64 tarball and the `grafana-amazonprometheus-datasource` 3.2.0 linux arm64 plugin. A CI test checks that the versions match `compose.yaml`.
 
 Run `make console-artifacts` once per version. It downloads each file, checks the sha256 and size, and uploads it to the `artifacts/grafana/` prefix of the site bucket with the sha256 in the object metadata. An object that already carries the pinned sha256 is skipped. The prefix is private: the CloudFront deny on `artifacts/*` keeps it off the public site. The target writes to AWS, so it needs the owner's approval.
+
+## Console Grafana module (step 10)
+
+The console host (ADR 0024) shows the recorded runs in a per-session Grafana that has only the AMP data source. The files in `console/` build everything it needs from files already in the repo. They use only the standard library and run on Python 3.9, the system `python3` of Amazon Linux 2023.
+
+| File | Job |
+|---|---|
+| `annotations.py` | Turns each run record in `observability/scale/runs/` into annotations: run start and end, one region per step, the quality verdict, the Now tile, an approximate generator region, and a Clean-up tile that says it is not recorded. Tags match `orchestration/annotate.sh`, plus `console`. |
+| `dashboards.py` | Makes console copies of the three dashboards (the shared files are not changed) and the home dashboard "0 · Recorded runs", with one link per run, newest first and failed runs marked. The CloudWatch panels become AMP-only: the story "Pipeline journey" keeps its AMP rows and gains an annotation layer, "Cost so far" becomes a compute estimate, and two panels become text that explains why. The default time is the newest run. |
+| `load.py` | Posts the annotations to Grafana. It refuses any host except `127.0.0.1` and `localhost`, does not follow redirects, and reads the admin password from `GRAFANA_ADMIN_PASSWORD` only. |
+| `grafana.ini.tmpl`, `grafana_ini.py` | The hardened `grafana.ini` template and the small renderer that fills it from a JSON object on stdin. |
+| `build.py` | One command that writes the dashboards and `annotations.json`. |
+
+```
+python3 -I console/build.py --dashboards dashboards --runs ../scale/runs --out /tmp/console
+GRAFANA_ADMIN_PASSWORD=... python3 -I console/load.py /tmp/console/annotations.json --wait 120
+python3 -I console/grafana_ini.py console/grafana.ini.tmpl < values.json > grafana.ini
+```
+
+Run `pytest observability/grafana/console` for the tests. They use the real run records and dashboards, with no AWS and no network. Several `grafana.ini` key names are marked "unverified" in the template; the first live session checks them.

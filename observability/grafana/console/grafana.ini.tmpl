@@ -1,0 +1,103 @@
+; grafana.ini for the console session (ADR 0024, step 10; plan 2026-11-12).
+; Rendered at boot by grafana_ini.py (string.Template: each dollar-brace
+; placeholder is filled in, a missing value is an error). The result holds
+; secrets: write it 0640 root:grafana and never log it.
+;
+; Rendered twice. First with http_addr = 127.0.0.1 and basic_auth_enabled =
+; true, so load.py can post the annotations before anyone can connect. Then
+; with http_addr = 0.0.0.0 and basic_auth_enabled = false, and a restart.
+;
+; Key names marked "unverified" come from the plan and from memory of the
+; Grafana docs. Nothing here has run against Grafana 13.2.3 yet. The first
+; live session (PR F) checks each one in the Grafana log over SSM.
+
+[server]
+http_addr = ${http_addr}
+http_port = 3000
+protocol = http
+root_url = ${root_url}
+serve_from_sub_path = false
+
+[security]
+admin_user = admin
+admin_password = ${admin_password}
+secret_key = ${secret_key}
+cookie_secure = true
+cookie_samesite = lax
+disable_gravatar = true
+allow_embedding = false
+
+[auth]
+; The sign-in form is off: Cognito is the only way in.
+disable_login_form = true
+login_maximum_lifetime_duration = 2h
+login_maximum_inactive_lifetime_duration = 30m
+signout_redirect_url = ${signout_redirect_url}
+
+[auth.basic]
+enabled = ${basic_auth_enabled}
+
+[auth.anonymous]
+enabled = false
+
+[auth.generic_oauth]
+enabled = true
+name = Cerberus demo
+auto_login = true
+allow_sign_up = true
+client_id = ${client_id}
+client_secret = ${client_secret}
+scopes = openid
+auth_url = https://${cognito_domain}/oauth2/authorize
+token_url = https://${cognito_domain}/oauth2/token
+api_url = https://${cognito_domain}/oauth2/userInfo
+use_pkce = true
+login_attribute_path = sub
+; unverified (plan F30): Grafana wants an email even when login uses another
+; claim, and the invited users have none. This makes a placeholder from sub.
+email_attribute_path = join('', [sub, '@cerberus.invalid'])
+; Everyone is a Viewer, and a user who maps to anything else is refused.
+role_attribute_path = 'Viewer'
+role_attribute_strict = true
+allow_assign_grafana_admin = false
+
+[users]
+allow_sign_up = false
+auto_assign_org_role = Viewer
+viewers_can_edit = false
+
+[dashboards]
+default_home_dashboard_path = ${dashboards_dir}/cerberus-runs.json
+
+[explore]
+; unverified key name
+enabled = false
+
+[snapshots]
+; unverified key name
+enabled = false
+external_enabled = false
+
+[public_dashboards]
+; unverified key name
+enabled = false
+
+[analytics]
+check_for_updates = false
+check_for_plugin_updates = false
+reporting_enabled = false
+feedback_links_enabled = false
+
+[news]
+; unverified key name
+news_feed_enabled = false
+
+[plugins]
+; unverified key name: stop Grafana installing or fetching plugins at start.
+preinstall_disabled = true
+
+[unified_alerting]
+enabled = false
+
+[log]
+mode = console
