@@ -270,9 +270,9 @@ Run `git fetch && git switch main && git pull` first; check `gh pr list`.
    Phases.md 9.3; #142 (the landing publish) and #144 (9.3 checked off)
    merged 2026-11-12. Next: the 9.4 interactive page rebuild (a separate session),
    then what is left of 9.2.
-3. **Phase 10 order (option C, ADR 0021 amendment Proposed 2026-11-12):**
+3. **Phase 10 order (option C, ADR 0021 amendment Accepted 2026-11-12):**
    10.2–10.7 → 14.2a/b, `cerberus-ops-agent` IAM, 14.3, 14.4 → Phase 11.
-   Accept the amendment before 10.2a.
+   Start with 10.2a (the named query set).
 4. **`orchestration/annotate.sh` L304 hard-codes an account ID in an ARN;**
    remove it in its own PR.
 

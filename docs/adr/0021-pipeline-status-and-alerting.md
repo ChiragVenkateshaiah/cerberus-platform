@@ -12,7 +12,7 @@ stale-data alert that cannot work for hand-started exercises, and a
 
 Amended by [ADR 0024](0024-demo-console.md) (2026-10-27): the shared Grafana is settled (one file set, two hosts) and the datasource file is split by datasource.
 
-Amended 2026-11-12 (Proposed): hooks for the Phase 14 agents — one named query set, an `execution` label on alerts, a reserved AI review panel, and 14.2–14.4 moved to directly after Phase 10 (see Amendment below).
+Amended 2026-11-12 (Accepted 2026-11-12): hooks for the Phase 14 agents — one named query set, an `execution` label on alerts, a reserved AI review panel, and 14.2–14.4 moved to directly after Phase 10 (see Amendment below).
 
 ## Context
 
@@ -306,7 +306,7 @@ the split is explicit:
 
 ## Amendment (2026-11-12): designed for the Phase 14 agents
 
-Status: Proposed (2026-11-12). The user chose option C on 2026-11-12. The plan is [2026-11-12-phase-10-agent-hooks.md](../plans/2026-11-12-phase-10-agent-hooks.md). It adds to Question 2's series list, the Dashboards point and the AMP-owned alerts, and settles the "recording rules" wording in Question 1. The original text stays as written.
+Status: Accepted (2026-11-12). The user chose option C on 2026-11-12 and accepted defaults (a)–(c) of the plan the same day. The plan is [2026-11-12-phase-10-agent-hooks.md](../plans/2026-11-12-phase-10-agent-hooks.md). It adds to Question 2's series list, the Dashboards point and the AMP-owned alerts, and settles the "recording rules" wording in Question 1. The original text stays as written.
 
 ### Context
 

@@ -1,6 +1,6 @@
 # Plan: Phase 10 built with hooks for the Phase 14 agents (decision, ADR 0021 amendment)
 
-Date: 2026-11-12. Planner: Opus. Mode: decision (an amendment to ADR 0021, status Proposed). Branch `decision-0021-agent-hooks`. The user chose option C on 2026-11-12.
+Date: 2026-11-12. Planner: Opus. Mode: decision (an amendment to ADR 0021, Accepted 2026-11-12). Branch `decision-0021-agent-hooks`. The user chose option C on 2026-11-12.
 
 ## 1. Goal
 
@@ -31,7 +31,7 @@ Rejected: option A (AI decides alerts: non-deterministic, not testable with `pro
    - Verify: `git diff main --stat` shows only these files.
    - Verify: a grep of the added lines for 12-digit numbers and account ARNs returns nothing.
    - Verify: relative links resolve.
-2. **Acceptance flip.** The user accepts; `cerberus-git` flips Proposed to Accepted in the ADR 0021 amendment and removes the "if that amendment is not accepted" clause from the ADR 0025 note.
+2. **Acceptance flip (folded into PR 1 on 2026-11-12).** The user accepts; `cerberus-git` flips Proposed to Accepted in the ADR 0021 amendment and removes the "if that amendment is not accepted" clause from the ADR 0025 note.
 3. **10.2a Query-set file.** The file, the loader in the 9.3 package, and the CI consistency test. No AWS.
    - Verify: pytest; the test fails on a hand-edited expression.
 4. **10.2 Publisher.** Per-execution start and finish series, the finish in the same remote-write request as the status. 10.2 fixes the names and settles the spikes already listed.
@@ -57,7 +57,7 @@ Rejected: option A (AI decides alerts: non-deterministic, not testable with `pro
 - Enable Bedrock model access (before the 14.3 live mode and 14.4).
 - Do the local first apply of `cerberus-ops-agent` (the IAM step; the CI role cannot create a new role name).
 
-## 7. Defaults chosen for the user to confirm before acceptance
+## 7. Defaults (accepted by the user 2026-11-12)
 
 - (a) 14.2–14.4 with their dependencies move before Phase 11.
 - (b) 14.5–14.8 stay after Phase 13.

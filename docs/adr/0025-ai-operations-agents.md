@@ -13,7 +13,7 @@ command-set package (a third consumer) and ADR 0022's annotations (a new
 tag) without changing their decisions. The build steps and the facts behind
 this ADR are in [the plan](../plans/2026-11-08-ai-operations-agents.md).
 
-Amended by [ADR 0021](0021-pipeline-status-and-alerting.md)'s amendment of 2026-11-12 (Proposed): 14.2–14.4 run directly after Phase 10, and decision 8's AI review panel goes on the Phase 10 run-status dashboard. If that amendment is not accepted, this note is removed.
+Amended by [ADR 0021](0021-pipeline-status-and-alerting.md)'s amendment of 2026-11-12 (Accepted 2026-11-12): 14.2–14.4 run directly after Phase 10, and decision 8's AI review panel goes on the Phase 10 run-status dashboard.
 
 ## Context
 

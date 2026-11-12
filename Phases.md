@@ -259,7 +259,7 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 
 _Added 2026-11-08. Starts after Phase 10; numbered 14 so Phases 11–13 keep
 their numbers. ADR 0025. 14.2–14.4 run directly after Phase 10 (ADR 0021
-amendment 2026-11-12, Proposed); 14.5–14.8 follow after Phase 13._
+amendment, Accepted 2026-11-12); 14.5–14.8 follow after Phase 13._
 
 - [x] 14.1 ADR: AI operations agents (rules detect, Claude on Bedrock
       explains, a human approves; local trigger; read-only role; $0 idle).

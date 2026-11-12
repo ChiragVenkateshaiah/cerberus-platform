@@ -425,7 +425,7 @@ _Added 2026-10-09, to follow Phase 8 directly._
   start and finish series (D2); and a reserved "AI review" panel on the
   run-status dashboard (D3). Alerting itself stays deterministic. See the
   [ADR 0021 amendment](adr/0021-pipeline-status-and-alerting.md#amendment-2026-11-12-designed-for-the-phase-14-agents)
-  (Proposed 2026-11-12).
+  (Accepted 2026-11-12).
 - **Out of scope:** log aggregation (Loki) -- the exercise already saves
   the Spark logs; a Go rewrite of the exporter or the terminal view --
   `cerberusctl status` belongs to Phase 12.
@@ -574,7 +574,7 @@ re-check them in the phase's ADR._
 _Added 2026-11-08, after Phase 10 (the signals these agents read) and
 numbered 14 so Phases 11–13 keep the numbers cited in ADR 0019, the README
 and the checkpoint. ADR 0025 (Accepted 2026-11-08). 14.2–14.4 run directly
-after Phase 10 (ADR 0021 amendment 2026-11-12, Proposed); 14.5–14.8 follow
+after Phase 10 (ADR 0021 amendment, Accepted 2026-11-12); 14.5–14.8 follow
 after Phase 13._
 
 - **Goal:** Review every run and explain every failure with evidence:
