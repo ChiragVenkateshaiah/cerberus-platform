@@ -105,9 +105,9 @@ Each step is one orchestrated run. The records are in `observability/scale/runs/
 | 10M | 9,005,590 | 10,081,387 | 522.8 | passed | 0.0112 |
 | 100M (8.9) | 100,008,511 | 137,113,940 | 742.0 | passed | 0.0037 |
 | 1M (clean, 8.10) | 1,005,920 | 138,119,860 | 581.2 | passed | 0.2928 |
-| 100M take (8.10) | 100,001,897 | 249,121,312 | 859.1 | passed | not posted yet |
+| 100M take (8.10) | 100,001,897 | 249,121,312 | 859.1 | passed | 0.0052 |
 
-The clean 1M run costs more per event than the 100M runs for two reasons. Each run pays a fixed overhead, and this run happened on top of 138M silver events.
+The clean 1M run costs more per event than the 100M runs for two reasons. Each run pays a fixed overhead, and this run happened on top of 138M silver events. The take shared its billing day with a 1M check run, so its cost is a share of that day by cluster time ([docs/scale-metrics.md](docs/scale-metrics.md#810-the-recorded-100m-take)).
 
 - **SLO headroom:** the 8.9 run took 742 s against the 30-minute run-latency SLO, 2.4 times headroom. The take, at 859 s, is 48% of the limit, about 2.1 times headroom (computed from the run record).
 - **Spot interruption:** an AWS FIS interruption in the middle of a 9M-event run caused no failure, and silver matched bronze at 37,105,429 events (8.8).

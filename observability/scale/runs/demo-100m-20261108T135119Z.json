@@ -346,5 +346,36 @@
       "new_run": "e100000000-20261108T140458Z"
     }
   },
-  "collected_at": "2026-11-08T14:41:38+00:00"
+  "collected_at": "2026-11-08T14:41:38+00:00",
+  "cost": {
+    "day": "2026-11-08",
+    "estimated": true,
+    "usd": 3.351824,
+    "by_service": {
+      "Amazon Athena": 1.25108,
+      "EC2 - Other": 1.190266,
+      "Amazon Elastic Compute Cloud - Compute": 0.30355,
+      "Amazon Simple Storage Service": 0.293968,
+      "AmazonCloudWatch": 0.16041,
+      "Amazon Elastic Container Service for Kubernetes": 0.134135,
+      "Amazon Elastic Container Service": 0.006806,
+      "Amazon Virtual Private Cloud": 0.006723,
+      "Amazon EC2 Container Registry (ECR)": 0.00486,
+      "Amazon DynamoDB": 2.6e-05,
+      "AWS Glue": 0.0,
+      "AWS Key Management Service": 0.0,
+      "AWS Lambda": 0.0,
+      "AWS Step Functions": 0.0,
+      "AWS X-Ray": 0.0,
+      "Amazon Managed Service for Prometheus": 0.0,
+      "CloudWatch Events": 0.0
+    },
+    "eks_cluster_hours": 1.341,
+    "complete": true,
+    "usd_per_cluster_hour": 1.5666,
+    "rate_excludes": "Amazon Athena",
+    "run_usd": 0.5176,
+    "usd_per_million_events": 0.0052,
+    "collected_at": "2026-11-12T05:42:39+00:00"
+  }
 }
