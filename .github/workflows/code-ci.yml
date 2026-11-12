@@ -62,7 +62,7 @@ jobs:
         run: pip install --quiet -r requirements-dev.txt
 
       - name: pytest
-        run: pytest observability/spark_progress
+        run: pytest observability/spark_progress observability/grafana
 
   # 9.3 (ADR 0024): the read-only console command set. Pure Python plus pytest;
   # the tests use fake AWS clients, so there is no boto3, no AWS and no network.

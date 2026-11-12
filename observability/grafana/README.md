@@ -46,3 +46,9 @@ posts the annotations of a finished run again.
 - Grafana binds to `127.0.0.1` only, and anonymous access is off.
 - No long-lived AWS keys are in the container. It gets short-lived, read-only session credentials (up to 12 h) in its environment, which anyone with Docker access can read with `docker inspect`. It runs as your uid.
 - `GRAFANA_ANNOTATE_TOKEN` in `.env` is an Editor service-account token (30-day expiry, mode 600). Revoke it in Administration → Service accounts, or re-run `make grafana-token`.
+
+## Console session artifacts (step 10)
+
+The console session (ADR 0024) installs Grafana from private copies, not from the internet. `console/artifacts.json` pins two files: the Grafana OSS 13.2.3 linux arm64 tarball and the `grafana-amazonprometheus-datasource` 3.2.0 linux arm64 plugin. A CI test checks that the versions match `compose.yaml`.
+
+Run `make console-artifacts` once per version. It downloads each file, checks the sha256 and size, and uploads it to the `artifacts/grafana/` prefix of the site bucket with the sha256 in the object metadata. An object that already carries the pinned sha256 is skipped. The prefix is private: the CloudFront deny on `artifacts/*` keeps it off the public site. The target writes to AWS, so it needs the owner's approval.

@@ -121,3 +121,8 @@ console-terminal-publish: console-terminal ## AWS WRITE, needs approval: publish
 	  "$$($(TF_BIN) -chdir=$(TF_STANDING_DIR) output -raw console_url)" \
 	  "$$($(TF_BIN) -chdir=$(TF_STANDING_DIR) output -raw console_client_id)" \
 	  "$$($(TF_BIN) -chdir=$(TF_STANDING_DIR) output -raw console_auth_domain)"
+
+.PHONY: console-artifacts
+console-artifacts: ## AWS WRITE, needs approval: stage the pinned Grafana tarball and AMP plugin in the private artifacts/ prefix of the site bucket (once per version)
+	observability/grafana/console/stage_artifacts.sh \
+	  "$$($(TF_BIN) -chdir=$(TF_STANDING_DIR) output -raw console_site_bucket_name)"

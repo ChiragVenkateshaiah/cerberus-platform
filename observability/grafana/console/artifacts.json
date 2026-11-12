@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "artifacts": [
+    {
+      "name": "grafana",
+      "version": "13.2.3",
+      "arch": "arm64",
+      "url": "https://dl.grafana.com/grafana/release/13.2.3/grafana_13.2.3_36482603486_linux_arm64.tar.gz",
+      "sha256": "a2a41b960ba4c25e83140484e48813730d3c81891a128439a2a9d2df6eb3840e",
+      "size": 430350990,
+      "key": "artifacts/grafana/grafana_13.2.3_36482603486_linux_arm64.tar.gz"
+    },
+    {
+      "name": "grafana-amazonprometheus-datasource",
+      "version": "3.2.0",
+      "arch": "arm64",
+      "url": "https://grafana.com/api/plugins/grafana-amazonprometheus-datasource/versions/3.2.0/download?os=linux&arch=arm64",
+      "sha256": "3426edac38d361f5d48f46f77dd67834c89b7868cc86782b39efb7131f596c2f",
+      "size": 18143563,
+      "key": "artifacts/grafana/grafana-amazonprometheus-datasource-3.2.0.linux_arm64.zip"
+    }
+  ]
+}
