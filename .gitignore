@@ -67,9 +67,11 @@ observability/scale/exercises/
 observability/grafana/.env
 observability/spark_progress/scratch/
 
-# 9.2 VPC-origin spike (terraform/spikes/vpc-origin): plans and run logs.
+# Terraform saved plans.
 *.tfplan
-terraform/spikes/*/logs/
+
+# 9.2 console session: the zipped bundle that envs/dev-console builds.
+terraform/envs/dev-console/build/
 
 # 9.4 landing page: the built site (console/cerberus_landing writes it here).
 console/site-dist/
