@@ -31,6 +31,9 @@ locals {
   # distribution does not (the CSP uses the prefix string), so no cycle.
   callback_url = "https://${aws_cloudfront_distribution.this.domain_name}/terminal/index.html"
   logout_url   = "https://${aws_cloudfront_distribution.this.domain_name}/"
+  # 9.5 (ADR 0024 amendment 2026-11-12): the terminal ends a session with
+  # Cognito /logout and returns to its own page, so that URL is registered too.
+  logout_terminal_url = "https://${aws_cloudfront_distribution.this.domain_name}/terminal/index.html"
 
   repo_root     = "${path.module}/../../.."
   package_files = fileset("${local.repo_root}/console/cerberus_console", "*.py")
@@ -142,7 +145,9 @@ resource "aws_cloudfront_origin_access_control" "site" {
 }
 
 resource "aws_cloudfront_response_headers_policy" "security" {
-  name    = "cerberus-console-security-headers"
+  name = "cerberus-console-security-headers"
+  # The terminal keeps this strict CSP (ADR 0024 amendment 2026-11-12); the
+  # comment below is an AWS attribute, so it stays as is to avoid an update.
   comment = "Console security headers (ADR 0024). 9.5 may relax style-src for the terminal."
 
   security_headers_config {
@@ -308,7 +313,7 @@ resource "aws_cognito_user_pool_client" "spa" {
   allowed_oauth_scopes                 = ["openid"]
   supported_identity_providers         = ["COGNITO"]
   callback_urls                        = [local.callback_url]
-  logout_urls                          = [local.logout_url]
+  logout_urls                          = [local.logout_url, local.logout_terminal_url]
 
   access_token_validity  = var.token_validity_minutes
   id_token_validity      = var.token_validity_minutes
