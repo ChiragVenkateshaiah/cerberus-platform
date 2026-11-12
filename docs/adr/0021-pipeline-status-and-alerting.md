@@ -12,6 +12,8 @@ stale-data alert that cannot work for hand-started exercises, and a
 
 Amended by [ADR 0024](0024-demo-console.md) (2026-10-27): the shared Grafana is settled (one file set, two hosts) and the datasource file is split by datasource.
 
+Amended 2026-11-12 (Accepted 2026-11-12): hooks for the Phase 14 agents — one named query set, an `execution` label on alerts, a reserved AI review panel, and 14.2–14.4 moved to directly after Phase 10 (see Amendment below).
+
 ## Context
 
 Phase 10 ([plan.md](../plan.md#phase-10--pipeline-status--alerting)) exists
@@ -301,3 +303,71 @@ the split is explicit:
 - Phase 9's ADR chooses a Grafana host that cannot read the provisioned
   files as they are.
 - Series counts grow past a few thousand (AMP cost stops being noise).
+
+## Amendment (2026-11-12): designed for the Phase 14 agents
+
+Status: Accepted (2026-11-12). The user chose option C on 2026-11-12 and accepted defaults (a)–(c) of the plan the same day. The plan is [2026-11-12-phase-10-agent-hooks.md](../plans/2026-11-12-phase-10-agent-hooks.md). It adds to Question 2's series list, the Dashboards point and the AMP-owned alerts, and settles the "recording rules" wording in Question 1. The original text stays as written.
+
+### Context
+
+- [ADR 0025](0025-ai-operations-agents.md) decision 4 needs a fixed, named PromQL query set for the agents. This ADR already wants one query set shared by the dashboard and `make status` (Consequences, "`last_over_time(...[30d])` in every query"). Today that set is a wish, not a file.
+- No alert says which run failed. The latest-run series have no `execution` label on purpose (Question 2), so a firing alert cannot point at a run, and a reviewer started from an alert has nothing to start from.
+- ADR 0025 decision 8 puts the "AI review" panel on dashboard 1 (`cerberus-run-story`, the recorded-run story view), not on the Phase 10 run-status dashboard. The review of a run would then sit away from the status it explains.
+- 14.4 (the run reviewer) depends on 14.2a and 14.2b, the `cerberus-ops-agent` IAM step and the 14.3 eval (AI plan step 5). ADR 0025 decision 10 says only that Phase 14 "starts after Phase 10", and Phases 11–13 come first by number. So nothing places 14.4 next to the Phase 10 rules and panels it must fit.
+- Two other options were considered. Option A, "AI decides alerts", was rejected: it is non-deterministic, cannot be tested with `promtool`, and breaks ADR 0025 decision 1 (rules detect, GenAI explains, a human approves). Option B, no hooks and AI added later, was rejected: the query set and the alert labels would then be added to Phase 10 rules and panels that already exist, with a second round of `promtool` tests.
+
+### Decision
+
+Option C: Phase 10 alerting stays deterministic (AMP ruler, Alertmanager, SNS, `promtool` in CI), and Phase 10 is built with hooks for the Phase 14 agents.
+
+- **D1. One named query set.** One file, for example `observability/queries/status.yaml`. Each entry has a name, the PromQL (always the `last_over_time(...[30d])` form) and a one-line meaning. The consumers are:
+  - Phase 10 dashboard panels: the panel `expr` equals the entry.
+  - Alert rules: the `expr` contains the entry verbatim, plus the condition.
+  - The shared `make status` / `cerberus status` code, which loads the file.
+  - ADR 0025's PromQL tool, which takes names only, never free text.
+
+  A CI test in `code-ci.yml` fails on any Phase 10 panel or rule expression that is not built from a named entry (whitespace is normalised before comparing). Nothing is generated, so "no Grafonnet" holds.
+- **D2. Alerts name the run; the latest-run series still have no `execution` label.**
+  - The publisher writes one per-execution start-time series at run start and one per-execution finish-time series at run end. The finish series goes in the same remote-write request as the status. 10.2 fixes the names. The value is the Unix timestamp, so `topk(1, last_over_time(<finish series>[30d]))` returns the newest finished run.
+  - The failed-run and DQ-error rules keep their conditions on the label-free series and add the label with `group_left(execution)` from the newest finished run. The never-reported rule takes it from the newest started run.
+  - Rule annotations carry `cerberus run {{ $labels.execution }}` and `make review RUN={{ $labels.execution }}`. The SNS template in AMP's Alertmanager prints `.CommonLabels.execution` and the annotations.
+  - Whether an alert fires still depends only on the latest status. When the next run passes, the alert clears. When it fails, the old alert resolves and a new one fires with the new execution. `cerberus_run_info{execution}` keeps value 1 for drill-down.
+  - Fallback, only if the AMP ruler rejects the join: the Prometheus `query` template function in annotations (unverified on AMP).
+  - No recording rules. This resolves the wording in the Decision, "Alerting and recording rules": the ruler runs alerting rules only, as the Options text already said.
+  - Both the status and the finish sample go in one remote-write request. If the ruler still evaluates between them, the wrong `execution` label is pending for one evaluation only. A short `for:` on the failed-run and DQ-error rules keeps that label from firing. 10.4 picks the value, and a `promtool` test models the gap (the finish sample one evaluation late). `promtool` cannot show how AMP ingests the request.
+- **D3. A reserved "AI review" panel.** The Phase 10 run-status dashboard (10.3) gets an annotation-list panel on the built-in Grafana annotations datasource, filtered by tag `cerberus-ai`. Its empty text is "No AI review yet (Phase 14)". It loads on both hosts (local Compose and the console Grafana); on the console it stays empty for now (see Consequences). It counts within the two-dashboard limit. It replaces "dashboard 1" in ADR 0025 decision 8; dashboard 1 keeps only a link to it.
+- **D4. Order.** 14.2a, 14.2b, the `cerberus-ops-agent` IAM step, 14.3 and 14.4 run directly after 10.7 and before 11.1. 14.5–14.8 stay after Phase 13. ADR 0025 decisions 1–3 and 5–9 do not change: local trigger after the destroy, `--no-review`, the $2 monthly cap, the guardrails, report-only, and no AI action that changes AWS.
+
+**What does not change:**
+
+- AMP as the store and the ruler.
+- SNS as the one place alerts arrive.
+- `promtool` in CI.
+- No `execution` label on the latest-run series, and `last_over_time(...[30d])`.
+- No stale-data alert in AMP, and the error budget over runs.
+- Question 3 (lineage).
+- AI never raises, suppresses or gates an alert.
+
+### Consequences
+
+**Good**
+
+- One query set serves four consumers, so the dashboard, the terminal, the alert and the agent show the same numbers.
+- The failed-run, DQ-error and never-reported alerts name the run, and the review is one command away. The error-budget alert covers many runs and carries no `execution` label.
+- The reviewer is built on real Phase 10 signals, and the 10.6 run pair can be replayed with `make review` at $0 compute.
+
+**Given up**
+
+- Two more series per run (noise-level cost).
+- The join makes each rule more complex, and it needs a `promtool` test with `exp_labels: execution`.
+- The consistency test must be maintained.
+- Phase 11 starts about 5 PRs later.
+- The user must enable Bedrock model access and do the local `cerberus-ops-agent` apply earlier.
+- AI spend of up to $2 a month starts earlier. The forecast is $17.2 (ADR 0025 Context) + $2 = $19.2 of the $20 budget. Whether credits cover Bedrock is unverified.
+- The console Grafana's AI review panel stays empty. Its annotations are rebuilt only from run records (ADR 0024), and reviews stay out of run records (ADR 0025 decision 8). Extending the boot rebuild to `observability/scale/reviews/` is a later Phase 14 step.
+
+**To confirm in 10.4**
+
+- The AMP ruler accepts the `topk` + `group_left` rule.
+- `promtool` passes the same file.
+- The `query` template (fallback only).
