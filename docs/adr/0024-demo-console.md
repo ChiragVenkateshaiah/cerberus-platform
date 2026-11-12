@@ -15,6 +15,9 @@ this ADR are in [the plan](../plans/2026-10-27-demo-console.md).
 Amended 2026-11-02: no reserved concurrency; classic
 hosted UI (see Amendment below).
 
+Amended 2026-11-12 (Proposed): the terminal is a plain DOM terminal, not
+xterm.js; session rules for the page (see Amendment below).
+
 ## Context
 
 Phase 9's goal is to show Cerberus in a browser to someone who will not read
@@ -405,3 +408,70 @@ Consequences (Security). The original text stays as written.
 - It closes two "To confirm in build" items: Cognito Lite has no managed
   login ([feature plans](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-sign-in-feature-plans.html),
   plan F18), and access tokens validate by `client_id` (plan F21).
+
+## Amendment (2026-11-12): a plain DOM terminal instead of xterm.js
+
+Status: Proposed (2026-11-12). The user chose option B on 2026-11-12. The plan
+is [2026-11-12-terminal-panel.md](../plans/2026-11-12-terminal-panel.md). It
+replaces "The terminal is xterm.js in the browser" and rule 4's "to stop
+escape injection into xterm.js" (now "into the page"); rule 4 itself and
+the original text stay as written.
+
+### Context
+
+- xterm.js 6.0.0 creates `<style>` elements at run time, so it needs
+  `style-src 'unsafe-inline'`. The CSP is `style-src 'self'` today (plan F1,
+  F17). A static S3 origin cannot send a per-response nonce, and a hash fails
+  on dynamic content.
+- Rule 4 strips every ANSI and control sequence on the server, so the
+  escape-sequence renderer in xterm.js would get no input (plan F18).
+- The terminal page holds the access token, so it is the most sensitive page.
+  The audience is hiring managers and other non-engineers, some on phones.
+
+### Decision
+
+1. The terminal is a plain DOM terminal: same-origin `terminal.js` and
+   `terminal.css`, an output log (`role="log"`, lines added with
+   `textContent` only) and one input. The CSP does not change. In rule 4,
+   "to stop escape injection into xterm.js" now reads "to stop escape
+   injection into the page".
+2. Sign-in is authorization code with PKCE S256. The verifier, the state and
+   the creation time live in one `sessionStorage` key during the redirect
+   only, at most 5 minutes (an authorization code is valid for 5 minutes).
+   The page reads and deletes the key first, and rejects a state mismatch.
+3. The access token lives in memory only. The ID and refresh tokens are
+   discarded at once and never stored or refreshed. A reload means a new
+   sign-in.
+4. The hard limit is min(sign-in + 60 minutes, the access token `exp`).
+   The idle drop is 15 minutes without a keypress or command. Both are
+   checked on wall-clock time (an interval, visibility and focus events,
+   and before each send), not on timers alone.
+5. At the idle drop, at the hard limit, and on Sign out, the page clears the
+   token and redirects to the Cognito `/logout` endpoint, because the hosted
+   UI cookie would otherwise sign the visitor back in without a password.
+   This needs one more registered logout URL,
+   `https://<cf>/terminal/index.html`.
+6. The client ID and the auth domain come from a runtime `config.json`
+   that the publish script writes from Terraform outputs. They are not in
+   git.
+7. The page does no client-side filtering of input. The server is the only
+   judge (rules 1 to 3).
+
+### Consequences
+
+- Good: `style-src 'self'` on every page, no third-party code on the token
+  page, an estimated 10 KB instead of about 496 KB (the xterm.js 6.0.0 JS and
+  CSS), and native input and screen readers work on phones.
+- Given up: the xterm.js name, and cursor-addressed terminal behaviour. Both
+  are unused: there is no PTY, there is one request per line, and the output
+  is plain text. The idle drop is client-side only: a token copied out of the
+  page still works until its 60-minute `exp` and cannot be refreshed. The
+  server enforces the 60 minutes through the JWT authorizer.
+- Unverified: the hosted UI cookie lifetime (believed 1 hour) and whether
+  `/logout` clears the classic hosted UI cookie (plan F8). The live check
+  tests it.
+- Revisit if: the server ever sends styled or ANSI output, or a PTY returns;
+  the live check shows the classic hosted UI cookie survives `/logout` (then
+  accept and document it, about 1 hour, or wait for managed login with
+  `prompt=login`); or the provider is on 6.x (managed login, as in the
+  2026-11-02 amendment).

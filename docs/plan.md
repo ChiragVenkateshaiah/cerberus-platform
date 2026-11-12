@@ -146,7 +146,7 @@ layered on top of a platform that already works.
 | 6 | Observability & data quality | CloudWatch, dbt tests | AWS CloudWatch | ✅ Complete |
 | 7 | End-to-end platform validation | synthetic payments at scale, Well-Architected review, Prometheus metrics for EKS/Spark | AWS SAA _(parallel track)_ | ✅ Complete |
 | 8 | Scale validation | Apache Iceberg, incremental processing, Spark tuning, node autoscaling + Spot, AWS Budgets | _(course gap — Iceberg and Spark docs)_ | ✅ Complete |
-| 9 | Demo console (UI + terminal) | A serverless browser console (S3 + CloudFront + Cognito + API Gateway + a command Lambda): landing page, a live Grafana per session, and a terminal panel limited to a read-only `cerberus` command set (ADR 0024) | _(CloudFront, Cognito and API Gateway docs; xterm.js docs)_ | 🔨 In progress |
+| 9 | Demo console (UI + terminal) | A serverless browser console (S3 + CloudFront + Cognito + API Gateway + a command Lambda): landing page, a live Grafana per session, and a terminal panel limited to a read-only `cerberus` command set (ADR 0024) | _(CloudFront, Cognito and API Gateway docs)_ | 🔨 In progress |
 | 10 | Pipeline status & alerting | Prometheus exporter for the batch pipeline, PromQL, Grafana dashboards as code, Alertmanager, SLO burn-rate alerts, a terminal status view | _(Prometheus and Grafana docs; Google SRE Workbook, alerting on SLOs)_ | ⬜ Planned |
 | 11 | Databricks interoperability | Unity Catalog federation to AWS Glue (Cerberus's Iceberg tables, no copy), Databricks Terraform provider, serverless SQL and jobs, Lakeflow | _(Databricks Academy; Databricks docs)_ | ⬜ Planned |
 | 12 | Platform tooling in Go | Go, AWS SDK for Go v2, `cerberusctl` CLI | _(Go docs, AWS SDK for Go v2 examples)_ | ⬜ Planned |
@@ -340,11 +340,11 @@ the phases after it by one._
   The skill that sets an engineer apart here is designing the safe
   boundary, not the page.
 - **Stack:** a serverless read-only terminal and landing page (S3 +
-  CloudFront + Cognito + API Gateway + a command Lambda, xterm.js with a
-  structured API, never a shell), standing and $0 idle (ADR 0024); a live
-  Grafana on AMP built per session and destroyed after; the run records for
-  data while `dev-compute` is down; a Python implementation of the commands
-  now, moved to `cerberusctl` in Phase 12.
+  CloudFront + Cognito + API Gateway + a command Lambda, a plain DOM
+  terminal with a structured API, never a shell), standing and $0 idle
+  (ADR 0024); a live Grafana on AMP built per session and destroyed
+  after; the run records for data while `dev-compute` is down; a Python
+  implementation of the commands now, moved to `cerberusctl` in Phase 12.
 - **The central decision (its own ADR):** how a public-facing terminal
   stays safe. The command set is an allowlist with fixed arguments, the
   instance role is read-only, and the session has a time limit and an
