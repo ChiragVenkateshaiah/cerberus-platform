@@ -174,12 +174,19 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
       pastes for API Gateway tags and log delivery); read-only roles, console subnet and AMP
       retention 400 days done 2026-10-29 (#125); local Grafana on
       short-lived credentials (#126), merged after the 8.10 take (#136)
-- [ ] 9.3 The read-only command set: `cerberus status`, `runs`, `run <id>`,
+- [x] 9.3 The read-only command set: `cerberus status`, `runs`, `run <id>`,
       `cost`, `dq`, `slo`; an allowlist, no shell, no write, fail-closed;
       reads run records, Step Functions and Athena (AMP once
       Phase 10's status series exist)
+      Done 2026-11-09: console workgroup and read grants (#127), the
+      command set (#128); live `make cerberus` check of all five commands,
+      then through CloudFront and the JWT API with a refused injection
+      (A3, #130)
 - [ ] 9.4 The UI outline: a landing page (architecture, phase status, the
       latest run), Grafana and Prometheus panels, a terminal panel
+      Builder (#131) and CI publish (#142) live 2026-11-12; the page
+      design was rejected 2026-11-12 (text, not interactive) and is being
+      rebuilt as an interactive showcase in a separate session
 - [ ] 9.5 The terminal panel wired to the command set in the browser,
       with a session time limit; the Grafana session self-terminates and is
       destroyed at its limit
