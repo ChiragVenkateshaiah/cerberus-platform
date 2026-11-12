@@ -25,8 +25,9 @@ tables below carry the same numbers.
 The 100M column is the 8.9 run of 2026-10-13, the clean run at that step
 with a billed cost. The recorded 100M take of 2026-11-08 has its own
 subsection, [8.10: the recorded 100M take](#810-the-recorded-100m-take).
-Its billed cost is not posted yet, so it is not in this table or the
-charts.
+Its billed run cost is $0.5176, or $0.0052 per million events (collected
+2026-11-12). It is not in this table or the charts yet; the next chart
+update adds it.
 
 | | 1M | 10M | 100M (8.9) |
 |---|---|---|---|
@@ -687,8 +688,23 @@ the run's recorded metrics on 2026-11-09):
   RunTransform (16 executors).
 
 The $2.20 is the dashboard's estimate, not a billed figure. The billed
-figure follows once Cost Explorer has fully posted, through
-`collect_run_metrics.py --execution demo-100m-20261108T135119Z --cost-only`.
+figure, from `collect_run_metrics.py --execution
+demo-100m-20261108T135119Z --cost-only` on 2026-11-12:
+
+- Day 2026-11-08: $3.35 in us-east-1 (Cost Explorer, still marked
+  estimated until the month closes), 1.341 EKS cluster-hours, $1.5666 per
+  cluster-hour without Athena.
+- Run cost $0.5176, or **$0.0052 per million events**. The 8.9 run was
+  $0.0037 per million events.
+- The day also holds the 1M check run (`rehearsal-1m-20261108T060517Z`,
+  $0.2562), so each run gets a share of the day's rate by its own cluster
+  time.
+- The 1.341 cluster-hours did not change between 2026-11-09 and
+  2026-11-12, so the figure is final. It is about 21% below the
+  observed up time, which matches the known EKS under-read (17-29%,
+  "What was not isolated" in the 8.10 results).
+- The 10M rehearsal (`rehearsal-20261107T081206Z`, 2026-11-07) cost
+  $0.2669, or $0.0267 per million events.
 
 ## Data-quality suite
 
