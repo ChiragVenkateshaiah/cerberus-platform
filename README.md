@@ -135,7 +135,7 @@ Grafana runs locally in Docker Compose against Amazon Managed Prometheus, so no 
 - Between runs nothing billed by the hour exists. The standing layer is pay-per-request services plus S3 storage.
 - CI has no long-lived keys: GitHub Actions authenticates through OIDC ([ADR 0011](docs/adr/0011-ci-cd-github-actions-oidc.md)), and it applies only the standing layer.
 - The admin user runs on least-privilege policies instead of AdministratorAccess: six built from its CloudTrail history, plus two added for the demo console ([iam/cerberus-admin/](iam/cerberus-admin/)).
-- The Well-Architected review for Phase 8 cut HIGH risks from 23 to 18 ([ADR 0023](docs/adr/0023-phase-8-well-architected-review.md)).
+- A Well-Architected review after Phase 8 cut high-risk findings from 23 to 18, between the Phase 7 and Phase 8 milestones ([ADR 0023](docs/adr/0023-phase-8-well-architected-review.md)).
 - The whole build had cost $5.74 gross through 2026-10-02, all covered by credits ([cost and security summary](docs/cost-security-summary.md); a dated figure).
 
 ## Where Databricks fits
@@ -154,7 +154,7 @@ Databricks is a complement, not a replacement. In Phase 11 (planned), Databricks
 | 5 | CI/CD | Done | [0011](docs/adr/0011-ci-cd-github-actions-oidc.md) |
 | 6 | Observability and data quality | Done | [0013](docs/adr/0013-lineage-openlineage-serverless-collector.md) |
 | 7 | End-to-end validation | Done | [0015](docs/adr/0015-phase-7-well-architected-review.md), [0016](docs/adr/0016-prometheus-for-eks-spark.md) |
-| 8 | Scale validation | In progress: Well-Architected milestone (8.11) | [0017](docs/adr/0017-iceberg-incremental-processing.md)-[0020](docs/adr/0020-dev-compute-node-autoscaling-and-spot.md), [0022](docs/adr/0022-live-observability-for-a-recorded-run.md), [0023](docs/adr/0023-phase-8-well-architected-review.md) |
+| 8 | Scale validation | Done | [0017](docs/adr/0017-iceberg-incremental-processing.md)-[0020](docs/adr/0020-dev-compute-node-autoscaling-and-spot.md), [0022](docs/adr/0022-live-observability-for-a-recorded-run.md), [0023](docs/adr/0023-phase-8-well-architected-review.md) |
 | 9 | Demo console | In progress: design accepted (ADR 0024), prerequisites built | [0024](docs/adr/0024-demo-console.md) |
 | 10 | Pipeline status and alerting | Planned: design accepted | [0021](docs/adr/0021-pipeline-status-and-alerting.md) |
 | 11 | Databricks interoperability | Planned | none yet |

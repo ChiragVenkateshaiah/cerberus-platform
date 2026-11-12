@@ -116,7 +116,7 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 - [x] 7.8 End-to-end demo (GIF or short video), including the observability
       view
 
-## Phase 8 — Scale validation 🔨
+## Phase 8 — Scale validation ✅
 
 - [x] 8.1 ADR 0017: Apache Iceberg tables + incremental processing
 - [x] 8.2 Cost guardrails: AWS Budgets alerts ($15 / $20), Spot vCPU quota
@@ -152,8 +152,9 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
       events, 859 s, data quality passed; #136). The video is published as
       a LinkedIn post scheduled for 2026-11-11; its link is added here once
       the post is live
-- [ ] 8.11 Well-Architected pass + ADR
-      ADR 0023 Proposed (2026-10-27); milestone 8 now that the 8.10 video is done
+- [x] 8.11 Well-Architected pass + ADR
+      ADR 0023 Accepted 2026-10-27 (answers updated, 23 → 18 HIGH); milestone 8
+      `phase-8-scale-validation-complete` saved 2026-11-12 (18/18/16/5)
 
 ## Phase 9 — Demo console (UI + terminal) 🔨
 

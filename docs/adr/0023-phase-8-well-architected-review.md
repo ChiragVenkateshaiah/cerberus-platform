@@ -6,6 +6,8 @@ Date: 2026-10-27
 
 Accepted (2026-10-27). The build and the full note texts are in
 [the plan](../plans/2026-10-27-phase-8-well-architected-review.md).
+Milestone 8 (`phase-8-scale-validation-complete`) saved 2026-11-12; see
+"Milestone 8 (2026-11-12)" below.
 
 ## Context
 
@@ -256,6 +258,7 @@ workload after the 8.11 answers:
 |---|---|---|---|---|
 | Milestone 7 | 23 | 19 | 10 | 5 |
 | Workload after the 8.11 answers (2026-10-27) | 18 | 18 | 16 | 5 |
+| Milestone 8 (2026-11-12) | 18 | 18 | 16 | 5 |
 
 By pillar, HIGH / MEDIUM after the updates (milestone 7 HIGH in brackets):
 
@@ -273,10 +276,10 @@ Efficiency, Reliability and Operational Excellence, where Phase 8 built new
 compute, scaling and cost machinery. Security and Sustainability did not
 move.
 
-Milestone 8 (`phase-8-scale-validation-complete`) is not saved yet. It is
-saved in the close-out PR after the 8.10 video (Decision 2). The
-`UpdateAnswer` grant is verified by the run above; `CreateMilestone` has not
-been tried.
+Milestone 8 (`phase-8-scale-validation-complete`) was saved on 2026-11-12 as
+`cerberus-admin`, after the 8.10 take. `list-milestones` shows 18 HIGH, 18
+MEDIUM, 16 NONE, 5 N/A. No answer changed between the 2026-10-27 updates and
+the milestone.
 
 ## Consequences
 
@@ -324,4 +327,42 @@ merged), the user runs `create-milestone` for
 Tool's counts is added here. If the take changed any answer, `update-answer`
 runs before the milestone. Then 8.10 and 8.11 are checked, Phase 8 is marked
 done in `Phases.md`, and the `docs/plan.md` roadmap row and the README are
-updated.
+updated. Done 2026-11-12; see Milestone 8.
+
+## Milestone 8 (2026-11-12)
+
+- **Counts.** The Tool shows 18 HIGH, 18 MEDIUM, 16 NONE, 5 N/A. Milestone 7
+  was 23, 19, 10, 5. HIGH fell from 23 to 18. The nine questions that moved
+  a bucket are in the "Moved a bucket" list above.
+- **The take changed no answer.** The 8.10 take
+  `demo-100m-20261108T135119Z` (2026-11-08) succeeded in 859.1 s with
+  100,001,897 events. Data quality ran 26 checks with 0 errors and 1 warning.
+  It is more evidence for answers already selected: `monitor-usage`,
+  `adapt-to-changes` and `process-culture`. Spot executor nodes scaled from 2
+  to 4 during RunTransform (dashboard reading, `docs/scale-metrics.md`). The
+  workload `UpdatedAt` is still 2026-10-27, and no answer changed between the
+  2026-10-27 updates and the milestone.
+- **The central finding is confirmed.** Silver held 249,121,312 events after
+  the take, not about 239M, because the 10M and 1M rehearsals added data. The
+  data quality suite read 153.1 GB, about $0.77 at $5 per TB (computed, not
+  posted). That is more than the billed run cost of $0.5176 ($0.0052 per
+  million events, collected 2026-11-12). The largest single dbt query is not
+  in the run record, so the 84% headroom figure stays an estimate.
+- **Cost data.** Cost Explorer still marks 2026-11-08 as estimated until the
+  month closes. That day shows 1.341 EKS cluster-hours, about 21% under the
+  observed up time. Sources:
+  `observability/scale/runs/demo-100m-20261108T135119Z.json` and
+  `docs/scale-metrics.md`, section "8.10: the recorded 100M take".
+- **Decision 1 still holds.** A `--full` re-run at 249.1M events would scan
+  about 330 GB, about $1.65. This is linear from the 2026-10-15 audit.
+- **ADR 0022.** Its 2026-11-07 amendment changes no answer.
+- **Phase 9 changes are out of scope.** The user decided on 2026-11-12 that
+  Phase 9 IAM changes are not part of the Phase 8 milestone. Subtask 9.7
+  will record them:
+  - The `identities` note says static admin keys are mounted into the local
+    Grafana. That is no longer true since #126 (short-lived read-only
+    credentials, merged 2026-11-09). `identities` stays HIGH because access
+    keys are still not rotated.
+  - Three `cerberus-admin-console-edge` statements, ApiGatewayTags,
+    ApiGatewayStageTags and HttpApiLogDelivery (2026-11-09,
+    `iam/cerberus-admin/README.md`), and the console read-only roles (#125).
