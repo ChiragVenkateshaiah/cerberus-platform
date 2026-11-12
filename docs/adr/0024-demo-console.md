@@ -15,7 +15,7 @@ this ADR are in [the plan](../plans/2026-10-27-demo-console.md).
 Amended 2026-11-02: no reserved concurrency; classic
 hosted UI (see Amendment below).
 
-Amended 2026-11-12 (Proposed): the terminal is a plain DOM terminal, not
+Amended 2026-11-12 (Accepted 2026-11-12): the terminal is a plain DOM terminal, not
 xterm.js; session rules for the page (see Amendment below).
 
 ## Context
@@ -411,8 +411,9 @@ Consequences (Security). The original text stays as written.
 
 ## Amendment (2026-11-12): a plain DOM terminal instead of xterm.js
 
-Status: Proposed (2026-11-12). The user chose option B on 2026-11-12. The plan
-is [2026-11-12-terminal-panel.md](../plans/2026-11-12-terminal-panel.md). It
+Status: Accepted (2026-11-12). The user chose option B and accepted it on
+2026-11-12 (#149). The plan is
+[2026-11-12-terminal-panel.md](../plans/2026-11-12-terminal-panel.md). It
 replaces "The terminal is xterm.js in the browser" and rule 4's "to stop
 escape injection into xterm.js" (now "into the page"); rule 4 itself and
 the original text stay as written.

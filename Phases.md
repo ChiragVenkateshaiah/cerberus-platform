@@ -194,8 +194,8 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 - [ ] 9.5 The terminal panel wired to the command set in the browser,
       with a session time limit (a 60-minute token and a 15-minute idle
       drop)
-      Plan and ADR 0024 amendment proposed 2026-11-12 (option B, a plain
-      DOM terminal)
+      Plan and ADR 0024 amendment accepted 2026-11-12 (#149; option B, a
+      plain DOM terminal)
 - [ ] 9.6 Safety and live check: escape and injection tests for the
       command set in CI; a demo from a clean browser; torn down to $0
 - [ ] 9.7 Well-Architected pass + ADR
