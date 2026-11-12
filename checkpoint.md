@@ -270,6 +270,11 @@ Run `git fetch && git switch main && git pull` first; check `gh pr list`.
    Phases.md 9.3; #142 (the landing publish) and #144 (9.3 checked off)
    merged 2026-11-12. Next: the 9.4 interactive page rebuild (a separate session),
    then what is left of 9.2.
+3. **Phase 10 order (option C, ADR 0021 amendment Proposed 2026-11-12):**
+   10.2–10.7 → 14.2a/b, `cerberus-ops-agent` IAM, 14.3, 14.4 → Phase 11.
+   Accept the amendment before 10.2a.
+4. **`orchestration/annotate.sh` L304 hard-codes an account ID in an ARN;**
+   remove it in its own PR.
 
 **Open from the 2026-10-15 review (Phase 8 follow-ups)** (listed in 8.10's
 "What was not isolated"): bytes written are not measured; Athena computed
@@ -279,7 +284,8 @@ below observed up time; 1M day 0.489 h vs 0.69 h up). SLO 4 is closed
 (#105).
 
 **Later:** 10.2 spikes (OTel remote-write exporter and SigV4,
-console-transport lineage, AMP rule billing); Phase 8 follow-ups
+console-transport lineage, AMP rule billing, the AMP `topk`/`group_left`
+ruler check and the `query`-template check); Phase 8 follow-ups
 (incremental silver data-quality checks, per-check bytes, the slow
 generator; dynamic allocation sized to the input, since 16 executors
 gave 1M almost no speed-up); the cheaper milestone audit and the value checksum (plan.md,

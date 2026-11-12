@@ -393,7 +393,7 @@ _Added 2026-10-09, to follow Phase 8 directly._
   timestamp per step, not a scrape of a process that has already exited;
   Grafana with provisioned, version-controlled dashboards; Prometheus
   alerting rules with Alertmanager, unit-tested with `promtool test
-  rules` in `code-ci.yml`; multi-window, multi-burn-rate SLO alerts; a
+  rules` in `code-ci.yml`; an error budget over runs (ADR 0021); a
   terminal view (`make status`) that runs the same PromQL queries as the
   dashboard, so both always show the same numbers.
 - **The central decision (its own ADR):** where pipeline status lives
@@ -419,13 +419,21 @@ _Added 2026-10-09, to follow Phase 8 directly._
   exercise's own window, signing the producers' requests (SigV4, which
   dbt-ol and the Spark listener don't do out of the box), or moving
   lineage behind the same status stack.
+- **Designed for Phase 14:** one named query set shared by the dashboard
+  panels, the alert rules, `make status` and the agents' PromQL tool,
+  with a CI check (D1); alerts that name the run through per-execution
+  start and finish series (D2); and a reserved "AI review" panel on the
+  run-status dashboard (D3). Alerting itself stays deterministic. See the
+  [ADR 0021 amendment](adr/0021-pipeline-status-and-alerting.md#amendment-2026-11-12-designed-for-the-phase-14-agents)
+  (Proposed 2026-11-12).
 - **Out of scope:** log aggregation (Loki) -- the exercise already saves
   the Spark logs; a Go rewrite of the exporter or the terminal view --
   `cerberusctl status` belongs to Phase 12.
 - **Done when:** after a successful run and a deliberately failed one,
   the dashboard and `make status` show each run's status, failed step,
   step timings, events and data-quality result; the failed run fires an
-  alert; the alert rules pass `promtool test rules` in CI; a hand-started
+  alert; the failed-run alert names the execution; the AI review panel
+  exists; the alert rules pass `promtool test rules` in CI; a hand-started
   exercise's lineage reaches the collector; and the stack costs $0 when
   idle.
 - **Artifact:** a short video of the dashboard and terminal view across
@@ -565,7 +573,9 @@ re-check them in the phase's ADR._
 ### Phase 14 — AI operations agents
 _Added 2026-11-08, after Phase 10 (the signals these agents read) and
 numbered 14 so Phases 11–13 keep the numbers cited in ADR 0019, the README
-and the checkpoint. ADR 0025 (Accepted 2026-11-08)._
+and the checkpoint. ADR 0025 (Accepted 2026-11-08). 14.2–14.4 run directly
+after Phase 10 (ADR 0021 amendment 2026-11-12, Proposed); 14.5–14.8 follow
+after Phase 13._
 
 - **Goal:** Review every run and explain every failure with evidence:
   GenAI agents read the run record, the Spark logs, the metrics and the

@@ -202,11 +202,16 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
       no new idle cost, and how hand-started exercises' lineage reaches the
       collector (closed to them since 2026-10-07)
 - [ ] 10.2 Pipeline status exporter: per-run status, failed step, step
-      durations, events, data-quality result, last-success timestamps
-- [ ] 10.3 Grafana pipeline-status dashboard, provisioned as code
-- [ ] 10.4 Alerting as code: failed run, stale data, SLO burn rate;
+      durations, events, data-quality result, last-success timestamps;
+      per-execution start/finish series for the alert link; the named
+      query set and its CI check
+- [ ] 10.3 Grafana pipeline-status dashboard, provisioned as code, with a
+      reserved "AI review" panel (tag `cerberus-ai`)
+- [ ] 10.4 Alerting as code: failed run, DQ errors, never reported, error
+      budget over runs (ADR 0021); alerts carry `execution`;
       `promtool test rules` in CI
-- [ ] 10.5 Terminal status view (`make status`) from the same PromQL queries
+- [ ] 10.5 Terminal status view (`make status`) from the named query set
+      (same code as `cerberus status`)
 - [ ] 10.6 Live check: one passing and one deliberately failed exercise,
       shown correctly on the dashboard, in the terminal and as an alert
 - [ ] 10.7 Well-Architected pass + ADR
@@ -253,17 +258,19 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 ## Phase 14 — AI operations agents ⬜
 
 _Added 2026-11-08. Starts after Phase 10; numbered 14 so Phases 11–13 keep
-their numbers. ADR 0025._
+their numbers. ADR 0025. 14.2–14.4 run directly after Phase 10 (ADR 0021
+amendment 2026-11-12, Proposed); 14.5–14.8 follow after Phase 13._
 
-- [ ] 14.1 ADR: AI operations agents (rules detect, Claude on Bedrock
-      explains, a human approves; local trigger; read-only role; $0 idle)
+- [x] 14.1 ADR: AI operations agents (rules detect, Claude on Bedrock
+      explains, a human approves; local trigger; read-only role; $0 idle).
+      ADR 0025 Accepted 2026-11-08
 - [ ] 14.2 Deterministic review core and the agent tool registry on the 9.3
       command set: masking, size caps, a local stdio MCP server
 - [ ] 14.3 Evaluation: labelled replay set from past runs (failed runs,
       Glue timeouts, Spot interruption, Athena queue time, clean runs) and a
       scored harness
 - [ ] 14.4 Run reviewer (first agent, report only): review file, Grafana
-      annotation and an "AI review" panel on dashboard 1
+      annotation and an "AI review" panel on the Phase 10 run-status dashboard
 - [ ] 14.5 Failure triage: root cause with cited log lines and metric
       values; a draft issue or PR for human approval
 - [ ] 14.6 Pre-flight rules (Athena headroom, budget, Spot quota, CloudWatch
