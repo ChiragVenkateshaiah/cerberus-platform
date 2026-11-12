@@ -134,3 +134,60 @@ builder's hashed names (`cerberus_landing/publish.py`). `healthz.txt`,
 `live.json` and anything under `terminal/` can never match, so they are never
 deleted. It then checks the live URL. The owner fallback is
 `make console-site-publish`; it writes to AWS, so it needs approval.
+
+## Terminal (9.5)
+
+The browser terminal at `/terminal/index.html` (ADR 0024 amendment, 2026-11-12;
+plan `docs/plans/2026-11-12-terminal-panel.md`). It is a plain DOM terminal, not
+xterm.js: `terminal.js`, `terminal.css`, an output log (`role="log"`, lines added
+with `textContent` only) and one input. The CSP does not change.
+
+- **Sign-in.** Authorization code with PKCE S256 on the Cognito hosted UI. The
+  verifier, the state and the time live in one `sessionStorage` key during the
+  redirect, at most 5 minutes. The access token lives in a module variable only.
+  The ID and refresh tokens are discarded. A reload means a new sign-in.
+- **Limits.** The hard limit is min(sign-in + 60 minutes, the token `exp`). The idle
+  drop is 15 minutes. Both are checked on wall-clock time (every 15 seconds, on
+  visibility and focus, and before each send). At a limit, or on Sign out, the page
+  clears the token and goes to the Cognito `/logout`, so the hosted UI cookie does
+  not sign the visitor back in. The idle drop is client-side only; the server
+  enforces the 60 minutes through the JWT authorizer.
+- **Commands.** `POST /api/command` with `{"argv": [...]}`. No client-side
+  filtering: the server judges every line. `clear` is the only local command.
+- **Config.** `terminal/config.json` (`client_id`, `auth_domain`) is written by the
+  publish script from the `envs/dev-standing` outputs. It is not built and not in git.
+
+```
+make console-terminal            # build into console/terminal-dist (no AWS)
+make console-terminal-preview    # http://127.0.0.1:8089/terminal/index.html, edge CSP
+make console-terminal-publish    # AWS WRITE, needs approval (owner fallback)
+node --check console/cerberus_terminal/static/terminal.js
+node --test console/tests/js/*.test.js
+```
+
+The preview shows "The terminal is not configured" unless you place your own
+`config.json` in `console/terminal-dist/terminal/` (never commit one). A local
+origin is not a registered callback URL, so a real sign-in works only live.
+
+**Publish.** `.github/workflows/console-terminal.yml` runs on a push to main that
+changes `console/cerberus_terminal/**`, `publish_terminal.sh` or itself. It has its
+own concurrency group (`console-terminal-publish`). `publish_terminal.sh` uploads
+under `terminal/` only:
+
+| Object | Content-Type | Cache-Control |
+|---|---|---|
+| `terminal/index.html` | `text/html; charset=utf-8` | `no-cache` |
+| `terminal/config.json` | `application/json` | `no-cache` |
+| `terminal/terminal.<hash>.js` | `text/javascript; charset=utf-8` | `public, max-age=31536000, immutable` |
+| `terminal/terminal.<hash>.css` | `text/css; charset=utf-8` | `public, max-age=31536000, immutable` |
+
+It invalidates `/terminal/*` once, waits, then deletes only stale keys that match
+`TERMINAL_MANAGED` (`cerberus_terminal/publish.py`), one by one. `index.html` and
+`config.json` never match, so they are overwritten and never deleted. A test shows
+the landing `MANAGED` and `TERMINAL_MANAGED` patterns do not overlap.
+
+Tests: `tests/test_terminal_*.py` (build, determinism, CSP scan with negative
+fixtures, stale-key safety, a static scan of `terminal.js`, parity with the ADR,
+Terraform and the grammar) and `tests/js/terminal.test.js` (`node --test`:
+tokenise, base64url, the RFC 7636 PKCE vector, state and age checks, the deadline
+and the idle cut-over).

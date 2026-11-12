@@ -1,0 +1,83 @@
+name: console terminal publish
+
+# 9.5 PR C (ADR 0024 amendment, 2026-11-12; plan
+# docs/plans/2026-11-12-terminal-panel.md). Builds the terminal page and
+# publishes it under terminal/ in the standing edge's site bucket. Runs only on
+# push to main, so cerberus-ci-apply's refs/heads/main trust policy applies, as
+# in terraform-apply.yml. The bucket name is read from Terraform outputs and
+# masked in the logs; that keeps the existing convention, it is not a secret.
+# The client ID and the auth domain go into terminal/config.json at publish
+# time; they are not in git.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "console/cerberus_terminal/**"
+      - "console/publish_terminal.sh"
+      - "console/cerberus_console/config.py"
+      - ".github/workflows/console-terminal.yml"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+# One publish at a time, queued in order. Never cancel one mid-upload. This
+# group is not console-site-publish: sharing one could drop a pending run.
+concurrency:
+  group: console-terminal-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Same guard as terraform-apply.yml: a re-run of an old run would
+      # publish an old page over a newer one. Publish only main's head,
+      # before any credentials are assumed.
+      - name: Refuse to publish a commit that isn't main's head
+        run: |
+          head="$(git ls-remote origin refs/heads/main | cut -f1)"
+          if [ "$GITHUB_SHA" != "$head" ]; then
+            echo "::error::This run is for $GITHUB_SHA, but main is at $head. Publishing an old commit would replace a newer page. Start the workflow on the current main instead: gh workflow run console-terminal.yml --ref main"
+            exit 1
+          fi
+          echo "publishing main's head, $head"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # No AWS here: the build runs before credentials are assumed.
+      - name: Build the terminal page
+        working-directory: console
+        run: python -m cerberus_terminal build --out terminal-dist
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_CI_APPLY_ROLE_ARN }}
+          aws-region: us-east-1
+
+      # No wrapper, so `output -raw` captures only the value.
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Read the edge outputs
+        working-directory: terraform/envs/dev-standing
+        run: |
+          terraform init -input=false -lockfile=readonly
+          bucket="$(terraform output -raw console_site_bucket_name)"
+          echo "::add-mask::$bucket"
+          {
+            echo "SITE_BUCKET=$bucket"
+            echo "SITE_DIST=$(terraform output -raw console_distribution_id)"
+            echo "SITE_URL=$(terraform output -raw console_url)"
+            echo "SITE_CLIENT_ID=$(terraform output -raw console_client_id)"
+            echo "SITE_AUTH_DOMAIN=$(terraform output -raw console_auth_domain)"
+          } >> "$GITHUB_ENV"
+
+      - name: Publish
+        run: console/publish_terminal.sh console/terminal-dist "$SITE_BUCKET" "$SITE_DIST" "$SITE_URL" "$SITE_CLIENT_ID" "$SITE_AUTH_DOMAIN"

@@ -16,6 +16,9 @@ on:
       - "console/**"
       - "Phases.md"
       - "terraform/modules/console_roles/variables.tf"
+      - "terraform/modules/console_edge/main.tf"
+      - "terraform/modules/console_edge/variables.tf"
+      - "docs/adr/0024-demo-console.md"
       - "pyproject.toml"
       - "requirements-dev.txt"
       - ".github/workflows/code-ci.yml"
@@ -77,6 +80,11 @@ jobs:
 
       - name: pytest
         run: pytest console
+
+      # 9.5 (ADR 0024 amendment, 2026-11-12): the terminal's script is plain
+      # JavaScript with no toolchain. Uses the runner's own Node; no setup-node, no npm.
+      - name: terminal.js syntax and unit tests
+        run: node --check console/cerberus_terminal/static/terminal.js && node --test console/tests/js/*.test.js
 
   dbt-validate:
     runs-on: ubuntu-latest

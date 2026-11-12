@@ -73,3 +73,6 @@ terraform/spikes/*/logs/
 
 # 9.4 landing page: the built site (console/cerberus_landing writes it here).
 console/site-dist/
+
+# 9.5 terminal page: the built page (console/cerberus_terminal writes it here).
+console/terminal-dist/
