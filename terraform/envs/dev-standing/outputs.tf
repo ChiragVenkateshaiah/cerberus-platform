@@ -89,12 +89,12 @@ output "ci_apply_role_arn" {
 }
 
 output "prometheus_workspace_arn" {
-  description = "7.7: AMP workspace ARN -- read by envs/dev-compute via terraform_remote_state, to scope the Prometheus/Grafana IRSA roles' aps:* grants."
+  description = "7.7: AMP workspace ARN -- read by envs/dev-compute via terraform_remote_state, to scope the cerberus-prometheus IRSA role's aps:* grants."
   value       = module.prometheus_workspace.workspace_arn
 }
 
 output "prometheus_endpoint" {
-  description = "7.7: AMP workspace's Prometheus-compatible base URL -- read by envs/dev-compute for Grafana's AMP data source, and for local PromQL queries."
+  description = "7.7: AMP workspace's Prometheus-compatible base URL -- for local PromQL queries and the console Grafana (ADR 0024 step 10)."
   value       = module.prometheus_workspace.prometheus_endpoint
 }
 

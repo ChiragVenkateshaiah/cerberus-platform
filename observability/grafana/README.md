@@ -4,7 +4,7 @@ Grafana 13.2.3 in Docker Compose, bound to `127.0.0.1:3000`. It reads the
 standing AMP workspace and CloudWatch with short-lived, read-only credentials
 from the `cerberus-grafana-read` role (ADR 0024).
 Datasources and dashboards come from `provisioning/` and `dashboards/`, with
-the same uids (`amp`, `cloudwatch`) as the in-cluster Grafana.
+fixed uids (`amp`, `cloudwatch`) that the dashboards reference.
 
 ## Start
 

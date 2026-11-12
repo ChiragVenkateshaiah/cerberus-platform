@@ -1,7 +1,7 @@
 # ADR 0011 (5.1): the human-run, spin-up/destroy half of what used to be
 # one envs/dev root. Holds the VPC's NAT Gateway/EIP, EKS, the Spark
 # Operator, the Spark job's service account, cerberus-spark's IAM role,
-# and (7.7) the Prometheus agent + Grafana with their IRSA roles
+# and (7.7) the Prometheus agent with its IRSA role
 # -- every genuinely billed piece, brought up per exercise and torn down
 # afterward (ADR 0007/0009). Never touched by CI; GitHub Actions' state has
 # no permissions on any resource this root manages.
@@ -103,11 +103,9 @@ module "eks_observability" {
   eks_oidc_provider_arn = module.eks.oidc_provider_arn
   eks_oidc_issuer_url   = module.eks.oidc_issuer_url
 
-  # 7.7 (ADR 0016): the standing AMP workspace this layer writes to and
-  # Grafana reads from.
-  amp_workspace_arn       = data.terraform_remote_state.standing.outputs.prometheus_workspace_arn
-  amp_remote_write_url    = data.terraform_remote_state.standing.outputs.prometheus_remote_write_url
-  amp_prometheus_endpoint = data.terraform_remote_state.standing.outputs.prometheus_endpoint
+  # 7.7 (ADR 0016): the standing AMP workspace this layer writes to.
+  amp_workspace_arn    = data.terraform_remote_state.standing.outputs.prometheus_workspace_arn
+  amp_remote_write_url = data.terraform_remote_state.standing.outputs.prometheus_remote_write_url
 
   spark_jobs_namespace     = module.spark_operator.jobs_namespace
   spark_operator_namespace = module.spark_operator.operator_namespace

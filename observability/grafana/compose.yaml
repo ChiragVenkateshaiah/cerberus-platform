@@ -20,7 +20,7 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: "${GF_SECURITY_ADMIN_PASSWORD:?set it in observability/grafana/.env}"
       GF_AUTH_ANONYMOUS_ENABLED: "false"
       GF_USERS_ALLOW_SIGN_UP: "false"
-      # Same plugin version as the in-cluster Grafana (var.amp_plugin_version).
+      # Pinned AMP plugin. 3.2.0 requires Grafana >= 12.2.5.
       GF_PLUGINS_PREINSTALL_SYNC: grafana-amazonprometheus-datasource@3.2.0
       AMP_URL: "${AMP_URL:?set by make grafana-up}"
       # Short-lived cerberus-grafana-read session, set by make grafana-up.

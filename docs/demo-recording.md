@@ -487,9 +487,10 @@ or restart in between.
 1. `cerberus-run` (hidden `tmux` session): `make exercise ...`. Never on
    camera, because it prints the account ID (84 lines of the 2026-10-13 log
    contain it: the preflight identity at L3, Terraform ids at L138,
-   `grafana_role_arn` at L222, and the S3 bucket names in the generator
-   lines). The log mirrors the terminal from the point where the script
-   redirects its output through `tee` (exercise.sh L247-249).
+   `grafana_role_arn` at L222 (that output was removed in ADR 0024 step
+   11), and the S3 bucket names in the generator lines). The log mirrors
+   the terminal from the point where the script redirects its output
+   through `tee` (exercise.sh L247-249).
 2. `cerberus-view` in the `ptyxis` window: the masked log (top pane) and
    `make demo-forward` (bottom pane). Start `make demo-forward` before the
    exercise; it waits for the cluster. The masked tail is the pre-typed line

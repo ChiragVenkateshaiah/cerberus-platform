@@ -269,7 +269,8 @@ Run `git fetch && git switch main && git pull` first; check `gh pr list`.
    known Faker churn), and the live `make cerberus` check is recorded in
    Phases.md 9.3; #142 (the landing publish) and #144 (9.3 checked off)
    merged 2026-11-12. Next: the 9.4 interactive page rebuild (a separate session),
-   then what is left of 9.2.
+   then what is left of 9.2. ADR 0024 step 11 (in-cluster Grafana
+   removal) was done 2026-11-12.
 3. **Phase 10 order (option C, ADR 0021 amendment Accepted 2026-11-12):**
    10.2–10.7 → 14.2a/b, `cerberus-ops-agent` IAM, 14.3, 14.4 → Phase 11.
    Start with 10.2a (the named query set).
@@ -3234,6 +3235,12 @@ drift, 9.3, and the Phase 8 close-out. PRs #141–#144 and this PR._
   an identifier, not a credential. ADR 0025's "no account IDs in committed
   files" rule covers the Phase 14 AI outputs (reviews, eval fixtures),
   which mask IDs before writing. No code change.
+- **ADR 0024 step 11 (#148):** removed the in-cluster Grafana, its dashboards
+  ConfigMap and the `cerberus-grafana` IRSA role from
+  `eks_observability`/`dev-compute`. The dev-compute state was empty and
+  the role did not exist, so the next apply destroys nothing; the AMP
+  plugin pin now lives only in `observability/grafana/compose.yaml`, and
+  step 10 must pin the same version.
 
 ## Notes / blockers
 
@@ -3272,13 +3279,12 @@ drift, 9.3, and the Phase 8 close-out. PRs #141–#144 and this PR._
   Applying a 45-minute-old plan failed with `Failed to update Config Map:
   Unauthorized`. Make each `dev-compute` plan right before its apply.
   `dev-standing` has no such provider, so its saved plans don't expire.
-- **`kubectl port-forward` to Grafana drops after a while (noted
-  2026-10-06):** `error: lost connection to pod`. During a recording, run
-  it in a restart loop (`while true; do kubectl port-forward -n
-  monitoring svc/grafana 3000:80; sleep 2; done`). Admin password:
-  `kubectl get secret -n monitoring grafana -o
-  jsonpath='{.data.admin-password}' | base64 -d`. To query AMP through
-  Grafana's API use `/api/datasources/uid/amp/resources/api/v1/...`; the
+- **Obsolete 2026-11-12: the in-cluster Grafana was removed (ADR 0024
+  step 11).** The `kubectl port-forward` to Grafana drop (noted
+  2026-10-06, `error: lost connection to pod`) no longer applies. The
+  still-useful part, which applies to the local Grafana: to query AMP
+  through Grafana's API use
+  `/api/datasources/uid/amp/resources/api/v1/...`; the
   `/api/datasources/proxy/...` path returns `Missing Authentication
   Token`.
 - **`cerberus-admin` read gaps that are fine as they are (noted

@@ -3,10 +3,11 @@
 # free.
 #
 # cerberus-grafana-read is what the local Grafana assumes (`make grafana-up`)
-# in place of the mounted AWS profile. Its policy is exactly the in-cluster
-# cerberus-grafana set (eks_observability), so the story dashboards already
-# proven in 7.7/7.8 need nothing new: AMP query on the workspace plus
-# read-only CloudWatch. Sessions can last up to 12 h.
+# in place of the mounted AWS profile. Its policy is exactly the AMP query and
+# CloudWatch read set the story dashboards were proven with in 7.7/7.8 (the
+# in-cluster `cerberus-grafana` role, removed in ADR 0024 step 11): AMP
+# query on the workspace plus read-only CloudWatch. Sessions can last up to
+# 12 h.
 #
 # cerberus-console-cli is the role every console command runs as. It reads
 # Step Functions, runs one fixed Athena query in the console workgroup, and
@@ -64,7 +65,7 @@ resource "aws_iam_role_policy" "grafana_read" {
         Resource = var.amp_workspace_arn
       },
       {
-        # Same set as the in-cluster cerberus-grafana role. None of these
+        # Same set the removed in-cluster role had. None of these
         # support resource-level scoping. ec2:DescribeRegions populates the
         # data source's region picker.
         Sid    = "ReadCloudWatchMetrics"
