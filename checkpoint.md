@@ -3235,7 +3235,7 @@ drift, 9.3, and the Phase 8 close-out. PRs #141–#144 and this PR._
   an identifier, not a credential. ADR 0025's "no account IDs in committed
   files" rule covers the Phase 14 AI outputs (reviews, eval fixtures),
   which mask IDs before writing. No code change.
-- **ADR 0024 step 11:** removed the in-cluster Grafana, its dashboards
+- **ADR 0024 step 11 (#148):** removed the in-cluster Grafana, its dashboards
   ConfigMap and the `cerberus-grafana` IRSA role from
   `eks_observability`/`dev-compute`. The dev-compute state was empty and
   the role did not exist, so the next apply destroys nothing; the AMP
