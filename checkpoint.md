@@ -8,8 +8,9 @@ pointer._
 
 ## Current phase
 
-**Phases 1–7 are all ✅ complete**, which closes the original roadmap (see
-[Phases.md](Phases.md) for the subtask checklist and the per-phase ADRs):
+**Phases 1–8 are all ✅ complete.** Phases 1–7 close the original roadmap;
+Phase 8 was added 2026-10-06 (see [Phases.md](Phases.md) for the subtask
+checklist and the per-phase ADRs):
 
 - **Phase 1 — MVP lakehouse** (1.1–1.13): medallion S3, IAM, a Python
   bronze→silver→gold transform, Glue catalog, a dbt fact/dimension layer,
@@ -46,7 +47,7 @@ pointer._
 Phase 8 below is a *new* phase added on 2026-10-06, not the pre-re-scope
 Phase 8.
 
-**Phase 8 — Scale validation is now 🔨 in progress** (see
+**Phase 8 — Scale validation is ✅ complete (2026-11-12)** (see
 [Phases.md](Phases.md#phase-8--scale-validation-) and
 [docs/plan.md](docs/plan.md#phase-8--scale-validation)). Thesis: prove the
 platform by putting real load on it. Take the same pipeline from ~40k
@@ -221,6 +222,13 @@ million events per step. $20/month, six weeks from 2026-10-06.
     executor count (1–16); 103 MB/s at 52.6 GB. Dynamic allocation asked
     for 16 executors even at 1M, with almost no speed-up.
 
+- **8.11** — Well-Architected pass, **done 2026-11-12**. ADR 0023
+  (Accepted 2026-10-27) updated the answers: HIGH 23 → 18 (milestone 7 to
+  the workload). Milestone 8 `phase-8-scale-validation-complete` was saved
+  2026-11-12 as `cerberus-admin`: 18 HIGH, 18 MEDIUM, 16 NONE, 5 N/A. The
+  8.10 take changed no answer. ADR 0023 has a "Milestone 8 (2026-11-12)"
+  section. Phase 9 IAM changes are out of scope and left for 9.7.
+
 - **10.1** — ADR 0021 (pipeline status and alerting) **Accepted with changes** on 2026-10-15 after an Opus review (first draft merged Proposed in #99).
   (First draft) proposed: the existing AMP workspace as the store, with AMP's ruler and
   Alertmanager (SNS) as Terraform so alerts fire while the laptop is off;
@@ -235,65 +243,35 @@ million events per step. $20/month, six weeks from 2026-10-06.
 
 **Numbering:** Phase 9 is now the demo console (inserted 2026-10-15); old
 Phases 9–12 are 10–13. History entries before 2026-10-15 keep the old
-numbers. **Model:** Opus 5.5 for 8.10 and 8.11.
+numbers.
 
 Run `git fetch && git switch main && git pull` first; check `gh pr list`.
 
-1. **8.10 -- checked off 2026-11-09** (handed over from the 8.10/README
-   session). The take was recorded 2026-11-08
-   (`demo-100m-20261108T135119Z`, #136); the write-up and charts merged in
-   #107. The video is a LinkedIn post scheduled for **Wednesday
-   2026-11-11**: after it is live, ask the user for the link and add it to
-   Phases.md 8.10 (the user counts the video as published now).
-   - **Take cost (2026-11-10):** run `--cost-only` for
-     `demo-100m-20261108T135119Z`, `rehearsal-20261107T081206Z` and
-     `rehearsal-1m-20261108T060517Z`
-     (`uv run --no-project --with boto3 python observability/scale/collect_run_metrics.py --execution <name> --cost-only`,
-     `cerberus-admin`, 1 Cost Explorer request each, $0.01). Uncommitted
-     attempt in worktree `cerberus-8.10-take-costs` (branch
-     `8.10-take-costs`): 2026-11-08 showed 1.341 EKS cluster-hours of about
-     1.7 expected. Commit only when it reaches about 1.7. Two runs share
-     2026-11-08 (day-average rate). Then update the README "Scale ladder"
-     take cost cell ("not posted yet") and docs/scale-metrics.md.
-   - **Then charts (user approved):** add the take to the three charts in
+1. **8.10 follow-ups.** 8.10 was checked off 2026-11-09 (#139); the take's
+   billed cost merged 2026-11-12 (#143: $0.5176, $0.0052 per million
+   events; 2026-11-08 EKS hours 1.341 are final, about 21% under-read).
+   - **LinkedIn link:** the post was scheduled for 2026-11-11. Ask the user
+     for the link and add it to Phases.md 8.10.
+   - **Charts (user approved):** add the take to the three charts in
      `observability/scale/charts.py` (guard a missing `cost` in
      `cost_chart()`, a shared-day note, fix the transform-throughput label
      overlaps: "9M load test" on a gridline, two 10M labels too close).
-   - **Docs drift:** docs/architecture.md and the docs/plan.md north-star
-     diagram still show CodePipeline and systemd; docs/demo-recording.md
-     line 3 says "from an empty account to an empty account" (README rule:
-     "from no compute back to no compute").
-   - **Worktree cleanup:** the merged `cerberus-8.10-*`,
-     `cerberus-decision-ai-ops-agents`, `cerberus-docs-readme-refresh` and
-     `cerberus-phase-8-10-results` worktrees can go; keep
-     `cerberus-8.10-take-costs` until the take cost is committed.
-2. **8.11 -- Well-Architected pass + ADR 0022** (Opus): Phase 8's pass, WA
-   Tool milestone 8 (`phase-8-scale-validation-complete`; last tracked
-   23 HIGH / 19 MEDIUM, verified 2026-09-07); confirm the ADR 0018/0020
-   amendments; cite the `--full` audit
-   (`observability/scale/audits/dq-full-20261015.json`) and the 8.10
-   results. Closing 8.11 (with 8.10) completes Phase 8: flip Phases.md,
-   plan.md's roadmap row and README.
-3. **Phase 9 started 2026-11-09.** 9.1 is checked off (ADR 0024 Accepted
+   - **Worktree cleanup (ask the user first):** the merged `cerberus-8.10-*`
+     (including `cerberus-8.10-take-costs`, now superseded by #143),
+     `cerberus-decision-ai-ops-agents`, `cerberus-docs-readme-refresh`,
+     `cerberus-phase-8-10-results` and `cerberus-tooling-end-day-readme`
+     worktrees can go.
+2. **Phase 9 started 2026-11-09.** 9.1 is checked off (ADR 0024 Accepted
    2026-10-27). The 8.10 take (`demo-100m-20261108T135119Z`, #136) meets
-   the "after the take" gates. Merge order for the open Phase 9 PRs (all
-   merge cleanly into main; no Terraform change on main since they branched):
-   Drafts need "Ready for review" (`gh pr ready N`) before `--merge`.
-   1. #129 -- ADR 0024 amendment, docs only; accepted 2026-11-09.
-   2. #126 -- local Grafana on short-lived read-only credentials; no Terraform.
-   3. #127 -- console Athena workgroup and read grants; CI plan must be
-      1 add + 2 in place (+ the known Faker/`ingest_payments` layer churn).
-   4. #128 -- the command set; then the live `make cerberus` check.
-   #137, #129, #126, #127 and #128 merged 2026-11-09 (main `5c3550c`).
-   The #127 apply passed (2 added, 3 changed, 1 destroyed: the console
-   workgroup, lifecycle, `console_cli` policy and the known Faker churn).
-   Live `make cerberus` check passed for `status` (Athena scanned 11,017
-   bytes), `run latest`, `dq`, `slo` and `cost`. Next: #130, then #131.
-   5. #130 -- retarget to main; local first apply as `cerberus-admin`
-      (plan A2), token check (A3), then merge (A4). No exercise running.
-   6. #131 -- retarget to main after #128; then 8b (publish) and 8c.
+   the "after the take" gates. #129, #126, #127, #128, #130 and #131 merged
+   2026-11-09; the #127 CI apply passed (2 added, 3 changed, 1 destroyed:
+   the console workgroup, its lifecycle, the `console_cli` policy and the
+   known Faker churn), and the live `make cerberus` check is recorded in
+   Phases.md 9.3; #142 (the landing publish) and #144 (9.3 checked off)
+   merged 2026-11-12. Next: the 9.4 interactive page rebuild (a separate session),
+   then what is left of 9.2.
 
-**Open from the 2026-10-15 review, not blocking 8.11** (listed in 8.10's
+**Open from the 2026-10-15 review (Phase 8 follow-ups)** (listed in 8.10's
 "What was not isolated"): bytes written are not measured; Athena computed
 vs posted ($0.61 vs $0.574, TB vs TiB unverified); ~1,706 s of apply,
 waits and destroy not attributed; EKS cluster-hours read low (17–29%
@@ -3213,6 +3191,35 @@ group, and the 8.10 results write-up. PRs #105–#107. Sessions on
 - **Mistake:** the first "not isolated" draft said "1,706 s apply and
   destroy alone"; corrected to "apply, waits and destroy" (3,773 − 1,325
   − 742 s).
+
+### 2026-11-12
+
+_The 8.10 take cost, the landing page publish and its rejection, docs
+drift, 9.3, and the Phase 8 close-out. PRs #141–#144 and this PR._
+
+- **8.10 take cost (#143):** `demo-100m-20261108T135119Z` SUCCEEDED in
+  859.1 s with 100,001,897 events. Billed run cost $0.5176, $0.0052 per
+  million events (collected 2026-11-12; Cost Explorer still marks the day
+  estimated until the month closes). The data quality suite read 153.1 GB,
+  about $0.77 at $5 per TB (computed, not posted). 2026-11-08 shows 1.341
+  EKS cluster-hours, about 21% under the observed up time. Silver held
+  249,121,312 events after the take.
+- **Landing page publish (#142):** the page went live, then the user
+  rejected it for an interactive rebuild. The rebuild runs in a separate
+  session.
+- **Docs drift (#141):** docs/architecture.md and docs/plan.md name GitHub
+  Actions + OIDC (ADR 0011) instead of CodePipeline and show the systemd
+  timer as retired in Phase 2; docs/demo-recording.md uses "from no
+  compute back to no compute".
+- **9.3 checked off (#144).**
+- **Milestone 8 and Phase 8 complete (this PR):** milestone 8 saved as
+  `cerberus-admin` (18 HIGH, 18 MEDIUM, 16 NONE, 5 N/A; milestone 7 was
+  23/19/10/5). ADR 0023 has a "Milestone 8 (2026-11-12)" section. 8.11 is
+  checked in Phases.md. Phase 8 is marked done in `docs/plan.md` and the
+  README. The user decided that Phase 9 IAM changes are out of scope for
+  the milestone and belong in 9.7.
+- **Decision (user):** for Phase 10, option C. Alerts stay deterministic,
+  with hooks left for the Phase 14 agents. An ADR 0021 amendment follows.
 
 ## Notes / blockers
 
