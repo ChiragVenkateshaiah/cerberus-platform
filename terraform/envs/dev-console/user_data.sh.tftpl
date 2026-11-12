@@ -1,0 +1,278 @@
+#!/usr/bin/env bash
+# Console session boot script (ADR 0024 build step 10; plan 2026-11-12 §6 PR D).
+# Rendered by templatefile() in main.tf; every dollar-brace below is a
+# Terraform value, and the shell uses bare $VAR on purpose.
+#
+# Order: self-terminate timer, fetch and check the packages, install Grafana,
+# build the console files, wait for the Cognito app client, render grafana.ini
+# (loopback + basic auth), start, load the annotations, re-render (all
+# interfaces + basic auth off), restart. Port 3000 opens only at the end, so
+# the CloudFront health check passes only for a ready session.
+#
+# Secrets (client secret, admin password, secret_key) stay in files with mode
+# 0600 or 0640 root:grafana, and in one process environment. Never turn on
+# set -x here. Python is the AL2023 python3 (3.9, unverified on the current
+# AMI); the console module targets 3.9.
+set -euo pipefail
+set +x
+
+shutdown -h +${shutdown_minutes}
+
+export AWS_REGION=${region} AWS_DEFAULT_REGION=${region}
+BUCKET=${bucket}
+POOL_ID=${user_pool_id}
+CLIENT_NAME=${client_name}
+BOOT=/opt/cerberus-console
+WORK=/var/tmp/console-boot
+umask 022
+install -d -m 0700 "$WORK"
+
+fetch() { # KEY SHA256 DEST
+  n=0
+  until aws s3 cp "s3://$BUCKET/$1" "$3" --only-show-errors; do
+    n=$((n + 1))
+    if [ "$n" -ge 5 ]; then
+      echo "download of $1 failed" >&2
+      exit 1
+    fi
+    sleep 10
+  done
+  if ! echo "$2  $3" | sha256sum --check --status; then
+    echo "sha256 mismatch for $1" >&2
+    exit 1
+  fi
+}
+
+# zipfile keeps no file modes, so apply them: the plugin ships a binary.
+unzip_to() { # ZIP DEST
+  python3 -I - "$1" "$2" <<'PY'
+import os
+import sys
+import zipfile
+
+src, dest = sys.argv[1], sys.argv[2]
+with zipfile.ZipFile(src) as zf:
+    for info in zf.infolist():
+        zf.extract(info, dest)
+        mode = info.external_attr >> 16
+        if mode:
+            os.chmod(os.path.join(dest, info.filename), mode & 0o777)
+PY
+}
+
+# --- 1. Packages (checked again here; PR B checked them at upload) ----------
+fetch ${grafana_key} ${grafana_sha256} "$WORK/grafana.tar.gz"
+fetch ${plugin_key} ${plugin_sha256} "$WORK/plugin.zip"
+fetch ${bundle_key} ${bundle_sha256} "$WORK/bundle.zip"
+
+# --- 2. Grafana, the plugin, the user -------------------------------------
+id grafana > /dev/null 2>&1 || useradd --system --no-create-home --shell /sbin/nologin grafana
+install -d -m 0755 /opt/grafana
+tar -xzf "$WORK/grafana.tar.gz" -C /opt/grafana --strip-components=1
+rm -f "$WORK/grafana.tar.gz"
+# unverified: 13.x ships bin/grafana (subcommand server); older tarballs ship
+# bin/grafana-server.
+if [ -x /opt/grafana/bin/grafana ]; then
+  GRAFANA_CMD="/opt/grafana/bin/grafana server"
+elif [ -x /opt/grafana/bin/grafana-server ]; then
+  GRAFANA_CMD="/opt/grafana/bin/grafana-server"
+else
+  echo "no grafana binary in /opt/grafana/bin" >&2
+  exit 1
+fi
+
+install -d -m 0750 -o grafana -g grafana /var/lib/grafana /var/log/grafana
+install -d -m 0755 -o grafana -g grafana /var/lib/grafana/plugins
+unzip_to "$WORK/plugin.zip" /var/lib/grafana/plugins
+if [ ! -f /var/lib/grafana/plugins/${plugin_id}/plugin.json ]; then
+  echo "plugin zip has no ${plugin_id}/plugin.json" >&2
+  exit 1
+fi
+# The plugin's backend binary (gpx_*) must be executable.
+find /var/lib/grafana/plugins/${plugin_id} -type f -name 'gpx_*' -exec chmod 0755 {} +
+chown -R root:grafana /var/lib/grafana/plugins
+chmod -R g+rX,o-rwx /var/lib/grafana/plugins
+rm -f "$WORK/plugin.zip"
+
+# --- 3. Bundle, console files, provisioning --------------------------------
+install -d -m 0755 "$BOOT"
+unzip_to "$WORK/bundle.zip" "$BOOT"
+rm -f "$WORK/bundle.zip"
+
+python3 -I "$BOOT/console/build.py" \
+  --dashboards "$BOOT/dashboards" --runs "$BOOT/runs" --out "$WORK/out"
+
+install -d -m 0750 -o root -g grafana \
+  /etc/grafana /etc/grafana/provisioning \
+  /etc/grafana/provisioning/datasources /etc/grafana/provisioning/dashboards
+install -d -m 0750 -o root -g grafana /var/lib/grafana/dashboards "${dashboards_dir}"
+install -m 0640 -o root -g grafana "$BOOT/provisioning/dashboards/console.yaml" \
+  /etc/grafana/provisioning/dashboards/console.yaml
+for f in "$WORK"/out/dashboards/*.json; do
+  install -m 0640 -o root -g grafana "$f" "${dashboards_dir}/"
+done
+
+# amp.yaml is the repo file with the real AMP URL put in for its AMP_URL
+# placeholder (an env var would work too, but this keeps the unit env small).
+AMP_URL=${amp_url}
+sed "s|[$][{]AMP_URL[}]|$AMP_URL|g" "$BOOT/provisioning/datasources/amp.yaml" > "$WORK/amp.yaml"
+if grep -q 'AMP_URL' "$WORK/amp.yaml"; then
+  echo "amp.yaml still has a placeholder" >&2
+  exit 1
+fi
+install -m 0640 -o root -g grafana "$WORK/amp.yaml" /etc/grafana/provisioning/datasources/amp.yaml
+
+# --- 4. The Cognito app client (plan option 4.2 A) -------------------------
+# Terraform creates the client after the distribution, so it may not exist yet.
+# Poll up to 40 minutes (240 x 10 s). Nothing from the response is printed.
+CLIENT_ID=""
+i=0
+while [ "$i" -lt 240 ]; do
+  CLIENT_ID="$(aws cognito-idp list-user-pool-clients --user-pool-id "$POOL_ID" --max-results 60 \
+    --query "UserPoolClients[?ClientName=='$CLIENT_NAME'].ClientId | [0]" --output text 2> /dev/null || true)"
+  if [ -n "$CLIENT_ID" ] && [ "$CLIENT_ID" != "None" ]; then
+    break
+  fi
+  CLIENT_ID=""
+  i=$((i + 1))
+  sleep 10
+done
+if [ -z "$CLIENT_ID" ]; then
+  echo "app client $CLIENT_NAME did not appear within 40 minutes" >&2
+  exit 1
+fi
+(
+  umask 077
+  aws cognito-idp describe-user-pool-client --user-pool-id "$POOL_ID" --client-id "$CLIENT_ID" \
+    --output json > "$WORK/client.json"
+)
+
+# --- 5. grafana.ini values, kept in $WORK (0700) ----------------------------
+# prep.py: client.json -> values.json (no http_addr / basic_auth_enabled yet)
+# and admin.pw. root_url comes from CallbackURLs[0].
+cat > "$WORK/prep.py" <<'PY'
+import json
+import os
+import secrets
+import sys
+from urllib.parse import quote, urlparse
+
+work = sys.argv[1]
+with open(os.path.join(work, "client.json"), encoding="utf-8") as handle:
+    client = json.load(handle)["UserPoolClient"]
+callback = urlparse(client["CallbackURLs"][0])
+if callback.scheme != "https" or not callback.netloc or callback.path != "/login/generic_oauth":
+    sys.exit("prep: unexpected callback URL")
+domain = os.environ["COGNITO_DOMAIN"]
+logout = quote(client["LogoutURLs"][0], safe="")
+admin_password = secrets.token_hex(24)
+values = {
+    "root_url": "https://" + callback.netloc + "/",
+    "admin_password": admin_password,
+    "secret_key": secrets.token_hex(24),
+    "signout_redirect_url": "https://" + domain + "/logout?client_id=" + client["ClientId"] + "&logout_uri=" + logout,
+    "client_id": client["ClientId"],
+    "client_secret": client["ClientSecret"],
+    "cognito_domain": domain,
+    "dashboards_dir": os.environ["DASHBOARDS_DIR"],
+}
+
+
+def write_private(name, text):
+    fd = os.open(os.path.join(work, name), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as out:
+        out.write(text)
+
+
+write_private("values.json", json.dumps(values))
+write_private("admin.pw", admin_password)
+PY
+
+# mkvalues.py HTTP_ADDR BASIC_AUTH: values.json plus the two per-render keys
+# on stdout, for grafana_ini.py to read on its standard input.
+cat > "$WORK/mkvalues.py" <<'PY'
+import json
+import os
+import sys
+
+with open(os.path.join(sys.argv[1], "values.json"), encoding="utf-8") as handle:
+    values = json.load(handle)
+values["http_addr"] = sys.argv[2]
+values["basic_auth_enabled"] = sys.argv[3]
+sys.stdout.write(json.dumps(values))
+PY
+
+COGNITO_DOMAIN=${cognito_domain} DASHBOARDS_DIR=${dashboards_dir} python3 -I "$WORK/prep.py" "$WORK"
+rm -f "$WORK/client.json"
+
+render_ini() { # HTTP_ADDR BASIC_AUTH
+  (
+    umask 077
+    python3 -I "$WORK/mkvalues.py" "$WORK" "$1" "$2" |
+      python3 -I "$BOOT/console/grafana_ini.py" "$BOOT/console/grafana.ini.tmpl" > "$WORK/grafana.ini"
+  )
+  install -m 0640 -o root -g grafana "$WORK/grafana.ini" /etc/grafana/grafana.ini
+  rm -f "$WORK/grafana.ini"
+}
+
+# --- 6. The systemd unit ---------------------------------------------------
+cat > /etc/systemd/system/grafana.service <<EOF
+[Unit]
+Description=Grafana (cerberus console session)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=grafana
+Group=grafana
+WorkingDirectory=/opt/grafana
+Environment=GF_PATHS_DATA=/var/lib/grafana
+Environment=GF_PATHS_PLUGINS=/var/lib/grafana/plugins
+Environment=GF_PATHS_LOGS=/var/log/grafana
+Environment=GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+Environment=GF_PLUGINS_FORWARD_HOST_ENV_VARS=${plugin_id}
+Environment=AWS_REGION=${region}
+Environment=AWS_DEFAULT_REGION=${region}
+Environment=HOME=/var/lib/grafana
+ExecStart=$GRAFANA_CMD --homepath=/opt/grafana --config=/etc/grafana/grafana.ini
+Restart=on-failure
+RestartSec=5
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/grafana /var/log/grafana
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+RestrictNamespaces=true
+RestrictRealtime=true
+LockPersonality=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target
+EOF
+chmod 0644 /etc/systemd/system/grafana.service
+
+# --- 7. First start: loopback only, basic auth on --------------------------
+render_ini 127.0.0.1 true
+systemctl daemon-reload
+systemctl start grafana
+
+# The password goes in through the environment only (never an argument).
+GRAFANA_ADMIN_PASSWORD="$(cat "$WORK/admin.pw")" \
+  python3 -I "$BOOT/console/load.py" "$WORK/out/annotations.json" --wait 300
+
+# --- 8. Open up: all interfaces, basic auth off, restart -------------------
+render_ini 0.0.0.0 false
+systemctl restart grafana
+
+rm -rf "$WORK"
+echo "console boot finished"

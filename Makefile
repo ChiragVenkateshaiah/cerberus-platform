@@ -11,6 +11,7 @@ TF_BIN ?= terraform
 export AWS_PROFILE ?= cerberus-admin
 TF_STANDING_DIR := terraform/envs/dev-standing
 TF_COMPUTE_DIR := terraform/envs/dev-compute
+TF_CONSOLE_DIR := terraform/envs/dev-console
 TF_BOOTSTRAP_DIR := terraform/bootstrap
 
 .PHONY: help
@@ -52,6 +53,22 @@ compute-apply: ## terraform apply the compute environment -- spin up for a Spark
 
 compute-destroy: ## terraform destroy the compute environment -- tear down after a Spark exercise (cost discipline)
 	cd $(TF_COMPUTE_DIR) && $(TF_BIN) destroy
+
+.PHONY: console-plan
+# dev-console has a partial backend (the state bucket name holds the account
+# ID, which a new committed file must not). The account ID comes from one
+# sts:GetCallerIdentity call; nothing is created or changed. PR E adds the
+# session and destroy targets.
+console-plan: ## READ-ONLY, owner-run: init dev-console against the shared state backend, then terraform plan (applies nothing)
+	@acct="$$(aws sts get-caller-identity --query Account --output text)" && \
+	cd $(TF_CONSOLE_DIR) && \
+	$(TF_BIN) init -input=false \
+	  -backend-config="bucket=cerberus-platform-tfstate-$$acct" \
+	  -backend-config="key=envs/dev-console/terraform.tfstate" \
+	  -backend-config="region=us-east-1" \
+	  -backend-config="dynamodb_table=cerberus-platform-tfstate-lock" \
+	  -backend-config="encrypt=true" && \
+	$(TF_BIN) plan
 
 .PHONY: exercise exercise-check
 exercise: ## one-command compute exercise: apply -> run -> collect -> destroy (orchestration/exercise.sh; ARGS="--generate 1000000")
