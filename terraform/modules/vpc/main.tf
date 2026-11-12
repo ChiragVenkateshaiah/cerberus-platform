@@ -19,8 +19,9 @@
 # ADR 0024 (9.2) amends ADR 0007 with a third, standalone console subnet and
 # its own route table (local route only, no NAT route at rest) for the demo
 # console's session host. It is not in local.private_subnets, which feeds
-# EKS and the ECS tasks. The S3 gateway endpoint is not attached to it yet;
-# that waits for the step that needs it.
+# EKS and the ECS tasks. The S3 gateway endpoint is attached to it too
+# (ADR 0024 step 10): the session host reads its Grafana artifacts from S3
+# for free instead of through the session NAT.
 
 locals {
   public_subnets = {
@@ -139,7 +140,7 @@ resource "aws_vpc_endpoint" "s3" {
   vpc_id            = aws_vpc.this.id
   service_name      = "com.amazonaws.${var.region}.s3"
   vpc_endpoint_type = "Gateway"
-  route_table_ids   = [aws_route_table.private.id]
+  route_table_ids   = [aws_route_table.private.id, aws_route_table.console.id]
 
   tags = {
     Name  = "cerberus-platform-s3-endpoint"
