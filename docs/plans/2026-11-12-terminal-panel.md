@@ -23,7 +23,7 @@ Edge (`terraform/modules/console_edge/main.tf`):
 - F5 (verified 2026-11-12). Cognito `/oauth2/token` returns `access-control-allow-origin: https://<cf>` to a POST with that Origin (an invalid code gives 400). The browser can exchange the code by `fetch` under the current `connect-src`.
 - F6 (verified). `GET /terminal/index.html` returns 403 today (no key; the OAC has no ListBucket).
 - F7 (verified). A3 (standing-edge plan section 8 and section 13) proved PKCE S256 through the classic hosted UI, the access token through CloudFront, `runs` (17 rows), `status`, and `status; id` refused, on 2026-11-09.
-- F8 (verified from [the AWS docs](https://docs.aws.amazon.com/cognito/latest/developerguide/authorization-endpoint.html); the cookie details are unverified). `prompt=login` works only with managed login branding, not the classic hosted UI. The hosted UI session cookie lets a visitor sign in again without a password until it expires. Unverified: the cookie lifetime (believed 1 hour), and whether `/logout` clears the classic cookie. Live step 7 checks this.
+- F8 (verified from [the AWS docs](https://docs.aws.amazon.com/cognito/latest/developerguide/authorization-endpoint.html); the cookie details are unverified). `prompt=login` works only with managed login branding, not the classic hosted UI. The hosted UI session cookie lets a visitor sign in again without a password until it expires. Unverified: the cookie lifetime (believed 1 hour). Resolved 2026-11-12 by live step 7: `/logout` clears the classic cookie (the next sign-in asked for the password).
 - F9 (verified, same doc). An authorization code is valid for 5 minutes.
 
 Command API (`console/cerberus_console/`):
@@ -137,13 +137,37 @@ Live check (the user, after PR B is applied and PR C is published). First enable
 9. Run `aws logs filter-log-events --log-group-name /aws/apigateway/cerberus-console-api --limit 50 | jq -r '.events[].message|fromjson|[.status,(.sub|length>0)]|@tsv'`. Expect 200 and 400 lines with `true`.
 10. `admin-disable-user console-check` (a write, needs approval).
 
+## 7a. Live check result (2026-11-12)
+
+The owner ran steps 1-7 from a private window on the published build
+`ea12d556b128` (#152), signed in as `console-check` (re-created with a
+temporary password, because `cerberus-admin` has no
+`AdminSetUserPassword`; disabled again after the check). All steps passed.
+
+- Step 1: no CSP violations in DevTools.
+- Steps 2-3: signed in with no `?code=` left in the URL; `sessionStorage`
+  and `localStorage` empty; no cookies on the CloudFront origin.
+- Step 4: all seven commands printed text. API access log, 11:28-11:33
+  UTC: 10 requests with `200`; the first `status` took 5.6 s (a cold start),
+  a later one 3.0 s; the owner saw about 4 s.
+- Step 5: the hostile inputs printed the fixed refusal, with no alert and no
+  HTML. The log shows 3 refusals (`400`, 87 bytes each).
+- Step 6: no `429` and no error page; the one-request-in-flight lock kept
+  the fast Enter presses from reaching the API.
+- Step 7: after 15 minutes idle the page went through Cognito `/logout`,
+  showed "Session ended (15 minutes idle)", and the next sign-in asked for
+  the password. This settles F8 and risk 1.
+
+The access log entries all carried a `sub`, so every request was
+authenticated.
+
 ## 8. Cost
 
 Idle $0; an estimated 20 KB of static objects. The cost per command is unchanged (about $0.000003, standing-edge plan section 10). Each terminal publish uses one invalidation path, inside the 1,000 free paths a month.
 
 ## 9. Risks
 
-1. The hosted UI cookie survives `/logout` (F8, unverified). Then live step 7 fails and the limits are soft. Accept and document it (about 1 hour), or wait for managed login with `prompt=login` (provider 6.x).
+1. (Closed 2026-11-12: live step 7 showed `/logout` clears the cookie.) The hosted UI cookie survives `/logout` (F8). Then live step 7 fails and the limits are soft. Accept and document it (about 1 hour), or wait for managed login with `prompt=login` (provider 6.x).
 2. Background-tab timers are slowed. Wall-clock checks run on `visibilitychange` and before each send, and the JS tests cover the deadline logic.
 3. A wrong JS content type with `nosniff` blocks the script. The publish script sets the types explicitly and checks after upload.
 4. The logout URI must exactly match a registered URL. PR B is applied before PR C publishes, and live step 7 tests it.

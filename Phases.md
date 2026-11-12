@@ -191,11 +191,13 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
       Builder (#131) and CI publish (#142) live 2026-11-12; the page
       design was rejected 2026-11-12 (text, not interactive) and is being
       rebuilt as an interactive showcase in a separate session
-- [ ] 9.5 The terminal panel wired to the command set in the browser,
+- [x] 9.5 The terminal panel wired to the command set in the browser,
       with a session time limit (a 60-minute token and a 15-minute idle
       drop)
       Plan and ADR 0024 amendment accepted 2026-11-12 (#149; option B, a
-      plain DOM terminal)
+      plain DOM terminal); logout URL (#151); the page (#152, build
+      `ea12d556b128`); live check passed 2026-11-12, including the idle
+      drop and a password prompt after `/logout`
 - [ ] 9.6 Safety and live check: escape and injection tests for the
       command set in CI; a demo from a clean browser; torn down to $0
 - [ ] 9.7 Well-Architected pass + ADR

@@ -470,7 +470,8 @@ the original text stay as written.
   server enforces the 60 minutes through the JWT authorizer.
 - Unverified: the hosted UI cookie lifetime (believed 1 hour) and whether
   `/logout` clears the classic hosted UI cookie (plan F8). The live check
-  tests it.
+  tests it. Verified 2026-11-12 (live step 7): `/logout` clears it, and the
+  next sign-in asks for the password.
 - Revisit if: the server ever sends styled or ANSI output, or a PTY returns;
   the live check shows the classic hosted UI cookie survives `/logout` (then
   accept and document it, about 1 hour, or wait for managed login with
