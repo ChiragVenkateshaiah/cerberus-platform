@@ -288,6 +288,7 @@ If the 9.2 spike measures more than 20 minutes up, or a teardown that is not rel
    - Verify: a clean browser loads it with no sign-in. The CSP header is present.
 9. **9.5. Terminal panel.** xterm.js vendored and pinned, PKCE, a 60-minute token, a 15-minute idle drop, help, and a refusal message.
    - Verify: each command works from a clean browser. A hostile input gets the fixed refusal.
+   - Done 2026-11-12 as a plain DOM terminal instead of xterm.js (ADR 0024 amendment 2026-11-12, #149, #151, #152); live check passed ([the terminal plan](2026-11-12-terminal-panel.md) §7a).
 10. **9.2 and 9.4. The live Grafana session.**
     - `envs/dev-console` and `make console-session`: EXIT-trap destroy, self-terminate, an account check that includes tagged distributions.
     - User-data installs Grafana and the AMP plugin from an S3 artifacts prefix.

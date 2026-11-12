@@ -270,7 +270,14 @@ Run `git fetch && git switch main && git pull` first; check `gh pr list`.
    Phases.md 9.3; #142 (the landing publish) and #144 (9.3 checked off)
    merged 2026-11-12. Next: the 9.4 interactive page rebuild (a separate session),
    then what is left of 9.2. ADR 0024 step 11 (in-cluster Grafana
-   removal) was done 2026-11-12.
+   removal) was done 2026-11-12. 9.5 (the terminal) is checked off
+   2026-11-12. Next: step 10, the live Grafana session (`envs/dev-console`,
+   pin the AMP plugin to the version in `observability/grafana/compose.yaml`),
+   then 9.6 and 9.7.
+   - **Follow-up (small):** `make cerberus status` run locally labels local
+     time as UTC ("start 19:56 UTC" on an IST machine for a 14:26 UTC run).
+     The Lambda runs in UTC, so the live terminal is correct. Convert the
+     Step Functions datetimes to UTC before formatting, and add a test.
 3. **Phase 10 order (option C, ADR 0021 amendment Accepted 2026-11-12):**
    10.2–10.7 → 14.2a/b, `cerberus-ops-agent` IAM, 14.3, 14.4 → Phase 11.
    Start with 10.2a (the named query set).
@@ -3241,6 +3248,19 @@ drift, 9.3, and the Phase 8 close-out. PRs #141–#144 and this PR._
   the role did not exist, so the next apply destroys nothing; the AMP
   plugin pin now lives only in `observability/grafana/compose.yaml`, and
   step 10 must pin the same version.
+- **9.5 the terminal (#149, #150, #151, #152, this PR):** the user chose a
+  plain DOM terminal over xterm.js (xterm.js injects `<style>` elements and
+  would need `style-src 'unsafe-inline'` on the token page); ADR 0024
+  amendment accepted. #151 registered `/terminal/index.html` as a second
+  Cognito logout URL; #152 built and published the page (build
+  `ea12d556b128`, its own workflow and concurrency group). The live check
+  passed, including the idle drop and a password prompt after `/logout`.
+  `console-check` was re-created (`cerberus-admin` has no
+  `AdminSetUserPassword`) and is disabled again.
+- **LinkedIn demo (owner's post, weekend of 2026-11-14):** a 50 s recording
+  of the real page build with the real command output (`make cerberus`,
+  `TZ=UTC`) and a simulated sign-in; `docs/assets/cerberus-terminal-demo.gif`.
+  The article draft and the MP4 are kept outside the repo.
 
 ## Notes / blockers
 
