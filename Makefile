@@ -106,3 +106,18 @@ fmt: ## terraform fmt across the whole terraform/ tree
 .PHONY: clean
 clean: ## Remove local Terraform working state (not remote state)
 	find terraform -type d -name ".terraform" -prune -exec rm -rf {} +
+
+.PHONY: console-terminal console-terminal-preview console-terminal-publish
+console-terminal: ## build the terminal page into console/terminal-dist (plain DOM terminal, no AWS; ADR 0024 amendment 2026-11-12)
+	cd console && rm -rf terminal-dist && uv run --no-project --python 3.12 python -m cerberus_terminal build --out terminal-dist
+
+console-terminal-preview: ## serve console/terminal-dist at http://127.0.0.1:8089/terminal/index.html with the edge CSP (run console-terminal first; no config.json, so it shows "not configured")
+	cd console && uv run --no-project --python 3.12 python -m cerberus_terminal.serve --dir terminal-dist
+
+console-terminal-publish: console-terminal ## AWS WRITE, needs approval: publish console/terminal-dist to the standing edge (owner fallback for console-terminal.yml)
+	console/publish_terminal.sh console/terminal-dist \
+	  "$$($(TF_BIN) -chdir=$(TF_STANDING_DIR) output -raw console_site_bucket_name)" \
+	  "$$($(TF_BIN) -chdir=$(TF_STANDING_DIR) output -raw console_distribution_id)" \
+	  "$$($(TF_BIN) -chdir=$(TF_STANDING_DIR) output -raw console_url)" \
+	  "$$($(TF_BIN) -chdir=$(TF_STANDING_DIR) output -raw console_client_id)" \
+	  "$$($(TF_BIN) -chdir=$(TF_STANDING_DIR) output -raw console_auth_domain)"

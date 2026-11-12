@@ -1,0 +1,146 @@
+/* Cerberus terminal. One stylesheet, no remote loads, no inline style. */
+
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --fg: #1a1a1a;
+  --muted: #4a4a4a;
+  --panel: #f4f4f5;
+  --border: #8a8a8a;
+  --accent: #0b5cad;
+  --accent-fg: #ffffff;
+  --focus: #0b5cad;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #101214;
+    --fg: #e8e8e8;
+    --muted: #b5b5b5;
+    --panel: #1a1d20;
+    --border: #6b7075;
+    --accent: #7ab7ff;
+    --accent-fg: #101214;
+    --focus: #7ab7ff;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.5;
+}
+
+main {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.5rem;
+}
+
+.lede,
+.status {
+  margin: 0.25rem 0;
+  color: var(--muted);
+}
+
+.mono,
+.log,
+.cmd-input {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+.log {
+  min-height: 16rem;
+  max-height: 60vh;
+  margin: 1rem 0 0.5rem;
+  padding: 0.75rem;
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 0.95rem;
+}
+
+.line {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.line.echo {
+  color: var(--muted);
+}
+
+.cmd-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 0.5rem 0;
+}
+
+.cmd-label {
+  display: block;
+  margin: 0.5rem 0 0.25rem;
+  font-weight: 600;
+}
+
+/* 16px or more on the input stops mobile browsers from zooming in on focus. */
+.cmd-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.75rem;
+  font-size: 1rem;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.button {
+  padding: 0.5rem 1rem;
+  font: inherit;
+  font-weight: 600;
+  color: var(--accent-fg);
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.button.secondary {
+  color: var(--fg);
+  background: transparent;
+  border-color: var(--border);
+}
+
+.button:disabled,
+.cmd-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cmd-input:focus-visible,
+.button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}

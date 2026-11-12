@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="cerberus-build" content="@@BUILD@@">
+<meta name="robots" content="noindex">
+<title>Cerberus terminal</title>
+<link rel="stylesheet" href="@@CSS@@">
+</head>
+<body>
+<main>
+<h1>Cerberus terminal</h1>
+<p class="lede">Read-only commands on the Cerberus data platform. Sign in to start. Type <span class="mono">help</span> for the list.</p>
+<p id="status" class="status" role="status">Loading.</p>
+<div id="log" class="log" role="log" aria-live="polite" aria-label="Command output"></div>
+<form id="cmd-form" autocomplete="off" hidden>
+<label for="cmd-input" class="cmd-label">Command</label>
+<div class="cmd-row">
+<input id="cmd-input" class="cmd-input" type="text" maxlength="@@MAXLEN@@" enterkeyhint="send" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off">
+<button type="submit" class="button">Run</button>
+</div>
+</form>
+<div class="actions">
+<button id="sign-in" type="button" class="button" hidden>Sign in</button>
+<button id="sign-out" type="button" class="button secondary" hidden>Sign out</button>
+</div>
+<noscript><p>This page needs JavaScript.</p></noscript>
+</main>
+<script src="@@JS@@"></script>
+</body>
+</html>
