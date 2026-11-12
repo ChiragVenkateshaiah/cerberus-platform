@@ -54,21 +54,25 @@ compute-apply: ## terraform apply the compute environment -- spin up for a Spark
 compute-destroy: ## terraform destroy the compute environment -- tear down after a Spark exercise (cost discipline)
 	cd $(TF_COMPUTE_DIR) && $(TF_BIN) destroy
 
-.PHONY: console-plan
+.PHONY: console-plan console-session console-check console-destroy
 # dev-console has a partial backend (the state bucket name holds the account
-# ID, which a new committed file must not). The account ID comes from one
-# sts:GetCallerIdentity call; nothing is created or changed. PR E adds the
-# session and destroy targets.
+# ID, which a committed file must not). orchestration/console_init.sh reads the
+# account ID with one sts:GetCallerIdentity call and passes the backend
+# settings as -backend-config flags; the session, check and destroy scripts
+# use the same helper, so all of them agree.
+MINUTES ?= 90
 console-plan: ## READ-ONLY, owner-run: init dev-console against the shared state backend, then terraform plan (applies nothing)
-	@acct="$$(aws sts get-caller-identity --query Account --output text)" && \
-	cd $(TF_CONSOLE_DIR) && \
-	$(TF_BIN) init -input=false \
-	  -backend-config="bucket=cerberus-platform-tfstate-$$acct" \
-	  -backend-config="key=envs/dev-console/terraform.tfstate" \
-	  -backend-config="region=us-east-1" \
-	  -backend-config="dynamodb_table=cerberus-platform-tfstate-lock" \
-	  -backend-config="encrypt=true" && \
-	$(TF_BIN) plan
+	@TF_BIN=$(TF_BIN) orchestration/console_init.sh && \
+	$(TF_BIN) -chdir=$(TF_CONSOLE_DIR) plan
+
+console-session: ## AWS WRITE, owner-run: one live Grafana session -- preflight, y/N, apply, countdown, destroy from an EXIT trap, check (MINUTES=90, 1 to 120; ARGS=--yes; about 0.068 USD/hour)
+	TF_BIN=$(TF_BIN) orchestration/console_session.sh --minutes $(MINUTES) $(ARGS)
+
+console-check: ## READ-ONLY: every session count must be 0 (instances, distributions, VPC origins, Cognito client, IAM, SG, NAT route, live.json, state)
+	TF_BIN=$(TF_BIN) orchestration/console_check.sh
+
+console-destroy: ## AWS WRITE, owner-run: destroy dev-console after an interrupted session (-refresh=false retry, ENI wait), then console-check
+	TF_BIN=$(TF_BIN) orchestration/console_session.sh --destroy
 
 .PHONY: exercise exercise-check
 exercise: ## one-command compute exercise: apply -> run -> collect -> destroy (orchestration/exercise.sh; ARGS="--generate 1000000")

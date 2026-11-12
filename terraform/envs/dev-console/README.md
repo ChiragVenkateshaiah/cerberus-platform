@@ -11,9 +11,8 @@ distribution, a Cognito app client, and a `live.json` at the site bucket root.
 The instance runs Grafana from the pinned tarball, with the AMP datasource
 only. A visitor signs in through Cognito and sees the recorded runs as a Viewer.
 
-**This PR is plan only.** `make console-plan` is read-only. The apply and
-destroy flow (`make console-session`, `console-check`, `console-destroy`) is
-PR E, and nothing here should be applied by hand before that.
+Run it only through `make console-session` (see "Usage" below). It checks the
+account first and destroys from an EXIT trap. Do not apply this root by hand.
 
 ## Files
 
@@ -26,16 +25,37 @@ PR E, and nothing here should be applied by hand before that.
 - `user_data.sh.tftpl`: the boot script. `wait_service_sg.sh` and `probe.sh`
   are the two `local-exec` scripts.
 
-## Run (owner, read-only)
+## Usage (owner)
 
 ```
 export AWS_PROFILE=cerberus-admin AWS_REGION=us-east-1
-make console-plan
+make console-check                 # READ-ONLY: every session count must be 0
+make console-plan                  # READ-ONLY: expect 20 to add, nothing else
+make console-session MINUTES=30    # AWS WRITE: default 90, 1 to 120; ARGS=--yes skips the prompt
+# only after an interrupted session (laptop sleep, crash):
+make console-destroy && make console-check
 ```
 
-`console-plan` reads the account ID with `sts get-caller-identity`, runs
-`terraform init` with the backend settings as `-backend-config` flags, then
-`terraform plan`. Expected: 20 to add, nothing to change or destroy.
+`console-plan`, `console-session` and `console-destroy` all start with the
+same init (`orchestration/console_init.sh`): it reads the account ID with
+`sts get-caller-identity` and passes the backend settings as `-backend-config`
+flags, because the state bucket name holds the account ID.
+
+`console-session` (`orchestration/console_session.sh`) checks the preflight
+(identity, `console_check.sh` at zero, empty state, both artifacts staged with
+the pinned sha256, `1 <= MINUTES <= 120`), shows the plan, asks y/N with the
+cost (about $0.068/hour), applies, prints the URL and the end time, and counts down. The
+URL goes to your terminal only. Ctrl-C ends the session early. An EXIT trap
+runs the destroy (with a `-refresh=false` retry, because the service-SG data
+source no longer matches once the VPC origin is gone), waits up to 30 minutes
+for the VPC origin's network interfaces, then runs `console_check.sh`.
+
+`console-destroy` is the same teardown without a session, for a trap that
+died. A dead trap bills the NAT and its IP at about $1.20/day until destroy;
+the instance ends itself at boot + minutes + 45.
+
+Press Ctrl-C once only: a second one stops terraform without saving state.
+The destroy itself runs in its own session, so Ctrl-C cannot reach it.
 
 ## Needs from other steps
 
@@ -63,7 +83,7 @@ make console-plan
   group, `WANT=1` after it waits for exactly one. Both poll by the
   `aws.cloudfront.vpcorigin` tag for up to 10 minutes; the data source reads
   the group after that. Never edit that group.
-- **Self-terminate.** The first user-data line is `shutdown -h +<minutes+30>`
+- **Self-terminate.** The first user-data line is `shutdown -h +<minutes+45>`
   and `instance_initiated_shutdown_behavior` is `terminate`.
 - **Port 3000 opens last.** Grafana first listens on loopback with basic auth,
   `load.py` posts the annotations, then the config is rendered again with

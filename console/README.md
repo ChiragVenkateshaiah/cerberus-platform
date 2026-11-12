@@ -191,3 +191,22 @@ fixtures, stale-key safety, a static scan of `terminal.js`, parity with the ADR,
 Terraform and the grammar) and `tests/js/terminal.test.js` (`node --test`:
 tokenise, base64url, the RFC 7636 PKCE vector, state and age checks, the deadline
 and the idle cut-over).
+
+## Live session link: `live.json`
+
+While a Grafana session runs, `terraform/envs/dev-console` writes `live.json` at
+the root of the site bucket (not under a published prefix, so the page publish
+never deletes it). `make console-session` creates it after the readiness probe
+passes, and destroy deletes it first.
+
+```json
+{"schema":1,"url":"https://<session-distribution>/","home":"/d/cerberus-runs","started":"2026-11-12T10:00:00Z","ends":"2026-11-12T11:30:00Z"}
+```
+
+- `url` is the session's Grafana; `home` is the path of the recorded-runs
+  dashboard on that host; `started` and `ends` are UTC, RFC 3339.
+- Served with `Cache-Control: no-cache, max-age=0`.
+- A reader (the landing page's `live.js`) must hide the link when `ends` is in
+  the past, when `schema` is not 1, when the file is missing (404) or does not
+  parse. A dead trap leaves a stale file, and `ends` is the only guard.
+- The file holds no secret. It is never written to the repo.

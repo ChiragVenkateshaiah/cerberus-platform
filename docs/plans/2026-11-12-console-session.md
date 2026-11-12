@@ -199,7 +199,7 @@ Everything at architecture level is decided by ADR 0024:
 | Cognito app client | One per session in `dev-console` (L113): confidential, code flow + PKCE, callback `https://<session-cf>/login/generic_oauth`, logout `https://<session-cf>/login`. |
 | NAT vs VPC endpoints | NAT (L196-198); the S3 gateway endpoint on the console route table is a free extra (PR A). |
 | Instance type | t4g.small (L112); arm64 builds confirmed (F28, F29). |
-| Session length | `MINUTES=90` (L119), Grafana 2 h maximum and 30 min idle (L194-195). Default 90, cap 120, instance timer at boot + MINUTES + 30. |
+| Session length | `MINUTES=90` (L119), Grafana 2 h maximum and 30 min idle (L194-195). Default 90, cap 120, instance timer at boot + MINUTES + 45 (PR E: the Cognito poll in user-data can take 40 minutes). |
 | `live.json` | The live link for the landing page, written and deleted by `dev-console` (L114). |
 | Account check | The `exercise.sh` check plus tagged distributions (L120-121). |
 
@@ -226,7 +226,7 @@ module and the run records) is an `archive_file` uploaded by Terraform as
 `artifacts/session/bundle-<sha>.zip` and destroyed with the session.
 
 **Self-terminate, trap and check:**
-- The first user-data line is `shutdown -h +<MINUTES+30>` with
+- The first user-data line is `shutdown -h +<MINUTES+45>` with
   `instance_initiated_shutdown_behavior = "terminate"`; Grafana's 2 h login
   maximum is the second bound.
 - `orchestration/console_session.sh` copies the `exercise.sh` pattern: `trap
@@ -317,7 +317,7 @@ version-match test. After merge the owner runs `make console-artifacts`.
   (`/api/health` until 200, at most 20 minutes); the `live.json` object.
 - `user_data.sh.tftpl`: copy and check the artifacts and the bundle; install
   Grafana to `/opt/grafana` and the plugin; write provisioning and dashboards
-  with `python3 -I`; poll Cognito for the client (up to 25 minutes); render
+  with `python3 -I`; poll Cognito for the client (up to 40 minutes); render
   `grafana.ini` (0640 root:grafana): `http_addr = 127.0.0.1` first,
   `root_url`, `cookie_secure`, random `secret_key` and admin password, login
   form off, the 2 h and 30 min limits, `[auth.generic_oauth]` (auto login,
