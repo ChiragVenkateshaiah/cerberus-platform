@@ -1,6 +1,6 @@
 # Plan: 9.5 the terminal panel in the browser (amendment to ADR 0024)
 
-Date: 2026-11-12. Planner: Opus. Mode: decision (an amendment to ADR 0024, Proposed 2026-11-12). Branch `9.5-terminal-adr` for PR A. Base: `origin/main`.
+Date: 2026-11-12. Planner: Opus. Mode: decision (an amendment to ADR 0024, Accepted 2026-11-12). Branch `9.5-terminal-adr` for PR A. Base: `origin/main`.
 
 User decision (2026-11-12): option B, a plain DOM terminal. The terminal is not xterm.js. Option A stays in section 4 as the rejected alternative.
 
@@ -79,7 +79,7 @@ Pillars:
 
 ## 6. ADR 0024 amendment (2026-11-12): a plain DOM terminal instead of xterm.js
 
-Status Proposed. Same form as the 2026-11-02 amendment. One pointer line in the Status block. No new ADR number.
+Status Proposed in PR A (#149); accepted by the user 2026-11-12. Same form as the 2026-11-02 amendment. One pointer line in the Status block. No new ADR number.
 
 - Context: F17 and F18. The token page is the most sensitive page. The audience is non-engineers, some on mobile.
 - Decision: same-origin `terminal.js` and `terminal.css`, an output log (`textContent` only) and one input. The CSP stays unchanged. The amendment changes the text "The terminal is xterm.js in the browser" and rule 4's "into xterm.js" (now "into the page"), without rewriting the original Decision. Rule 4 itself stays. It states the section 5 session rules: a memory-only token, ID and refresh tokens discarded, Cognito `/logout` at the drop, and one more registered logout URL.
