@@ -103,6 +103,16 @@ resource "aws_s3_bucket_policy" "site" {
         Condition = {
           StringEquals = { "AWS:SourceArn" = aws_cloudfront_distribution.this.arn }
         }
+      },
+      {
+        # ADR 0024 step 10: artifacts/ holds the session host's Grafana and
+        # plugin packages and the per-session bundle. They are private: the
+        # host reads them with its own role, and CloudFront never serves them.
+        Sid       = "DenyCloudFrontArtifacts"
+        Effect    = "Deny"
+        Principal = { Service = "cloudfront.amazonaws.com" }
+        Action    = "s3:GetObject"
+        Resource  = "${aws_s3_bucket.site.arn}/artifacts/*"
       }
     ]
   })
