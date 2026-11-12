@@ -168,7 +168,8 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 - [ ] 9.2 Terraform: the standing edge (S3 + CloudFront + Cognito + API
       Gateway + the command Lambda, read-only roles) and the per-session
       Grafana root (`envs/dev-console`, `make console-session`); remove the
-      in-cluster Grafana after 8.10
+      in-cluster Grafana after 8.10; the Grafana session self-terminates
+      and is destroyed at its limit
       IAM prerequisites done 2026-10-27 (#123); VPC-origin spike done
       2026-10-27 (#124): wake 12–15 min, destroy about 11 min; standing
       edge applied locally 2026-11-09 (#130; three `cerberus-admin` root
@@ -191,8 +192,10 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
       design was rejected 2026-11-12 (text, not interactive) and is being
       rebuilt as an interactive showcase in a separate session
 - [ ] 9.5 The terminal panel wired to the command set in the browser,
-      with a session time limit; the Grafana session self-terminates and is
-      destroyed at its limit
+      with a session time limit (a 60-minute token and a 15-minute idle
+      drop)
+      Plan and ADR 0024 amendment proposed 2026-11-12 (option B, a plain
+      DOM terminal)
 - [ ] 9.6 Safety and live check: escape and injection tests for the
       command set in CI; a demo from a clean browser; torn down to $0
 - [ ] 9.7 Well-Architected pass + ADR
