@@ -174,7 +174,9 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
       edge applied locally 2026-11-09 (#130; three `cerberus-admin` root
       pastes for API Gateway tags and log delivery); read-only roles, console subnet and AMP
       retention 400 days done 2026-10-29 (#125); local Grafana on
-      short-lived credentials (#126), merged after the 8.10 take (#136)
+      short-lived credentials (#126), merged after the 8.10 take (#136);
+      in-cluster Grafana and the `cerberus-grafana` role removed
+      2026-11-12 (ADR 0024 step 11)
 - [x] 9.3 The read-only command set: `cerberus status`, `runs`, `run <id>`,
       `cost`, `dq`, `slo`; an allowlist, no shell, no write, fail-closed;
       reads run records, Step Functions and Athena (AMP once

@@ -9,24 +9,19 @@
 #   Spark Operator's /metrics, kube-state-metrics and the node exporters.
 #   The apiserver and raw cAdvisor jobs from the chart's default config are
 #   deliberately absent, to keep series count near ADR 0016's ~10k estimate.
-# - Grafana, reached only via `kubectl port-forward` (no Service exposure,
-#   no ingress). AMP and read-only CloudWatch data sources; dashboards
-#   provisioned from JSON committed under observability/grafana/dashboards/,
-#   so they survive every teardown in git, as the metrics do in AMP.
+# - Viewing is the local Grafana (ADR 0022, ADR 0024); the in-cluster
+#   Grafana was removed in ADR 0024 step 11.
 #
-# Applied only from envs/dev-compute, like iam_spark: both IRSA roles
-# federate through the per-exercise cluster's OIDC provider, so they are
+# Applied only from envs/dev-compute, like iam_spark: the IRSA role
+# federates through the per-exercise cluster's OIDC provider, so it is
 # lifecycle-coupled to the cluster, not to the standing roles.
 
 locals {
   oidc_issuer_host = replace(var.eks_oidc_issuer_url, "https://", "")
 
-  # Service account names are fixed (not chart-derived) because the IRSA
-  # trust policies below pin them by name.
+  # The service account name is fixed (not chart-derived) because the IRSA
+  # trust policy below pins it by name.
   prometheus_service_account = "prometheus-agent"
-  grafana_service_account    = "grafana"
-
-  dashboards_dir = "${path.module}/../../../observability/grafana/dashboards"
 
   # 6c (ADR 0022 amendment): the Spark progress exporter. Its source stays
   # in git under observability/spark_progress and is mounted from a
@@ -85,65 +80,6 @@ resource "aws_iam_role_policy" "prometheus" {
         Effect   = "Allow"
         Action   = "aps:RemoteWrite"
         Resource = var.amp_workspace_arn
-      }
-    ]
-  })
-}
-
-resource "aws_iam_role" "grafana" {
-  name = "cerberus-grafana"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect    = "Allow"
-        Principal = { Federated = var.eks_oidc_provider_arn }
-        Action    = "sts:AssumeRoleWithWebIdentity"
-        Condition = {
-          StringEquals = {
-            "${local.oidc_issuer_host}:sub" = "system:serviceaccount:${var.namespace}:${local.grafana_service_account}"
-            "${local.oidc_issuer_host}:aud" = "sts.amazonaws.com"
-          }
-        }
-      }
-    ]
-  })
-
-  tags = {
-    Phase     = "7"
-    Component = "grafana"
-  }
-}
-
-resource "aws_iam_role_policy" "grafana" {
-  name = "cerberus-grafana-policy"
-  role = aws_iam_role.grafana.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Sid    = "QueryWorkspace"
-        Effect = "Allow"
-        Action = [
-          "aps:QueryMetrics", "aps:GetSeries", "aps:GetLabels", "aps:GetMetricMetadata",
-        ]
-        Resource = var.amp_workspace_arn
-      },
-      {
-        # Read-only CloudWatch, so one dashboard can show a run end to end
-        # (Step Functions state next to the Spark panels). None of these
-        # support resource-level scoping. ec2:DescribeRegions populates the
-        # data source's region picker.
-        Sid    = "ReadCloudWatchMetrics"
-        Effect = "Allow"
-        Action = [
-          "cloudwatch:GetMetricData", "cloudwatch:GetMetricStatistics", "cloudwatch:ListMetrics",
-          "cloudwatch:DescribeAlarms", "cloudwatch:DescribeAlarmsForMetric", "cloudwatch:DescribeAlarmHistory",
-          "ec2:DescribeRegions",
-        ]
-        Resource = "*"
       }
     ]
   })
@@ -456,98 +392,4 @@ resource "kubernetes_service_v1" "spark_progress" {
       target_port = "http"
     }
   }
-}
-
-# --- Grafana ------------------------------------------------------------
-
-resource "kubernetes_config_map" "dashboards" {
-  metadata {
-    name      = "grafana-dashboards-cerberus"
-    namespace = kubernetes_namespace.monitoring.metadata[0].name
-  }
-
-  data = {
-    for f in fileset(local.dashboards_dir, "*.json") : f => file("${local.dashboards_dir}/${f}")
-  }
-}
-
-resource "helm_release" "grafana" {
-  name       = "grafana"
-  repository = "https://grafana-community.github.io/helm-charts"
-  chart      = "grafana"
-  version    = var.grafana_chart_version
-  namespace  = kubernetes_namespace.monitoring.metadata[0].name
-
-  values = [yamlencode({
-    serviceAccount = {
-      name        = local.grafana_service_account
-      annotations = { "eks.amazonaws.com/role-arn" = aws_iam_role.grafana.arn }
-    }
-
-    # ClusterIP only -- reached via kubectl port-forward (ADR 0016).
-    service = { type = "ClusterIP" }
-
-    plugins = ["grafana-amazonprometheus-datasource@${var.amp_plugin_version}"]
-
-    datasources = {
-      "datasources.yaml" = {
-        apiVersion = 1
-        datasources = [
-          {
-            name      = "Amazon Managed Prometheus"
-            uid       = "amp"
-            type      = "grafana-amazonprometheus-datasource"
-            url       = var.amp_prometheus_endpoint
-            access    = "proxy"
-            isDefault = true
-            jsonData = {
-              httpMethod = "POST"
-              sigV4Auth  = true
-              # "default" = the AWS SDK's default credential chain, which
-              # picks up the IRSA web-identity token on this pod.
-              sigV4AuthType = "default"
-              sigV4Region   = var.region
-              sigv4Service  = "aps"
-            }
-          },
-          {
-            name   = "CloudWatch"
-            uid    = "cloudwatch"
-            type   = "cloudwatch"
-            access = "proxy"
-            jsonData = {
-              authType      = "default"
-              defaultRegion = var.region
-            }
-          },
-        ]
-      }
-    }
-
-    dashboardProviders = {
-      "dashboardproviders.yaml" = {
-        apiVersion = 1
-        providers = [{
-          name            = "cerberus"
-          orgId           = 1
-          folder          = "Cerberus"
-          type            = "file"
-          disableDeletion = true
-          editable        = false
-          options         = { path = "/var/lib/grafana/dashboards/cerberus" }
-        }]
-      }
-    }
-    # Mounted at /var/lib/grafana/dashboards/<key>, matching the provider.
-    dashboardsConfigMaps = { cerberus = kubernetes_config_map.dashboards.metadata[0].name }
-
-    # Nothing to persist: dashboards come from git, metrics from AMP.
-    persistence   = { enabled = false }
-    testFramework = { enabled = false }
-
-    resources = {
-      requests = { cpu = "100m", memory = "256Mi" }
-      limits   = { memory = "512Mi" }
-    }
-  })]
 }
