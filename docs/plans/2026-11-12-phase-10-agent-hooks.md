@@ -66,4 +66,4 @@ Rejected: option A (AI decides alerts: non-deterministic, not testable with `pro
 ## 8. Not in this PR
 
 - No Terraform, no dashboard JSON, no rules, no code.
-- `orchestration/annotate.sh` L304 hard-codes an account ID in an ARN. It gets its own PR (see `checkpoint.md`, "Next up").
+- `orchestration/annotate.sh` L304 hard-codes an account ID in an ARN. On 2026-11-12 the user decided to keep it: the ID is already in the S3 bucket names across the repo and in its history, and ADR 0025's rule covers the AI outputs only (see `checkpoint.md`, 2026-11-12).
