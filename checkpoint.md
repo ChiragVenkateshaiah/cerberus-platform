@@ -273,8 +273,6 @@ Run `git fetch && git switch main && git pull` first; check `gh pr list`.
 3. **Phase 10 order (option C, ADR 0021 amendment Accepted 2026-11-12):**
    10.2–10.7 → 14.2a/b, `cerberus-ops-agent` IAM, 14.3, 14.4 → Phase 11.
    Start with 10.2a (the named query set).
-4. **`orchestration/annotate.sh` L304 hard-codes an account ID in an ARN;**
-   remove it in its own PR.
 
 **Open from the 2026-10-15 review (Phase 8 follow-ups)** (listed in 8.10's
 "What was not isolated"): bytes written are not measured; Athena computed
@@ -3225,7 +3223,17 @@ drift, 9.3, and the Phase 8 close-out. PRs #141–#144 and this PR._
   README. The user decided that Phase 9 IAM changes are out of scope for
   the milestone and belong in 9.7.
 - **Decision (user):** for Phase 10, option C. Alerts stay deterministic,
-  with hooks left for the Phase 14 agents. An ADR 0021 amendment follows.
+  with hooks left for the Phase 14 agents. The ADR 0021 amendment was
+  accepted with defaults (a)–(c) and merged (#146).
+- **Decision (user): the AWS account ID stays in the repo.** The option C
+  planner flagged the account ID in `orchestration/annotate.sh` L304. A
+  search found it in 38 tracked files, almost all in S3 bucket names
+  (`cerberus-platform-<layer>-<account>`, the tfstate bucket), and in the
+  history since `474296d` (Phase 0). Buckets cannot be renamed and history
+  is not rewritten, so removing one line hides nothing; an account ID is
+  an identifier, not a credential. ADR 0025's "no account IDs in committed
+  files" rule covers the Phase 14 AI outputs (reviews, eval fixtures),
+  which mask IDs before writing. No code change.
 
 ## Notes / blockers
 
