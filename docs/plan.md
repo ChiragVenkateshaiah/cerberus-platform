@@ -142,7 +142,7 @@ layered on top of a platform that already works.
 | 2 | Event-driven ingestion | Lambda, S3 events / EventBridge | AWS Lambda | ✅ Complete |
 | 3 | Scalable compute | EKS, Spark Operator | AWS EKS | ✅ Complete |
 | 4 | Orchestration | AWS Step Functions | _(course gap — AWS workshop)_ | ✅ Complete |
-| 5 | CI/CD | AWS CodePipeline | AWS CodePipeline | ✅ Complete |
+| 5 | CI/CD | GitHub Actions + OIDC (ADR 0011; CodePipeline was the first plan) | AWS CodePipeline | ✅ Complete |
 | 6 | Observability & data quality | CloudWatch, dbt tests | AWS CloudWatch | ✅ Complete |
 | 7 | End-to-end platform validation | synthetic payments at scale, Well-Architected review, Prometheus metrics for EKS/Spark | AWS SAA _(parallel track)_ | ✅ Complete |
 | 8 | Scale validation | Apache Iceberg, incremental processing, Spark tuning, node autoscaling + Spot, AWS Budgets | _(course gap — Iceberg and Spark docs)_ | 🔨 In progress |
@@ -212,7 +212,8 @@ layered on top of a platform that already works.
 
 ### Phase 5 — CI/CD
 - **Goal:** No manual `apply`. Changes ship through a pipeline.
-- **Stack:** AWS CodePipeline; `terraform plan` on PR, `apply` on merge.
+- **Stack:** GitHub Actions with OIDC (ADR 0011 chose it over the first plan,
+  AWS CodePipeline); `terraform plan` on PR, `apply` on merge.
 - **Done when:** a merged PR safely updates infrastructure and pipeline code.
 - **Artifact:** pipeline config + a green build badge on the README.
 
@@ -748,7 +749,7 @@ Phase 1 as Terraform.
                                                                           │  + dbt (gold)│
                                                                           └──────────────┘
 
- Cross-cutting: Terraform (all infra) · IAM (least privilege) · CI/CD (P5)
+ Cross-cutting: Terraform (all infra) · IAM (least privilege) · CI/CD: GitHub Actions (P5)
                 Observability + data quality (P6) · Well-Architected (every phase, P7 capstone)
 ```
 

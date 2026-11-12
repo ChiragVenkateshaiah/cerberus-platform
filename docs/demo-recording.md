@@ -1,7 +1,7 @@
 # Recording runbook: the live 100M run (Phase 8.10)
 
-Purpose: record the LinkedIn video of one real 100M-event run, from an empty
-account to an empty account. This is step 7 of the ADR 0022 build steps
+Purpose: record the LinkedIn video of one real 100M-event run, from no
+compute back to no compute. This is step 7 of the ADR 0022 build steps
 ([ADR 0022](adr/0022-live-observability-for-a-recorded-run.md), "Build steps").
 The runbook feeds step 8 (the 10M dress rehearsal) and step 9 (the 100M take);
 step 10 is the edit and publish. The plan behind it is
