@@ -45,6 +45,10 @@ set -euo pipefail
 # The destroy runs from an EXIT trap, so it also runs after a failed apply,
 # a failed run, or Ctrl-C. A failed destroy prints what to check and exits
 # non-zero -- never assume the cluster is gone without the final check.
+# The destroy runs under setsid (tfq), so a terminal Ctrl-C cannot reach
+# terraform: it re-enables SIGINT for itself, so the teardown's `trap '' INT`
+# alone does not protect it, and a second Ctrl-C could lose state. Press
+# Ctrl-C once only while the apply runs. Same approach as console_session.sh.
 #
 # Not covered here, and still manual (no cluster cost):
 #   - runbook steps 1 and 5, the `pipeline_active` PRs. A manual
@@ -104,6 +108,10 @@ annotate_init "$EXECUTION_NAME"
 aws_() { aws --profile "$PROFILE" --region "$REGION" "$@"; }
 log() { echo "[$(date -u +%FT%TZ)] $*"; }
 tf() { "$TF" -chdir="$COMPUTE_DIR" "$@"; }
+# Terraform re-enables SIGINT for itself (Go signal handling), so `trap ''` in
+# this shell does not protect a destroy. setsid -w runs it in its own session,
+# where the terminal's Ctrl-C never reaches it. Used by the teardown only.
+tfq() { setsid -w "$TF" -chdir="$COMPUTE_DIR" "$@"; }
 
 preflight() {
   log "preflight"
@@ -154,11 +162,12 @@ preflight() {
 teardown() {
   local status=$?
   # Nothing may stop the destroy half-way: not a failing check (set +e),
-  # not a second Ctrl-C, and not a dead log pipe (PIPE) -- a Ctrl-C reaches
-  # the whole process group, and a script killed by SIGPIPE on its next log
-  # line would leave the cluster billing (found in testing, 2026-10-07).
+  # not a second Ctrl-C or a closed terminal (HUP), and not a dead log pipe
+  # (PIPE) -- a Ctrl-C reaches the whole process group, and a script killed
+  # by SIGPIPE on its next log line would leave the cluster billing (found
+  # in testing, 2026-10-07).
   trap - EXIT
-  trap '' INT TERM PIPE
+  trap '' INT TERM PIPE HUP
   set +e
   if [[ -z "$CLUSTER_UP" ]]; then
     exit "$status"
@@ -174,9 +183,9 @@ teardown() {
   destroy_ms="$(annotate_now_ms)"
   { annotate_step "Delete servers started" "$destroy_ms"; } || true
   # -lock-timeout: an interrupted apply can hold the state lock for a moment.
-  if ! tf destroy -auto-approve -input=false -lock-timeout=120s; then
+  if ! tfq destroy -auto-approve -input=false -lock-timeout=120s; then
     log "destroy failed once, retrying"
-    tf destroy -auto-approve -input=false -lock-timeout=120s || {
+    tfq destroy -auto-approve -input=false -lock-timeout=120s || {
       log "DESTROY FAILED. The cluster may still be running and billing."
       log "Check: make compute-destroy, then the AWS console (EKS, NAT gateways, EC2)."
       { annotate_teardown_failed "$(annotate_now_ms)"; } || true
@@ -245,7 +254,7 @@ mkdir -p "$LOG_DIR"
 # tee ignores INT/TERM so the log pipe outlives a Ctrl-C and the teardown's
 # output still reaches the screen and the log.
 exec > >(
-  trap '' INT TERM
+  trap '' INT TERM HUP
   exec tee -a "$LOG"
 ) 2>&1
 log "exercise $EXECUTION_NAME -- log: ${LOG#"$REPO"/}"
@@ -258,6 +267,7 @@ fi
 
 trap teardown EXIT
 trap 'exit 130' INT TERM
+trap 'exit 129' HUP
 
 # Plan and apply back to back: a saved dev-compute plan carries an EKS
 # token that expires after about 15 minutes (checkpoint Notes, 2026-10-06).
