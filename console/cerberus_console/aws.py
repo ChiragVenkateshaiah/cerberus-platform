@@ -14,7 +14,7 @@ that: the code only ever calls the read APIs named below.
 import contextlib
 import logging
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 
 from cerberus_console import config
 from cerberus_console.sources import Sources, Unavailable
@@ -58,13 +58,14 @@ class TTLCache:
 
 
 def _dt(v) -> datetime | None:
-    if isinstance(v, datetime):
-        return v
+    """Always tz-aware UTC: boto3 returns local-tz datetimes; naive means UTC."""
     if isinstance(v, str):
         try:
-            return datetime.fromisoformat(v.replace("Z", "+00:00"))
+            v = datetime.fromisoformat(v.replace("Z", "+00:00"))
         except ValueError:
             return None
+    if isinstance(v, datetime):
+        return v.astimezone(UTC) if v.tzinfo else v.replace(tzinfo=UTC)
     return None
 
 

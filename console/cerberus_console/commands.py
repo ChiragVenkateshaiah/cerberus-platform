@@ -46,8 +46,9 @@ SUMMARIES = {
 
 
 def _when(iso) -> str:
-    """'2026-10-13T06:35:02.004000+00:00' -> '2026-10-13 06:35 UTC'."""
-    return f"{iso[:10]} {iso[11:16]} UTC" if isinstance(iso, str) and len(iso) >= 16 else "-"
+    """'2026-10-13T11:05:02+05:30' -> '2026-10-13 05:35 UTC'. Converts first."""
+    d = _parse(iso)
+    return d.strftime("%Y-%m-%d %H:%M UTC") if d else "-"
 
 
 def _parse(ts) -> datetime | None:
@@ -57,7 +58,8 @@ def _parse(ts) -> datetime | None:
         d = datetime.fromisoformat(ts.replace(" UTC", "").replace("Z", "+00:00"))
     except ValueError:
         return None
-    return d if d.tzinfo else d.replace(tzinfo=UTC)
+    # Naive means UTC; anything else is converted, so "UTC" labels are true.
+    return d.astimezone(UTC) if d.tzinfo else d.replace(tzinfo=UTC)
 
 
 def _age(then: datetime | None, now: datetime) -> str:
