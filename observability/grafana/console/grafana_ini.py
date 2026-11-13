@@ -11,8 +11,12 @@ import re
 import string
 import sys
 
-# A value must stay on one line and must not start an ini comment or quote.
-_BAD_VALUE = re.compile(r'[\r\n;#"`$]|%\(')
+# An allowlist (9.6 hardening). The real values are hex, a URL with percent
+# escapes, a Cognito client id or secret, a host name and a path. Anything else
+# (space, quote, semicolon, hash, backtick, dollar, backslash, newline, a
+# non-ASCII character) is refused, so a value cannot start an ini comment or
+# a new line. A "%(" pair cannot get through either: "(" is not in the set.
+_GOOD_VALUE = re.compile(r"[A-Za-z0-9._~:/?&=%@+-]+", re.ASCII)
 
 
 def placeholders(template_text):
@@ -32,12 +36,7 @@ def render(template_text, values):
         problems = sorted(wanted ^ set(values))
         raise ValueError(f"values do not match the template: {', '.join(problems)}")
     for key, value in values.items():
-        if (
-            not isinstance(value, str)
-            or not value
-            or value != value.strip()
-            or _BAD_VALUE.search(value)
-        ):
+        if not isinstance(value, str) or not value or not _GOOD_VALUE.fullmatch(value):
             raise ValueError(f"value for {key} is empty or has a character that is not allowed")
     return string.Template(template_text).substitute(values)
 

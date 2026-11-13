@@ -3,6 +3,7 @@
 import copy
 import json
 import re
+import unicodedata
 
 import annotations as ann
 import dashboards as db
@@ -180,3 +181,37 @@ def test_md_escape_directly():
     out = db.md_escape("<b>[a](b)</b> & *x* `y` _z_")
     assert "<" not in out and ">" not in out
     assert "\\[" in out and "\\(" in out and "&amp;" in out and "\\*" in out
+
+
+# --- invisible characters (9.6) ---------------------------------------------
+
+# C0 controls that str.split() does not treat as whitespace, DEL, C1, bidi,
+# zero-width, BOM, a lone surrogate and a private-use character.
+HIDDEN = (
+    [chr(c) for c in range(0x20) if chr(c) not in "\t\n\v\f\r\x1c\x1d\x1e\x1f"]
+    + ["\x7f", "\x80", "\x9b", "\x9f"]
+    + ["\u200b", "\u200d", "\u202a", "\u202e", "\u2066", "\u2069", "\ufeff", "\ud800", "\ue000"]
+)
+INVISIBLE_CATEGORIES = {"Cc", "Cf", "Cs", "Co", "Cn", "Zl", "Zp"}
+
+
+def test_md_escape_replaces_invisible_characters():
+    for ch in HIDDEN:
+        assert db.md_escape(f"a{ch}b") == "a?b", repr(ch)
+    assert db.md_escape("\x1b[31m\u202e") == "?\\[31m?"
+    # Whitespace still collapses to one space.
+    assert db.md_escape("a\x1c\x85\u2028b\r\n\tc") == "a b c"
+
+
+def test_md_escape_keeps_visible_text():
+    # The home label has a middle dot (U+00B7) between the time and the run name.
+    label = "2026-10-13 05:58 UTC \xb7 exercise-1"
+    assert db.md_escape(label) == label
+
+
+def test_hostile_status_leaves_no_invisible_character_in_the_home_text(records):
+    hostile = dict(records[0][1])
+    hostile.update(status="OK\u2066\x1b[31m\u200b\x00\u202e")
+    _, text = home_text(records, [hostile])
+    assert "?" in text
+    assert not [c for c in text if c != "\n" and unicodedata.category(c) in INVISIBLE_CATEGORIES]

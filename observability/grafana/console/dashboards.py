@@ -13,6 +13,7 @@ a panel moves, the transform raises DashboardError instead of guessing.
 import copy
 import html
 import re
+import unicodedata
 from datetime import timedelta
 
 from annotations import clean, generator_window, parse_time, status_of, to_ms
@@ -217,6 +218,10 @@ def iso_ms(dt):
 # --- the home dashboard -------------------------------------------------------
 
 _MD_SPECIAL = re.compile(r"([\\`*_\[\]()#|!~])")
+# Unicode categories that draw nothing or reorder text: controls (C0, DEL, C1),
+# format characters (bidi overrides, zero-width), surrogates, private use,
+# unassigned, and the line and paragraph separators.
+_MD_INVISIBLE = {"Cc", "Cf", "Cs", "Co", "Cn", "Zl", "Zp"}
 
 
 def md_escape(value, limit=80):
@@ -224,8 +229,10 @@ def md_escape(value, limit=80):
 
     Order matters: first turn &, < and > into entities, then backslash-escape
     the markdown characters. Whitespace (newlines too) collapses to one space.
+    A control, bidi or zero-width character becomes "?" (9.6 hardening).
     """
     text = " ".join(str(value).split())[:limit]
+    text = "".join("?" if unicodedata.category(ch) in _MD_INVISIBLE else ch for ch in text)
     return _MD_SPECIAL.sub(r"\\\1", html.escape(text, quote=False))
 
 
