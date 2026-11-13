@@ -72,7 +72,9 @@ jobs:
   # or newer (from memory, unverified), so this job installs pytest 8 instead of
   # requirements-dev.txt. No AWS and no network.
   grafana-console-tests:
-    runs-on: ubuntu-latest
+    # Pinned: setup-python has no 3.9 build for ubuntu-latest (26.04) since
+    # 2026-11-13. 3.9 matches python3 on the AL2023 session host.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
