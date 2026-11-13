@@ -1,8 +1,10 @@
 """build.py end to end under `python3 -I`, and the grafana.ini template."""
 
 import json
+import secrets
 import subprocess
 import sys
+from urllib.parse import quote
 
 import annotations as ann
 import grafana_ini
@@ -81,3 +83,85 @@ def test_render_rejects_bad_values():
     for bad in (" padded", "a$b", "a`b", "a%(x)s", "a;b"):
         with pytest.raises(ValueError):
             grafana_ini.render(TEMPLATE, {**VALUES, "client_secret": bad})
+
+
+# 9.6: the check is an allowlist. These slip through a denylist of ; # " ` $.
+ALLOWLIST_BAD = [
+    "a b",
+    "a\tb",
+    "a\x00b",
+    "a\x0bb",
+    "a\x1b[31m",
+    "a\\b",
+    "a'b",
+    "a\u2028b",
+    "a\u202eb",
+    "a\u200bb",
+    "\u0455tatus",
+    "a,b",
+    "a{b}",
+    "a<b>",
+    "a|b",
+    "a*b",
+    "a!b",
+    "a(b)",
+    "a[b]",
+    "value\n",
+    "\nvalue",
+    "a\r\nb",
+    "%(x)s",
+    "a%(x)sb",
+]
+
+
+@pytest.mark.parametrize("bad", ALLOWLIST_BAD)
+def test_render_rejects_everything_outside_the_allowlist(bad):
+    for key in VALUES:
+        with pytest.raises(ValueError):
+            grafana_ini.render(TEMPLATE, {**VALUES, key: bad})
+
+
+def test_render_accepts_the_shapes_the_session_host_makes():
+    good = {
+        **VALUES,
+        "secret_key": "0123456789abcdef" * 3,
+        "client_secret": "abc123def456ghi789",
+        "signout_redirect_url": (
+            "https://auth.example.invalid/logout?client_id=cid"
+            "&logout_uri=https%3A%2F%2Fexample.invalid%2Fterminal%2Findex.html"
+        ),
+    }
+    text = grafana_ini.render(TEMPLATE, good)
+    assert "logout_uri=https%3A%2F%2Fexample.invalid" in text
+    assert "$" not in text
+
+
+def test_render_accepts_the_real_boot_shapes():
+    # As prep.py in terraform/envs/dev-console/user_data.sh.tftpl builds them.
+    logout = quote("https://d111.cloudfront.net/login", safe="")
+    domain = "cerberus-console.auth.us-east-1.amazoncognito.com"
+    client_id = "abcdefghij0123456789klmnop"
+    real = {
+        "http_addr": "0.0.0.0",
+        "basic_auth_enabled": "false",
+        "root_url": "https://d111.cloudfront.net/",
+        "admin_password": secrets.token_hex(24),
+        "secret_key": secrets.token_hex(24),
+        "signout_redirect_url": (
+            "https://" + domain + "/logout?client_id=" + client_id + "&logout_uri=" + logout
+        ),
+        "client_id": client_id,
+        "client_secret": "abcdefghij0123456789" * 2 + "klmnopqrstuv",
+        "cognito_domain": domain,
+        "dashboards_dir": "/var/lib/grafana/dashboards/console",
+    }
+    assert len(real["client_id"]) == 26 and len(real["client_secret"]) == 52
+    text = grafana_ini.render(TEMPLATE, real)
+    assert "http_addr = 0.0.0.0" in text
+    assert "logout_uri=https%3A%2F%2Fd111.cloudfront.net%2Flogin" in text
+
+
+def test_render_rejects_a_non_string_value():
+    for bad in (None, 5, True, ["a"]):
+        with pytest.raises(ValueError):
+            grafana_ini.render(TEMPLATE, {**VALUES, "client_id": bad})

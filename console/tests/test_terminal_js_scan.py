@@ -49,6 +49,13 @@ FORBIDDEN = [
     r"\bimportScripts\b",
     r"\bimport\s*\(",
     r"\bindexedDB\b",
+    # 9.6: more ways to turn text into markup, open a window or navigate by assignment.
+    r"\bsrcdoc\b",
+    r"\bDOMParser\b",
+    r"\bcreateContextualFragment\b",
+    r"\bwindow\.open\b",
+    r"\bpostMessage\b",
+    r"\.href\s*=(?!=)",
 ]
 
 
@@ -64,6 +71,20 @@ def test_fetch_targets_only_the_api_the_config_and_the_token_endpoint():
     assert re.search(r'const API_PATH = "/api/command";', code)
     assert re.search(r'const CONFIG_PATH = "config\.json";', code)
     assert re.search(r'const tokenUrl = cfg\.auth_domain \+ "/oauth2/token";', code)
+
+
+def test_location_assign_goes_only_to_the_logout_url_and_the_authorize_url():
+    code = source()
+    targets = re.findall(r"\blocation\.assign\s*\(([^;]*)\)\s*;", code)
+    assert sorted(targets) == [
+        'cfg.auth_domain + "/oauth2/authorize?" + q.toString()',
+        "logoutUrl()",
+    ]
+    # No other way to navigate: no location.href or replace, no assignment to location.
+    assert re.search(r"\blocation\s*=(?!=)", code) is None
+    assert set(re.findall(r"\blocation\.(\w+)", code)) == {"assign", "origin", "pathname", "search"}
+    # Both targets are built on the Cognito auth domain from the validated config.
+    assert re.search(r'return cfg\.auth_domain \+ "/logout\?" \+ q\.toString\(\);', code)
 
 
 def test_no_url_literals_except_the_auth_paths():
