@@ -9,6 +9,8 @@ Accepted (2026-10-27). The build and the full note texts are in
 Milestone 8 (`phase-8-scale-validation-complete`) saved 2026-11-12; see
 "Milestone 8 (2026-11-12)" below.
 
+Milestone 8's identities point corrected by ADR 0026.
+
 ## Context
 
 Phase 8 (scale validation) is done except for the 8.10 demo video, which
