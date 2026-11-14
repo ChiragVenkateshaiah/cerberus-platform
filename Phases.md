@@ -201,6 +201,9 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 - [ ] 9.6 Safety and live check: escape and injection tests for the
       command set in CI; a demo from a clean browser; torn down to $0
 - [ ] 9.7 Well-Architected pass + ADR
+      ADR 0026 Proposed 2026-11-14 (plan:
+      `docs/plans/2026-11-13-phase-9-well-architected-review.md`); the Tool
+      answers and milestone 9 are not written yet
 
 ## Phase 10 — Pipeline status & alerting ⬜
 
