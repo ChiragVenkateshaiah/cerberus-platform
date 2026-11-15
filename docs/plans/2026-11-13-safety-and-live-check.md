@@ -170,6 +170,37 @@ counts; the simulate table; `console-check` before and after; destroy
 time; session cost and the next-day figure. No account ID or tokens
 (redact ARNs to `<ACCOUNT_ID>`).
 
+## 7a. Live result 2026-11-14 (partial)
+
+The owner ran the first session (`MINUTES=30`) on 2026-11-14. These results
+come from the owner's run and CloudTrail. Items not listed were not run.
+
+- D1: all six headers matched `EDGE_HEADERS` exactly. POST with no token gave
+  401, `Bearer x` gave 401, and GET gave 404.
+- D2: no CSP errors.
+- D3: the 7 commands worked and the hostile lines were refused. Two gaps:
+  - The manual paste lost the fullwidth and zero-width characters, so those two
+    cases are untested.
+  - The 520-character line was cut by the input `maxlength`. This is by
+    design: `max_input_length()` = `MAX_TOKENS * MAX_TOKEN_CHARS + MAX_TOKENS - 1`
+    = 8*64+7 = 519 (`console/cerberus_terminal/build.py`,
+    `console/cerberus_console/config.py`; `test_terminal_build.py` pins it).
+    The 519-character line is the right case.
+- Session timeline (CloudTrail): NAT 14:09:47Z, instance 14:11:21Z, VPC origin
+  14:11:39Z, Cognito client 14:22:44Z (about 13 min of wake, inside the spike's
+  12 to 15 min). The destroy started 14:54:05Z and the NAT was deleted 15:05:06Z
+  (about 11 min).
+- All 20 resources were created, so the probe passed and `live.json` was
+  written. The auto teardown removed 20/20, and `console_check` was ok.
+- Harness smoke run 2026-11-15 (no session, `--no-wait`):
+  - L1 fail: `live.json` returns 403 through CloudFront (not 404).
+  - D1a 6/6 headers match. D1b 401. D1c 401. D1d 404.
+  - D2: 0 CSP violations on `/` and `/terminal/index.html`.
+  - T1: the standing edge accepted TLS 1.0, 1.1 and 1.2 (the session
+    distribution is untested). This is the standing half of ADR 0026 step 5a.
+- E1 to E6 (the Grafana checks): untested. The owner missed the URL. The
+  harness in `docs/plans/2026-11-15-live-check-harness.md` closes this.
+
 ## 8. Open questions for the owner
 
 1. Tick 9.6 after the PR F session on the current landing page, with a

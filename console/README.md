@@ -207,6 +207,53 @@ passes, and destroy deletes it first.
   dashboard on that host; `started` and `ends` are UTC, RFC 3339.
 - Served with `Cache-Control: no-cache, max-age=0`.
 - A reader (the landing page's `live.js`) must hide the link when `ends` is in
-  the past, when `schema` is not 1, when the file is missing (404) or does not
+  the past, when `schema` is not 1, when the file is missing (403 through CloudFront, seen 2026-11-15;
+  treat any non-200 as missing) or does not
   parse. A dead trap leaves a stale file, and `ends` is the only guard.
 - The file holds no secret. It is never written to the repo.
+
+## Live check harness
+
+`cerberus_live_check/` runs the owner-run live checks (9.6 section 7 and 9.2 PR F)
+with a script (plan `docs/plans/2026-11-15-live-check-harness.md`). It is
+read-only, it is never deployed (the Lambda zip takes only `cerberus_console/`
+and `runs/`), and it runs no program (ADR 0024 rule 5). It reads the expected
+headers from `tests/test_edge_config.py` and the hostile lines from
+`tests/hostile.py`. CI does not import Playwright.
+
+Run order, with a session live:
+
+1. Owner: enable `console-check` in Cognito (a write):
+   `aws cognito-idp admin-enable-user ...`.
+2. Owner, terminal 1: `make console-session MINUTES=30`. It rings the bell and
+   reprints the URL every 5 minutes.
+3. Claude or owner: `make console-wait` (waits for `live.json`, rings the bell,
+   hides the URL), then `make console-verify-public` (no password).
+4. Owner, terminal 2: `make console-verify`. It asks for the password with
+   `getpass`, or reads `CERBERUS_CHECK_PASSWORD` from your own shell.
+5. Claude: the `cerberus-live-verifier` agent reads the newest report and runs
+   the read-only AWS and TLS follow-ups.
+6. After the destroy: `make console-wait ARGS=--gone`, then `make console-check`.
+7. Owner: disable `console-check` (`aws cognito-idp admin-disable-user ...`).
+
+Who runs what:
+
+| target | password | who |
+|---|---|---|
+| `make console-wait` | no | Claude or owner |
+| `make console-verify-public` | no | Claude or owner |
+| `make console-verify` | yes | owner only |
+
+`make console-verify-public ARGS=--no-wait` skips the wait for a session. It
+records `L1` as a fail when no session is live, and runs the header, 401/404,
+CSP and TLS checks on the standing edge only.
+
+Reports go to `console/live-check-reports/<UTC stamp>/` (gitignored):
+`report.json` and `report.md` are redacted (hosts, account ID, pool ID, tokens,
+UUIDs, OAuth values); the `*.png` screenshots are not redacted, and the harness
+never takes one on a Cognito page. The harness refuses to write a report, and
+exits 2 ("No report was written; the screenshots never show a Cognito page"),
+if the password appears in it. There is no tracing, video or HAR.
+
+Playwright 1.65.1 drives the headless shell found in `~/.cache/ms-playwright`
+(`--chromium PATH` or `CERBERUS_CHROMIUM` overrides it).

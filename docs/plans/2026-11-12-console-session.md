@@ -363,6 +363,8 @@ tears down.
 Record an Outcome section (wake, destroy and ENI times, session cost), check
 off Phases.md 9.2, and add a progress note to plan step 10.
 
+Progress 2026-11-14: the first session (`MINUTES=30`) proved the infrastructure (20/20 created, 20/20 removed, `console_check` ok); E1 to E6 are untested. See `docs/plans/2026-11-13-safety-and-live-check.md` section 7a and `docs/plans/2026-11-15-live-check-harness.md`.
+
 ## 7. Owner-run commands
 
 ```
