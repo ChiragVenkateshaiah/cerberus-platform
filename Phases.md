@@ -227,7 +227,8 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
         backfill, owner smoke write before 10.6.
       - Progress: PR A (10.2a, named query set and CI check) built
         2026-11-20. PR B (10.2b, publisher core, dry run only) built
-        2026-11-20.
+        2026-11-20. PR C (10.2c, local end-to-end against a throwaway
+        Prometheus) built 2026-11-20.
       - Lineage (ADR 0021 Q3) stays under 10.2: tick it after PRs A-E, the
         smoke and L1; the live lineage check moves to 10.6.
 - [ ] 10.3 Grafana pipeline-status dashboard, provisioned as code, with a
