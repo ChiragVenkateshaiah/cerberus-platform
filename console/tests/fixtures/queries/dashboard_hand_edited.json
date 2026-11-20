@@ -1,0 +1,3 @@
+{"title": "hand edited", "panels": [
+  {"title": "Status 7d", "type": "stat", "targets": [{"expr": "last_over_time(cerberus_run_status[7d])"}]}
+]}

@@ -1,0 +1,32 @@
+{"version": 1,
+ "metrics": [
+  {"name": "cerberus_run_status", "labels": [], "scope": "latest", "meaning": "1 if the newest run succeeded, 0 if it failed, timed out or was aborted"},
+  {"name": "cerberus_run_step_failed", "labels": ["step"], "scope": "latest", "meaning": "1 on the step that failed in the newest run, 0 on the other steps"},
+  {"name": "cerberus_last_success_timestamp_seconds", "labels": [], "scope": "latest", "meaning": "End time (Unix seconds) of the newest successful run; written on success only"},
+  {"name": "cerberus_run_started_timestamp_seconds", "labels": [], "scope": "latest", "meaning": "Start time (Unix seconds) of the newest run"},
+  {"name": "cerberus_run_finished_timestamp_seconds", "labels": [], "scope": "latest", "meaning": "End time (Unix seconds) of the newest run"},
+  {"name": "cerberus_dq_passed", "labels": [], "scope": "latest", "meaning": "1 if the newest run passed data quality, 0 if not, NaN if the suite did not run"},
+  {"name": "cerberus_dq_errors", "labels": [], "scope": "latest", "meaning": "Data-quality errors in the newest run; NaN if the suite did not run"},
+  {"name": "cerberus_dq_warnings", "labels": [], "scope": "latest", "meaning": "Data-quality warnings in the newest run; NaN if the suite did not run"},
+  {"name": "cerberus_run_duration_seconds", "labels": [], "scope": "detail", "meaning": "Wall-clock seconds of the newest run"},
+  {"name": "cerberus_step_duration_seconds", "labels": ["step"], "scope": "detail", "meaning": "Seconds spent in each step of the newest run; NaN for a step not reached"},
+  {"name": "cerberus_run_events_processed", "labels": [], "scope": "detail", "meaning": "Events processed by the newest run; NaN if unknown"},
+  {"name": "cerberus_run_info", "labels": ["execution"], "scope": "execution", "meaning": "Always 1; carries the execution name of a run"},
+  {"name": "cerberus_execution_started_timestamp_seconds", "labels": ["execution"], "scope": "execution", "meaning": "Start time (Unix seconds) of each run, by execution"},
+  {"name": "cerberus_execution_finished_timestamp_seconds", "labels": ["execution"], "scope": "execution", "meaning": "End time (Unix seconds) of each run, by execution"}
+ ],
+ "queries": [
+  {"name": "latest_status", "expr": "last_over_time(cerberus_run_status[30d])", "meaning": "1 if the newest run succeeded, 0 if not"},
+  {"name": "latest_failed_step", "expr": "(last_over_time(cerberus_run_step_failed[30d]) == 1)", "meaning": "The step that failed in the newest run; empty if it succeeded"},
+  {"name": "latest_started", "expr": "last_over_time(cerberus_run_started_timestamp_seconds[30d])", "meaning": "Start time of the newest run, Unix seconds"},
+  {"name": "latest_finished", "expr": "last_over_time(cerberus_run_finished_timestamp_seconds[30d])", "meaning": "End time of the newest run, Unix seconds"},
+  {"name": "last_success", "expr": "last_over_time(cerberus_last_success_timestamp_seconds[30d])", "meaning": "End time of the newest successful run, Unix seconds"},
+  {"name": "latest_run_seconds", "expr": "last_over_time(cerberus_run_duration_seconds[30d])", "meaning": "Wall-clock seconds of the newest run"},
+  {"name": "latest_step_seconds", "expr": "last_over_time(cerberus_step_duration_seconds[30d])", "meaning": "Seconds per step in the newest run"},
+  {"name": "latest_events", "expr": "last_over_time(cerberus_run_events_processed[30d])", "meaning": "Events processed by the newest run"},
+  {"name": "latest_dq_passed", "expr": "last_over_time(cerberus_dq_passed[30d])", "meaning": "1 if the newest run passed data quality, 0 if not, NaN if unknown"},
+  {"name": "latest_dq_errors", "expr": "last_over_time(cerberus_dq_errors[30d])", "meaning": "Data-quality errors in the newest run"},
+  {"name": "latest_dq_warnings", "expr": "last_over_time(cerberus_dq_warnings[30d])", "meaning": "Data-quality warnings in the newest run"},
+  {"name": "newest_finished_execution", "expr": "topk(1, last_over_time(cerberus_execution_finished_timestamp_seconds[30d]))", "meaning": "Execution name and end time of the newest finished run"},
+  {"name": "newest_started_execution", "expr": "topk(1, last_over_time(cerberus_execution_started_timestamp_seconds[30d]))", "meaning": "Execution name and start time of the newest started run"}
+ ]}

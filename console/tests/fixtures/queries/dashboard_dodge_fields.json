@@ -1,0 +1,9 @@
+{"title": "dodge fields", "panels": [
+  {"title": "Query field", "type": "stat", "targets": [{"query": "cerberus_dq_errors"}]},
+  {"title": "Name matcher", "type": "stat", "targets": [{"expr": "{__name__=\"cerberus_dq_errors\"}"}]}
+ ],
+ "templating": {"list": [
+  {"name": "v", "query": {"query": "query_result(cerberus_dq_errors)"}},
+  {"name": "step", "definition": "label_values(cerberus_run_step_failed, step)"}
+ ]}
+}
