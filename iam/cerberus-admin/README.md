@@ -199,3 +199,14 @@ larger and is not the limit.
   4,820 of 6,144 characters. `cerberus-ci-apply` needs nothing: it already
   allows the alarm actions on `cerberus-*` and `DescribeAlarms` on `*`. The
   paste is not done yet; this line is updated when it is.
+- **2026-11-20 (10.2d, [ADR 0021](../../docs/adr/0021-pipeline-status-and-alerting.md)
+  amendment):** `cerberus-admin-iam-and-governance` gains `aps:RemoteWrite` in
+  the statement now named `AmpQueryAndStatusWrite` (was `AmpQuery`). It stays
+  on `workspace/*` in `us-east-1`; no new ARN line. The pipeline status
+  publisher (`observability/status/publish.py --send`) signs its remote-write
+  as `cerberus-admin`. Counted size after the change: 4,100 of 6,144
+  characters. The paste is pending: push the file as a new default policy
+  version from the root console, the path described above, then check
+  `aws iam simulate-principal-policy ... --action-names aps:RemoteWrite`
+  returns `allowed`. Until then `exercise.sh` preflight warns and the status
+  publish fails open. This line is updated when the paste is done.

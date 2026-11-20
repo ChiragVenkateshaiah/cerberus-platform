@@ -65,8 +65,10 @@ jobs:
         run: pytest observability/spark_progress
 
   # 10.2b (ADR 0021 amendment): the status publisher core (run record to
-  # series, remote-write encoding, dry run). Stdlib only and no boto3. It
-  # reads the committed run records and the ASL template. No AWS, no network.
+  # series, remote-write encoding, dry run) and, in 10.2d, the AWS send path
+  # against fake clients. boto3 (botocore) is installed only so the SigV4
+  # signature is checked for real. It reads the committed run records and the
+  # ASL template. No AWS, no network.
   status-tests:
     runs-on: ubuntu-latest
     steps:
@@ -77,7 +79,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install dev requirements
-        run: pip install --quiet -r requirements-dev.txt
+        run: pip install --quiet -r requirements-dev.txt boto3==1.43.67
 
       - name: pytest
         run: pytest observability/status

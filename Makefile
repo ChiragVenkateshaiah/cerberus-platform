@@ -102,6 +102,18 @@ exercise-check: ## read-only preflight for an exercise: no cluster, empty dev-co
 status-e2e: ## OFFLINE, Docker only: push run records to a throwaway Prometheus on 127.0.0.1:9099 and check every status query (10.2c; no AWS)
 	observability/status/e2e.sh
 
+.PHONY: status-publish status-smoke
+# AWS WRITE, owner-run (10.2d). Both are a dry run unless ARGS=--send, which signs
+# a remote-write to AMP as cerberus-admin and needs aps:RemoteWrite (policy paste).
+status-publish: ## AWS WRITE, owner-run: publish a run's status series; EXECUTION= required; dry run unless ARGS=--send
+	@test -n "$(EXECUTION)" || { echo "EXECUTION= is required"; exit 2; }
+	AWS_PROFILE=cerberus-admin uv run -q --no-project --python 3.12 --with boto3==1.43.67 \
+	  python observability/status/publish.py end --execution "$(EXECUTION)" $(ARGS)
+
+status-smoke: ## AWS WRITE, owner-run: write one cerberus_publisher_smoke sample and read it back; dry run unless ARGS=--send
+	AWS_PROFILE=cerberus-admin uv run -q --no-project --python 3.12 --with boto3==1.43.67 \
+	  python observability/status/publish.py smoke $(ARGS)
+
 .PHONY: grafana-up grafana-down grafana-logs grafana-token
 # up.sh looks up the AMP endpoint and assumes cerberus-grafana-read (ADR 0024).
 # down and logs only need placeholders to satisfy the compose interpolation.
