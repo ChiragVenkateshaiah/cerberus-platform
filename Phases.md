@@ -220,7 +220,8 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
       per-execution start/finish series for the alert link; the named
       query set and its CI check
       - Plan: `docs/plans/2026-11-20-pipeline-status-exporter.md`. ADR 0021
-        amendment (transport, series names, JSON query set) Proposed
+        amendment (transport, series names, JSON query set) Proposed and
+        Accepted
         2026-11-20. Owner answers 2026-11-20: T3 (hand-written remote write,
         no OpenTelemetry), JSON at `observability/queries/status.json`, no
         backfill, owner smoke write before 10.6.
