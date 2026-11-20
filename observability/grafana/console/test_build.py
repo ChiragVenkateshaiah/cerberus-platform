@@ -31,6 +31,7 @@ def test_build_runs_isolated_from_another_cwd(tmp_path, records):
     assert done.returncode == 0, done.stderr
     names = sorted(p.name for p in (out / "dashboards").glob("*.json"))
     assert names == [
+        "cerberus-pipeline-status.json",
         "cerberus-run-live.json",
         "cerberus-run-story.json",
         "cerberus-runs.json",

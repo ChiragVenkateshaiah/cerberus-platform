@@ -236,6 +236,7 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
         smoke and L1; the live lineage check moves to 10.6.
 - [ ] 10.3 Grafana pipeline-status dashboard, provisioned as code, with a
       reserved "AI review" panel (tag `cerberus-ai`)
+      - 10.3a built 2026-11-20 (dashboard JSON and static checks).
 - [ ] 10.4 Alerting as code: failed run, DQ errors, never reported, error
       budget over runs (ADR 0021); alerts carry `execution`;
       `promtool test rules` in CI
