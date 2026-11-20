@@ -310,8 +310,9 @@ Proposed (2026-11-20). It amends [ADR 0024](0024-demo-console.md) (a public, ano
 _Added 2026-11-20. Numbered 15 so Phases 11–14 keep their numbers. It
 runs after Phase 11 and before Phases 12 and 13. Starts when 9.4's
 interactive page has shipped, 10.3 and 10.6 are checked (status series and
-dashboard proven live), 11.2a-c are checked (the showcase builder and the
-Databricks Free Edition images), and 11.5 has a recorded measured
+dashboard proven live), 11.2a-b are checked and 11.2c is checked or its
+failure is recorded (the showcase builder and the Databricks Free Edition
+images), and 11.5 has a recorded measured
 comparison (same input, run time and cost per million events on both
 engines), so the page can show Cerberus metrics and performance with
 Databricks as a partner column. ADR 0027._
