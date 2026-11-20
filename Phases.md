@@ -204,6 +204,10 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
       ADR 0026 Proposed 2026-11-14, Accepted 2026-11-20 (plan:
       `docs/plans/2026-11-13-phase-9-well-architected-review.md`); the Tool
       answers and milestone 9 are not written yet
+      PR 2 merged 2026-11-20 (#163): the two console alarms and the
+      `cerberus-admin` `DescribeAlarms` paste text; the paste is not done
+      PR 3 built 2026-11-20: console runbook (emergency levers, invite
+      lifecycle), `enabled_users` in `make console-check`, `/start-day` step 5
 
 ## Phase 10 — Pipeline status & alerting ⬜
 
@@ -216,7 +220,8 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
       per-execution start/finish series for the alert link; the named
       query set and its CI check
       - Plan: `docs/plans/2026-11-20-pipeline-status-exporter.md`. ADR 0021
-        amendment (transport, series names, JSON query set) Proposed
+        amendment (transport, series names, JSON query set) Proposed and
+        Accepted
         2026-11-20. Owner answers 2026-11-20: T3 (hand-written remote write,
         no OpenTelemetry), JSON at `observability/queries/status.json`, no
         backfill, owner smoke write before 10.6.

@@ -14,7 +14,7 @@ Amended by [ADR 0024](0024-demo-console.md) (2026-10-27): the shared Grafana is 
 
 Amended 2026-11-12 (Accepted 2026-11-12): hooks for the Phase 14 agents — one named query set, an `execution` label on alerts, a reserved AI review panel, and 14.2–14.4 moved to directly after Phase 10 (see Amendment below).
 
-Amendment 2026-11-20 (Proposed): 10.2 transport (hand-written remote write, no OpenTelemetry), series names, JSON query set (see Amendment below).
+Amendment 2026-11-20 (Accepted 2026-11-20): 10.2 transport (hand-written remote write, no OpenTelemetry), series names, JSON query set (see Amendment below).
 
 ## Context
 
@@ -376,7 +376,7 @@ Option C: Phase 10 alerting stays deterministic (AMP ruler, Alertmanager, SNS, `
 
 ## Amendment (2026-11-20): 10.2 transport, series names and query-set format
 
-Status: Proposed (2026-11-20). The plan is [2026-11-20-pipeline-status-exporter.md](../plans/2026-11-20-pipeline-status-exporter.md); it holds the full series table, the query-set entries and the build steps. This amendment settles what Question 2 left to 10.2's first spike: the transport, the exact series names and the query-set file format. The original text stays as written, except that two earlier statements are superseded: the "Instrumentation API" paragraph of Question 2 (OpenTelemetry as the API, and `max without (instance, job)`) by the Transport decision below, and the "90 days" retention by the Retention decision below.
+Status: Accepted (2026-11-20). The plan is [2026-11-20-pipeline-status-exporter.md](../plans/2026-11-20-pipeline-status-exporter.md); it holds the full series table, the query-set entries and the build steps. This amendment settles what Question 2 left to 10.2's first spike: the transport, the exact series names and the query-set file format. The original text stays as written, except that two earlier statements are superseded: the "Instrumentation API" paragraph of Question 2 (OpenTelemetry as the API, and `max without (instance, job)`) by the Transport decision below, and the "90 days" retention by the Retention decision below.
 
 ### Context
 

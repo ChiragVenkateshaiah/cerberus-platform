@@ -567,3 +567,64 @@ def test_the_lambda_log_policy_is_logs_only_on_one_log_group(edge):
     assert one_string(stmts[0]["Effect"]) == "Allow"
     assert actions_of(stmts[0]) == LAMBDA_LOG_ACTIONS
     assert one_string(stmts[0]["Resource"]) == "${aws_cloudwatch_log_group.command.arn}:*"
+
+
+# --- the two console alarms (9.7, ADR 0026) -------------------------------------------
+
+ALARMS = {
+    "api_5xx": {
+        "alarm_name": "cerberus-console-api-5xx",
+        "namespace": "AWS/ApiGateway",
+        "metric_name": "5xx",
+        "dimensions": "{ ApiId = aws_apigatewayv2_api.this.id }",
+        "threshold": "3",
+    },
+    "lambda_errors": {
+        "alarm_name": "cerberus-console-lambda-errors",
+        "namespace": "AWS/Lambda",
+        "metric_name": "Errors",
+        "dimensions": "{ FunctionName = aws_lambda_function.command.function_name }",
+        "threshold": "1",
+    },
+}
+
+
+def test_exactly_the_two_console_alarms_exist(edge):
+    assert len(resources_of(edge, "aws_cloudwatch_metric_alarm")) == len(ALARMS)
+    for name in ALARMS:
+        resource(edge, "aws_cloudwatch_metric_alarm", name)
+
+
+@pytest.mark.parametrize("name", sorted(ALARMS))
+def test_each_alarm_watches_the_expected_metric_and_threshold(edge, name):
+    want = ALARMS[name]
+    alarm = resource(edge, "aws_cloudwatch_metric_alarm", name)
+    assert one_string(attr(alarm, "alarm_name")) == want["alarm_name"]
+    assert one_string(attr(alarm, "namespace")) == want["namespace"]
+    assert one_string(attr(alarm, "metric_name")) == want["metric_name"]
+    assert attr(alarm, "dimensions") == want["dimensions"]
+    assert one_string(attr(alarm, "statistic")) == "Sum"
+    assert attr(alarm, "period") == "300"
+    assert attr(alarm, "evaluation_periods") == "1"
+    assert attr(alarm, "threshold") == want["threshold"]
+    assert one_string(attr(alarm, "comparison_operator")) == "GreaterThanOrEqualToThreshold"
+
+
+@pytest.mark.parametrize("name", sorted(ALARMS))
+def test_no_traffic_is_not_a_breach_and_both_states_notify_the_alerts_topic(edge, name):
+    alarm = resource(edge, "aws_cloudwatch_metric_alarm", name)
+    assert one_string(attr(alarm, "treat_missing_data")) == "notBreaching"
+    assert attr(alarm, "alarm_actions") == "[var.alarm_topic_arn]"
+    assert attr(alarm, "ok_actions") == "[var.alarm_topic_arn]"
+    tags = attr(alarm, "tags")
+    assert re.search(r'^\s*Phase\s*=\s*"9"\s*$', tags, flags=re.M), tags
+    assert re.search(r'^\s*Component\s*=\s*"console"\s*$', tags, flags=re.M), tags
+
+
+def test_the_topic_comes_from_the_observability_module(edge):
+    var = block(edge, r'variable\s+"alarm_topic_arn"')
+    assert attr(var, "type") == "string"
+    assert not re.search(r"^[ \t]*default[ \t]*=", var, flags=re.M)  # the caller must pass it
+    env = hcl_text(ROOT / "terraform" / "envs" / "dev-standing" / "main.tf")
+    module = block(env, r'module\s+"console_edge"')
+    assert attr(module, "alarm_topic_arn") == "module.observability.alerts_topic_arn"

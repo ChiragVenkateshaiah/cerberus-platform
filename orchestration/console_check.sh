@@ -142,6 +142,18 @@ info console_subnet_enis "$(val aws_ ec2 describe-network-interfaces \
   --filters Name=subnet-id,Values="$SUBNET" --query 'length(NetworkInterfaces)' --output text)"
 info cloudfront_service_sgs "$(val aws_ ec2 describe-security-groups \
   --filters Name=tag-key,Values=aws.cloudfront.vpcorigin --query 'length(SecurityGroups)' --output text)"
+# Invited users still enabled (ADR 0026, invite lifecycle). A visitor's account
+# should be disabled within 7 days of the invite, so any non-zero value is a
+# reminder, not a failure. The CLI merges the ListUsers pages before the query
+# because the output is JSON (with --output text the query runs per page). Counts only:
+# no username and no pool ID is printed. A failed read prints `unknown`.
+users="$(val aws_ cognito-idp list-users --user-pool-id "$POOL" \
+  --query 'length(Users[?Enabled])' --output json)"
+if [[ "$users" =~ ^[0-9]+$ ]]; then
+  info enabled_users "$users"
+else
+  echo "enabled_users unknown"
+fi
 
 if ((FAIL)); then
   echo "console_check FAILED: something from a session is still up, or could not be read"
