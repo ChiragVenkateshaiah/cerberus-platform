@@ -90,18 +90,25 @@ def test_unknown_command_is_refused():
 
 
 def test_no_boto3_or_network_imports():
-    # PR C: urllib is allowed in publish.py (--url) and test_e2e.py (queries the
-    # local Prometheus) only. boto3, botocore, socket and requests stay banned.
-    always = re.compile(r"^\s*(import|from)\s+(boto3|botocore|socket|requests)\b", re.M)
-    banned = re.compile(r"^\s*(import|from)\s+(boto3|botocore|urllib|http|socket|requests)\b", re.M)
+    # PR D: urllib is allowed in publish.py (--url), aws_send.py (--send) and the
+    # test files that fake or query it. boto3 and botocore are allowed only in
+    # aws_send.py, and there only inside functions (lazy). socket, requests
+    # and http stay banned everywhere.
+    always = re.compile(r"^\s*(import|from)\s+(socket|requests|http)\b", re.M)
+    aws = re.compile(r"^\s*(import|from)\s+(boto3|botocore)\b", re.M)
+    top_level_aws = re.compile(r"^(import|from)\s+(boto3|botocore)\b", re.M)
+    net = re.compile(r"^\s*(import|from)\s+urllib\b", re.M)
+    urllib_ok = ("publish.py", "aws_send.py", "test_e2e.py", "test_aws_send.py")
     for path in HERE.glob("*.py"):
         text = path.read_text()
-        if path.name in ("publish.py", "test_e2e.py"):
-            assert not always.search(text), path.name
-        else:
-            assert not banned.search(text), path.name
-        if not path.name.startswith("test_"):  # test files only name the modules
-            assert "boto3" not in text, path.name
+        assert not always.search(text), path.name
+        if path.name != "aws_send.py":
+            assert not aws.search(text), path.name
+        if path.name not in urllib_ok:
+            assert not net.search(text), path.name
+        if not path.name.startswith("test_") and path.name != "aws_send.py":
+            assert "boto3" not in text, path.name  # test files only name the modules
+    assert not top_level_aws.search((HERE / "aws_send.py").read_text())
 
 
 def test_record_for_another_execution_exits_2(capsys, tmp_path):
