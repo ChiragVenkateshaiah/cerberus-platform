@@ -1,0 +1,277 @@
+# promtool unit tests for status.rules.yaml (plan 10.4a).
+# Run: make alerts-test. promtool puts time() at the eval_time, counted from 0.
+rule_files:
+  - status.rules.yaml
+
+evaluation_interval: 1m
+
+tests:
+  # 1. A failed run fires after 2 m with its own name; the next passing run resolves it.
+  - interval: 1m
+    input_series:
+      - series: 'cerberus_run_status'
+        values: '1 1 0 0 0 0 0 0 1 1 1'
+      - series: 'cerberus_execution_finished_timestamp_seconds{execution="run-a"}'
+        values: '100+0x10'
+      - series: 'cerberus_execution_finished_timestamp_seconds{execution="run-b"}'
+        values: '_ _ 200 200 200 200 200 200 200 200 200'
+      - series: 'cerberus_execution_finished_timestamp_seconds{execution="run-c"}'
+        values: '_ _ _ _ _ _ _ _ 300 300 300'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: CerberusRunFailed
+        exp_alerts: []
+      - eval_time: 4m
+        alertname: CerberusRunFailed
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              execution: run-b
+            exp_annotations:
+              summary: "The latest pipeline run failed."
+              description: "Run run-b did not finish successfully. To see which step stopped it: cerberus run run-b. AI review (Phase 14): make review RUN=run-b."
+      - eval_time: 7m
+        alertname: CerberusRunFailed
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              execution: run-b
+            exp_annotations:
+              summary: "The latest pipeline run failed."
+              description: "Run run-b did not finish successfully. To see which step stopped it: cerberus run run-b. AI review (Phase 14): make review RUN=run-b."
+      - eval_time: 9m
+        alertname: CerberusRunFailed
+        exp_alerts: []
+
+  # 2. Race: the status sample lands at 3 m and the finish sample one evaluation
+  # later, at 4 m. At 3 m the join still picks the old run (run-a), so a pending
+  # alert for run-a starts. It must never fire: at 5 m (2 m after 3 m) there is
+  # no alert. Only run-b, pending from 4 m, fires at 6 m.
+  - interval: 1m
+    input_series:
+      - series: 'cerberus_run_status'
+        values: '1 1 1 0 0 0 0 0'
+      - series: 'cerberus_execution_finished_timestamp_seconds{execution="run-a"}'
+        values: '100+0x7'
+      - series: 'cerberus_execution_finished_timestamp_seconds{execution="run-b"}'
+        values: '_ _ _ _ 200 200 200 200'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: CerberusRunFailed
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: CerberusRunFailed
+        exp_alerts: []
+      - eval_time: 6m
+        alertname: CerberusRunFailed
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              execution: run-b
+            exp_annotations:
+              summary: "The latest pipeline run failed."
+              description: "Run run-b did not finish successfully. To see which step stopped it: cerberus run run-b. AI review (Phase 14): make review RUN=run-b."
+      - eval_time: 7m
+        alertname: CerberusRunFailed
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              execution: run-b
+            exp_annotations:
+              summary: "The latest pipeline run failed."
+              description: "Run run-b did not finish successfully. To see which step stopped it: cerberus run run-b. AI review (Phase 14): make review RUN=run-b."
+
+  # 3a. Two data-quality errors fire after 2 m and carry the run name.
+  - interval: 1m
+    input_series:
+      - series: 'cerberus_dq_errors'
+        values: '2 2 2 2 2'
+      - series: 'cerberus_execution_finished_timestamp_seconds{execution="run-a"}'
+        values: '100+0x4'
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: CerberusDataQualityErrors
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: CerberusDataQualityErrors
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              execution: run-a
+            exp_annotations:
+              summary: "The latest run finished, but its data checks found errors."
+              description: "Run run-a had 2 data-quality errors. To see which checks failed: cerberus run run-a. AI review (Phase 14): make review RUN=run-a."
+
+  # 3b. NaN (the suite did not run) never fires.
+  - interval: 1m
+    input_series:
+      - series: 'cerberus_dq_errors'
+        values: 'NaN NaN NaN NaN NaN'
+      - series: 'cerberus_execution_finished_timestamp_seconds{execution="run-a"}'
+        values: '100+0x4'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: CerberusDataQualityErrors
+        exp_alerts: []
+
+  # 3c. Zero errors never fires.
+  - interval: 1m
+    input_series:
+      - series: 'cerberus_dq_errors'
+        values: '0 0 0 0 0'
+      - series: 'cerberus_execution_finished_timestamp_seconds{execution="run-a"}'
+        values: '100+0x4'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: CerberusDataQualityErrors
+        exp_alerts: []
+
+  # 4a. Never reported: run-a started at epoch 3600 s and the previous finish is
+  # older. No alert at 59 m after the start (119 m), alert at 61 m (121 m).
+  - interval: 1m
+    input_series:
+      - series: 'cerberus_run_started_timestamp_seconds'
+        values: '3600+0x125'
+      - series: 'cerberus_run_finished_timestamp_seconds'
+        values: '3000+0x125'
+      - series: 'cerberus_execution_started_timestamp_seconds{execution="run-0"}'
+        values: '1000+0x125'
+      - series: 'cerberus_execution_started_timestamp_seconds{execution="run-a"}'
+        values: '3600+0x125'
+    alert_rule_test:
+      - eval_time: 119m
+        alertname: CerberusRunNeverReported
+        exp_alerts: []
+      - eval_time: 121m
+        alertname: CerberusRunNeverReported
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              execution: run-a
+            exp_annotations:
+              summary: "A pipeline run started more than 1 hour ago and has not reported a result."
+              description: "Run run-a started but no finish was recorded. To see what it did so far: cerberus run run-a. AI review (Phase 14): make review RUN=run-a."
+
+  # 4b. A start followed by a finish 16 minutes later (960 s): never an alert.
+  - interval: 1m
+    input_series:
+      - series: 'cerberus_run_started_timestamp_seconds'
+        values: '3600+0x125'
+      - series: 'cerberus_run_finished_timestamp_seconds'
+        values: '3000+0x15 4560+0x109'
+      - series: 'cerberus_execution_started_timestamp_seconds{execution="run-a"}'
+        values: '3600+0x125'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: CerberusRunNeverReported
+        exp_alerts: []
+      - eval_time: 119m
+        alertname: CerberusRunNeverReported
+        exp_alerts: []
+      - eval_time: 121m
+        alertname: CerberusRunNeverReported
+        exp_alerts: []
+
+  # 4c. A finish at 59 m after the start (before the 1 h mark): no alert at 61 m.
+  - interval: 1m
+    input_series:
+      - series: 'cerberus_run_started_timestamp_seconds'
+        values: '3600+0x125'
+      - series: 'cerberus_run_finished_timestamp_seconds'
+        values: '3000+0x58 7140+0x66'
+      - series: 'cerberus_execution_started_timestamp_seconds{execution="run-a"}'
+        values: '3600+0x125'
+    alert_rule_test:
+      - eval_time: 119m
+        alertname: CerberusRunNeverReported
+        exp_alerts: []
+      - eval_time: 121m
+        alertname: CerberusRunNeverReported
+        exp_alerts: []
+
+  # 4d. A start and no finish series at all (a first run, or no finish in 30 days):
+  # no alert at 59 m after the start, alert with the run name at 61 m.
+  - interval: 1m
+    input_series:
+      - series: 'cerberus_run_started_timestamp_seconds'
+        values: '3600+0x125'
+      - series: 'cerberus_execution_started_timestamp_seconds{execution="run-a"}'
+        values: '3600+0x125'
+    alert_rule_test:
+      - eval_time: 119m
+        alertname: CerberusRunNeverReported
+        exp_alerts: []
+      - eval_time: 121m
+        alertname: CerberusRunNeverReported
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              execution: run-a
+            exp_annotations:
+              summary: "A pipeline run started more than 1 hour ago and has not reported a result."
+              description: "Run run-a started but no finish was recorded. To see what it did so far: cerberus run run-a. AI review (Phase 14): make review RUN=run-a."
+
+  # 5a. Error budget, 1 failure in 4 runs (one sample per run, one per day): under
+  # 5 runs, so no alert.
+  - interval: 1d
+    input_series:
+      - series: 'cerberus_run_status'
+        values: '1 1 1 0'
+    alert_rule_test:
+      - eval_time: 3d
+        alertname: CerberusErrorBudgetBurn
+        exp_alerts: []
+
+  # 5b. 1 failure in 5 runs: 20% failed, 5 runs, fires (no execution label).
+  - interval: 1d
+    input_series:
+      - series: 'cerberus_run_status'
+        values: '1 1 1 1 0'
+    alert_rule_test:
+      - eval_time: 4d
+        alertname: CerberusErrorBudgetBurn
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+            exp_annotations:
+              summary: "More than 5% of recent pipeline runs failed."
+              description: "In the last 90 days more than 5% of runs did not succeed. SLO 1 allows 5%. See docs/slo.md (SLO 1) and the run history."
+
+  # 5c. 1 failure in 20 runs: exactly 5%, and the test is a strict >, so no alert.
+  - interval: 1d
+    input_series:
+      - series: 'cerberus_run_status'
+        values: '1x18 0'
+    alert_rule_test:
+      - eval_time: 19d
+        alertname: CerberusErrorBudgetBurn
+        exp_alerts: []
+
+  # 6. Alert-path check: one smoke sample at 0. It fires while the sample is under
+  # 10 m old, carries `execution`, and is gone at 11 m.
+  - interval: 1m
+    input_series:
+      - series: 'cerberus_publisher_smoke{execution="smoke-20261120T120000Z"}'
+        values: '1795176000 _x15'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: CerberusAlertPathCheck
+        exp_alerts:
+          - exp_labels:
+              severity: info
+              execution: smoke-20261120T120000Z
+            exp_annotations:
+              summary: "Alert path check: a test message, no action needed."
+              description: "Smoke test smoke-20261120T120000Z was written by make status-smoke. This is only a check that alert emails arrive."
+      - eval_time: 9m
+        alertname: CerberusAlertPathCheck
+        exp_alerts:
+          - exp_labels:
+              severity: info
+              execution: smoke-20261120T120000Z
+            exp_annotations:
+              summary: "Alert path check: a test message, no action needed."
+              description: "Smoke test smoke-20261120T120000Z was written by make status-smoke. This is only a check that alert emails arrive."
+      - eval_time: 11m
+        alertname: CerberusAlertPathCheck
+        exp_alerts: []

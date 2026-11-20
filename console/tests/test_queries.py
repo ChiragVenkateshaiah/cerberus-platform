@@ -35,7 +35,7 @@ def test_real_file_passes_lint(doc):
 
 
 def test_real_file_has_the_plan_entries(doc):
-    assert len(doc["queries"]) == 13
+    assert len(doc["queries"]) == 17
     assert len(doc["metrics"]) == 14
     assert {m["scope"] for m in doc["metrics"]} == {"latest", "detail", "execution"}
     labels = {m["name"]: m["labels"] for m in doc["metrics"] if m["labels"]}
@@ -181,6 +181,53 @@ def test_lint_rejects_a_bad_file(doc):
     assert "cerberus_nope is not in the metrics catalogue" in text
     assert "metrics: duplicate name cerberus_run_status" in text
     assert "scope must be one of" in text
+
+
+# label
+
+
+def test_every_real_entry_has_a_label(doc):
+    labels = [q["label"] for q in doc["queries"]]
+    assert len(labels) == len(doc["queries"])
+    assert entry_label(doc, "latest_status") == "Last run"
+    assert entry_label(doc, "latest_failed_step") == "What broke"
+    assert entry_label(doc, "latest_dq_passed") == "Data checks"
+    assert entry_label(doc, "last_success") == "Last good data"
+    assert entry_label(doc, "run_success_share_90d") == "Runs that passed (90 days)"
+
+
+def entry_label(doc, name):
+    return next(q["label"] for q in doc["queries"] if q["name"] == name)
+
+
+def test_label_is_optional(doc):
+    ok = copy.deepcopy(doc)
+    del ok["queries"][0]["label"]
+    assert queries.lint(ok) == []
+
+
+@pytest.mark.parametrize(
+    ("label", "message"),
+    [
+        ("", "label must be a non-empty string"),
+        ("   ", "label must be a non-empty string"),
+        (7, "label must be a non-empty string"),
+        ("two\nlines", "label must be one line"),
+        ("x" * 61, "label is over 60 characters"),
+        ("run {{step}}", "templating ($ or {{) is not allowed in label"),
+        ("cost $5", "templating ($ or {{) is not allowed in label"),
+    ],
+)
+def test_lint_rejects_a_bad_label(doc, label, message):
+    bad = copy.deepcopy(doc)
+    bad["queries"][0]["label"] = label
+    assert any(message in e for e in queries.lint(bad)), queries.lint(bad)
+
+
+def test_label_of_exactly_60_characters_is_accepted(doc):
+    ok = copy.deepcopy(doc)
+    ok["queries"][0]["label"] = "x" * 60
+    assert queries.lint(ok) == []
 
 
 # check_rule_expr

@@ -91,6 +91,11 @@ def test_failed_run_then_next_start_then_success():
     assert by_step["RunDbt"] > 0  # a real value next to the NaN
     assert got["last_success"] == []  # a failure writes no last_success
     assert [r["metric"]["execution"] for r in got["newest_finished_execution"]] == [FAILED]
+    # The 10.4 error-budget entries: one status sample so far, and it is a failure.
+    assert scalar(got["runs_90d"]) == 1
+    assert scalar(got["run_success_share_90d"]) == 0
+    assert [r["metric"]["execution"] for r in got["runs_finished_30d"]] == [FAILED]
+    assert [r["metric"]["execution"] for r in got["runs_started_30d"]] == [FAILED]
 
     # 2. The start of the next run, 45 s ago. It adds only the two start series.
     push("start", "--execution", NEXT, "--started", iso(-45), "--at", iso(-45))
@@ -107,6 +112,10 @@ def test_failed_run_then_next_start_then_success():
     assert scalar(got["last_success"]) == pytest.approx(publish.series.epoch(success_record["end"]))
     assert [r["metric"]["execution"] for r in got["newest_finished_execution"]] == [SUCCEEDED]
     assert scalar(got["latest_dq_errors"]) == 0
+    # Two status samples (one failure, one success): the share is 0.5 and the count is 2.
+    assert scalar(got["runs_90d"]) == 2
+    assert scalar(got["run_success_share_90d"]) == pytest.approx(0.5)
+    assert {r["metric"]["execution"] for r in got["runs_finished_30d"]} == {FAILED, SUCCEEDED}
 
 
 def test_smoke_value_reads_back_through_the_query():
@@ -118,3 +127,6 @@ def test_smoke_value_reads_back_through_the_query():
     with urllib.request.urlopen(f"{BASE}/api/v1/query?{params}", timeout=10) as resp:
         result = json.load(resp)["data"]["result"]
     assert abs(scalar(result) - publish.series.epoch(iso_at)) < 0.001
+    # The row carries the execution label the alert-path check rule joins on.
+    stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime(publish.series.epoch(iso_at)))
+    assert result[0]["metric"]["execution"] == f"smoke-{stamp}"

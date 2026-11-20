@@ -1,0 +1,43 @@
+# AMP Alertmanager definition (plan 10.4, ADR 0021). Terraform renders it with
+# templatefile(); `topic_arn` is the only variable. 10.4b loads the result with
+# aws_prometheus_alert_manager_definition. render_alertmanager.py renders it with a
+# dummy ARN so `amtool check-config` can check it offline.
+#
+# Route timing: a failed status stays true until the next run, possibly for 30
+# days, so repeat_interval is 24h (the 4h default would send about 6 emails a day).
+# The subject is truncated so it is always at most 100 characters (SNS limit): the
+# longest fixed part, "[Cerberus RESOLVED] CerberusDataQualityErrors " (with its
+# trailing space), is 46 characters, and the execution is cut to 50: 96 in all.
+alertmanager_config: |
+  route:
+    receiver: cerberus-sns
+    group_by: ['alertname', 'execution']
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 24h
+  receivers:
+    - name: cerberus-sns
+      sns_configs:
+        - topic_arn: ${topic_arn}
+          sigv4:
+            region: us-east-1
+          send_resolved: true
+          subject: '{{ template "cerberus.sns.subject" . }}'
+          message: '{{ template "cerberus.sns.message" . }}'
+  templates:
+    - 'cerberus_sns'
+template_files:
+  cerberus_sns: |
+    {{ define "cerberus.sns.subject" -}}
+    [Cerberus {{ .Status | toUpper }}] {{ .CommonLabels.alertname }}{{ with .CommonLabels.execution }} {{ printf "%.50s" . }}{{ end }}
+    {{- end }}
+    {{ define "cerberus.sns.message" -}}
+    {{ range .Alerts -}}
+    {{ .Status | toUpper }}: {{ .Annotations.summary }}
+    {{ .Annotations.description }}
+    Severity: {{ .Labels.severity }}
+    Started: {{ .StartsAt.Format "2006-01-02 15:04:05 UTC" }}
+    {{ if eq .Status "resolved" }}Resolved: {{ .EndsAt.Format "2006-01-02 15:04:05 UTC" }}
+    {{ end }}
+    {{ end -}}
+    {{- end }}

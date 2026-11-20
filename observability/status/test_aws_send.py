@@ -488,7 +488,11 @@ def test_smoke_dry_run_prints_one_sample(capsys):
     code, lines, err = run(capsys, "smoke", "--at", AT)
     assert code == 0 and "not sent" in err
     ms = publish.publish_ms(AT)
-    assert lines == [f"cerberus_publisher_smoke {publish.fmt_value(ms / 1000)} {ms}"]
+    # The execution label is the UTC stamp of the publish time (AT is 12:00:00Z).
+    assert lines == [
+        'cerberus_publisher_smoke{execution="smoke-20261120T120000Z"} '
+        f"{publish.fmt_value(ms / 1000)} {ms}"
+    ]
 
 
 def test_smoke_value_is_the_publish_time_and_query_is_not_timestamp():

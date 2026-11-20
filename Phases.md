@@ -239,6 +239,7 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 - [ ] 10.4 Alerting as code: failed run, DQ errors, never reported, error
       budget over runs (ADR 0021); alerts carry `execution`;
       `promtool test rules` in CI
+      - 10.4a built 2026-11-20 (rules, promtool tests, template).
 - [ ] 10.5 Terminal status view (`make status`) from the named query set
       (same code as `cerberus status`)
 - [ ] 10.6 Live check: one passing and one deliberately failed exercise,
