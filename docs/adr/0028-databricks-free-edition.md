@@ -6,7 +6,7 @@ Date: 2026-11-20
 
 Proposed (2026-11-20). This is the Phase 11.1 ADR. It extends
 [ADR 0027](0027-public-showcase.md) through the edits made to that ADR in
-commit `a72ddaa` while it was Proposed: Decisions 3 and 7 are extended, and
+PR #169 while it was Proposed: Decisions 3 and 7 are extended, and
 the builder step moves from 15.2 to 11.2a. It amends nothing that is
 Accepted: ADR 0024, ADR 0021 and ADR 0026 are not changed. The build steps
 and the facts behind this ADR are in
@@ -111,13 +111,14 @@ everyday page stays the CloudFront snapshot of ADR 0027.
 7. **`comparison.json` is optional until 11.5.** The 11.2a builder runs
    before the 11.5 comparison record exists. The builder omits
    `comparison.json` when the record is absent, and the page and the
-   dashboards show no Databricks column until it exists. This was decided in
-   the planner's follow-up to the Part A review.
+   dashboards show no Databricks column until it exists. The record cannot be required, because 11.2a runs before 11.5.
 8. **Phase 11 is split.** 11.2 becomes 11.2a to 11.2e:
    - 11.2a: the git-only showcase builder, moved from 15.2, with fail-closed
      redaction and parity with the named query set.
    - 11.2b: the workspace as code, deployed by the owner.
    - 11.2c: the AI/BI dashboards, a Genie space and the exported images.
+     If export or invites fail on Free Edition, record it; the Phase 15
+     gate then needs 11.2a-b only.
    - 11.2d: the original port of one pipeline step as a Lakeflow job or
      pipeline with expectations.
    - 11.2e: an optional, time-boxed, $0 spike: Free Edition reads Cerberus

@@ -248,7 +248,8 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 
 _Steps 11.2a-c (Free Edition: the showcase builder, the workspace as code,
 the AI/BI dashboards) run right after Phase 10 (10.7), before 14.2 (owner
-answer 2026-11-20, ADR 0028). 11.2d-11.7 keep their place after 14.2-14.4._
+answer 2026-11-20, ADR 0028). 11.2d-11.7 keep their place after 14.2-14.4. 11.2 is ticked when 11.2a-d
+are done; 11.2e is optional._
 
 - [ ] 11.1 ADR: Databricks Free Edition as the partner workspace and
       presentation layer; trial and Glue federation re-verified by an
@@ -262,7 +263,8 @@ answer 2026-11-20, ADR 0028). 11.2d-11.7 keep their place after 14.2-14.4._
         dashboards and the Genie instructions in `databricks/showcase/`;
         owner-run deploy (bundle if it works on Free Edition, else UI import)
       - 11.2c AI/BI dashboards (run story for everyone, scale story, how it
-        was built) and a Genie space; exported PNGs with the checklist
+        was built) and a Genie space; exported PNGs with the checklist. If export or invites fail on Free
+        Edition, record it; the Phase 15 gate then needs 11.2a-b only
       - 11.2d Port one pipeline step as a Lakeflow job or pipeline with
         expectations
       - 11.2e Optional $0 spike: Free Edition reads Cerberus gold (external
@@ -332,8 +334,9 @@ amendment, Accepted 2026-11-12); 14.5–14.8 follow after Phase 13._
 _Added 2026-11-20. Numbered 15 so Phases 11–14 keep their numbers. It
 runs after Phase 11 and before Phases 12 and 13. Starts when 9.4's
 interactive page has shipped, 10.3 and 10.6 are checked (status series and
-dashboard proven live), 11.2a-c are checked (the showcase builder and the
-Databricks Free Edition images), and 11.5 has a recorded measured
+dashboard proven live), 11.2a-b are checked and 11.2c is checked or its failure is
+recorded (the showcase builder and the Databricks Free Edition images), and 11.5
+has a recorded measured
 comparison (same input, run time and cost per million events on both
 engines), so the page can show Cerberus metrics and performance with
 Databricks as a partner column. ADR 0027._
@@ -372,6 +375,8 @@ only, $0 and has no dependency. It runs after Phase 10 (10.7), before 14.2
       check
 - [ ] 16.3 Shown on the site and as the Databricks "how it was built"
       dashboard (with 11.2c and 15.3)
+      Dangling-link check applies only to items on or after the ADR 0029
+      acceptance date
 - [ ] 16.4 Well-Architected pass + ADR
 
 ---

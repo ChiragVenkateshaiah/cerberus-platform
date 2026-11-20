@@ -158,14 +158,14 @@ Why: Free Edition gives the production-level look and the Genie "ask it in plain
   - PNGs of the published dashboards, with metadata stripped, committed under `observability/showcase/databricks/`.
   - A CI check allows only PNG, caps the size and requires a sidecar `.json` with the source dashboard file, the export date and the owner checklist ticked: no workspace URL, email or IDs visible.
   - CI cannot read images, so this check is the owner's checklist plus a size and type gate. The plan says so.
-- **`comparison.json` is optional until 11.5.** The 11.2a builder runs before the 11.5 comparison record exists. The builder omits `comparison.json` when the record is absent, and the page and the Databricks dashboards show no Databricks comparison column until it exists. This closes a gap Part A flagged; it is a decision made by the planner's follow-up, not by the owner.
+- **`comparison.json` is optional until 11.5.** The 11.2a builder runs before the 11.5 comparison record exists. The builder omits `comparison.json` when the record is absent, and the page and the Databricks dashboards show no Databricks comparison column until it exists. The record cannot be required, because 11.2a runs before 11.5.
 - **Labels on screen.** "Databricks Free Edition: learning tier, not a production SLA; numbers come from Cerberus run records." Free Edition run times are never presented as Databricks performance benchmarks. Only the 11.5 trial step is a measured comparison (ADR 0027 Decision 7).
 
 ## 6. ADR outlines
 
 ### ADR 0028. Databricks Free Edition as the partner workspace and presentation layer
 
-Status: Proposed (2026-11-20). It is the Phase 11.1 ADR. It extends ADR 0027 through the edits made in #169 while ADR 0027 is Proposed (done in commit `a72ddaa`): Decisions 3 and 7 are extended, and 15.2 moves to 11.2a. ADR 0024, 0021 and 0026 are not amended.
+Status: Proposed (2026-11-20). It is the Phase 11.1 ADR. It extends ADR 0027 through the edits made in #169 while ADR 0027 is Proposed (done in PR #169): Decisions 3 and 7 are extended, and 15.2 moves to 11.2a. ADR 0024, 0021 and 0026 are not amended.
 
 **Context**
 - The owner's request, quoted.
@@ -207,7 +207,7 @@ Status: Proposed (2026-11-20). It extends the ADR 0027/0028 data contract with `
 
 **Decision**
 1. A generator (`tools/traceability/`, Python, no AWS) builds `history.json` and the `docs/traceability.md` table from git, Phases.md, the ADR Status lines, plan files, run records and `gh pr list --state merged` (CI `GITHUB_TOKEN`, `pull-requests: read`).
-2. A CI check fails on dangling links: a checked subtask with no PR, an ADR Accepted without a plan, a run record not referenced.
+2. A CI check fails on dangling links: a checked subtask with no PR, an ADR Accepted without a plan, a run record not referenced. It applies only to subtasks checked and ADRs accepted on or after the date ADR 0029 is accepted. Older items are listed with the link marked `none (before traceability)` and do not fail the check.
 3. It is shown on the site (15.3) and as the Databricks "how it was built" dashboard.
 4. Only public metadata: PR number, title, dates. No author emails.
 
@@ -239,7 +239,7 @@ Status: Proposed (2026-11-20). It extends the ADR 0027/0028 data contract with `
         location or Glue federation) with a read-only role; record yes or no
 ```
 
-**Phase 15 (#169, edited in `a72ddaa`):** 15.2 becomes "Showcase publish: use the 11.2a builder; add the Databricks images (11.2c)". The 15.3 view adds the "Built in Databricks" section.
+**Phase 15 (#169, already edited):** 15.2 becomes "Showcase publish: use the 11.2a builder; add the Databricks images (11.2c)". The 15.3 view adds the "Built in Databricks" section.
 
 **Traceability:** a new Phase 16, "Development traceability", numbered 16. It is git-only, $0 and has no dependency, so it can run any time after ADR 0029 is accepted. Slot: after Phase 10 (10.7), before 14.2 (owner answer 2, section 10).
 
@@ -247,7 +247,7 @@ Status: Proposed (2026-11-20). It extends the ADR 0027/0028 data contract with `
 - [ ] 16.1 ADR: platform-development traceability. ADR 0029
 - [ ] 16.2 Generator: `history.json` and `docs/traceability.md` from git,
       Phases.md, ADRs, plans, run records and merged PRs; CI dangling-link
-      check
+      check (only for items on or after the ADR 0029 acceptance date)
 - [ ] 16.3 Shown on the site and as the Databricks "how it was built"
       dashboard (with 11.2c and 15.3)
 - [ ] 16.4 Well-Architected pass + ADR
@@ -258,7 +258,7 @@ The 16.4 subtask also needs adding to the Well-Architected list at Phases.md ~L2
 **Build steps and verification**
 
 1. **PR 1, docs.**
-   - ADR 0028 and ADR 0029 Proposed, this plan, the Phases.md, `docs/plan.md` and README edits, and the #169 edits to ADR 0027 (done in `a72ddaa`).
+   - ADR 0028 and ADR 0029 Proposed, this plan, the Phases.md, `docs/plan.md` and README edits, and the #169 edits to ADR 0027 (done in PR #169).
    - Verify: no URL, ID or email (`grep -nE 'cloud\.databricks\.com|[0-9]{12}|@'` on the diff, allowing the redaction-rule text); every claim traces to section 2.
 2. **Owner spike, $0, about 1 h; it settles D7 and D8.**
    - Sign up for Free Edition (or reuse an account).
@@ -271,12 +271,13 @@ The 16.4 subtask also needs adding to the Well-Architected list at Phases.md ~L2
    - The builder from ADR 0027 §5.1–5.2.
    - Verify: tests, the planted-ARN failure, and parity with `make status-e2e`.
 4. **PR 3 (16.2).**
-   - The generator and the CI job.
+   - The generator and the CI job. The dangling-link check applies only to items on or after the ADR 0029 acceptance date; older items show `none (before traceability)`.
    - Verify: the generator is deterministic; a planted dangling link fails the CI check; the output has no emails.
 5. **PR 4 (11.2b).**
    - `databricks/showcase/` (load notebook, fixed schemas, dashboard files with placeholders, Genie instructions) and `make databricks-showcase-upload`, an owner-run CLI step.
    - Verify: a local schema test against the JSON; the owner runs the deploy, and the table row counts equal the record counts.
 6. **Owner (11.2c).**
+   - If export or invites fail on Free Edition, record it; the Phase 15 gate then needs 11.2a-b only.
    - Publish the dashboards, export the PNGs, strip the metadata, fill in the sidecar checklist. Commit happens through a PR.
    - Verify: the CI gate on type, size and sidecar.
 7. **PR 5 (11.2d).**
@@ -311,7 +312,7 @@ All five were answered as recommended.
 1. **Traceability** means the generated record (ADR 0029): a phase, ADR, plan, PR and run record link, shown on the site and as a second Databricks dashboard.
 2. **Phase 16** runs right after Phase 10 (10.7), before 14.2.
 3. **Free Edition steps 11.2a-c** also move ahead of 14.2-14.4, right after Phase 10. They need no AWS and no trial, and they feed Phase 15 and Phase 16.
-4. **ADR 0027** is edited in #169 while it is Proposed. Done in commit `a72ddaa`.
+4. **ADR 0027** is edited in #169 while it is Proposed. Done in PR #169.
 5. **The optional 11.2e gold spike** is accepted. It is time-boxed and $0. The read-only, gold-scoped role is removed on failure. It does not replace the trial.
 
 Sources:

@@ -464,7 +464,8 @@ ahead of 14.2-14.4. The plan is
 - **Free Edition scope (ADR 0028, Proposed):** the sanitised showcase JSON
   from git (the builder, moved here from step 15.2 as 11.2a) is loaded by
   the owner into Delta tables, with AI/BI dashboards and a Genie space on
-  top (11.2b-c). The public sees exported images and a video on the Phase 15
+  top (11.2b-c). If export or invites fail on Free Edition, record it; the
+  Phase 15 gate then needs 11.2a-b only. The public sees exported images and a video on the Phase 15
   page; live access is by invitation only, because Free Edition cannot give
   an anonymous dashboard or app. No Databricks credential sits in CI or on
   a public host. 11.2d is the Lakeflow port of one pipeline step. 11.2e is
@@ -521,14 +522,16 @@ ahead of 14.2-14.4. The plan is
   storage format (ADR 0017); writes from Databricks into Cerberus's
   tables; classic compute in the Cerberus VPC; ML and AI features.
 - **Done when:** the Free Edition dashboards are built from the showcase
-  JSON and their images are on the Phase 15 page; a Databricks SQL query
-  reads Cerberus gold through the federated Glue catalog with no copy, under Unity Catalog grants defined
-  in Terraform; one pipeline step runs on Databricks with its run time
-  and cost recorded beside Cerberus's numbers; and the trial is cancelled
-  with $0 of Databricks charges after it.
-- **Artifact:** the Free Edition AI/BI dashboards and images, a comparison page (each Cerberus component beside its
-  Databricks counterpart, with the measured numbers and what each gives
-  up), the ADR, a short demo, and Well-Architected milestone 11.
+  JSON and their images are committed through the image gate (11.2c); a
+  Databricks SQL query reads Cerberus gold through the federated Glue
+  catalog with no copy, under Unity Catalog grants defined in Terraform;
+  one pipeline step runs on Databricks with its run time and cost recorded
+  beside Cerberus's numbers; and the trial is cancelled with $0 of
+  Databricks charges after it.
+- **Artifact:** the Free Edition AI/BI dashboards and images, a
+  comparison page (each Cerberus component beside its Databricks
+  counterpart, with the measured numbers and what each gives up), the ADR,
+  a short demo, and Well-Architected milestone 11.
 
 ### Phase 12 — Platform tooling in Go
 - **Goal:** Replace the platform's operational scripts with one Go
@@ -635,8 +638,9 @@ after Phase 13._
 _Added 2026-11-20, numbered 15 so Phases 11–14 keep their numbers. It runs
 after Phase 11 and before Phases 12 and 13. ADR 0027 (Proposed). It starts
 when the 9.4 interactive page has shipped, 10.3 and 10.6 are checked,
-11.2a-c are checked (the showcase builder and the Databricks Free Edition
-images), and 11.5 has a recorded measured comparison. The plan is
+11.2a-b are checked and 11.2c is checked or its failure is recorded (the
+showcase builder and the Databricks Free Edition images), and 11.5 has a
+recorded measured comparison. The plan is
 `docs/plans/2026-11-20-public-showcase.md`._
 
 - **Goal:** Let anyone from GitHub or LinkedIn see Cerberus's metrics and

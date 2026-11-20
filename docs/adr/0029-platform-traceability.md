@@ -35,9 +35,14 @@ record, not a decision log.
    `pull-requests: read`.
 2. **A CI check** fails on dangling links: a checked subtask with no PR, an
    ADR Accepted without a plan, or a run record that nothing references.
+   The check applies only to subtasks checked and ADRs accepted on or
+   after the date this ADR is accepted. Older items are listed with the
+   link marked `none (before traceability)` and do not fail the check.
 3. **Where it shows.** On the public site (step 15.3), and as a Databricks
    AI/BI dashboard, "how it was built" (steps 11.2c and 16.3).
 4. **Public metadata only.** PR number, title and dates. No author emails.
+   Titles go through the ADR 0027 redaction gate. A title that fails is
+   shown as its PR number only.
 5. **Phase 16.** The work is Phase 16, "Development traceability". It is
    git only, $0 and has no dependency. It runs right after Phase 10 (10.7),
    before 14.2.
