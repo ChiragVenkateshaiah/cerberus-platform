@@ -20,7 +20,7 @@ the specific "what's next" live in [checkpoint.md](checkpoint.md)._
   own work plus an ADR. This is a real checkbox in each phase below, not an
   aspiration: architecture is built by repetition, so it is tracked like any
   other deliverable. Two parts are required to check a "Well-Architected pass
-  + ADR" subtask off (3.8, 4.5, 5.5, 6.6, 7.4, 8.11, 9.7, 10.7, 11.7, 12.7, 13.7, 14.8, 15.7), not just the ADR: also save a
+  + ADR" subtask off (3.8, 4.5, 5.5, 6.6, 7.4, 8.11, 9.7, 10.7, 11.7, 12.7, 13.7, 14.8, 15.7, 16.4), not just the ADR: also save a
   new milestone on the `cerberus-platform` AWS Well-Architected Tool workload
   (`phase-N-<slug>-complete`). See [docs/plan.md](docs/plan.md)'s
   Architecture guiding principle and [checkpoint.md](checkpoint.md)'s
@@ -246,10 +246,27 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 
 ## Phase 11 — Databricks interoperability ⬜
 
-- [ ] 11.1 ADR: Databricks as a second engine through the catalog (Free
-      Edition vs. trial, Glue federation, Terraform scope, cost guardrails)
-- [ ] 11.2 Free Edition: port one pipeline step as a Lakeflow job or
-      pipeline with expectations; workspace objects in Terraform
+_Steps 11.2a-c (Free Edition: the showcase builder, the workspace as code,
+the AI/BI dashboards) run right after Phase 10 (10.7), before 14.2 (owner
+answer 2026-11-20, ADR 0028). 11.2d-11.7 keep their place after 14.2-14.4._
+
+- [ ] 11.1 ADR: Databricks Free Edition as the partner workspace and
+      presentation layer; trial and Glue federation re-verified by an
+      amendment before 11.3. ADR 0028
+- [ ] 11.2 Free Edition
+      - 11.2a Showcase builder (git only): `observability/showcase/*.json`,
+        fail-closed redaction, parity with the named query set (moved from
+        15.2). `comparison.json` is optional until 11.5: the builder omits
+        it and the page shows no Databricks column until the record exists
+      - 11.2b Workspace as code: schema, volume, load notebook or job,
+        dashboards and the Genie instructions in `databricks/showcase/`;
+        owner-run deploy (bundle if it works on Free Edition, else UI import)
+      - 11.2c AI/BI dashboards (run story for everyone, scale story, how it
+        was built) and a Genie space; exported PNGs with the checklist
+      - 11.2d Port one pipeline step as a Lakeflow job or pipeline with
+        expectations
+      - 11.2e Optional $0 spike: Free Edition reads Cerberus gold (external
+        location or Glue federation) with a read-only role; record yes or no
 - [ ] 11.3 Trial preparation: IAM role in `dev-standing`; Terraform for the
       service credential, connection, external location, foreign catalog
       and grants; runbook with the cancellation steps
@@ -342,6 +359,20 @@ Databricks as a partner column. ADR 0027._
       and LinkedIn links; headers by curl; no account ID, ARN or S3 URI in
       the published files; Cost Explorer read after one month
 - [ ] 15.7 Well-Architected pass + ADR
+
+## Phase 16 — Development traceability ⬜
+
+_Added 2026-11-20. Numbered 16 so Phases 11–15 keep their numbers. It is git
+only, $0 and has no dependency. It runs after Phase 10 (10.7), before 14.2
+(owner answer 2026-11-20). ADR 0029._
+
+- [ ] 16.1 ADR: platform-development traceability. ADR 0029
+- [ ] 16.2 Generator: `history.json` and `docs/traceability.md` from git,
+      Phases.md, ADRs, plans, run records and merged PRs; CI dangling-link
+      check
+- [ ] 16.3 Shown on the site and as the Databricks "how it was built"
+      dashboard (with 11.2c and 15.3)
+- [ ] 16.4 Well-Architected pass + ADR
 
 ---
 
