@@ -14,6 +14,8 @@ Amended by [ADR 0024](0024-demo-console.md) (2026-10-27): the shared Grafana is 
 
 Amended 2026-11-12 (Accepted 2026-11-12): hooks for the Phase 14 agents — one named query set, an `execution` label on alerts, a reserved AI review panel, and 14.2–14.4 moved to directly after Phase 10 (see Amendment below).
 
+Amendment 2026-11-20 (Accepted 2026-11-20): 10.2 transport (hand-written remote write, no OpenTelemetry), series names, JSON query set (see Amendment below).
+
 ## Context
 
 Phase 10 ([plan.md](../plan.md#phase-10--pipeline-status--alerting)) exists
@@ -371,3 +373,49 @@ Option C: Phase 10 alerting stays deterministic (AMP ruler, Alertmanager, SNS, `
 - The AMP ruler accepts the `topk` + `group_left` rule.
 - `promtool` passes the same file.
 - The `query` template (fallback only).
+
+## Amendment (2026-11-20): 10.2 transport, series names and query-set format
+
+Status: Accepted (2026-11-20). The plan is [2026-11-20-pipeline-status-exporter.md](../plans/2026-11-20-pipeline-status-exporter.md); it holds the full series table, the query-set entries and the build steps. This amendment settles what Question 2 left to 10.2's first spike: the transport, the exact series names and the query-set file format. The original text stays as written, except that two earlier statements are superseded: the "Instrumentation API" paragraph of Question 2 (OpenTelemetry as the API, and `max without (instance, job)`) by the Transport decision below, and the "90 days" retention by the Retention decision below.
+
+### Context
+
+- The transport check is done, from PyPI and the exporter source on contrib `main` (2026-11-20). `opentelemetry-exporter-prometheus-remote-write` 0.66b2 is beta. It has no SigV4 hook: it sends with `requests.post(auth=...)`, and SigV4 signs the body, so static headers cannot carry it. It also needs native `snappy`. It cannot both remote-write and sign for `aps`, so the fallback in "Instrumentation API" applies.
+- Without its exporter, the OpenTelemetry API gives nothing for about 20 gauges written once per run. Its Prometheus translation would also add a `_s` unit suffix, `job`/`instance` labels and `target_info`.
+- `cerberus_run_failed_step_info{step}` breaks the `_info` convention: an info series always has value 1, and this one must carry 0 on the steps that did not fail. Otherwise `last_over_time[30d]` would show an old failed step for 30 days.
+- The retention statement in Question 2 and Option B ("90 days") is out of date. The earlier text is superseded: the workspace keeps 400 days (`retentionPeriodInDays: 400`, read 2026-11-20; default in `terraform/modules/prometheus_workspace/variables.tf`, per [ADR 0024](0024-demo-console.md)).
+- YAML (the 2026-11-12 example, `status.yaml`) would need PyYAML in the console Lambda zip, which has boto3 only, against the console's "plain `json.loads` only" rule.
+
+### Decision
+
+- **Transport: hand-written remote write, no OpenTelemetry.** The publisher encodes the protobuf `WriteRequest` with the standard library, compresses it with snappy literal blocks and signs it with botocore SigV4 for `aps`, as `collect_run_metrics.py` already does. The series carry exactly the labels listed, with no `job`/`instance`, so queries need no `max without (instance, job)`.
+- **Series names** (all float64 gauges; the plan section 5.1 has the full table):
+  - Label-free latest-run series: `cerberus_run_status` (1 if `SUCCEEDED`, else 0), `cerberus_last_success_timestamp_seconds` (written on success only), `cerberus_run_started_timestamp_seconds`, `cerberus_run_finished_timestamp_seconds`, `cerberus_dq_passed`, `cerberus_dq_errors`, `cerberus_dq_warnings`, `cerberus_run_duration_seconds`, `cerberus_run_events_processed`.
+  - By step: `cerberus_run_step_failed{step}` (replaces `cerberus_run_failed_step_info`; written for all 4 steps, 1 on the failed step and 0 on the others) and `cerberus_step_duration_seconds{step}`.
+  - By execution: `cerberus_run_info{execution}`, `cerberus_execution_started_timestamp_seconds{execution}` and `cerberus_execution_finished_timestamp_seconds{execution}`.
+  - The steps are the four Task states of the state machine (`InvokeIngestion`, `RunTransform`, `RunDbt`, `RunServingQuery`); a test parses the ASL template so the list cannot drift.
+- **NaN means unknown.** A value that is not known (the data-quality suite did not run, a step was not reached, events unknown) is written as NaN, not omitted. Without it, `last_over_time` would show the previous run's value. `NaN > 0` is false, so a DQ rule cannot fire on an unknown value.
+- **Write points.** At run start: the start series (`cerberus_run_started_timestamp_seconds` and the per-execution start series). At run end, in one request: the status, the finish series and the rest, repeating the start series. About 2 samples at start and 20 to 21 at end.
+- **Newest-run guard.** `end --send` refuses when the newest finished run in AMP is newer than the run being published, unless `--force`. A hand re-publish of an old run cannot overwrite the latest status. If the guard query fails, it warns and continues.
+- **Query-set format: JSON** at `observability/queries/status.json`, replacing the "for example `status.yaml`" of the 2026-11-12 amendment. It has a `metrics` catalogue and a `queries` list (name, PromQL, one-line meaning). A stdlib loader in `console/cerberus_console/queries.py` reads it. A CI lint checks the names, that every `cerberus_*` name in an `expr` is in the catalogue, that every catalogue selector sits inside `last_over_time(<selector>[30d])` (or the `[90d]` exception below), and that no entry uses templating. The consistency check (panels equal an entry, rules contain entries verbatim) from D1 stays.
+- **One exception to "always `last_over_time(...[30d])`".** `avg_over_time` and `count_over_time` over `[90d]` are allowed, for the 10.4 error budget, which averages `cerberus_run_status` over 90 days (ADR 0021, "Error budget over runs").
+- **Retention.** 400 days, as stated in Context. The 30-day reading window and the 90-day error-budget window both fit.
+
+### Consequences
+
+**Good**
+
+- No new dependency beyond boto3, so the whole path is testable offline, including against a throwaway Prometheus with the remote-write receiver.
+- Series names are final, so 10.3, 10.4, 10.5 and Phase 14 read one query set.
+- JSON works in the Lambda, on the Python 3.9 Grafana host and in Go.
+
+**Given up**
+
+- The OpenTelemetry API line in the project's story.
+- A small PRW encoder (protobuf and snappy literal blocks) to maintain, pinned by the end-to-end test.
+- Escaped quotes in the JSON PromQL, and no comments in the file (a README explains the rules).
+
+**To confirm**
+
+- In the owner smoke write, then 10.6: AMP accepts literal-only snappy, NaN samples and a v0.1.0 request signed by botocore. `aws iam simulate-principal-policy` returns `implicitDeny` for `aps:RemoteWrite` today, so the root-pasted grant comes first.
+- That the protobuf field numbers are right: the local end-to-end test (PR C) proves them against a real receiver.

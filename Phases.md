@@ -219,6 +219,14 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
       durations, events, data-quality result, last-success timestamps;
       per-execution start/finish series for the alert link; the named
       query set and its CI check
+      - Plan: `docs/plans/2026-11-20-pipeline-status-exporter.md`. ADR 0021
+        amendment (transport, series names, JSON query set) Proposed and
+        Accepted
+        2026-11-20. Owner answers 2026-11-20: T3 (hand-written remote write,
+        no OpenTelemetry), JSON at `observability/queries/status.json`, no
+        backfill, owner smoke write before 10.6.
+      - Lineage (ADR 0021 Q3) stays under 10.2: tick it after PRs A-E, the
+        smoke and L1; the live lineage check moves to 10.6.
 - [ ] 10.3 Grafana pipeline-status dashboard, provisioned as code, with a
       reserved "AI review" panel (tag `cerberus-ai`)
 - [ ] 10.4 Alerting as code: failed run, DQ errors, never reported, error
@@ -228,6 +236,8 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
       (same code as `cerberus status`)
 - [ ] 10.6 Live check: one passing and one deliberately failed exercise,
       shown correctly on the dashboard, in the terminal and as an alert
+      - Also: live lineage check (dbt-ol and Spark console output reach the
+        lineage bucket), moved from 10.2
 - [ ] 10.7 Well-Architected pass + ADR
 
 ## Phase 11 — Databricks interoperability ⬜
