@@ -229,7 +229,9 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
         2026-11-20. PR B (10.2b, publisher core, dry run only) built
         2026-11-20. PR C (10.2c, local end-to-end against a throwaway
         Prometheus) built 2026-11-20. PR D built 2026-11-20 (the first real
-        write is the owner smoke after the aps:RemoteWrite paste).
+        write is the owner smoke after the aps:RemoteWrite paste). PR E
+        built 2026-11-20 (the console names the failed task, not the Fail
+        state).
       - Lineage (ADR 0021 Q3) stays under 10.2: tick it after PRs A-E, the
         smoke and L1; the live lineage check moves to 10.6.
 - [ ] 10.3 Grafana pipeline-status dashboard, provisioned as code, with a

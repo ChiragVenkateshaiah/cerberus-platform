@@ -147,7 +147,10 @@ class AwsStepFunctionsReader:
             name = (ev.get("stateEnteredEventDetails") or {}).get("name")
             if name and when:
                 entered[name] = when
-                last_state = name
+                # A Fail state also carries stateEnteredEventDetails. Only a task
+                # names the step a run failed in, so FailStateEntered is skipped.
+                if ev.get("type") != "FailStateEntered":
+                    last_state = name
             name = (ev.get("stateExitedEventDetails") or {}).get("name")
             if name and when and name in entered:
                 states.append({"state": name, "seconds": (when - entered[name]).total_seconds()})
