@@ -152,6 +152,7 @@ layered on top of a platform that already works.
 | 12 | Platform tooling in Go | Go, AWS SDK for Go v2, `cerberusctl` CLI | _(Go docs, AWS SDK for Go v2 examples)_ | ⬜ Planned |
 | 13 | Streaming ingestion | Apache Kafka (KRaft, one start/stop EC2 instance), Go producer and consumer | _(Kafka docs; KodeKloud Kafka if available)_ | ⬜ Planned |
 | 14 | AI operations agents | Claude on Amazon Bedrock (Converse API tool use), a local MCP server over the read-only command set, an evaluation set replayed from past runs | _(Amazon Bedrock docs; MCP specification; Anthropic tool-use and evaluation docs)_ | ⬜ Planned |
+| 15 | Public showcase | A sanitised metrics snapshot on the standing edge (S3 + CloudFront), an interactive run explorer, a Databricks partner column from Phase 11 | _(CloudFront docs)_ | ⬜ Planned |
 
 🎯 **MVP is complete at the end of Phase 1.**
 
@@ -613,6 +614,40 @@ after Phase 13._
   0025 is met, and the stack is $0 idle.
 - **Artifact:** a short video of a failed run triaged with citations, the
   ADR, and Well-Architected milestone 14.
+
+### Phase 15 — Public showcase
+_Added 2026-11-20, numbered 15 so Phases 11–14 keep their numbers. It runs
+after Phase 11 and before Phases 12 and 13. ADR 0027 (Proposed). It starts
+when the 9.4 interactive page has shipped, 10.3 and 10.6 are checked, and
+11.5 has a recorded measured comparison. The plan is
+`docs/plans/2026-11-20-public-showcase.md`._
+
+- **Goal:** Let anyone from GitHub or LinkedIn see Cerberus's metrics and
+  performance on a public page that is up all the time, with Databricks
+  shown as a partner engine in its own column.
+- **Gap it closes:** the dashboards and the terminal are invite-only, and
+  the landing page shows no measured numbers. A viewer who is not invited
+  cannot see how Cerberus performs, or how it sits beside Databricks.
+- **Why this skill set:** publishing operational data safely is a platform
+  skill. The hard parts are a data contract built from git only, a
+  fail-closed redaction gate, abuse controls at the edge without breaking
+  $0 idle, and honest positioning. Databricks is shown with its scope and
+  source, never ranked.
+- **Stack:** the existing standing edge (S3 and CloudFront), a snapshot
+  builder over the run records and the 11.5 comparison record, same-origin
+  JavaScript on the 9.4 page, a CloudFront requests alarm, and a spike of
+  the CloudFront Free flat-rate plan.
+- **The central decision (ADR 0027):** how to show metrics to anonymous
+  visitors without exposing the owner's machine or weakening ADR 0024. A
+  sanitised static snapshot on the standing edge, refreshed on each merged
+  run record. The terminal and the live Grafana stay invite-only.
+- **Out of scope:** a laptop-hosted public stack, a port-forward or tunnel,
+  anonymous Grafana, a live Databricks connection, and a ranked
+  comparison.
+- **Done when:** the live check (15.6) passes from a clean browser and a
+  phone, no account ID, ARN or S3 URI is in the published files, the
+  15.4 spike is closed before any public link, and the stack is $0 idle.
+- **Artifact:** the public page, the ADR, and Well-Architected milestone 15.
 
 ## Planned later work (no phase number yet)
 
