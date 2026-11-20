@@ -82,3 +82,6 @@ console/terminal-dist/
 # 9.6 live-check harness: reports and screenshots of signed-in pages (redacted text,
 # unredacted images). Never commit these.
 console/live-check-reports/
+
+# 10.3b status-dashboard screenshots (make status-render-shots), local only.
+observability/grafana/render_check/screenshots/

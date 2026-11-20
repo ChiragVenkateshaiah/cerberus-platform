@@ -57,6 +57,14 @@ The plain-language rule: the tiles in row 1 show words ("Passed", "Failed", "Not
 
 Unverified: the `annolist` panel has no custom empty text in Grafana 13.2.3, so it shows "No annotations found" and the panel title ("AI review (none yet, Phase 14)") carries the message. The bar gauge and "What broke" show numbered plain names for the four steps; a new step in the state machine needs a new rename (a test checks this).
 
+### Render check (10.3b)
+
+`make status-render` renders the dashboard in a real Grafana, offline. It needs Docker and nothing else: no AWS, no credentials. `render_check/run.sh` starts a throwaway Prometheus v3.15.0 and a throwaway Grafana 13.2.3 (both pinned by digest) on a private Docker network, bound to `127.0.0.1:9098` and `127.0.0.1:3098` (`PROM_PORT` and `GRAFANA_PORT` override them). Grafana has anonymous Viewer access in this throwaway only. It provisions the dashboard JSON unchanged from `dashboards/` (mounted read-only), with a test datasource of uid `amp` and type `prometheus`. Grafana resolves the panels' `grafana-amazonprometheus-datasource` type by uid, so no rewrite is needed.
+
+`render_check/test_render.py` publishes the FAILED run, the start of a next run and the SUCCEEDED run, as `observability/status/test_e2e.py` does. After each push it sends every panel query through `POST /api/ds/query` and checks the values (Last run 0 then 1, the failed step, data-check errors, the NaN step, the run counts, the runs-table rows). It also checks that the dashboard is provisioned with the same panels and the five rows. A trap removes both containers and the network, also after a failure. CI runs the same script in the job `status-e2e`.
+
+The check cannot see the transformations (x1000 to milliseconds, the numbered step names and their order, the runs-table join) or the value mappings: they run in the browser. For those, run `make status-render-shots` (local only, not in CI). It publishes the fixtures in two steps and writes `status-failed.png` and `status-passed.png` to `observability/grafana/render_check/screenshots/` (git-ignored), using Playwright 1.65.1 and the cached chromium headless shell. Look at the pictures: the run times show October dates because they come from the committed run records.
+
 ## Security
 
 - Grafana binds to `127.0.0.1` only, and anonymous access is off.

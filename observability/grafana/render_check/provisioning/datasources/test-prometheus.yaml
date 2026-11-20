@@ -1,0 +1,10 @@
+# Test-only (10.3b). The datasource every status panel resolves by uid.
+# The panels name the Amazon Managed Prometheus plugin type; the render check
+# runs a plain Prometheus, and Grafana resolves the panel datasource by uid.
+apiVersion: 1
+datasources:
+  - name: amp
+    uid: amp
+    type: prometheus
+    access: proxy
+    url: http://cb-render-prom:9090
