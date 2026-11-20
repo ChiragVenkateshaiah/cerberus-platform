@@ -193,4 +193,7 @@ module "console_edge" {
   console_cli_role_arn  = module.console_roles.console_cli_role_arn
   console_cli_role_name = module.console_roles.console_cli_role_name
   state_machine_arn     = module.step_functions.state_machine_arn
+
+  # 9.7 (ADR 0026): the two console alarms notify the shared alerts topic.
+  alarm_topic_arn = module.observability.alerts_topic_arn
 }

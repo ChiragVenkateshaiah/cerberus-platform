@@ -204,6 +204,9 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
       ADR 0026 Proposed 2026-11-14, Accepted 2026-11-20 (plan:
       `docs/plans/2026-11-13-phase-9-well-architected-review.md`); the Tool
       answers and milestone 9 are not written yet
+      PR 2 built 2026-11-20 (branch `9.7-console-alarms`): the two console
+      alarms and the `cerberus-admin` `DescribeAlarms` paste text; not yet
+      CI-applied, and the paste is not done
 
 ## Phase 10 — Pipeline status & alerting ⬜
 

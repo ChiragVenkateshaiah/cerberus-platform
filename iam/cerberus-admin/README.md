@@ -191,3 +191,11 @@ larger and is not the limit.
   4,730 of 6,144 characters. `cerberus-ci-apply-console` does not get either
   statement: CI changes the API's tags or the stage's log settings only
   when they change ([the standing-edge plan](../../docs/plans/2026-11-02-standing-edge.md)).
+- **2026-11-20 (9.7, PR 2, ADR 0026 finding A3):**
+  `cerberus-admin-console-edge` gains `AlarmsRead`: `cloudwatch:DescribeAlarms`
+  on `*` (the action has no resource-level scoping, so the alarm-ARN grant in
+  `cerberus-admin-orchestration` never matched it). `iam simulate-principal-policy`
+  showed `implicitDeny` before the paste. Counted size after the change:
+  4,820 of 6,144 characters. `cerberus-ci-apply` needs nothing: it already
+  allows the alarm actions on `cerberus-*` and `DescribeAlarms` on `*`. The
+  paste is not done yet; this line is updated when it is.
