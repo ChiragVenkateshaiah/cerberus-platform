@@ -167,7 +167,7 @@ Notes on the table:
 - **Steps.** Taken from the ASL Task states. A test parses the tftpl so the list cannot drift.
 - **Failed step.** If the run did not succeed, it is the record's new `failed_state` field: the last `TaskStateEntered` before the end (PR D). That is right for both the Catch path and an abort. Older records fall back to the last `states[]` entry. If neither exists, every step is 0 and the terminal shows "unknown".
 - **Cardinality:** 18 fixed series plus 3 per run. After 100 runs that is 318 series, far under the "few thousand" revisit trigger.
-- **Samples per run:** 2 at start and 20–21 at end.
+- **Samples per run:** 2 at start; 19 at end on a failed run, 20 on a success (9 label-free, 8 by step, 3 by execution).
 
 ### 5.2 Where it runs and how it writes
 
@@ -313,6 +313,7 @@ Title: "Amendment (2026-11-20): 10.2 transport, series names and query-set forma
   - `observability/scale/collect_run_metrics.py`: add `failed_state` (last `TaskStateEntered` when status is not `SUCCEEDED`). About 4 lines.
   - `orchestration/exercise.sh`:
     - a `--no-status` flag;
+    - `exercise.sh` passes the execution's `startDate` from `start-execution` as `--started`;
     - `status_publish start` after L341 and `status_publish end` after the collector, each `timeout 60 ... --send || log "status publish failed (fail-open)"`;
     - a warn-only `simulate-principal-policy aps:RemoteWrite` line in `preflight`.
   - Makefile: `status-publish` (AWS WRITE, owner-run; `EXECUTION=`; dry run unless `ARGS=--send`) and `status-smoke`.

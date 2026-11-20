@@ -64,6 +64,24 @@ jobs:
       - name: pytest
         run: pytest observability/spark_progress
 
+  # 10.2b (ADR 0021 amendment): the status publisher core (run record to
+  # series, remote-write encoding, dry run). Stdlib only and no boto3. It
+  # reads the committed run records and the ASL template. No AWS, no network.
+  status-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dev requirements
+        run: pip install --quiet -r requirements-dev.txt
+
+      - name: pytest
+        run: pytest observability/status
+
   # 9.2 step 10 (ADR 0024): the console Grafana module (run records to
   # annotations, dashboard transform, loopback loader, grafana.ini template).
   # The console host runs it with AL2023's system python3, which is 3.9, so CI
