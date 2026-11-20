@@ -634,8 +634,9 @@ after Phase 13._
 ### Phase 15 — Public showcase
 _Added 2026-11-20, numbered 15 so Phases 11–14 keep their numbers. It runs
 after Phase 11 and before Phases 12 and 13. ADR 0027 (Proposed). It starts
-when the 9.4 interactive page has shipped, 10.3 and 10.6 are checked, and
-11.5 has a recorded measured comparison. The plan is
+when the 9.4 interactive page has shipped, 10.3 and 10.6 are checked,
+11.2a-c are checked (the showcase builder and the Databricks Free Edition
+images), and 11.5 has a recorded measured comparison. The plan is
 `docs/plans/2026-11-20-public-showcase.md`._
 
 - **Goal:** Let anyone from GitHub or LinkedIn see Cerberus's metrics and
