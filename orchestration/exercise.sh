@@ -9,7 +9,7 @@ set -euo pipefail
 #   orchestration/exercise.sh [--yes] [--generate EVENTS] [--generator-executors N]
 #                             [--executor-nodes N]
 #                             [--interrupt-spot] [--name PREFIX] [--keep]
-#                             [--no-annotate]
+#                             [--no-annotate] [--no-status]
 #   orchestration/exercise.sh --check
 #
 #   --check           preflight only: identity, empty dev-compute state, no
@@ -34,6 +34,9 @@ set -euo pipefail
 #   --name PREFIX     execution name prefix (default: exercise).
 #   --no-annotate     do not post run annotations to the local Grafana
 #                     (orchestration/annotate.sh; fail-open, ADR 0022).
+#   --no-status       do not publish the run's status series to AMP
+#                     (observability/status/publish.py --send, 10.2d; an AWS
+#                     write, fail-open: a failure is logged, never fatal).
 #   --keep            skip the destroy. For a debugging session only; the
 #                     cluster costs about $0.40/hour until
 #                     `make compute-destroy`.
@@ -79,6 +82,7 @@ TF="${TF_BIN:-terraform}"
 # checked pending samples = 0 before destroy by hand).
 FLUSH_SECONDS="${FLUSH_SECONDS:-60}"
 
+STATUS_ENABLED=true
 YES=false CHECK=false KEEP=false GENERATE="" PREFIX="exercise" EXECUTOR_NODES=1
 GENERATOR_EXECUTORS=2
 INTERRUPT_SPOT=false
@@ -93,6 +97,7 @@ while [[ $# -gt 0 ]]; do
     --interrupt-spot) INTERRUPT_SPOT=true ;;
     --name) PREFIX="$2"; shift ;;
     --no-annotate) ANNOTATE_ENABLED=false ;;
+    --no-status) STATUS_ENABLED=false ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
   shift
@@ -107,6 +112,14 @@ annotate_init "$EXECUTION_NAME"
 
 aws_() { aws --profile "$PROFILE" --region "$REGION" "$@"; }
 log() { echo "[$(date -u +%FT%TZ)] $*"; }
+# 10.2d: the status publisher, a signed write to AMP. Fail-open like the
+# annotations: a failure is logged, and the run waits at most 60 s for it.
+status_publish() {
+  $STATUS_ENABLED || return 0
+  timeout -k 5 60 uv run -q --no-project --python 3.12 --with boto3==1.43.67 \
+    python "$REPO/observability/status/publish.py" "$@" --send \
+    || log "status publish failed (fail-open)"
+}
 tf() { "$TF" -chdir="$COMPUTE_DIR" "$@"; }
 # Terraform re-enables SIGINT for itself (Go signal handling), so `trap ''` in
 # this shell does not protect a destroy. setsid -w runs it in its own session,
@@ -118,6 +131,23 @@ preflight() {
   local who
   who="$(aws_ sts get-caller-identity --query Arn --output text)"
   log "  identity: $who"
+
+  # 10.2d: warn only. The publisher fails open, so a missing grant must not
+  # stop a run. The principal ARN stays in this shell and is never written.
+  if $STATUS_ENABLED; then
+    local sim
+    if sim="$(aws_ iam simulate-principal-policy --policy-source-arn "$who" \
+      --action-names aps:RemoteWrite --query 'EvaluationResults[0].EvalDecision' \
+      --output text 2>/dev/null)"; then
+      if [[ "$sim" == "allowed" ]]; then
+        log "  status publish: aps:RemoteWrite allowed"
+      else
+        log "  WARNING: aps:RemoteWrite is $sim -- denied until the cerberus-admin-iam-and-governance paste; the status publish will fail (fail-open)"
+      fi
+    else
+      log "  WARNING: cannot check aps:RemoteWrite (simulate-principal-policy failed); the status publish may fail (fail-open)"
+    fi
+  fi
 
   local clusters
   clusters="$(aws_ eks list-clusters --query 'length(clusters)' --output text)"
@@ -341,9 +371,12 @@ interrupt_spot() {
 log "starting execution $EXECUTION_NAME"
 run_start=$SECONDS
 run_ms="$(annotate_now_ms)"
-execution_arn="$(aws_ stepfunctions start-execution --state-machine-arn "$STATE_MACHINE" \
-  --name "$EXECUTION_NAME" --query executionArn --output text)"
+start_out="$(aws_ stepfunctions start-execution --state-machine-arn "$STATE_MACHINE" \
+  --name "$EXECUTION_NAME" --query '[executionArn,startDate]' --output text)"
+read -r execution_arn started_at <<<"$start_out"
 { annotate_step "Pipeline run started" "$run_ms"; } || true
+# The real startDate (ISO 8601 from the CLI) is the run's start in the series.
+status_publish start --execution "$EXECUTION_NAME" ${started_at:+--started "$started_at"}
 interrupt_pid=""
 if [[ "$INTERRUPT_SPOT" == true ]]; then
   interrupt_spot &
@@ -384,6 +417,8 @@ case "$collector_rc" in
   *) log "collector failed -- re-run it by hand: collect_run_metrics.py --execution $EXECUTION_NAME" ;;
 esac
 { annotate_dq_verdict "$collector_rc" "$(annotate_now_ms)"; } || true
+# With no record (the collector failed) the publisher reads Step Functions.
+status_publish end --execution "$EXECUTION_NAME"
 
 [[ "$status" == "SUCCEEDED" ]] || { log "execution did not succeed"; exit 1; }
 [[ "$collector_rc" != 3 ]] || exit 3

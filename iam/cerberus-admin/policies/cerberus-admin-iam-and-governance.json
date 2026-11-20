@@ -221,13 +221,14 @@
       "Resource": "arn:aws:aps:us-east-1:131715059025:workspace/*"
     },
     {
-      "Sid": "AmpQuery",
+      "Sid": "AmpQueryAndStatusWrite",
       "Effect": "Allow",
       "Action": [
         "aps:QueryMetrics",
         "aps:GetSeries",
         "aps:GetLabels",
-        "aps:GetMetricMetadata"
+        "aps:GetMetricMetadata",
+        "aps:RemoteWrite"
       ],
       "Resource": "arn:aws:aps:us-east-1:131715059025:workspace/*"
     },

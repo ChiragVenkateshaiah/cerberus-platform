@@ -1,0 +1,32 @@
+{
+  "execution": {
+    "status": "FAILED",
+    "startDate": "2026-10-08T09:13:33.494+00:00",
+    "stopDate": "2026-10-08T09:23:05.400+00:00"
+  },
+  "events": [
+    {"id": 1, "type": "ExecutionStarted", "timestamp": "2026-10-08T09:13:33.494+00:00"},
+    {"id": 2, "type": "TaskStateEntered", "timestamp": "2026-10-08T09:13:33.700+00:00",
+     "stateEnteredEventDetails": {"name": "InvokeIngestion"}},
+    {"id": 3, "type": "TaskStateExited", "timestamp": "2026-10-08T09:13:37.300+00:00",
+     "stateExitedEventDetails": {"name": "InvokeIngestion"}},
+    {"id": 4, "type": "TaskStateEntered", "timestamp": "2026-10-08T09:13:37.300+00:00",
+     "stateEnteredEventDetails": {"name": "RunTransform"}},
+    {"id": 5, "type": "TaskStateExited", "timestamp": "2026-10-08T09:17:24.000+00:00",
+     "stateExitedEventDetails": {"name": "RunTransform"}},
+    {"id": 6, "type": "TaskStateEntered", "timestamp": "2026-10-08T09:17:24.000+00:00",
+     "stateEnteredEventDetails": {"name": "RunDbt"}},
+    {"id": 7, "type": "TaskFailed", "timestamp": "2026-10-08T09:19:10.000+00:00",
+     "taskFailedEventDetails": {"error": "States.TaskFailed", "cause": "task failed"}},
+    {"id": 8, "type": "TaskFailed", "timestamp": "2026-10-08T09:20:50.000+00:00",
+     "taskFailedEventDetails": {"error": "States.TaskFailed", "cause": "task failed"}},
+    {"id": 9, "type": "TaskFailed", "timestamp": "2026-10-08T09:22:30.000+00:00",
+     "taskFailedEventDetails": {"error": "States.TaskFailed", "cause": "task failed"}},
+    {"id": 10, "type": "TaskStateExited", "timestamp": "2026-10-08T09:23:05.300+00:00",
+     "stateExitedEventDetails": {"name": "RunDbt"}},
+    {"id": 11, "type": "FailStateEntered", "timestamp": "2026-10-08T09:23:05.300+00:00",
+     "stateEnteredEventDetails": {"name": "PipelineFailed"}},
+    {"id": 12, "type": "ExecutionFailed", "timestamp": "2026-10-08T09:23:05.400+00:00",
+     "executionFailedEventDetails": {"error": "CerberusPipelineFailed", "cause": "dbt failed"}}
+  ]
+}

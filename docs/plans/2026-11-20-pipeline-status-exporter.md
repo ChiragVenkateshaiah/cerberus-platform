@@ -308,6 +308,7 @@ Title: "Amendment (2026-11-20): 10.2 transport, series names and query-set forma
 - Verify: `make status-e2e`; CI `status-e2e` is green.
 
 **PR D (10.2d): AWS transport and exercise hooks. Offline with fakes; the first real write is the owner smoke.**
+- Built 2026-11-20.
 - Files:
   - `publish.py`: `--send` (SigV4 `aps`, workspace by alias, newest-run guard, `--force`), the Step Functions fallback (account from STS), and `smoke`.
   - `observability/scale/collect_run_metrics.py`: add `failed_state` (last `TaskStateEntered` when status is not `SUCCEEDED`). About 4 lines.
