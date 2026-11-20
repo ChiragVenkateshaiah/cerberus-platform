@@ -153,6 +153,7 @@ layered on top of a platform that already works.
 | 13 | Streaming ingestion | Apache Kafka (KRaft, one start/stop EC2 instance), Go producer and consumer | _(Kafka docs; KodeKloud Kafka if available)_ | ⬜ Planned |
 | 14 | AI operations agents | Claude on Amazon Bedrock (Converse API tool use), a local MCP server over the read-only command set, an evaluation set replayed from past runs | _(Amazon Bedrock docs; MCP specification; Anthropic tool-use and evaluation docs)_ | ⬜ Planned |
 | 15 | Public showcase | A sanitised metrics snapshot on the standing edge (S3 + CloudFront), an interactive run explorer, a Databricks partner column from Phase 11 | _(CloudFront docs)_ | ⬜ Planned |
+| 16 | Development traceability | A generated record linking each subtask to its ADR, plan, PR and run record (`history.json`), shown on the site and as a Databricks AI/BI dashboard | _(GitHub REST API docs)_ | ⬜ Planned |
 
 🎯 **MVP is complete at the end of Phase 1.**
 
@@ -444,7 +445,11 @@ _Added 2026-10-09, to follow Phase 8 directly._
 ### Phase 11 — Databricks interoperability
 _Added 2026-10-09, after Phase 10 and before the Go tooling. Feature and
 cost facts below were checked against the Databricks docs on that date;
-re-check them in the phase's ADR._
+re-check them in the phase's ADR. Updated 2026-11-20 (ADR 0028,
+Accepted): Databricks Free Edition becomes the partner workspace and
+presentation layer, in steps 11.2a-e; 11.2a-c run right after Phase 10,
+ahead of 14.2-14.4. The plan is
+`docs/plans/2026-11-20-databricks-free-edition-showcase.md`._
 
 - **Goal:** Show where Databricks fits in a platform like Cerberus. Read
   Cerberus's Iceberg tables from Databricks with no copy, manage the
@@ -456,6 +461,17 @@ re-check them in the phase's ADR._
   company's platform, and what it costs. Cerberus answers the first half
   from first principles; this phase answers the second half with real
   numbers instead of a feature list.
+- **Free Edition scope (ADR 0028, Accepted):** the sanitised showcase JSON
+  from git (the builder, moved here from step 15.2 as 11.2a) is loaded by
+  the owner into Delta tables, with AI/BI dashboards and a Genie space on
+  top (11.2b-c). If export or invites fail on Free Edition, record it; the
+  Phase 15 gate then needs 11.2a-b only. The public sees exported images and a video on the Phase 15
+  page; live access is by invitation only, because Free Edition cannot give
+  an anonymous dashboard or app. No Databricks credential sits in CI or on
+  a public host. 11.2d is the Lakeflow port of one pipeline step. 11.2e is
+  an optional, time-boxed $0 spike: Free Edition reads Cerberus gold under
+  a read-only role. It does not replace the trial, because cost per million
+  events needs billing data. `comparison.json` is optional until 11.5.
 - **Not a migration:** Cerberus stays the system of record and the only
   writer. Databricks is a second engine reading through the catalog --
   the same "pluggable through the Glue catalog" stance ADR 0002 takes for
@@ -505,14 +521,17 @@ re-check them in the phase's ADR._
 - **Out of scope:** migrating Cerberus to Databricks; Delta Lake as the
   storage format (ADR 0017); writes from Databricks into Cerberus's
   tables; classic compute in the Cerberus VPC; ML and AI features.
-- **Done when:** a Databricks SQL query reads Cerberus gold through the
-  federated Glue catalog with no copy, under Unity Catalog grants defined
-  in Terraform; one pipeline step runs on Databricks with its run time
-  and cost recorded beside Cerberus's numbers; and the trial is cancelled
-  with $0 of Databricks charges after it.
-- **Artifact:** a comparison page (each Cerberus component beside its
-  Databricks counterpart, with the measured numbers and what each gives
-  up), the ADR, a short demo, and Well-Architected milestone 11.
+- **Done when:** the Free Edition dashboards are built from the showcase
+  JSON and their images are committed through the image gate (11.2c); a
+  Databricks SQL query reads Cerberus gold through the federated Glue
+  catalog with no copy, under Unity Catalog grants defined in Terraform;
+  one pipeline step runs on Databricks with its run time and cost recorded
+  beside Cerberus's numbers; and the trial is cancelled with $0 of
+  Databricks charges after it.
+- **Artifact:** the Free Edition AI/BI dashboards and images, a
+  comparison page (each Cerberus component beside its Databricks
+  counterpart, with the measured numbers and what each gives up), the ADR,
+  a short demo, and Well-Architected milestone 11.
 
 ### Phase 12 — Platform tooling in Go
 - **Goal:** Replace the platform's operational scripts with one Go
@@ -619,8 +638,9 @@ after Phase 13._
 _Added 2026-11-20, numbered 15 so Phases 11–14 keep their numbers. It runs
 after Phase 11 and before Phases 12 and 13. ADR 0027 (Accepted). It starts
 when the 9.4 interactive page has shipped, 10.3 and 10.6 are checked,
-11.2a-c are checked (the showcase builder and the Databricks Free Edition
-images), and 11.5 has a recorded measured comparison. The plan is
+11.2a-b are checked and 11.2c is checked or its failure is recorded (the
+showcase builder and the Databricks Free Edition images), and 11.5 has a
+recorded measured comparison. The plan is
 `docs/plans/2026-11-20-public-showcase.md`._
 
 - **Goal:** Let anyone from GitHub or LinkedIn see Cerberus's metrics and
@@ -649,6 +669,31 @@ images), and 11.5 has a recorded measured comparison. The plan is
   phone, no account ID, ARN or S3 URI is in the published files, the
   15.4 spike is closed before any public link, and the stack is $0 idle.
 - **Artifact:** the public page, the ADR, and Well-Architected milestone 15.
+
+### Phase 16 — Development traceability
+_Added 2026-11-20, numbered 16 so Phases 11–15 keep their numbers. It runs
+after Phase 10 (10.7), before 14.2. ADR 0029 (Accepted). The plan is
+`docs/plans/2026-11-20-databricks-free-edition-showcase.md`._
+
+- **Goal:** Show how the platform was built and why. A generated record
+  links each subtask to its ADR, plan, PR, merge commit, run record and
+  dashboard panel.
+- **Gap it closes:** the evidence is spread across Phases.md, the ADRs, the
+  plans, the PRs and the run records, and the links are kept by hand.
+- **Why this skill set:** keeping a delivery record as code, with a CI check
+  that fails on dangling links, is a platform and audit skill.
+- **Stack:** a Python generator with no AWS access, the read-only
+  `GITHUB_TOKEN` in CI, `history.json` in the showcase data contract, and a
+  Databricks AI/BI dashboard, "how it was built".
+- **The central decision (ADR 0029):** what traceability means here: a
+  generated record, not a second decision log.
+- **Out of scope:** author emails or any private metadata, and a second ADR
+  list.
+- **Done when:** the generator is deterministic, a planted dangling link
+  fails the CI check, the output has no emails, and the record shows on the
+  site and in Databricks.
+- **Artifact:** `docs/traceability.md`, the ADR, and Well-Architected
+  milestone 16.
 
 ## Planned later work (no phase number yet)
 

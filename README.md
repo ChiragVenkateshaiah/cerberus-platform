@@ -157,11 +157,12 @@ Databricks is a complement, not a replacement. In Phase 11 (planned), Databricks
 | 8 | Scale validation | Done | [0017](docs/adr/0017-iceberg-incremental-processing.md)-[0020](docs/adr/0020-dev-compute-node-autoscaling-and-spot.md), [0022](docs/adr/0022-live-observability-for-a-recorded-run.md), [0023](docs/adr/0023-phase-8-well-architected-review.md) |
 | 9 | Demo console | In progress: design accepted (ADR 0024), prerequisites built | [0024](docs/adr/0024-demo-console.md) |
 | 10 | Pipeline status and alerting | Planned: design accepted | [0021](docs/adr/0021-pipeline-status-and-alerting.md) |
-| 11 | Databricks interoperability | Planned | none yet |
+| 11 | Databricks interoperability | Planned: ADR 0028 accepted | [0028](docs/adr/0028-databricks-free-edition.md) |
 | 12 | Platform tooling in Go | Planned | none yet |
 | 13 | Streaming ingestion | Planned | none yet |
 | 14 | AI operations agents | Planned: ADR 0025 accepted 2026-11-08 | [0025](docs/adr/0025-ai-operations-agents.md) |
 | 15 | Public showcase | Planned: ADR 0027 accepted | [0027](docs/adr/0027-public-showcase.md) |
+| 16 | Development traceability | Planned: ADR 0029 accepted | [0029](docs/adr/0029-platform-traceability.md) |
 
 Subtask-level progress is in [Phases.md](Phases.md), and the full plan is in [docs/plan.md](docs/plan.md).
 
