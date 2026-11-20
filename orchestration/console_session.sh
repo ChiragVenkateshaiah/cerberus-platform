@@ -24,8 +24,10 @@ set -euo pipefail
 # console_check.sh.
 #
 # The session URL goes to this terminal only. Nothing here writes it, or any
-# secret, to a file. Claude Code's auto mode blocks `terraform apply`: run
-# this from your own terminal.
+# secret, to a file. It prints once, with a bell, and again every 5 minutes. The
+# public live.json also holds it, so `make console-wait` and `make console-verify`
+# need no copy. Claude Code's auto mode blocks `terraform apply`: run this from
+# your own terminal.
 
 REGION="us-east-1"
 export AWS_PROFILE="${AWS_PROFILE:-cerberus-admin}" AWS_REGION="$REGION"
@@ -227,11 +229,19 @@ url="$(tf output -raw session_url)"
 ends="$(tf output -raw ends)"
 ends_epoch="$(date -u -d "$ends" +%s)"
 log "session is live (this URL is for your terminal only; it is not saved):"
+printf '\a'
 echo "  $url"
 log "ends at $ends. Ctrl-C ends it early."
+log "In another terminal: make console-verify"
+next=$((SECONDS + 300))
 while :; do
   left=$((ends_epoch - $(date -u +%s)))
   ((left > 0)) || break
+  if ((SECONDS >= next)); then
+    printf '\a\n'
+    log "session URL: $url ($((left / 60)) min left)"
+    next=$((next + 300))
+  fi
   printf '\r  time left: %02d:%02d ' $((left / 60)) $((left % 60))
   sleep 10
 done

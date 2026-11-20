@@ -78,3 +78,7 @@ console/site-dist/
 
 # 9.5 terminal page: the built page (console/cerberus_terminal writes it here).
 console/terminal-dist/
+
+# 9.6 live-check harness: reports and screenshots of signed-in pages (redacted text,
+# unredacted images). Never commit these.
+console/live-check-reports/
