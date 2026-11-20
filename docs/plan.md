@@ -634,9 +634,9 @@ when the 9.4 interactive page has shipped, 10.3 and 10.6 are checked, and
   $0 idle, and honest positioning. Databricks is shown with its scope and
   source, never ranked.
 - **Stack:** the existing standing edge (S3 and CloudFront), a snapshot
-  builder over the run records and the 11.5 comparison record, same-origin
-  JavaScript on the 9.4 page, a CloudFront requests alarm, and a spike of
-  the CloudFront Free flat-rate plan.
+  builder (built in step 11.2a) over the run records and the 11.5
+  comparison record, same-origin JavaScript on the 9.4 page, a CloudFront
+  requests alarm, and a spike of the CloudFront Free flat-rate plan.
 - **The central decision (ADR 0027):** how to show metrics to anonymous
   visitors without exposing the owner's machine or weakening ADR 0024. A
   sanitised static snapshot on the standing edge, refreshed on each merged

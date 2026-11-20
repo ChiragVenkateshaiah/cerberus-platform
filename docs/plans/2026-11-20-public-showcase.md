@@ -2,6 +2,8 @@
 
 Date: 2026-11-20. Planner: Opus. Mode: plan for a new phase (Phases.md 15.1–15.7) and ADR 0027. It reads `origin/main` at `85fcf35`, plus HEAD `6ed9b22` (branch `10.2c-status-e2e`, not merged) where marked. Save as `docs/plans/2026-11-20-public-showcase.md`. Proposed branch: `decision-public-showcase`.
 
+Updated 2026-11-20 after the Databricks Free Edition plan (docs/plans/2026-11-20-databricks-free-edition-showcase.md): the builder step moves from 15.2 to 11.2a, because both the CloudFront page and Databricks Free Edition need it; 15.2 now publishes with that builder and adds the Databricks images (11.2c).
+
 Owner request, verbatim: "Up next let's deploy Cerberus on local port which I will expose while docker runs it everyday locally. This makes my Cerberus Platform available for viewers from GitHub and LinkedIn. Add this as a Phase which we should get done if we are in a state of exposing Cerberus metrics and performance by appreciating Databricks as a column in the dashboard. Review it Opus once before any decision. Review with me too."
 
 The Opus proposal and the owner's answers came first, on 2026-11-20 (section 8). The owner chose option D: a published, sanitised snapshot on the existing CloudFront standing edge. This rules out a laptop-hosted stack, a port-forward and a tunnel.
@@ -182,7 +184,7 @@ The drivers are Security and Cost, as in ADR 0026. D needs no new resource, puts
 
 ### 5.1 Data contract: `observability/showcase/*.json`
 
-The files are written by the 15.2 builder and committed. One file per concern, each with `schema_version: 1`, `generated_from` (repo-relative source paths and their git blob SHAs) and `generated_at` (UTC). There is no free text from records; values are numbers, fixed enums or allowlisted tokens.
+The files are written by the 11.2a builder and committed. One file per concern, each with `schema_version: 1`, `generated_from` (repo-relative source paths and their git blob SHAs) and `generated_at` (UTC). There is no free text from records; values are numbers, fixed enums or allowlisted tokens.
 
 - `runs.json`: one entry per run record. Fields:
   - `execution` (must match `cerberus_console.grammar._TOKEN`, else dropped).
@@ -213,9 +215,9 @@ The files are written by the 15.2 builder and committed. One file per concern, e
   - Exact match only, because of the F7 false positives. The value is never written to a file or a log.
 - **On error:** a missing field, an unknown enum value or a parse error stops the build. Nothing is published, and the last good site stays live.
 
-### 5.3 What 15.2 and 15.3 build
+### 5.3 What 11.2a and 15.3 build (15.2 publishes with the 11.2a builder)
 
-- **15.2:** `cerberus_landing/showcase.py` (or a sibling package if the 9.4 rebuild restructures the builder), with these parts:
+- **11.2a (moved from 15.2):** `cerberus_landing/showcase.py` (or a sibling package if the 9.4 rebuild restructures the builder), with these parts:
   - The builder above.
   - `make showcase-snapshot` to write and check the JSON.
   - A parity test: for the latest run, `status.json` values equal the 13 named-query results from `make status-e2e` (offline, Docker, no AWS). This extends the 10.2c job in `code-ci.yml`.
@@ -308,22 +310,24 @@ Proposed (2026-11-20). It amends [ADR 0024](0024-demo-console.md) (a public, ano
 _Added 2026-11-20. Numbered 15 so Phases 11–14 keep their numbers. It
 runs after Phase 11 and before Phases 12 and 13. Starts when 9.4's
 interactive page has shipped, 10.3 and 10.6 are checked (status series and
-dashboard proven live), and 11.5 has a recorded measured comparison (same
-input, run time and cost per million events on both engines), so the page
-can show Cerberus metrics and performance with Databricks as a partner
-column. ADR 0027._
+dashboard proven live), 11.2a-c are checked (the showcase builder and the
+Databricks Free Edition images), and 11.5 has a recorded measured
+comparison (same input, run time and cost per million events on both
+engines), so the page can show Cerberus metrics and performance with
+Databricks as a partner column. ADR 0027._
 
 - [ ] 15.1 ADR: the public showcase (a sanitised static snapshot on the
       standing edge vs. a laptop-hosted stack; anonymous scope; data
       contract and redaction; refresh on each merged run record; edge abuse
       controls; the Databricks partner column)
-- [ ] 15.2 Snapshot builder: `observability/showcase/*.json` from the run
-      records and the 11.5 comparison record, git only; fail-closed
-      redaction (the ADR 0026 gap-7 xfails closed); parity with the named
-      query set in `make status-e2e`; published by `console-site.yml`
+- [ ] 15.2 Showcase publish: use the 11.2a builder; add the Databricks
+      images (11.2c); published by `console-site.yml`
 - [ ] 15.3 The showcase view on the 9.4 page: run explorer, scale story and
       the Cerberus | Databricks (partner engine) columns with scope and
-      source on screen; same-origin JS, CSP unchanged, mobile and a11y tests
+      source on screen, plus a "Built in Databricks" section (exported
+      AI/BI images and a short video, labelled "Built in Databricks AI/BI
+      (Free Edition)" and "learning tier, not a production SLA"); same-origin
+      JS, CSP unchanged, mobile and a11y tests
 - [ ] 15.4 Public-edge protection, before any public link: the $0 CloudFront
       Free flat-rate plan spike (ADR 0026 gap 1), adopt or not; a CloudFront
       requests alarm; the account-ID check before upload
@@ -350,7 +354,7 @@ column. ADR 0027._
      - Every number traces to section 2.
      - The phase order text matches checkpoint "Next up" 3.
 2. **Owner review and acceptance of ADR 0027.** No build before the entry gate.
-3. **PR 2 (15.2), after the gate.**
+3. **PR 2 (11.2a, moved from 15.2; no gate, git only).**
    - The builder, the four JSON files, the tests, the parity test in the `status-e2e` CI job, and the `console-site.yml` paths.
    - Verify:
      - `pytest console/tests` green, and the former xfails pass.
@@ -404,7 +408,7 @@ column. ADR 0027._
 - X4: the CloudFront free allowance and how usage above it is billed; flat-rate plan terms, eligibility and Terraform support. Checked in 15.4.
 - X5: the live alarm count against the 10-alarm free tier. Checked in 15.4 before the new alarm.
 - The exact CloudFront `Requests` dimensions for the alarm (`DistributionId`, `Region=Global`). Checked with `list-metrics` in 15.4.
-- Whether the 9.4 rebuild keeps `cerberus_landing` as the builder. 15.2 adapts to it.
+- Whether the 9.4 rebuild keeps `cerberus_landing` as the builder. 11.2a adapts to it.
 
 ## 10. Owner steps
 

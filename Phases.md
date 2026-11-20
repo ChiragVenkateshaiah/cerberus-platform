@@ -315,22 +315,24 @@ amendment, Accepted 2026-11-12); 14.5–14.8 follow after Phase 13._
 _Added 2026-11-20. Numbered 15 so Phases 11–14 keep their numbers. It
 runs after Phase 11 and before Phases 12 and 13. Starts when 9.4's
 interactive page has shipped, 10.3 and 10.6 are checked (status series and
-dashboard proven live), and 11.5 has a recorded measured comparison (same
-input, run time and cost per million events on both engines), so the page
-can show Cerberus metrics and performance with Databricks as a partner
-column. ADR 0027._
+dashboard proven live), 11.2a-c are checked (the showcase builder and the
+Databricks Free Edition images), and 11.5 has a recorded measured
+comparison (same input, run time and cost per million events on both
+engines), so the page can show Cerberus metrics and performance with
+Databricks as a partner column. ADR 0027._
 
 - [ ] 15.1 ADR: the public showcase (a sanitised static snapshot on the
       standing edge vs. a laptop-hosted stack; anonymous scope; data
       contract and redaction; refresh on each merged run record; edge abuse
       controls; the Databricks partner column)
-- [ ] 15.2 Snapshot builder: `observability/showcase/*.json` from the run
-      records and the 11.5 comparison record, git only; fail-closed
-      redaction (the ADR 0026 gap-7 xfails closed); parity with the named
-      query set in `make status-e2e`; published by `console-site.yml`
+- [ ] 15.2 Showcase publish: use the 11.2a builder; add the Databricks
+      images (11.2c); published by `console-site.yml`
 - [ ] 15.3 The showcase view on the 9.4 page: run explorer, scale story and
       the Cerberus | Databricks (partner engine) columns with scope and
-      source on screen; same-origin JS, CSP unchanged, mobile and a11y tests
+      source on screen, plus a "Built in Databricks" section (exported
+      AI/BI images and a short video, labelled "Built in Databricks AI/BI
+      (Free Edition)" and "learning tier, not a production SLA"); same-origin
+      JS, CSP unchanged, mobile and a11y tests
 - [ ] 15.4 Public-edge protection, before any public link: the $0 CloudFront
       Free flat-rate plan spike (ADR 0026 gap 1), adopt or not; a CloudFront
       requests alarm; the account-ID check before upload

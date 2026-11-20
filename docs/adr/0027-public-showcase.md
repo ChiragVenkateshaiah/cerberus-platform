@@ -11,6 +11,10 @@ trigger and ADR 0024's "invites go beyond a handful" trigger as fired by this
 phase. The build steps and the facts behind this ADR are in
 [the plan](../plans/2026-11-20-public-showcase.md).
 
+Related: ADR 0028 (Databricks Free Edition as the partner workspace and
+presentation layer) extends this ADR; ADR 0029 (traceability) extends the
+data contract with `history.json`.
+
 ## Context
 
 The owner asked for a Cerberus that anyone from GitHub and LinkedIn can see,
@@ -67,7 +71,11 @@ record.
    the 11.5 comparison record. The data contract is
    `observability/showcase/*.json`. The build has no AWS credentials, and
    no serving host has any. A parity test against the 13 named queries,
-   run offline, proves the numbers match.
+   run offline, proves the numbers match. The same sanitised
+   `observability/showcase/*.json` also feeds Databricks Free Edition. An
+   owner-run step loads it as Delta tables (see ADR 0028). The builder is
+   built in step 11.2a, not 15.2, because both surfaces need it. No
+   Databricks credential exists in CI or on any public host.
 4. **Redaction.** Fail-closed at build time and again before upload. The
    build allowlists every output field and fails on `arn:`, `s3://`,
    `amazonaws.com`, `cloudfront.net` or `@` in any value. Before upload, CI
@@ -89,7 +97,16 @@ record.
    `step`, `input` (`run_id`, `events`), `measured_on` and `trial`; per
    engine, `run_seconds`, `usd`, `usd_per_million_events`, `cost_source`
    (`run_record` or `databricks_billing`) and `estimated`; and `caveats`
-   (fixed IDs).
+   (fixed IDs). The public page may also show exported images and a short
+   video of the Databricks AI/BI dashboards built on Free Edition (ADR 0028).
+   They are labelled "Built in Databricks AI/BI (Free Edition)" and
+   "learning tier, not a production SLA", and are never presented as a
+   performance benchmark. Live Databricks access is invite-only: Free
+   Edition cannot give an anonymous public dashboard or app. Viewers must
+   be registered Databricks users ([Share a
+   dashboard](https://docs.databricks.com/aws/en/dashboards/share/share)),
+   and "You can't make Databricks apps public"
+   ([Apps permissions](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/permissions)).
 8. **Rejected.**
    - A router port-forward: an inbound port on a home network, the home IP
      exposed, no TLS without a domain, and it breaks "No public inbound
@@ -109,6 +126,15 @@ record.
      price from memory, unverified), which breaks $0 idle.
    - A ranked view: it breaks the partner-engine positioning.
    - A live Databricks link: the trial is cancelled in 11.6.
+   - External embedding of a Databricks dashboard in the page: it needs a
+     server that holds an OAuth secret and mints a token for each viewer
+     ([Embedding for external users](https://docs.databricks.com/aws/en/dashboards/share/embedding/external-embed)).
+     That puts a Databricks credential on a public host, or a new secret in
+     AWS. Free Edition support is unverified, and Free Edition is
+     non-commercial use.
+   - A Databricks App as the public page: apps cannot be made public, and
+     each app stops 24 hours after it starts or deploys
+     ([Free Edition limitations](https://docs.databricks.com/aws/en/getting-started/free-edition-limitations)).
 9. **Amends.** ADR 0024 gets a one-line Status note, "Amendment proposed by
    ADR 0027 (2026-11-20): a public, anonymous, static metrics and comparison
    view on the standing edge; the terminal and the live Grafana stay
@@ -126,12 +152,16 @@ record.
 - The numbers equal the alert and dashboard numbers by construction.
 - The redaction gaps of ADR 0026 close.
 - The Databricks column is honest about its scope.
+- The page can show polished Databricks AI/BI images at $0, with no
+  Databricks credential on a public host.
 
 **Given up**
 
 - No live Grafana UI for anonymous visitors.
 - The numbers change only per exercise.
 - The Databricks column is one step, and it is fixed.
+- No live public Databricks view. The Free Edition images are manual owner
+  exports.
 - If the flat-rate plan is adopted, part of the edge is outside Terraform and
   blocks `standing-destroy` until the plan is cancelled.
 - Public traffic is bounded only by Budgets until step 15.4 closes.
@@ -144,6 +174,8 @@ record.
   on Phases.md 11.5 closes this, but 11.5 must follow it.
 - The CloudFront free allowance, the flat-rate plan terms and Terraform
   support are unverified. They are checked in 15.4.
+- Free Edition has no SLA and may delete inactive accounts. Only the
+  invited path and the images depend on it; the public page does not.
 
 **Revisit if**
 
