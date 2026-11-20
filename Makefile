@@ -74,6 +74,23 @@ console-check: ## READ-ONLY: every session count must be 0 (instances, distribut
 console-destroy: ## AWS WRITE, owner-run: destroy dev-console after an interrupted session (-refresh=false retry, ENI wait), then console-check
 	TF_BIN=$(TF_BIN) orchestration/console_session.sh --destroy
 
+# Live-check harness (plan docs/plans/2026-11-15-live-check-harness.md). Read-only. The
+# standing URL comes from the dev-standing outputs; nothing here writes to AWS.
+.PHONY: console-wait console-verify-public console-verify
+console-wait: ## READ-ONLY, no password: wait for live.json 200 and ring the bell (ARGS=--gone waits for it to go)
+	@cd console && uv run --no-project --python 3.12 python -m cerberus_live_check watch \
+	  --standing "$$($(TF_BIN) -chdir=../$(TF_STANDING_DIR) output -raw console_url)" $(ARGS)
+
+console-verify-public: ## READ-ONLY, no password, Claude-safe: headers, 401/404, CSP, TLS, live.json (ARGS=--no-wait skips the wait for a session)
+	@cd console && uv run --no-project --python 3.12 --with playwright==1.65.1 --with pytest==9.1.1 \
+	  python -m cerberus_live_check verify --no-sign-in \
+	  --standing "$$($(TF_BIN) -chdir=../$(TF_STANDING_DIR) output -raw console_url)" $(ARGS)
+
+console-verify: ## READ-ONLY, owner-run in your own terminal: public checks plus the console-check sign-in checks; asks for the password
+	@cd console && uv run --no-project --python 3.12 --with playwright==1.65.1 --with pytest==9.1.1 \
+	  python -m cerberus_live_check verify \
+	  --standing "$$($(TF_BIN) -chdir=../$(TF_STANDING_DIR) output -raw console_url)" $(ARGS)
+
 .PHONY: exercise exercise-check
 exercise: ## one-command compute exercise: apply -> run -> collect -> destroy (orchestration/exercise.sh; ARGS="--generate 1000000")
 	orchestration/exercise.sh $(ARGS)
