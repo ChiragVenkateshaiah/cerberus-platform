@@ -17,6 +17,7 @@ from cerberus_console import config
 NAME_MIN = 3
 NAME_MAX = 64
 MEANING_MAX = 120
+LABEL_MAX = 60
 SCOPES = ("latest", "detail", "execution")
 # Function -> the only window it may use around a catalogue selector. The 90d
 # exception is for the 10.4 error budget (ADR 0021 amendment, 2026-11-20).
@@ -324,6 +325,7 @@ def lint(doc: dict) -> list[str]:
             errors.append(f"queries: duplicate name {name}")
         seen.add(name)
         errors.extend(_check_meaning("queries", name, q.get("meaning")))
+        errors.extend(_check_label(name, q))
         expr = q.get("expr")
         if not isinstance(expr, str) or not expr.strip():
             errors.append(f"queries: {name}: expr must be a non-empty string")
@@ -361,6 +363,22 @@ def _check_meaning(section: str, name: str, meaning: object) -> list[str]:
         return [f"{section}: {name}: meaning is over {MEANING_MAX} characters"]
     if "$" in meaning or "{{" in meaning:
         return [f"{section}: {name}: templating ($ or {{{{) is not allowed in meaning"]
+    return []
+
+
+def _check_label(name: str, q: dict) -> list[str]:
+    """`label` is optional: a plain-language title for people, 1 to 60 chars, one line."""
+    if "label" not in q:
+        return []
+    label = q["label"]
+    if not isinstance(label, str) or not label.strip():
+        return [f"queries: {name}: label must be a non-empty string"]
+    if "\n" in label or "\r" in label:
+        return [f"queries: {name}: label must be one line"]
+    if len(label) > LABEL_MAX:
+        return [f"queries: {name}: label is over {LABEL_MAX} characters"]
+    if "$" in label or "{{" in label:
+        return [f"queries: {name}: templating ($ or {{{{) is not allowed in label"]
     return []
 
 

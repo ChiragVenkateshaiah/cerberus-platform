@@ -16,14 +16,15 @@ file explains the rules. A `"` inside PromQL is escaped (`{step=\"RunDbt\"}`).
 ```json
 {"version": 1,
  "metrics": [{"name": "...", "labels": [], "scope": "latest", "meaning": "..."}],
- "queries": [{"name": "...", "expr": "...", "meaning": "..."}]}
+ "queries": [{"name": "...", "label": "...", "expr": "...", "meaning": "..."}]}
 ```
 
 - `metrics` is the catalogue of every series the publisher writes. Each has a
   `name`, its `labels`, a `scope` (`latest`, `detail` or `execution`) and a
   one-line `meaning`.
-- `queries` are the named entries: a `name`, the PromQL `expr` and a one-line
-  `meaning`.
+- `queries` are the named entries: a `name`, an optional `label`, the PromQL
+  `expr` and a one-line `meaning`. The `label` is the plain-language title for
+  people (for example "Last run" or "What broke"). `meaning` is for engineers.
 
 ## Lint rules (CI)
 
@@ -34,6 +35,9 @@ file explains the rules. A `"` inside PromQL is escaped (`{step=\"RunDbt\"}`).
   `scope` is `latest`, `detail` or `execution`.
 - Query names match `^[a-z][a-z0-9_]{2,63}$` and are unique.
 - `meaning` is one line of 120 characters or less.
+- `label` is optional. If present it is a non-empty string of 1 to 60
+  characters on one line, with no `$` and no `{{`. Write it in plain words, with
+  no metric names and no jargon.
 - No `$` and no `{{` in `expr` or `meaning`. There is no templating, because
   ADR 0025's tool takes names only.
 - Every `cerberus_*` name in an `expr` is in `metrics`.
@@ -78,12 +82,19 @@ before any comparison.
   explicit `on(...)` or `ignoring(...)`; a bare `and`, `or` or `unless` also
   compares `__name__`.
 
+## How consumers use `label`
+
+Use the `label` as the title of a dashboard tile, a row in `make status` and a
+line on the public page, so one number has one name everywhere. If an entry has
+no `label`, fall back to its `name`. A consumer must not build a label by
+itself.
+
 ## How to add an entry
 
 1. If the query reads a new series, add it to `metrics` first, with its labels
    and scope. The publisher's names must equal this catalogue (checked in PR B).
-2. Add the entry to `queries`: a new unique `name`, the `expr` and a one-line
-   `meaning`. Put each selector inside `last_over_time(<selector>[30d])`.
+2. Add the entry to `queries`: a new unique `name`, a plain-language `label`,
+   the `expr` and a one-line `meaning`. Put each selector inside `last_over_time(<selector>[30d])`.
 3. Run `cd console && uv run --no-project --python 3.12 --with pytest==9.1.1 python -m pytest -q tests/test_queries.py`.
 4. Use the entry by copying its `expr` into the panel, or by pasting it
    verbatim into the rule.

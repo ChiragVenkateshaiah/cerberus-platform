@@ -102,6 +102,10 @@ exercise-check: ## read-only preflight for an exercise: no cluster, empty dev-co
 status-e2e: ## OFFLINE, Docker only: push run records to a throwaway Prometheus on 127.0.0.1:9099 and check every status query (10.2c; no AWS)
 	observability/status/e2e.sh
 
+.PHONY: alerts-test
+alerts-test: ## OFFLINE, Docker only: promtool check and test the alert rules, amtool check the Alertmanager template (10.4a; no AWS)
+	observability/alerts/test.sh
+
 .PHONY: status-publish status-smoke
 # AWS WRITE, owner-run (10.2d). Both are a dry run unless ARGS=--send, which signs
 # a remote-write to AMP as cerberus-admin and needs aps:RemoteWrite (policy paste).

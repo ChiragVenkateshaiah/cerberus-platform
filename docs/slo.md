@@ -52,7 +52,7 @@ Every SLI below is already published — no code changes for 6.5.
 
 | # | Objective | Class | Window | Error budget | Guarding alarm |
 |---|---|---|---|---|---|
-| 1 | **Pipeline success** — ≥ 95% of orchestrated runs reach `SUCCEEDED` | active | trailing 20 runs (or the active window, whichever is shorter) | 5% (≈ 1 run in 20) | `cerberus-pipeline-run-unsuccessful` |
+| 1 | **Pipeline success** — ≥ 95% of orchestrated runs reach `SUCCEEDED` | active | trailing 20 runs (or the active window, whichever is shorter) | 5% (≈ 1 run in 20) | `cerberus-pipeline-run-unsuccessful`; AMP `CerberusErrorBudgetBurn` (error budget, 90 days) |
 | 2 | **Gold freshness** — gold data is < 24h old ≥ 95% of the time | active | the active window | 5% of window-hours | `cerberus-freshness-gold-data` (fires at 36h) |
 | 3 | **Run latency** — a run completes in < 30 min ≥ 90% of the time | active | trailing 20 runs | 10% | `cerberus-pipeline-execution-slow` (fires at 45 min) |
 | 4 | **Serving query** — the demo query succeeds in < 30s ≥ 99% of runs | active | trailing 20 runs | 1% | (none dedicated — via alarm 1) |
@@ -72,6 +72,17 @@ so a run only counts as failed after those retries are exhausted.
 The guarding alarm fires on the *first* unsuccessful run, not at the 95%
 line — the alarm means "look now", the SLO means "the trend is
 acceptable". A single failure pages but does not necessarily breach.
+
+The AMP alert `CerberusErrorBudgetBurn` (`observability/alerts/status.rules.yaml`)
+guards the budget itself. It fires when more than 5% of runs failed, with at
+least 5 runs. It reads the failed share from the 90-day average of
+`cerberus_run_status`, one sample per run. This differs from the objective's
+"trailing 20 runs": an AMP query spans at most 95 days and the status series have no
+recording rules, so the alert measures 90 days. The two agree only while the last 20 runs all fall
+inside 90 days and no older runs exist. Otherwise the 90-day window holds fewer
+or more runs than the trailing 20. A
+`--force` re-publish of a run counts as a second sample. The CloudWatch alarm
+stays the guard during active windows.
 
 ### 2 — Gold freshness
 

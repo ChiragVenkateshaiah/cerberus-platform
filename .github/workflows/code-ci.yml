@@ -108,6 +108,29 @@ jobs:
           PYTEST: python -m pytest
         run: observability/status/e2e.sh
 
+  # 10.4a (ADR 0021): the alert rules. promtool checks and tests status.rules.yaml,
+  # and amtool checks the Alertmanager template rendered with a dummy ARN.
+  # observability/alerts/test.sh runs both in containers pinned by digest, with
+  # --network none and a read-only mount. No AWS, no secrets, read-only repo access.
+  alert-rules:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dev requirements
+        run: pip install --quiet -r requirements-dev.txt
+
+      - name: promtool and amtool
+        env:
+          PYTHON: python
+        run: observability/alerts/test.sh
+
   # 9.2 step 10 (ADR 0024): the console Grafana module (run records to
   # annotations, dashboard transform, loopback loader, grafana.ini template).
   # The console host runs it with AL2023's system python3, which is 3.9, so CI

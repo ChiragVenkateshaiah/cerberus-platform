@@ -1,0 +1,74 @@
+# Pipeline-status alert rules (plan 10.4, ADR 0021 and its amendments).
+#
+# Terraform (10.4b) loads this file into AMP with aws_prometheus_rule_group_namespace.
+# promtool tests the same file: status.rules.test.yaml.
+#
+# Every expr contains query-set entries verbatim (observability/queries/status.json);
+# console/tests/test_alert_rules.py checks it with queries.check_rule_expr. A rule
+# adds `execution` with `+ on() group_left(execution) (0 * topk(1, <entry>))`: the
+# newest finished (or started) run supplies the label and adds 0 to the value.
+# There are no recording rules.
+groups:
+  - name: cerberus-status
+    interval: 60s
+    rules:
+      # `for: 2m` covers the gap between the status sample and the finish sample
+      # of the same run: until the finish sample lands, the join picks the
+      # previous run's name, and that wrong-name alert never reaches 2m.
+      - alert: CerberusRunFailed
+        expr: (last_over_time(cerberus_run_status[30d]) == 0) + on() group_left(execution) (0 * topk(1, last_over_time(cerberus_execution_finished_timestamp_seconds[30d])))
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: "The latest pipeline run failed."
+          description: "Run {{ $labels.execution }} did not finish successfully. To see which step stopped it: cerberus run {{ $labels.execution }}. AI review (Phase 14): make review RUN={{ $labels.execution }}."
+
+      # NaN > 0 is false, so a run whose data-quality suite did not run never fires.
+      - alert: CerberusDataQualityErrors
+        expr: (last_over_time(cerberus_dq_errors[30d]) > 0) + on() group_left(execution) (0 * topk(1, last_over_time(cerberus_execution_finished_timestamp_seconds[30d])))
+        for: 2m
+        labels:
+          severity: ticket
+        annotations:
+          summary: "The latest run finished, but its data checks found errors."
+          description: "Run {{ $labels.execution }} had {{ $value }} data-quality errors. To see which checks failed: cerberus run {{ $labels.execution }}. AI review (Phase 14): make review RUN={{ $labels.execution }}."
+
+      # A run started more than 3600 s ago and no later run has finished. It stays
+      # firing until a later run finishes, or for at most 30 days. With no finish
+      # sample in 30 days (a long gap, or a first run that never ends) the
+      # `or on() vector(0)` counts the last finish as time 0, so it still fires. The
+      # extra parentheses keep the entry apart from `or` for check_rule_expr.
+      # The outer parentheses matter: `+` binds tighter than `and`.
+      - alert: CerberusRunNeverReported
+        expr: (((last_over_time(cerberus_run_started_timestamp_seconds[30d]) - on() ((last_over_time(cerberus_run_finished_timestamp_seconds[30d])) or on() vector(0))) > 0) and on() ((time() - last_over_time(cerberus_run_started_timestamp_seconds[30d])) > 3600)) + on() group_left(execution) (0 * topk(1, last_over_time(cerberus_execution_started_timestamp_seconds[30d])))
+        for: 0s
+        labels:
+          severity: page
+        annotations:
+          summary: "A pipeline run started more than 1 hour ago and has not reported a result."
+          description: "Run {{ $labels.execution }} started but no finish was recorded. To see what it did so far: cerberus run {{ $labels.execution }}. AI review (Phase 14): make review RUN={{ $labels.execution }}."
+
+      # SLO 1 error budget over 90 days (docs/slo.md). More than 5% failed, with at
+      # least 5 runs. It names no run, so it has no `execution` label. The failed share
+      # is rounded to 0.001 because in floating point 1 - 0.95 is slightly above 0.05,
+      # which would make exactly 1 failure in 20 runs fire (promtool test 5c).
+      - alert: CerberusErrorBudgetBurn
+        expr: (round(1 - avg_over_time(cerberus_run_status[90d]), 0.001) > 0.05) and on() (count_over_time(cerberus_run_status[90d]) >= 5)
+        for: 0s
+        labels:
+          severity: ticket
+        annotations:
+          summary: "More than 5% of recent pipeline runs failed."
+          description: "In the last 90 days more than 5% of runs did not succeed. SLO 1 allows 5%. See docs/slo.md (SLO 1) and the run history."
+
+      # Alert-path check: fires for 10 minutes after `make status-smoke ARGS=--send`
+      # and then resolves. It proves the ruler, the topic policy and the email.
+      - alert: CerberusAlertPathCheck
+        expr: vector(1) + on() group_left(execution) (0 * topk(1, last_over_time(cerberus_publisher_smoke[10m])))
+        for: 0s
+        labels:
+          severity: info
+        annotations:
+          summary: "Alert path check: a test message, no action needed."
+          description: "Smoke test {{ $labels.execution }} was written by make status-smoke. This is only a check that alert emails arrive."

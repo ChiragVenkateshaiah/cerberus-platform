@@ -160,8 +160,11 @@ def run(args, url):
         now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(ts_ms / 1000))
         rows = series.start_series(args.execution, args.started or now)
     elif args.command == "smoke":
-        # The value is the publish time: a read-back compares it exactly.
-        rows = [("cerberus_publisher_smoke", {}, ts_ms / 1000)]
+        # The value is the publish time: a read-back compares it exactly. The
+        # execution label lets the alert-path check rule (CerberusAlertPathCheck)
+        # name the smoke run in its email.
+        stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime(ts_ms / 1000))
+        rows = [("cerberus_publisher_smoke", {"execution": f"smoke-{stamp}"}, ts_ms / 1000)]
     else:
         record = load_record(args, session_for)
         if record is None:
