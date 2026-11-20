@@ -4,9 +4,12 @@ Date: 2026-11-13
 
 ## Status
 
-Proposed. The build, the facts and the full note texts are in
+Accepted (2026-11-20). The build, the facts and the full note texts are in
 [the plan](../plans/2026-11-13-phase-9-well-architected-review.md). The owner
 answered the three open questions on 2026-11-14; they are in the Decision.
+The owner accepted the ADR before the "now" Tool writes (build step 1), so
+the code PRs can go ahead; those writes and the "Overall" counts follow,
+owner-run, and are recorded here when done.
 Milestone 9: see the section below (added at close-out).
 
 ## Context
