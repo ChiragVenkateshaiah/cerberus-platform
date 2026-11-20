@@ -4,7 +4,7 @@ Date: 2026-11-20
 
 ## Status
 
-Proposed (2026-11-20). It amends [ADR 0024](0024-demo-console.md): a public,
+Accepted (2026-11-20). It amends [ADR 0024](0024-demo-console.md): a public,
 anonymous, static metrics view is added (see Amends in the Decision). It
 records the [ADR 0026](0026-phase-9-well-architected-review.md) Security gap 1
 trigger and ADR 0024's "invites go beyond a handful" trigger as fired by this
@@ -137,10 +137,9 @@ record.
    - A Databricks App as the public page: apps cannot be made public, and
      each app stops 24 hours after it starts or deploys
      ([Free Edition limitations](https://docs.databricks.com/aws/en/getting-started/free-edition-limitations)).
-9. **Amends.** ADR 0024 gets a one-line Status note, "Amendment proposed by
-   ADR 0027 (2026-11-20): a public, anonymous, static metrics and comparison
-   view on the standing edge; the terminal and the live Grafana stay
-   invite-only." It reads "Amended by ADR 0027" once this ADR is Accepted.
+9. **Amends.** ADR 0024 gets a one-line Status note, "Amended by ADR 0027
+   (2026-11-20): a public, anonymous, static metrics and comparison view on
+   the standing edge; the terminal and the live Grafana stay invite-only."
    ADR 0024's Decision is not rewritten. ADR 0026 is not amended: the trigger
    it set has fired, and this ADR acts on it.
 
