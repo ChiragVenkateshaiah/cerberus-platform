@@ -347,6 +347,7 @@ Counts, Cost Explorer readings, the PR F and 9.6 outcomes.
    - `console_check.sh` gets an informational `enabled_users N` line (`ListUsers` is allowed, A4; the filter syntax is unverified, so fall back to counting `Enabled` with jq).
    - `.claude/commands/start-day.md`: run `make console-check` and report any non-zero value.
    - Verify: `bash -n`, shellcheck, and `make console-check` still prints `console_check ok`.
+   - Built 2026-11-20.
 5. **Owner, during PR F and the 9.6 live session (no extra resources).**
    - (a) `openssl s_client -connect <cf>:443 -tls1` and `-tls1_1` on both distributions; record accepted or refused.
    - (b) As a Viewer: `GET /api/frontend/settings` and `/api/datasources`; record the status, and check no account ID shows.
