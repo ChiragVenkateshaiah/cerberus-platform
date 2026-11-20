@@ -1,0 +1,3 @@
+{"title": "untagged", "panels": [
+  {"title": "Untagged status", "type": "stat", "tags": [], "targets": [{"expr": "cerberus_run_status"}]}
+]}

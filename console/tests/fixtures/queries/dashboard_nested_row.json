@@ -1,0 +1,5 @@
+{"title": "nested row", "panels": [
+  {"title": "Outer row", "type": "row", "collapsed": true, "panels": [
+    {"title": "Hidden dq", "type": "stat", "targets": [{"expr": "last_over_time(cerberus_dq_errors[30d]) > 0"}]}
+  ]}
+]}

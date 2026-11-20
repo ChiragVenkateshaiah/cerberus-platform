@@ -1,0 +1,9 @@
+{"version": 1,
+ "metrics": [
+  {"name": "cerberus_run_status", "labels": [], "scope": "latest", "meaning": "1 if the newest run succeeded"}
+ ],
+ "queries": [
+  {"name": "bare_status", "expr": "cerberus_run_status", "meaning": "No window"},
+  {"name": "wrong_window", "expr": "last_over_time(cerberus_run_status[7d])", "meaning": "Wrong window"},
+  {"name": "wrong_func", "expr": "max_over_time(cerberus_run_status[30d])", "meaning": "Wrong function"}
+ ]}

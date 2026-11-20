@@ -1,0 +1,8 @@
+{"title": "ok", "panels": [
+  {"title": "Status", "type": "stat", "targets": [{"expr": "last_over_time( cerberus_run_status[30d] )", "refId": "A"}]},
+  {"title": "Failed step", "type": "stat", "targets": [{"expr": "(last_over_time(cerberus_run_step_failed[30d])  ==  1)"}]},
+  {"title": "Other", "type": "timeseries", "targets": [{"expr": "rate(cerberus_spark_executor_count[5m])"}]},
+  {"title": "Row", "type": "row", "collapsed": false, "panels": [
+    {"title": "Newest", "type": "table", "targets": [{"expr": "topk(1, last_over_time(cerberus_execution_finished_timestamp_seconds[30d]))"}]}
+  ]}
+]}

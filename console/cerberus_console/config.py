@@ -40,6 +40,14 @@ RUNS_DIR = Path(
 MAX_RECORD_FILES = 200
 MAX_RECORD_BYTES = 256 * 1024
 
+# The named query set for pipeline status (10.2a; ADR 0021 amendment 2026-11-20).
+QUERIES_FILE = Path(
+    os.environ.get(
+        "CERBERUS_QUERIES_FILE",
+        str(Path(__file__).resolve().parents[2] / "observability" / "queries" / "status.json"),
+    )
+)
+
 # Output caps (ADR 0024 rule 4).
 FIELD_CHARS = 200
 TABLE_ROWS = 50
