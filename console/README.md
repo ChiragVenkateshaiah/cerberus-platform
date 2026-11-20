@@ -91,6 +91,91 @@ every command on the committed run records, so a new record that breaks a
 command fails CI. The test fixtures contain no account ID; ARNs use
 `<ACCOUNT_ID>` or a placeholder filled in at test time.
 
+## Emergency levers
+
+Three levers, from smallest to largest (ADR 0026). Use the smallest one that
+works. `<USERNAME>` is a placeholder; read the pool and distribution IDs from
+Terraform and never paste them into a file.
+
+**(a) Disable one user.** A write, owner-run.
+
+```
+POOL=$(terraform -chdir=terraform/envs/dev-standing output -raw console_user_pool_id)
+aws cognito-idp admin-disable-user --user-pool-id "$POOL" --username <USERNAME>
+aws cognito-idp admin-user-global-sign-out --user-pool-id "$POOL" --username <USERNAME>
+```
+
+The sign-out revokes refresh tokens. An access token that was already issued
+may keep working until its `exp` (60 minutes after sign-in). This is unverified:
+plan
+`docs/plans/2026-11-13-phase-9-well-architected-review.md` §7 step 5(c) checks it live. If it holds, use lever (b) or (c) when
+60 minutes is too long.
+
+**(b) Stop everyone.** Open a PR that sets the API stage throttle to zero in the
+`module "console_edge"` block of `terraform/envs/dev-standing/main.tf`:
+
+```
+throttle_rate_limit  = 0
+throttle_burst_limit = 0
+```
+
+(The module defaults are 1 and 3; the variables are in
+`terraform/modules/console_edge/variables.tf`.) CI applies it on merge. To
+restore, remove the two lines in a second PR. The static site keeps serving;
+only `/api/command` is refused.
+
+Zero rejecting every request with 429 comes from community reports and a
+provider issue, not from the AWS documentation. It is unverified here. After
+the CI apply, send one `POST /api/command` and confirm a 429 before you rely on
+the lever.
+
+**(c) Last resort.** Disable the CloudFront distribution. This takes the whole
+site down, and it is a write, owner-run.
+
+```
+DIST=$(terraform -chdir=terraform/envs/dev-standing output -raw console_distribution_id)
+aws cloudfront get-distribution-config --id "$DIST" > /tmp/dist.json
+jq '.DistributionConfig | .Enabled = false' /tmp/dist.json > /tmp/dist-off.json
+aws cloudfront update-distribution --id "$DIST" --if-match "$(jq -r .ETag /tmp/dist.json)" \
+  --distribution-config file:///tmp/dist-off.json >/dev/null
+rm /tmp/dist.json /tmp/dist-off.json
+```
+
+The `rm` matters: the config holds the bucket domain, which contains the
+account ID. Or use **Disable** on the distribution in the CloudFront console
+(unverified). This is
+drift from Terraform: the next CI apply of `dev-standing` sets `enabled` back
+and brings the site up again. To bring it back at once, re-enable it the same
+way, or run that apply. Do not merge an unrelated `dev-standing` change while
+the site must stay down.
+
+## Invite lifecycle
+
+The pool is invite-only: self sign-up is off, and users are created by hand,
+outside Terraform (ADR 0024). No email, password or token goes into the repo.
+
+1. **Create.** Owner-run write. The user gets a temporary password that is
+   valid for 7 days (`temporary_password_validity_days` in
+   `terraform/modules/console_edge/main.tf`). Type the password at the hidden
+   `read -rs` prompt, so it never reaches the screen, the shell history or a
+   file. Send it to the visitor by a channel that is not the repo.
+
+   ```
+   read -rs TMPPW && aws cognito-idp admin-create-user --user-pool-id "$POOL" --username <USERNAME> \
+     --temporary-password "$TMPPW" --message-action SUPPRESS >/dev/null; unset TMPPW
+   ```
+
+   `console-check`, the account the live check uses, is kept disabled between
+   checks (see "Live check harness").
+2. **Demo.** The visitor signs in on the terminal page and sets a new password.
+   A sign-in lasts at most 60 minutes.
+3. **Disable within 7 days** of the invite, even when the visitor never signed in:
+   `admin-disable-user` and `admin-user-global-sign-out` as in lever (a).
+4. **Catch a forgotten user.** `make console-check` prints an informational
+   `enabled_users N` line. It never fails the check, and `/start-day` runs it
+   and reports any non-zero value. `enabled_users unknown` means the read
+   failed. Disable the user. `console-check` is enabled only during a live check.
+
 ## Landing page
 
 `cerberus_landing/` builds the public landing page for the console site (ADR 0024,
