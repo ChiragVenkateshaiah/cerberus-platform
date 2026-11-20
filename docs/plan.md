@@ -446,7 +446,7 @@ _Added 2026-10-09, to follow Phase 8 directly._
 _Added 2026-10-09, after Phase 10 and before the Go tooling. Feature and
 cost facts below were checked against the Databricks docs on that date;
 re-check them in the phase's ADR. Updated 2026-11-20 (ADR 0028,
-Proposed): Databricks Free Edition becomes the partner workspace and
+Accepted): Databricks Free Edition becomes the partner workspace and
 presentation layer, in steps 11.2a-e; 11.2a-c run right after Phase 10,
 ahead of 14.2-14.4. The plan is
 `docs/plans/2026-11-20-databricks-free-edition-showcase.md`._
@@ -461,7 +461,7 @@ ahead of 14.2-14.4. The plan is
   company's platform, and what it costs. Cerberus answers the first half
   from first principles; this phase answers the second half with real
   numbers instead of a feature list.
-- **Free Edition scope (ADR 0028, Proposed):** the sanitised showcase JSON
+- **Free Edition scope (ADR 0028, Accepted):** the sanitised showcase JSON
   from git (the builder, moved here from step 15.2 as 11.2a) is loaded by
   the owner into Delta tables, with AI/BI dashboards and a Genie space on
   top (11.2b-c). If export or invites fail on Free Edition, record it; the
@@ -636,7 +636,7 @@ after Phase 13._
 
 ### Phase 15 — Public showcase
 _Added 2026-11-20, numbered 15 so Phases 11–14 keep their numbers. It runs
-after Phase 11 and before Phases 12 and 13. ADR 0027 (Proposed). It starts
+after Phase 11 and before Phases 12 and 13. ADR 0027 (Accepted). It starts
 when the 9.4 interactive page has shipped, 10.3 and 10.6 are checked,
 11.2a-b are checked and 11.2c is checked or its failure is recorded (the
 showcase builder and the Databricks Free Edition images), and 11.5 has a
@@ -672,7 +672,7 @@ recorded measured comparison. The plan is
 
 ### Phase 16 — Development traceability
 _Added 2026-11-20, numbered 16 so Phases 11–15 keep their numbers. It runs
-after Phase 10 (10.7), before 14.2. ADR 0029 (Proposed). The plan is
+after Phase 10 (10.7), before 14.2. ADR 0029 (Accepted). The plan is
 `docs/plans/2026-11-20-databricks-free-edition-showcase.md`._
 
 - **Goal:** Show how the platform was built and why. A generated record

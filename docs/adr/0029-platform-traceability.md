@@ -4,7 +4,7 @@ Date: 2026-11-20
 
 ## Status
 
-Proposed (2026-11-20). It extends the data contract of
+Accepted (2026-11-20). It extends the data contract of
 [ADR 0027](0027-public-showcase.md) and
 [ADR 0028](0028-databricks-free-edition.md) with `history.json`. It amends
 nothing. The build steps and the facts behind this ADR are in

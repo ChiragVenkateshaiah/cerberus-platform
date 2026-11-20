@@ -18,7 +18,7 @@ hosted UI (see Amendment below).
 Amended 2026-11-12 (Accepted 2026-11-12): the terminal is a plain DOM terminal, not
 xterm.js; session rules for the page (see Amendment below).
 
-Amendment proposed by ADR 0027 (2026-11-20): a public, anonymous, static
+Amended by ADR 0027 (2026-11-20): a public, anonymous, static
 metrics and comparison view on the standing edge; the terminal and the live
 Grafana stay invite-only. See [ADR 0027](0027-public-showcase.md).
 

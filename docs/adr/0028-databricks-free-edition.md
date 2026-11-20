@@ -4,7 +4,7 @@ Date: 2026-11-20
 
 ## Status
 
-Proposed (2026-11-20). This is the Phase 11.1 ADR. It extends
+Accepted (2026-11-20). This is the Phase 11.1 ADR. It extends
 [ADR 0027](0027-public-showcase.md) through the edits made to that ADR in
 PR #169 while it was Proposed: Decisions 3 and 7 are extended, and
 the builder step moves from 15.2 to 11.2a. It amends nothing that is
