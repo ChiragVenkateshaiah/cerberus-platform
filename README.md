@@ -161,6 +161,7 @@ Databricks is a complement, not a replacement. In Phase 11 (planned), Databricks
 | 12 | Platform tooling in Go | Planned | none yet |
 | 13 | Streaming ingestion | Planned | none yet |
 | 14 | AI operations agents | Planned: ADR 0025 accepted 2026-11-08 | [0025](docs/adr/0025-ai-operations-agents.md) |
+| 15 | Public showcase | Planned: ADR 0027 accepted | [0027](docs/adr/0027-public-showcase.md) |
 
 Subtask-level progress is in [Phases.md](Phases.md), and the full plan is in [docs/plan.md](docs/plan.md).
 

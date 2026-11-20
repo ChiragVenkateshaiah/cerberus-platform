@@ -20,7 +20,7 @@ the specific "what's next" live in [checkpoint.md](checkpoint.md)._
   own work plus an ADR. This is a real checkbox in each phase below, not an
   aspiration: architecture is built by repetition, so it is tracked like any
   other deliverable. Two parts are required to check a "Well-Architected pass
-  + ADR" subtask off (3.8, 4.5, 5.5, 6.6, 7.4, 8.11, 9.7, 10.7, 11.7, 12.7, 13.7, 14.8), not just the ADR: also save a
+  + ADR" subtask off (3.8, 4.5, 5.5, 6.6, 7.4, 8.11, 9.7, 10.7, 11.7, 12.7, 13.7, 14.8, 15.7), not just the ADR: also save a
   new milestone on the `cerberus-platform` AWS Well-Architected Tool workload
   (`phase-N-<slug>-complete`). See [docs/plan.md](docs/plan.md)'s
   Architecture guiding principle and [checkpoint.md](checkpoint.md)'s
@@ -257,7 +257,10 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
 - [ ] 11.4 Trial: Glue federation live; Databricks SQL reads Cerberus's
       Iceberg gold with no copy
 - [ ] 11.5 Measured comparison: same input on both engines, run time and
-      cost per million events
+      cost per million events. Write the result as a record with the
+      `comparison.json` fields in ADR 0027: step, input run ID and events,
+      date and trial flag; per engine, run time, cost, cost per million
+      events, cost source and an estimated flag.
 - [ ] 11.6 Comparison write-up + demo; trial cancelled, $0 confirmed
 - [ ] 11.7 Well-Architected pass + ADR
 
@@ -307,6 +310,39 @@ amendment, Accepted 2026-11-12); 14.5–14.8 follow after Phase 13._
 - [ ] 14.7 Live check: one passing and one deliberately failed exercise,
       reviewed and triaged correctly; AI cost recorded
 - [ ] 14.8 Well-Architected pass + ADR
+
+## Phase 15 — Public showcase ⬜
+
+_Added 2026-11-20. Numbered 15 so Phases 11–14 keep their numbers. It
+runs after Phase 11 and before Phases 12 and 13. Starts when 9.4's
+interactive page has shipped, 10.3 and 10.6 are checked (status series and
+dashboard proven live), 11.2a-c are checked (the showcase builder and the
+Databricks Free Edition images), and 11.5 has a recorded measured
+comparison (same input, run time and cost per million events on both
+engines), so the page can show Cerberus metrics and performance with
+Databricks as a partner column. ADR 0027._
+
+- [ ] 15.1 ADR: the public showcase (a sanitised static snapshot on the
+      standing edge vs. a laptop-hosted stack; anonymous scope; data
+      contract and redaction; refresh on each merged run record; edge abuse
+      controls; the Databricks partner column)
+- [ ] 15.2 Showcase publish: use the 11.2a builder; add the Databricks
+      images (11.2c); published by `console-site.yml`
+- [ ] 15.3 The showcase view on the 9.4 page: run explorer, scale story and
+      the Cerberus | Databricks (partner engine) columns with scope and
+      source on screen, plus a "Built in Databricks" section (exported
+      AI/BI images and a short video, labelled "Built in Databricks AI/BI
+      (Free Edition)" and "learning tier, not a production SLA"); same-origin
+      JS, CSP unchanged, mobile and a11y tests
+- [ ] 15.4 Public-edge protection, before any public link: the $0 CloudFront
+      Free flat-rate plan spike (ADR 0026 gap 1), adopt or not; a CloudFront
+      requests alarm; the account-ID check before upload
+- [ ] 15.5 Links: README and the LinkedIn post point at the page; the live
+      Grafana link shows only while `live.json` `ends` is in the future
+- [ ] 15.6 Live check: from a clean browser and a phone through the GitHub
+      and LinkedIn links; headers by curl; no account ID, ARN or S3 URI in
+      the published files; Cost Explorer read after one month
+- [ ] 15.7 Well-Architected pass + ADR
 
 ---
 
