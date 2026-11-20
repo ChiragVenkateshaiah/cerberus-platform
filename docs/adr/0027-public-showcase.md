@@ -68,7 +68,7 @@ record.
 2. **Access.** The snapshot page is anonymous. The terminal and the live
    Grafana stay invite-only, as ADR 0024 decides.
 3. **Data and credentials.** The sources are git only: the run records and
-   the 11.5 comparison record. The data contract is
+   the 11.5 comparison record (when it exists; see ADR 0028 Decision 7). The data contract is
    `observability/showcase/*.json`. The build has no AWS credentials, and
    no serving host has any. A parity test against the 13 named queries,
    run offline, proves the numbers match. The same sanitised
@@ -82,7 +82,8 @@ record.
    reads the real account ID and searches the built site for that exact
    value; a plain "12 digits" search is not used because run records hold
    byte counts of 12 digits. The two strict xfails of ADR 0026 Security gap
-   7 (`console/tests/test_sanitize.py`) become passing tests.
+   7 (`console/tests/test_sanitize.py`) become passing tests. Images follow the ADR 0028 image gate (type, size
+   and an owner checklist; CI cannot read images).
 5. **Refresh.** On each merged run record, through `console-site.yml`. No
    scheduled job.
 6. **Abuse.** Run the $0 CloudFront Free flat-rate plan spike (ADR 0026
@@ -125,7 +126,8 @@ record.
    - Pay-as-you-go WAF: about $5 a month per web ACL plus $1 per rule (list
      price from memory, unverified), which breaks $0 idle.
    - A ranked view: it breaks the partner-engine positioning.
-   - A live Databricks link: the trial is cancelled in 11.6.
+   - A public live Databricks link: Free Edition cannot be anonymous, and
+     the trial is cancelled in 11.6.
    - External embedding of a Databricks dashboard in the page: it needs a
      server that holds an OAuth secret and mints a token for each viewer
      ([Embedding for external users](https://docs.databricks.com/aws/en/dashboards/share/embedding/external-embed)).
