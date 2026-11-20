@@ -517,3 +517,61 @@ resource "aws_lambda_permission" "api_invoke" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/POST/api/command"
 }
+
+# --- 6. Alarms ------------------------------------------------------------
+# 9.7 (ADR 0026, PR 2): two always-on alarms to the shared alerts topic
+# (observability). They watch the one public path: the API's 5xx responses
+# and the command Lambda's errors. ApiId alone is the 5xx dimension: the
+# console API publishes 5xx under both {ApiId} and {ApiId, Stage} (read
+# with `aws cloudwatch list-metrics`, 2026-11-20). Missing data is
+# "notBreaching": no traffic means no errors, not an unknown state.
+# A Lambda throttle (account concurrency) is not counted in Lambda Errors;
+# the API returns a 5xx for it, so the 5xx alarm covers that case.
+
+resource "aws_cloudwatch_metric_alarm" "api_5xx" {
+  alarm_name        = "cerberus-console-api-5xx"
+  alarm_description = "The console HTTP API (cerberus-console-api) returned 3 or more 5xx responses in 5 minutes. Check /aws/apigateway/cerberus-console-api and /aws/lambda/cerberus-console-command."
+
+  namespace   = "AWS/ApiGateway"
+  metric_name = "5xx"
+  dimensions  = { ApiId = aws_apigatewayv2_api.this.id }
+  statistic   = "Sum"
+
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = 3
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+
+  alarm_actions = [var.alarm_topic_arn]
+  ok_actions    = [var.alarm_topic_arn]
+
+  tags = {
+    Phase     = "9"
+    Component = "console"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
+  alarm_name        = "cerberus-console-lambda-errors"
+  alarm_description = "The console command Lambda (cerberus-console-command) errored at least once in 5 minutes. Check /aws/lambda/cerberus-console-command."
+
+  namespace   = "AWS/Lambda"
+  metric_name = "Errors"
+  dimensions  = { FunctionName = aws_lambda_function.command.function_name }
+  statistic   = "Sum"
+
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = 1
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+
+  alarm_actions = [var.alarm_topic_arn]
+  ok_actions    = [var.alarm_topic_arn]
+
+  tags = {
+    Phase     = "9"
+    Component = "console"
+  }
+}
