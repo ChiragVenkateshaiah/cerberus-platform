@@ -337,6 +337,7 @@ Counts, Cost Explorer readings, the PR F and 9.6 outcomes.
    - `test_edge_config.py` pins the names and thresholds.
    - A root paste of `cloudwatch:DescribeAlarms` to `console-edge` (owner).
    - Verify: the PR plan shows 2 to add plus the known Faker churn; after the CI apply, `describe-alarms` shows both in OK or INSUFFICIENT_DATA.
+   - Built 2026-11-20: both alarms also notify the topic on OK, as the observability alarms do. The 5xx dimension is `ApiId` alone: `list-metrics` shows the console API publishes 5xx under both `{ApiId}` and `{ApiId, Stage}`. The CI role `cerberus-ci-apply` already allows the alarm actions on `cerberus-*` and `DescribeAlarms` on `*` (checked with `iam simulate-principal-policy`), so CI needs no paste. Only `cerberus-admin` lacks `DescribeAlarms` (implicit deny): the paste adds an `AlarmsRead` statement to `cerberus-admin-console-edge`, counted size 4,820 of 6,144 characters. The local plan showed 3 to add, 1 to change, 1 to destroy: the 2 alarms plus the Faker layer churn.
 4. **PR 3, runbook and checks.**
    - `console/README.md` gets "Emergency levers":
      - Disable one user: `admin-disable-user` plus `admin-user-global-sign-out`; note that the access token may last until `exp`.

@@ -77,3 +77,8 @@ variable "access_log_retention_days" {
   type        = number
   default     = 30
 }
+
+variable "alarm_topic_arn" {
+  description = "ARN of the shared alerts SNS topic (module.observability.alerts_topic_arn) -- the two console alarms notify it on ALARM and on OK (ADR 0026)."
+  type        = string
+}
