@@ -82,6 +82,30 @@ jobs:
       - name: pytest
         run: pytest observability/status
 
+  # 10.2c: the publisher against a real, throwaway Prometheus (remote-write
+  # receiver) started by observability/status/e2e.sh. The container is pinned
+  # by tag and digest, bound to 127.0.0.1 on the runner, and removed by a trap
+  # even when the test fails; the runner VM is discarded after the job. No AWS,
+  # no secrets, and the job has read-only repo access.
+  status-e2e:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dev requirements
+        run: pip install --quiet -r requirements-dev.txt
+
+      - name: Prometheus end-to-end
+        env:
+          PYTEST: python -m pytest
+        run: observability/status/e2e.sh
+
   # 9.2 step 10 (ADR 0024): the console Grafana module (run records to
   # annotations, dashboard transform, loopback loader, grafana.ini template).
   # The console host runs it with AL2023's system python3, which is 3.9, so CI

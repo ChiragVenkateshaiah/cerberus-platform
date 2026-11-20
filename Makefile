@@ -98,6 +98,10 @@ exercise: ## one-command compute exercise: apply -> run -> collect -> destroy (o
 exercise-check: ## read-only preflight for an exercise: no cluster, empty dev-compute state, nothing running
 	orchestration/exercise.sh --check
 
+.PHONY: status-e2e
+status-e2e: ## OFFLINE, Docker only: push run records to a throwaway Prometheus on 127.0.0.1:9099 and check every status query (10.2c; no AWS)
+	observability/status/e2e.sh
+
 .PHONY: grafana-up grafana-down grafana-logs grafana-token
 # up.sh looks up the AMP endpoint and assumes cerberus-grafana-read (ADR 0024).
 # down and logs only need placeholders to satisfy the compose interpolation.

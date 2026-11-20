@@ -71,6 +71,12 @@ before any comparison.
   comment. It must contain each entry verbatim. The check
   (`check_rule_expr`) removes every entry it finds and fails if a catalogue
   metric is left. 10.4 calls it on its rule files.
+- **Results.** A result may or may not carry `__name__` (Prometheus v3.15.0
+  keeps it on `last_over_time(...) == 1`; AMP may not). Read only the
+  documented labels (`step`, `execution`) and the value: `{{step}}` legends in
+  10.3, `metric["step"]` in 10.5. In 10.4, give every vector-to-vector join an
+  explicit `on(...)` or `ignoring(...)`; a bare `and`, `or` or `unless` also
+  compares `__name__`.
 
 ## How to add an entry
 
@@ -81,3 +87,22 @@ before any comparison.
 3. Run `cd console && uv run --no-project --python 3.12 --with pytest==9.1.1 python -m pytest -q tests/test_queries.py`.
 4. Use the entry by copying its `expr` into the panel, or by pasting it
    verbatim into the rule.
+
+## End-to-end check (`make status-e2e`)
+
+`make status-e2e` runs every entry above against a real Prometheus. It needs
+Docker and nothing else: no AWS, no credentials. The script
+`observability/status/e2e.sh`:
+
+1. starts a throwaway `prom/prometheus` v3.15.0 (pinned by digest) with
+   `--web.enable-remote-write-receiver`, bound to `127.0.0.1:9099`;
+2. waits for `/-/ready`;
+3. runs `observability/status/test_e2e.py` with `CERBERUS_PROM_URL`;
+4. removes the container on exit, also on a failure.
+
+The test pushes a FAILED run record, then the start of the next run, then a
+SUCCEEDED record, through `publish.py --url` (unsigned, loopback only). After
+each push it evaluates every entry with `/api/v1/query`. Without
+`CERBERUS_PROM_URL` the test is skipped. CI runs the same script as the job
+`status-e2e`. To run it by hand against your own receiver, start a fresh
+Prometheus and set `CERBERUS_PROM_URL`.

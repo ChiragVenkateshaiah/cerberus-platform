@@ -90,10 +90,16 @@ def test_unknown_command_is_refused():
 
 
 def test_no_boto3_or_network_imports():
+    # PR C: urllib is allowed in publish.py (--url) and test_e2e.py (queries the
+    # local Prometheus) only. boto3, botocore, socket and requests stay banned.
+    always = re.compile(r"^\s*(import|from)\s+(boto3|botocore|socket|requests)\b", re.M)
     banned = re.compile(r"^\s*(import|from)\s+(boto3|botocore|urllib|http|socket|requests)\b", re.M)
     for path in HERE.glob("*.py"):
         text = path.read_text()
-        assert not banned.search(text), path.name
+        if path.name in ("publish.py", "test_e2e.py"):
+            assert not always.search(text), path.name
+        else:
+            assert not banned.search(text), path.name
         if not path.name.startswith("test_"):  # test files only name the modules
             assert "boto3" not in text, path.name
 
@@ -103,3 +109,42 @@ def test_record_for_another_execution_exits_2(capsys, tmp_path):
     path.write_text(json.dumps({"execution": "other"}))
     code, lines, err = run(capsys, "end", "--execution", "wanted", "--record", str(path))
     assert code == 2 and lines == [] and "'other'" in err and "'wanted'" in err
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://example.com/api/v1/write",
+        "http://10.0.0.5:9090/api/v1/write",
+        "https://127.0.0.1:9090/api/v1/write",
+        "http://127.0.0.1.evil.test/api/v1/write",
+        "ftp://localhost/x",
+        "127.0.0.1:9090",
+    ],
+)
+def test_url_not_loopback_http_exits_2(capsys, monkeypatch, url):
+    monkeypatch.setattr(publish, "send", lambda *a: pytest.fail("must not send"))
+    code, lines, err = run(capsys, "start", "--execution", "e1", "--url", url)
+    assert code == 2 and lines == [] and "--url must be http" in err
+
+
+@pytest.mark.parametrize("host", ["127.0.0.1:9099", "[::1]:9099", "localhost:9099"])
+def test_url_loopback_sends_the_body(capsys, monkeypatch, host):
+    seen = []
+    monkeypatch.setattr(publish, "send", lambda url, body: seen.append((url, body)) or (204, ""))
+    code, lines, err = run(
+        capsys, "start", "--execution", "e1", "--at", AT, "--url", f"http://{host}/w"
+    )
+    assert code == 0 and len(lines) == 2 and "HTTP 204" in err
+    assert seen[0][0] == f"http://{host}/w" and seen[0][1]
+
+
+def test_url_non_2xx_exits_1_with_the_reply(capsys, monkeypatch):
+    monkeypatch.setattr(publish, "send", lambda url, body: (400, "bad " * 100))
+    code, _, err = run(capsys, "start", "--execution", "e1", "--url", "http://127.0.0.1:1/w")
+    assert code == 1 and "HTTP 400" in err and "bad bad" in err
+
+
+def test_url_connection_refused_exits_1(capsys):
+    code, _, err = run(capsys, "start", "--execution", "e1", "--url", "http://127.0.0.1:1/w")
+    assert code == 1 and "send failed" in err
