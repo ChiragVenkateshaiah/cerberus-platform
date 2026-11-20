@@ -109,19 +109,32 @@ def parse_args():
     return parser.parse_args()
 
 
+def last_state(status, last_entered, exited):
+    """The step a run ended in, or None (10.2d). Same rule as status/aws_send.py.
+
+    FAILED names the last TaskStateEntered (a Catch makes it exit; FailStateEntered
+    is not a task). ABORTED and TIMED_OUT name it only if it never exited.
+    """
+    if status == "SUCCEEDED" or not last_entered:
+        return None
+    return last_entered if status == "FAILED" or last_entered not in exited else None
+
+
 def state_timings(sfn, execution_arn):
     execution = sfn.describe_execution(executionArn=execution_arn)
-    entered, states = {}, []
+    entered, exited, states, last_entered = {}, set(), [], None
     pages = sfn.get_paginator("get_execution_history").paginate(executionArn=execution_arn)
     for page in pages:
         for event in page["events"]:
             if event["type"] == "TaskStateEntered":
-                entered[event["stateEnteredEventDetails"]["name"]] = event["timestamp"]
+                last_entered = event["stateEnteredEventDetails"]["name"]
+                entered[last_entered] = event["timestamp"]
             elif event["type"] == "TaskStateExited":
                 name = event["stateExitedEventDetails"]["name"]
+                exited.add(name)
                 start, end = entered[name], event["timestamp"]
                 states.append({"state": name, "start": start, "end": end})
-    return execution, states
+    return execution, states, last_state(execution["status"], last_entered, exited)
 
 
 def athena_queries(athena, start, end):
@@ -449,7 +462,7 @@ def main():
         return 0 if record["data_quality"]["passed"] else 3
     execution_arn = STATE_MACHINE.replace(":stateMachine:", ":execution:") + ":" + args.execution
 
-    execution, states = state_timings(admin.client("stepfunctions"), execution_arn)
+    execution, states, failed_state = state_timings(admin.client("stepfunctions"), execution_arn)
     start, end = execution["startDate"], execution["stopDate"]
     run_seconds = (end - start).total_seconds()
 
@@ -497,6 +510,7 @@ def main():
         "events_per_second": round(events_processed / run_seconds),
         "silver": {"events": silver_events, "transactions": silver_transactions},
         "states": state_rows,
+        "failed_state": failed_state,  # 10.2d: the step a failed run ended in, else None
         "athena_totals": {
             key: sum(a[key] for a in athena.values())
             for key in ("queries", "bytes_scanned", "bytes_billed")

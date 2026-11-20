@@ -18,6 +18,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
+import aws_send
 import publish
 import pytest
 
@@ -106,3 +107,14 @@ def test_failed_run_then_next_start_then_success():
     assert scalar(got["last_success"]) == pytest.approx(publish.series.epoch(success_record["end"]))
     assert [r["metric"]["execution"] for r in got["newest_finished_execution"]] == [SUCCEEDED]
     assert scalar(got["latest_dq_errors"]) == 0
+
+
+def test_smoke_value_reads_back_through_the_query():
+    # The smoke sample's value is its publish time; aws_send.SMOKE_QUERY must return it.
+    at = time.time() - 5
+    iso_at = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(at)) + f".{int(at % 1 * 1000):03d}Z"
+    assert publish.main(["smoke", "--at", iso_at, "--url", f"{BASE}/api/v1/write"]) == 0
+    params = urllib.parse.urlencode({"query": aws_send.SMOKE_QUERY, "time": f"{time.time():.3f}"})
+    with urllib.request.urlopen(f"{BASE}/api/v1/query?{params}", timeout=10) as resp:
+        result = json.load(resp)["data"]["result"]
+    assert abs(scalar(result) - publish.series.epoch(iso_at)) < 0.001
