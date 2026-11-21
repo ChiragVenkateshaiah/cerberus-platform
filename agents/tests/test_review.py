@@ -148,7 +148,7 @@ def hostile_record():
     checks[2].update(name=DIGITS, passed=False, severity="error")
     checks[3].update(name=HUGE, passed=False, severity="error")
     checks[4].update(name="Ok_Name", passed=False, severity="error")
-    checks[5].update(name="good_check", detail=INJECT, passed=False, severity="error")
+    checks[5].update(name="lifecycle_order", detail=INJECT, passed=False, severity="error")
     rec["states"][0]["state"] = INJECT
     rec["states"][1]["athena"]["queue_seconds"] = HUGE
     rec["cost"]["currency"] = INJECT
@@ -159,7 +159,7 @@ def test_hostile_record_text_never_reaches_the_output():
     out = review.dumps(review.review(hostile_record(), RECS))
     for bad in (INJECT, "IGNORE", "instructions", "arn:aws", DIGITS, "AAAA", "Ok_Name", "admin"):
         assert bad not in out
-    assert "good_check" in out
+    assert "lifecycle_order" in out
     assert len(out) < 4096
 
 

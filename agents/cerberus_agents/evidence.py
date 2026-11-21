@@ -23,7 +23,42 @@ _spec.loader.exec_module(series)
 
 STEPS = tuple(series.STEPS)
 STATUSES = ("SUCCEEDED", "FAILED", "ABORTED", "TIMED_OUT")
-CHECK_NAME = re.compile(r"[a-z][a-z0-9_]{0,63}", re.ASCII)
+# The check names found in the committed run records (data_quality.checks). A new
+# check name must be added here, or it reads as `unknown_check` in the tools and is
+# skipped by the review core. `new_run[dt=DAY]` is one check per day (DAY_CHECK).
+KNOWN_CHECKS = frozenset(
+    {
+        "amount_range_and_stability",
+        "bronze_to_silver_count",
+        "bronze_to_silver_keys",
+        "bulk_duplicate_keys",
+        "bulk_ledger_integrity",
+        "bulk_run_counts",
+        "bulk_runs_without_manifest",
+        "gold_status_matches_lifecycle",
+        "lambda_keys_in_silver",
+        "lifecycle_created_authorized",
+        "lifecycle_one_terminal",
+        "lifecycle_order",
+        "lifecycle_refunds",
+        "masking",
+        "roster",
+        "silver_caught_up",
+        "silver_duplicate_keys",
+        "silver_key_nulls",
+        "silver_partition_placement",
+        "silver_to_gold_transactions",
+        "token_digit_runs",
+        "token_format",
+    }
+)
+DAY_CHECK = re.compile(r"new_run\[dt=\d{4}-\d{2}-\d{2}\]", re.ASCII)
+UNKNOWN_CHECK = "unknown_check"
+# Execution names in the committed records: a kind, up to 3 short segments, then a
+# UTC stamp (the Z is missing on one old record).
+EXECUTION_NAME = re.compile(
+    r"(exercise|demo|rehearsal)(-[a-z0-9]{1,8}){0,3}-\d{8}T\d{6}Z?", re.ASCII
+)
 _LONG_DIGITS = re.compile(r"\d{12,}")
 
 
@@ -34,12 +69,17 @@ def _plain(value, pattern):
 
 
 def execution_token(value):
-    """The execution name when it is a console token with no 12-digit run, else None."""
-    return _plain(value, grammar._TOKEN)
+    """The execution name when it has the committed shape and is a console token, else None."""
+    if _plain(value, grammar._TOKEN) is None:
+        return None
+    return _plain(value, EXECUTION_NAME)
 
 
 def check_name(value):
-    return _plain(value, CHECK_NAME)
+    """A known check name, else None."""
+    if type(value) is str and (value in KNOWN_CHECKS or DAY_CHECK.fullmatch(value)):
+        return value
+    return None
 
 
 def step_name(value):

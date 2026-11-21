@@ -327,7 +327,8 @@ amendment, Accepted 2026-11-12); 14.5–14.8 follow after Phase 13._
 - [ ] 14.2 Deterministic review core and the agent tool registry on the 9.3
       command set: masking, size caps, a local stdio MCP server
       _Progress 2026-11-21: 14.2a review core done (agents/cerberus_agents,
-      17 golden reviews); the tool registry and the MCP server remain._
+      17 golden reviews); 14.2b tool registry done (registry.py, tools.py, 9
+      tools, offline); the MCP server (14.2c) remains._
 - [ ] 14.3 Evaluation: labelled replay set from past runs (failed runs,
       Glue timeouts, Spot interruption, Athena queue time, clean runs) and a
       scored harness
