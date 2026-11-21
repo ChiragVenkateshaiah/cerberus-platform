@@ -210,3 +210,22 @@ larger and is not the limit.
   `aws iam simulate-principal-policy ... --action-names aps:RemoteWrite`
   returns `allowed`. Until then `exercise.sh` preflight warns and the status
   publish fails open. This line is updated when the paste is done.
+- **2026-11-21 (10.4b, [ADR 0021](../../docs/adr/0021-pipeline-status-and-alerting.md)
+  amendment):** `cerberus-admin-iam-and-governance` gains, in
+  `AmpQueryAndStatusWrite`, the AMP rule and Alertmanager actions:
+  `aps:CreateRuleGroupsNamespace`, `PutRuleGroupsNamespace`,
+  `DescribeRuleGroupsNamespace`, `DeleteRuleGroupsNamespace`,
+  `ListRuleGroupsNamespaces`, `CreateAlertManagerDefinition`,
+  `PutAlertManagerDefinition`, `DescribeAlertManagerDefinition`,
+  `DeleteAlertManagerDefinition`, and the three tag actions
+  (`ListTagsForResource`, `TagResource`, `UntagResource`). The statement's
+  `Resource` is now a list: the existing `workspace/*` line and
+  `arn:aws:aps:us-east-1:*:rulegroupsnamespace/*` (the rule-group actions take
+  a `rulegroupsnamespace` ARN; the account part is `*`, so the file gets no new
+  account-ID line). Counted size after the change: 4,511 of 6,144 characters.
+  The paste is pending. It is needed for the owner's own describe and put of
+  rule groups and for the first local `make standing-apply` of 10.4b (CI's
+  role cannot widen its own policy, so the owner applies first). One paste of
+  this file also carries the 10.2d `aps:RemoteWrite` change above. The steps
+  are in [observability/alerts/README.md](../../observability/alerts/README.md#putting-the-rules-live-owner).
+  This line is updated when the paste is done.

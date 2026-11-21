@@ -5,9 +5,10 @@ decision is in [ADR 0021](../../docs/adr/0021-pipeline-status-and-alerting.md)
 and its amendments. The plan is
 [2026-11-20-status-dashboard-and-alerts.md](../../docs/plans/2026-11-20-status-dashboard-and-alerts.md).
 
-Nothing here is deployed yet. PR 10.4b adds the Terraform that loads these files
-into AMP (`aws_prometheus_rule_group_namespace` and
-`aws_prometheus_alert_manager_definition`) in `dev-standing`.
+Nothing here is live until the owner steps below are done. The Terraform that
+loads these files into AMP (`aws_prometheus_rule_group_namespace` and
+`aws_prometheus_alert_manager_definition`) is `terraform/modules/pipeline_alerts`,
+called from `dev-standing` (PR 10.4b).
 
 | File | What it is |
 |---|---|
@@ -67,3 +68,62 @@ Route timing is `group_wait: 30s`, `group_interval: 5m` and
 for 30 days, so the 4 hour default would send about 6 emails a day. The first
 email arrives about 3.5 minutes after a failure: up to 60 s for the rule
 evaluation, 2 minutes of `for`, and 30 s of `group_wait`.
+
+## Putting the rules live (owner)
+
+PR 10.4b adds the Terraform. Nothing reaches AMP until the owner does these
+steps, in this order. The CI role (`cerberus-ci-apply`) cannot widen its own
+policy: the PR changes that policy and the PR needs the new rights to create the
+rules. Think of a new employee who needs a key to open the room that holds the
+key cabinet. A person with the master key (you, with `cerberus-admin`) lets them
+in the first time. After that, CI runs alone.
+
+1. **Root-paste the admin policy.** Sign in to the AWS console as the root user.
+   Open IAM, Policies, `cerberus-admin-iam-and-governance`, then Edit, then JSON.
+   Replace the text with the whole of
+   `iam/cerberus-admin/policies/cerberus-admin-iam-and-governance.json` from the
+   PR branch and choose Save changes. This makes a new default version. One
+   paste covers both the 10.2d `aps:RemoteWrite` change and the 10.4b actions.
+   The background is in [iam/cerberus-admin/README.md](../../iam/cerberus-admin/README.md)
+   (the 2026-11-20 and 2026-11-21 "Changes" entries). Then update both entries
+   from "paste pending" to the date of the paste.
+2. **Check the paste.** Both answers must be `allowed`:
+   ```
+   U=$(AWS_PROFILE=cerberus-admin aws sts get-caller-identity --query Arn --output text)
+   AWS_PROFILE=cerberus-admin aws iam simulate-principal-policy --policy-source-arn "$U" \
+     --action-names aps:RemoteWrite aps:PutRuleGroupsNamespace aps:CreateAlertManagerDefinition \
+     --query 'EvaluationResults[].[EvalActionName,EvalDecision]' --output text
+   ```
+3. **Plan on the PR branch.** Run `make standing-plan`. It must show exactly
+   these new or changed resources, plus the known Faker layer churn
+   (`aws_lambda_layer_version.faker` replaced, the ingestion Lambda updated):
+   - `module.observability.aws_sns_topic_policy.alerts` (create; it replaces the
+     topic's default policy with an equivalent first statement and the AMP statement)
+   - `module.pipeline_alerts.aws_prometheus_rule_group_namespace.status` (create)
+   - `module.pipeline_alerts.aws_prometheus_alert_manager_definition.status` (create)
+   - `module.github_oidc.aws_iam_role_policy.ci_apply` (update in place)
+
+   The plan must match the CI plan comment on the PR. If it differs, stop.
+   Before you apply, check that no Terraform apply is running:
+   `gh run list --workflow terraform-apply.yml --limit 3`. A running one holds
+   the state lock, so wait and try again.
+4. **Apply locally.** Run `make standing-apply`. CI cannot do this first apply
+   (see above). If the apply stops after it created the rule namespace but
+   before the Alertmanager definition, fix the cause and run
+   `make standing-apply` again. Do not use `-target`.
+5. **Merge the PR right after the local apply.** Do not merge any other PR that
+   touches `terraform/**` or the workflow paths between the local apply and this
+   merge. A CI apply from a `main` without this code would try to remove the
+   three new resources. It would fail partway, because it lacks the rights, and
+   leave a mixed state that only this merge repairs. After the merge, the CI
+   apply on `main` must show no changes.
+6. **Check AMP.** Both must say `ACTIVE` (use the workspace ID of the
+   `cerberus-platform` workspace, `aws amp list-workspaces`):
+   ```
+   aws amp describe-rule-groups-namespace --workspace-id <id> --name cerberus-status
+   aws amp describe-alert-manager-definition --workspace-id <id>
+   ```
+7. **Prove the whole path.** Run `make status-smoke ARGS=--send`. An email
+   "[Cerberus FIRING] CerberusAlertPathCheck smoke-..." must arrive within about
+   3 minutes. The RESOLVED email follows after about 10 minutes. Record the
+   result in `Phases.md` (10.4) and in the "Confirmed" line of ADR 0021.
