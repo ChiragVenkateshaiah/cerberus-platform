@@ -37,6 +37,8 @@ check "ruff format" uvx ruff@0.16.4 format --check -q .
 
 check "console tests" bash -c 'cd console && uv run --no-project --python 3.12 \
   --with pytest==9.1.1 --with PyYAML==6.0.3 python -m pytest -q'
+check "agents tests" env PYTHONPATH=agents:console uv run --no-project --python 3.12 \
+  --with pytest==9.1.1 python -m pytest -q agents/tests
 check "status tests" uv run --no-project --python 3.12 \
   --with pytest==9.1.1 --with boto3==1.43.67 python -m pytest -q observability/status
 check "grafana module tests (py3.9)" uv run --no-project --python 3.9 \
