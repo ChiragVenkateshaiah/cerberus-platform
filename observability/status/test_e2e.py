@@ -6,13 +6,16 @@ container. The receiver must run with --web.enable-remote-write-receiver.
 
 It proves, against a real receiver: the protobuf field numbers, snappy
 decoding, NaN samples, and that every entry in observability/queries/status.json
-parses. No AWS. It needs a fresh Prometheus: the samples are written at now-60 s,
-now-45 s and now-30 s, in that order, so they are in order for the TSDB.
+parses. It also checks parity (11.2a): the showcase builder's status values, made
+from the same records, equal the query results. No AWS.
+It needs a fresh Prometheus: the samples are written at now-60 s, now-45 s and
+now-30 s, in that order, so they are in order for the TSDB.
 """
 
 import json
 import math
 import os
+import sys
 import time
 import urllib.parse
 import urllib.request
@@ -26,6 +29,9 @@ BASE = os.environ.get("CERBERUS_PROM_URL", "").rstrip("/")
 pytestmark = pytest.mark.skipif(not BASE, reason="CERBERUS_PROM_URL is not set")
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "console"))  # for cerberus_landing.showcase (stdlib only)
+from cerberus_landing import showcase  # noqa: E402
+
 RUNS = ROOT / "observability" / "scale" / "runs"
 QUERIES = json.loads((ROOT / "observability" / "queries" / "status.json").read_text())["queries"]
 FAILED = "exercise-20261008T085728Z"
@@ -69,6 +75,69 @@ def scalar(result):
     return float(result[0]["value"][1])
 
 
+def nan_to_none(value):
+    return None if math.isnan(value) else value
+
+
+def assert_showcase_parity(got, pushed, started_only=()):
+    """The builder's status values for `pushed` records equal the query results `got`.
+
+    `pushed` is the raw records published so far, as the builder reads them. An
+    empty vector is a null value. NaN is a null value too. `started_only` names
+    executions pushed with a start but no end: they are in the start series only,
+    so they are left out of the start comparisons.
+    """
+    want = showcase.status_values(pushed, QUERIES)
+
+    def value(name):
+        rows = got[name]
+        return nan_to_none(scalar(rows)) if rows else None
+
+    for name in (
+        "latest_status",
+        "latest_started",
+        "latest_finished",
+        "last_success",
+        "latest_run_seconds",
+        "latest_events",
+        "latest_dq_passed",
+        "latest_dq_errors",
+        "latest_dq_warnings",
+        "runs_90d",
+        "run_success_share_90d",
+    ):
+        expected = want[name]["value"]
+        actual = value(name)
+        if expected is None:
+            assert actual is None, name
+        else:
+            assert actual == pytest.approx(expected), name
+    steps = {
+        r["metric"]["step"]: nan_to_none(float(r["value"][1])) for r in got["latest_step_seconds"]
+    }
+    assert steps == pytest.approx(want["latest_step_seconds"]["by_step"])
+    failed = [r["metric"]["step"] for r in got["latest_failed_step"]]
+    want_failed = want["latest_failed_step"]["value"]
+    assert failed == ([want_failed] if want_failed else [])
+    newest = got["newest_finished_execution"]
+    want_newest = want["newest_finished_execution"]
+    assert [r["metric"]["execution"] for r in newest] == [want_newest["execution"]]
+    assert scalar(newest) == pytest.approx(want_newest["value"])
+    for name in ("runs_started_30d", "runs_finished_30d"):
+        rows = {r["metric"]["execution"]: float(r["value"][1]) for r in got[name]}
+        for execution in started_only:
+            rows.pop(execution, None)
+        listed = {e["execution"]: e["value"] for e in want[name]["by_execution"]}
+        assert rows == pytest.approx(listed), name
+    if not started_only:
+        started = got["newest_started_execution"]
+        want_started = want["newest_started_execution"]
+        assert [r["metric"]["execution"] for r in started] == [want_started["execution"]]
+        assert scalar(started) == pytest.approx(want_started["value"])
+    # The labels are the entries' own.
+    assert {n: e["label"] for n, e in want.items()} == {q["name"]: q["label"] for q in QUERIES}
+
+
 def test_failed_run_then_next_start_then_success():
     with urllib.request.urlopen(f"{BASE}/-/ready", timeout=10) as resp:
         assert resp.status == 200
@@ -96,6 +165,8 @@ def test_failed_run_then_next_start_then_success():
     assert scalar(got["run_success_share_90d"]) == 0
     assert [r["metric"]["execution"] for r in got["runs_finished_30d"]] == [FAILED]
     assert [r["metric"]["execution"] for r in got["runs_started_30d"]] == [FAILED]
+    failed_record = json.loads(record_path(FAILED).read_text())
+    assert_showcase_parity(got, [failed_record])
 
     # 2. The start of the next run, 45 s ago. It adds only the two start series.
     push("start", "--execution", NEXT, "--started", iso(-45), "--at", iso(-45))
@@ -116,6 +187,7 @@ def test_failed_run_then_next_start_then_success():
     assert scalar(got["runs_90d"]) == 2
     assert scalar(got["run_success_share_90d"]) == pytest.approx(0.5)
     assert {r["metric"]["execution"] for r in got["runs_finished_30d"]} == {FAILED, SUCCEEDED}
+    assert_showcase_parity(got, [failed_record, success_record], started_only=(NEXT,))
 
 
 def test_smoke_value_reads_back_through_the_query():

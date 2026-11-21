@@ -78,13 +78,11 @@ def test_clean_data_cleans_every_hostile_string_as_key_and_value():
     assert all(ALLOWED.fullmatch(s) and len(s) <= config.FIELD_CHARS for s in seen)
 
 
-@pytest.mark.xfail(strict=True, reason="known gap, recorded in 9.6c")
 def test_a_thirteen_digit_account_is_fully_redacted():
     out = sanitize.clean_str("arn:aws:iam::1234567890123:role/x")
     assert not re.search(r"<ACCOUNT_ID>\d", out)
 
 
-@pytest.mark.xfail(strict=True, reason="known gap, recorded in 9.6c")
 def test_a_twelve_digit_s3_bucket_name_is_redacted():
     assert "123456789012" not in sanitize.clean_str("arn:aws:s3:::123456789012-data")
 

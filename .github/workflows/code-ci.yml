@@ -19,6 +19,8 @@ on:
       - "docs/plans/**"
       - "docs/traceability.md"
       - "tools/traceability/**"
+      - "docs/slo.md"
+      - "orchestration/state_machine.asl.json.tftpl"
       - "terraform/modules/console_roles/variables.tf"
       - "terraform/modules/console_edge/main.tf"
       - "terraform/modules/console_edge/variables.tf"

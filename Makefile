@@ -164,6 +164,13 @@ console-site-publish: console-site ## AWS WRITE, needs approval: publish console
 	  "$$($(TF_BIN) -chdir=$(TF_STANDING_DIR) output -raw console_distribution_id)" \
 	  "$$($(TF_BIN) -chdir=$(TF_STANDING_DIR) output -raw console_url)"
 
+.PHONY: showcase-snapshot showcase-check
+showcase-snapshot: ## OFFLINE, git only: write observability/showcase/*.json from the run records, with the fail-closed redaction gate (11.2a; no AWS)
+	PYTHONPATH=console uv run --no-project --python 3.12 python -m cerberus_landing.showcase --runs observability/scale/runs --out observability/showcase
+
+showcase-check: ## OFFLINE, git only: fail if the committed observability/showcase/*.json are stale (11.2a; no AWS)
+	PYTHONPATH=console uv run --no-project --python 3.12 python -m cerberus_landing.showcase --runs observability/scale/runs --out observability/showcase --check
+
 .PHONY: fmt
 fmt: ## terraform fmt across the whole terraform/ tree
 	$(TF_BIN) fmt -recursive terraform/
