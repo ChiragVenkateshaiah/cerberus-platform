@@ -1346,7 +1346,9 @@
       "title": "Free Edition",
       "checked": false,
       "links": {
-        "adr": [],
+        "adr": [
+          "0026"
+        ],
         "plan": [],
         "pr": [],
         "runs": []

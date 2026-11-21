@@ -161,7 +161,7 @@ never fail the check. Only PRs named in Phases.md appear here.
 | Subtask | Done | ADR | Plan | PR | Runs |
 | --- | --- | --- | --- | --- | --- |
 | 11.1 ADR: Databricks Free Edition as the partner workspace and presentation layer; trial and Glue federation re-verified by an amendment before… |  | [0028](adr/0028-databricks-free-edition.md) Databricks Free Edition as the partner workspace and presentation layer | - | - | - |
-| 11.2 Free Edition |  | - | - | - | - |
+| 11.2 Free Edition |  | [0026](adr/0026-phase-9-well-architected-review.md) Phase 9 Well-Architected review | - | - | - |
 | 11.3 Trial preparation: IAM role in `dev-standing`; Terraform for the service credential, connection, external location, foreign catalog and… |  | - | - | - | - |
 | 11.4 Trial: Glue federation live; Databricks SQL reads Cerberus's Iceberg gold with no copy |  | - | - | - | - |
 | 11.5 Measured comparison: same input on both engines, run time and cost per million events. |  | [0027](adr/0027-public-showcase.md) Public showcase: a published metrics snapshot on the standing edge, with Databricks as a partner column | - | - | - |

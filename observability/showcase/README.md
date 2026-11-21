@@ -24,6 +24,8 @@ builds of the same inputs give the same bytes.
 | `status.json` | The values of the 17 entries of `observability/queries/status.json` for the newest run, with each entry's `label`. |
 | `slo.json` | Objective 1 of `docs/slo.md` (pipeline success) over the newest 20 terminal runs: share succeeded and `error_budget_used`. |
 | `comparison.json` | Only when `comparison-input.json` exists (see below). |
+| `history.json` | How the platform was built: each subtask linked to its ADR, plan, PR and run record. Written by `tools/traceability/generate.py` (Phase 16, ADR 0029), not by the showcase builder; its `generated_at` is also an ISO-8601 UTC timestamp. |
+| `traceability-baseline.json` | The subtasks and ADRs that were already done when traceability began (write-once, hash-pinned in the generator). Not part of the public contract. |
 
 `runs.json` fields: `execution`, `kind` (`exercise`, `demo` or `rehearsal`),
 `status`, `start`, `end`, `run_seconds`, `events_processed`, `events_per_second`,
