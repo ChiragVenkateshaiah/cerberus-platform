@@ -1,0 +1,36 @@
+{
+  "case_id": "incident_failed_rundbt",
+  "gap": "the cause (dbt role read, timestamptz) is not in the record; that is 14.5 triage",
+  "group": "incident",
+  "label": {
+    "accepted_extra": [],
+    "expect": [
+      {
+        "rule": "run_failed",
+        "step": "RunDbt"
+      },
+      {
+        "rule": "dq_errors"
+      }
+    ],
+    "expect_absent": [],
+    "expect_none": false,
+    "required_evidence": [
+      {
+        "fields": {
+          "status": "FAILED",
+          "step": "RunDbt"
+        },
+        "rule": "run_failed"
+      },
+      {
+        "fields": {
+          "errors": 2
+        },
+        "rule": "dq_errors"
+      }
+    ]
+  },
+  "record": "exercise-20261008T085728Z.json",
+  "source": "docs/adr/0025-ai-operations-agents.md (labelled incident history): RunDbt failed"
+}

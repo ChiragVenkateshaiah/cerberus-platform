@@ -332,6 +332,8 @@ amendment, Accepted 2026-11-12); 14.5–14.8 follow after Phase 13._
 - [ ] 14.3 Evaluation: labelled replay set from past runs (failed runs,
       Glue timeouts, Spot interruption, Athena queue time, clean runs) and a
       scored harness
+      _Progress 2026-11-21: 14.3a built 2026-11-21 (replay cases, loader,
+      scorer, answerers, `python -m agents.eval`); sweep and wiring follow._
 - [ ] 14.4 Run reviewer (first agent, report only): review file, Grafana
       annotation and an "AI review" panel on the Phase 10 run-status dashboard
 - [ ] 14.5 Failure triage: root cause with cited log lines and metric

@@ -1,0 +1,31 @@
+{
+  "case_id": "syn_status_failed",
+  "gap": null,
+  "group": "synthetic",
+  "label": {
+    "accepted_extra": [],
+    "expect": [
+      {
+        "rule": "run_failed"
+      }
+    ],
+    "expect_absent": [],
+    "expect_none": false,
+    "required_evidence": [
+      {
+        "fields": {
+          "status": "FAILED"
+        },
+        "rule": "run_failed"
+      }
+    ]
+  },
+  "record": {
+    "base": "exercise-20261008T095905Z.json",
+    "note": "status FAILED on a record that ran to the end: run_failed at the last step",
+    "set": {
+      "status": "FAILED"
+    }
+  },
+  "source": "agents/cerberus_agents/baselines.py thresholds; mutation of a clean record"
+}

@@ -1,0 +1,14 @@
+{
+  "case_id": "clean_exercise_20261008",
+  "gap": null,
+  "group": "clean",
+  "label": {
+    "accepted_extra": [],
+    "expect": [],
+    "expect_absent": [],
+    "expect_none": true,
+    "required_evidence": []
+  },
+  "record": "exercise-20261008T095905Z.json",
+  "source": "agents/tests/golden: the review of this record has no findings"
+}

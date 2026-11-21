@@ -1,0 +1,33 @@
+{
+  "case_id": "syn_queue_61",
+  "gap": null,
+  "group": "synthetic",
+  "label": {
+    "accepted_extra": [],
+    "expect": [
+      {
+        "rule": "athena_queue",
+        "step": "RunDbt"
+      }
+    ],
+    "expect_absent": [],
+    "expect_none": false,
+    "required_evidence": [
+      {
+        "fields": {
+          "queue_seconds": 61,
+          "step": "RunDbt"
+        },
+        "rule": "athena_queue"
+      }
+    ]
+  },
+  "record": {
+    "base": "exercise-20261008T095905Z.json",
+    "note": "RunDbt queue 61 s, just over the 60 s limit",
+    "set": {
+      "states.2.athena.queue_seconds": 61
+    }
+  },
+  "source": "agents/cerberus_agents/baselines.py thresholds; mutation of a clean record"
+}

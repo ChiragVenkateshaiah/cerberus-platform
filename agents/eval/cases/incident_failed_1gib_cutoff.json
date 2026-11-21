@@ -1,0 +1,27 @@
+{
+  "case_id": "incident_failed_1gib_cutoff",
+  "gap": "the cutoff cause is not in the record; step_slow is accepted as an extra, not an error",
+  "group": "incident",
+  "label": {
+    "accepted_extra": [
+      "step_slow"
+    ],
+    "expect": [
+      {
+        "rule": "run_failed"
+      }
+    ],
+    "expect_absent": [],
+    "expect_none": false,
+    "required_evidence": [
+      {
+        "fields": {
+          "status": "FAILED"
+        },
+        "rule": "run_failed"
+      }
+    ]
+  },
+  "record": "exercise-20261009T101830Z.json",
+  "source": "docs/adr/0025-ai-operations-agents.md (labelled incident history): the 1 GiB Athena cutoff, cause unverified"
+}

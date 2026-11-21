@@ -1,0 +1,20 @@
+{
+  "case_id": "syn_queue_60",
+  "gap": null,
+  "group": "synthetic",
+  "label": {
+    "accepted_extra": [],
+    "expect": [],
+    "expect_absent": [],
+    "expect_none": true,
+    "required_evidence": []
+  },
+  "record": {
+    "base": "exercise-20261008T095905Z.json",
+    "note": "RunDbt queue exactly 60 s; the rule fires only above the limit",
+    "set": {
+      "states.2.athena.queue_seconds": 60
+    }
+  },
+  "source": "agents/cerberus_agents/baselines.py thresholds; mutation of a clean record"
+}

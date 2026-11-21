@@ -1,0 +1,14 @@
+{
+  "case_id": "incident_generator_commit",
+  "gap": null,
+  "group": "incident",
+  "label": {
+    "accepted_extra": [],
+    "expect": [],
+    "expect_absent": [],
+    "expect_none": true,
+    "required_evidence": []
+  },
+  "record": "exercise-20261013T055859Z.json",
+  "source": "docs/adr/0025-ai-operations-agents.md (labelled incident history): the right answer is not found (the cause is only inferred, ADR 0022)"
+}

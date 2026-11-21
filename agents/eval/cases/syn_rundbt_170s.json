@@ -1,0 +1,33 @@
+{
+  "case_id": "syn_rundbt_170s",
+  "gap": null,
+  "group": "synthetic",
+  "label": {
+    "accepted_extra": [],
+    "expect": [
+      {
+        "rule": "step_slow",
+        "step": "RunDbt"
+      }
+    ],
+    "expect_absent": [],
+    "expect_none": false,
+    "required_evidence": [
+      {
+        "fields": {
+          "peers": 6,
+          "step": "RunDbt"
+        },
+        "rule": "step_slow"
+      }
+    ]
+  },
+  "record": {
+    "base": "exercise-20261008T095905Z.json",
+    "note": "RunDbt 170 s: just over 1.5x the peer median of 112.95 s",
+    "set": {
+      "states.2.seconds": 170
+    }
+  },
+  "source": "agents/cerberus_agents/baselines.py thresholds; mutation of a clean record"
+}

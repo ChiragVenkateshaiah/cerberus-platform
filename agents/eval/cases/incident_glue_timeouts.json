@@ -1,0 +1,28 @@
+{
+  "case_id": "incident_glue_timeouts",
+  "gap": "the two Glue retries are only in the git-ignored log; needs a masked, tracked excerpt",
+  "group": "incident",
+  "label": {
+    "accepted_extra": [
+      "cost_outlier"
+    ],
+    "expect": [
+      {
+        "rule": "step_slow",
+        "step": "RunDbt"
+      }
+    ],
+    "expect_absent": [],
+    "expect_none": false,
+    "required_evidence": [
+      {
+        "fields": {
+          "step": "RunDbt"
+        },
+        "rule": "step_slow"
+      }
+    ]
+  },
+  "record": "exercise-20261012T075045Z.json",
+  "source": "docs/adr/0025-ai-operations-agents.md (labelled incident history): Glue OperationTimeoutException retries, labelled by symptom"
+}

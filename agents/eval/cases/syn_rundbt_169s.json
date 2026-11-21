@@ -1,0 +1,20 @@
+{
+  "case_id": "syn_rundbt_169s",
+  "gap": null,
+  "group": "synthetic",
+  "label": {
+    "accepted_extra": [],
+    "expect": [],
+    "expect_absent": [],
+    "expect_none": true,
+    "required_evidence": []
+  },
+  "record": {
+    "base": "exercise-20261008T095905Z.json",
+    "note": "RunDbt 169 s; the same-scale peer median is 112.95 s, so 1.5x is 169.4 s: just under",
+    "set": {
+      "states.2.seconds": 169
+    }
+  },
+  "source": "agents/cerberus_agents/baselines.py thresholds; mutation of a clean record"
+}

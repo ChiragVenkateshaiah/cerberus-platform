@@ -1,0 +1,16 @@
+{
+  "case_id": "gap_spot_interruption",
+  "gap": "no decommission data in the record; needs a masked excerpt of the FIS and executor lines",
+  "group": "incident",
+  "label": {
+    "accepted_extra": [],
+    "expect": [],
+    "expect_absent": [],
+    "expect_found": false,
+    "expect_none": true,
+    "reason": "not_visible_in_record",
+    "required_evidence": []
+  },
+  "record": "exercise-20261012T133620Z.json",
+  "source": "docs/adr/0025-ai-operations-agents.md (labelled incident history): the FIS Spot interruption, run SUCCEEDED"
+}

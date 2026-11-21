@@ -1,0 +1,34 @@
+{
+  "case_id": "syn_unknown_check_name",
+  "gap": null,
+  "group": "synthetic",
+  "label": {
+    "accepted_extra": [],
+    "expect": [
+      {
+        "rule": "dq_errors"
+      }
+    ],
+    "expect_absent": [],
+    "expect_none": false,
+    "required_evidence": [
+      {
+        "fields": {
+          "check": null,
+          "errors": 1
+        },
+        "rule": "dq_errors"
+      }
+    ]
+  },
+  "record": {
+    "base": "exercise-20261008T095905Z.json",
+    "note": "one failing check with a name outside KNOWN_CHECKS: the name is dropped, the finding stays",
+    "set": {
+      "data_quality.checks.0.name": "brand_new_check",
+      "data_quality.checks.0.passed": false,
+      "data_quality.errors": 1
+    }
+  },
+  "source": "agents/cerberus_agents/baselines.py thresholds; mutation of a clean record"
+}

@@ -1,0 +1,27 @@
+{
+  "case_id": "incident_athena_queue",
+  "gap": null,
+  "group": "incident",
+  "label": {
+    "accepted_extra": [],
+    "expect": [
+      {
+        "rule": "athena_queue",
+        "step": "RunDbt"
+      }
+    ],
+    "expect_absent": [],
+    "expect_none": false,
+    "required_evidence": [
+      {
+        "fields": {
+          "queue_seconds": 230.5,
+          "step": "RunDbt"
+        },
+        "rule": "athena_queue"
+      }
+    ]
+  },
+  "record": "exercise-20261015T145812Z.json",
+  "source": "docs/adr/0025-ai-operations-agents.md (labelled incident history): RunDbt Athena queue time 230.5 s"
+}

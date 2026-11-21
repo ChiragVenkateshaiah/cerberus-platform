@@ -1,0 +1,14 @@
+{
+  "case_id": "clean_rehearsal_1m",
+  "gap": null,
+  "group": "clean",
+  "label": {
+    "accepted_extra": [],
+    "expect": [],
+    "expect_absent": [],
+    "expect_none": true,
+    "required_evidence": []
+  },
+  "record": "rehearsal-1m-20261108T060517Z.json",
+  "source": "agents/tests/golden: the review of this record has no findings"
+}
