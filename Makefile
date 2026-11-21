@@ -105,6 +105,10 @@ verify: ## OFFLINE, no AWS: the standard checks for a change (ruff, console/stat
 verify-full: ## OFFLINE, Docker: verify plus the alert-rule, e2e and dashboard-render checks
 	orchestration/verify.sh --full
 
+.PHONY: mcp
+mcp: ## OFFLINE, no AWS: the local stdio MCP server for the review tools (14.2c); reads stdin, writes stdout; a client such as Claude Code starts it as a stdio command (see agents/README.md)
+	@PYTHONPATH=agents:console uv run --no-project --python 3.12 python -m cerberus_agents.mcp_server
+
 .PHONY: status-e2e
 status-e2e: ## OFFLINE, Docker only: push run records to a throwaway Prometheus on 127.0.0.1:9099 and check every status query (10.2c; no AWS)
 	observability/status/e2e.sh
