@@ -1,0 +1,658 @@
+{
+  "schema_version": 1,
+  "generated_from": [
+    {
+      "path": "observability/scale/runs/demo-100m-20261108T135119Z.json",
+      "sha": "8830e48665cfcb900092bd99c2f1cab3399b4fed"
+    },
+    {
+      "path": "observability/scale/runs/rehearsal-1m-20261108T060517Z.json",
+      "sha": "3ae6ee0b7bb7d5a14a634ac91c983c43f1d2730c"
+    },
+    {
+      "path": "observability/scale/runs/rehearsal-20261107T081206Z.json",
+      "sha": "4c305ffffcdb0246858ee484ad449d2f6cd36388"
+    },
+    {
+      "path": "observability/scale/runs/exercise-20261015T145812Z.json",
+      "sha": "0eec97da2a9f2cf6ab21ad8b9cf3eaadfd02cc20"
+    },
+    {
+      "path": "observability/scale/runs/exercise-20261013T055859Z.json",
+      "sha": "44734d5bea18ef407607065d94a1a6529038c252"
+    },
+    {
+      "path": "observability/scale/runs/exercise-20261012T133620Z.json",
+      "sha": "0762e222de633102ce3ccd2c115dd979f780002d"
+    },
+    {
+      "path": "observability/scale/runs/exercise-20261012T111304Z.json",
+      "sha": "4595996b4277780a3783dbc88fc0d2ffced2c6fd"
+    },
+    {
+      "path": "observability/scale/runs/exercise-20261012T075045Z.json",
+      "sha": "6e21f48b15168065c9b12a65719cfc71b42e3876"
+    },
+    {
+      "path": "observability/scale/runs/exercise-20261009T101830Z.json",
+      "sha": "bdacbb9847b6d914ff6b10f0fd8d9c24306587db"
+    },
+    {
+      "path": "observability/scale/runs/exercise-20261009T074853Z.json",
+      "sha": "ead2523fb134d7893eff0817992e1ac3431f4096"
+    },
+    {
+      "path": "observability/scale/runs/exercise-20261009T062108Z.json",
+      "sha": "cba123a086e8c731c8d74cc1c74848c09387713e"
+    },
+    {
+      "path": "observability/scale/runs/exercise-20261008T160759Z.json",
+      "sha": "e9dac2dd6ac4ddd28b71540c537bf280d2303763"
+    },
+    {
+      "path": "observability/scale/runs/exercise-20261008T115807Z.json",
+      "sha": "cde0d43b24f240cbe9bc118ed89a91235d314a26"
+    },
+    {
+      "path": "observability/scale/runs/exercise-20261008T095905Z.json",
+      "sha": "4c5d0c40f7a16376a5ba8e121a9e360062990279"
+    },
+    {
+      "path": "observability/scale/runs/exercise-20261008T085728Z.json",
+      "sha": "85fb33d096b291581a9cfb1da0d62c8a68ea3e94"
+    },
+    {
+      "path": "observability/scale/runs/exercise-20261007T145442Z.json",
+      "sha": "0d271244a47b96c4e9bb6d5ae18922e9351fbdc8"
+    },
+    {
+      "path": "observability/scale/runs/demo-7-8-take1-20261006T075445.json",
+      "sha": "700b2dc417a03f0a1a2263f761d69fef84f50bb2"
+    }
+  ],
+  "generated_at": "2026-11-08T14:40:23Z",
+  "dropped": {
+    "count": 0,
+    "reasons": {}
+  },
+  "runs": [
+    {
+      "execution": "demo-100m-20261108T135119Z",
+      "kind": "demo",
+      "status": "SUCCEEDED",
+      "start": "2026-11-08T14:26:04Z",
+      "end": "2026-11-08T14:40:23Z",
+      "run_seconds": 859.1,
+      "events_processed": 100001897,
+      "events_per_second": 116409,
+      "dq_passed": true,
+      "dq_errors": 0,
+      "dq_warnings": 1,
+      "cost_usd": 0.5176,
+      "cost_usd_per_million_events": 0.0052,
+      "cost_estimated": true,
+      "steps": [
+        {
+          "state": "InvokeIngestion",
+          "seconds": 1.1
+        },
+        {
+          "state": "RunTransform",
+          "seconds": 618.3
+        },
+        {
+          "state": "RunDbt",
+          "seconds": 178.3
+        },
+        {
+          "state": "RunServingQuery",
+          "seconds": 61.3
+        }
+      ]
+    },
+    {
+      "execution": "rehearsal-1m-20261108T060517Z",
+      "kind": "rehearsal",
+      "status": "SUCCEEDED",
+      "start": "2026-11-08T06:21:53Z",
+      "end": "2026-11-08T06:28:27Z",
+      "run_seconds": 394.3,
+      "events_processed": 999846,
+      "events_per_second": 2536,
+      "dq_passed": true,
+      "dq_errors": 0,
+      "dq_warnings": 1,
+      "cost_usd": 0.2562,
+      "cost_usd_per_million_events": 0.2563,
+      "cost_estimated": true,
+      "steps": [
+        {
+          "state": "InvokeIngestion",
+          "seconds": 1.1
+        },
+        {
+          "state": "RunTransform",
+          "seconds": 216.8
+        },
+        {
+          "state": "RunDbt",
+          "seconds": 121.1
+        },
+        {
+          "state": "RunServingQuery",
+          "seconds": 55.3
+        }
+      ]
+    },
+    {
+      "execution": "rehearsal-20261107T081206Z",
+      "kind": "rehearsal",
+      "status": "SUCCEEDED",
+      "start": "2026-11-07T08:31:36Z",
+      "end": "2026-11-07T08:39:07Z",
+      "run_seconds": 450.6,
+      "events_processed": 9999709,
+      "events_per_second": 22190,
+      "dq_passed": true,
+      "dq_errors": 0,
+      "dq_warnings": 1,
+      "cost_usd": 0.2669,
+      "cost_usd_per_million_events": 0.0267,
+      "cost_estimated": true,
+      "steps": [
+        {
+          "state": "InvokeIngestion",
+          "seconds": 1.3
+        },
+        {
+          "state": "RunTransform",
+          "seconds": 252.9
+        },
+        {
+          "state": "RunDbt",
+          "seconds": 137.1
+        },
+        {
+          "state": "RunServingQuery",
+          "seconds": 59.3
+        }
+      ]
+    },
+    {
+      "execution": "exercise-20261015T145812Z",
+      "kind": "exercise",
+      "status": "SUCCEEDED",
+      "start": "2026-10-15T15:15:18Z",
+      "end": "2026-10-15T15:24:59Z",
+      "run_seconds": 581.2,
+      "events_processed": 1005920,
+      "events_per_second": 1731,
+      "dq_passed": true,
+      "dq_errors": 0,
+      "dq_warnings": 1,
+      "cost_usd": 0.2945,
+      "cost_usd_per_million_events": 0.2928,
+      "cost_estimated": true,
+      "steps": [
+        {
+          "state": "InvokeIngestion",
+          "seconds": 3.8
+        },
+        {
+          "state": "RunTransform",
+          "seconds": 234.3
+        },
+        {
+          "state": "RunDbt",
+          "seconds": 286.7
+        },
+        {
+          "state": "RunServingQuery",
+          "seconds": 56.3
+        }
+      ]
+    },
+    {
+      "execution": "exercise-20261013T055859Z",
+      "kind": "exercise",
+      "status": "SUCCEEDED",
+      "start": "2026-10-13T06:35:02Z",
+      "end": "2026-10-13T06:47:23Z",
+      "run_seconds": 742.0,
+      "events_processed": 100008511,
+      "events_per_second": 134787,
+      "dq_passed": true,
+      "dq_errors": 0,
+      "dq_warnings": 1,
+      "cost_usd": 0.3657,
+      "cost_usd_per_million_events": 0.0037,
+      "cost_estimated": true,
+      "steps": [
+        {
+          "state": "InvokeIngestion",
+          "seconds": 4.2
+        },
+        {
+          "state": "RunTransform",
+          "seconds": 511.6
+        },
+        {
+          "state": "RunDbt",
+          "seconds": 167.9
+        },
+        {
+          "state": "RunServingQuery",
+          "seconds": 58.3
+        }
+      ]
+    },
+    {
+      "execution": "exercise-20261012T133620Z",
+      "kind": "exercise",
+      "status": "SUCCEEDED",
+      "start": "2026-10-12T13:54:13Z",
+      "end": "2026-10-12T14:02:51Z",
+      "run_seconds": 517.4,
+      "events_processed": 9005730,
+      "events_per_second": 17405,
+      "dq_passed": true,
+      "dq_errors": 0,
+      "dq_warnings": 1,
+      "cost_usd": 0.1382,
+      "cost_usd_per_million_events": 0.0154,
+      "cost_estimated": true,
+      "steps": [
+        {
+          "state": "InvokeIngestion",
+          "seconds": 3.9
+        },
+        {
+          "state": "RunTransform",
+          "seconds": 314.1
+        },
+        {
+          "state": "RunDbt",
+          "seconds": 137.1
+        },
+        {
+          "state": "RunServingQuery",
+          "seconds": 62.3
+        }
+      ]
+    },
+    {
+      "execution": "exercise-20261012T111304Z",
+      "kind": "exercise",
+      "status": "SUCCEEDED",
+      "start": "2026-10-12T11:33:28Z",
+      "end": "2026-10-12T11:41:51Z",
+      "run_seconds": 503.5,
+      "events_processed": 9006333,
+      "events_per_second": 17887,
+      "dq_passed": true,
+      "dq_errors": 0,
+      "dq_warnings": 1,
+      "cost_usd": 0.1301,
+      "cost_usd_per_million_events": 0.0144,
+      "cost_estimated": true,
+      "steps": [
+        {
+          "state": "InvokeIngestion",
+          "seconds": 3.9
+        },
+        {
+          "state": "RunTransform",
+          "seconds": 295.7
+        },
+        {
+          "state": "RunDbt",
+          "seconds": 143.5
+        },
+        {
+          "state": "RunServingQuery",
+          "seconds": 60.3
+        }
+      ]
+    },
+    {
+      "execution": "exercise-20261012T075045Z",
+      "kind": "exercise",
+      "status": "SUCCEEDED",
+      "start": "2026-10-12T08:05:47Z",
+      "end": "2026-10-12T08:18:54Z",
+      "run_seconds": 787.6,
+      "events_processed": 6104,
+      "events_per_second": 8,
+      "dq_passed": true,
+      "dq_errors": 0,
+      "dq_warnings": 1,
+      "cost_usd": 0.2093,
+      "cost_usd_per_million_events": 34.2972,
+      "cost_estimated": true,
+      "steps": [
+        {
+          "state": "InvokeIngestion",
+          "seconds": 3.7
+        },
+        {
+          "state": "RunTransform",
+          "seconds": 182.0
+        },
+        {
+          "state": "RunDbt",
+          "seconds": 538.5
+        },
+        {
+          "state": "RunServingQuery",
+          "seconds": 63.3
+        }
+      ]
+    },
+    {
+      "execution": "exercise-20261009T101830Z",
+      "kind": "exercise",
+      "status": "FAILED",
+      "start": "2026-10-09T10:36:13Z",
+      "end": "2026-10-09T10:46:40Z",
+      "run_seconds": 626.9,
+      "events_processed": 9005875,
+      "events_per_second": 14367,
+      "dq_passed": true,
+      "dq_errors": 0,
+      "dq_warnings": 1,
+      "cost_usd": 0.1327,
+      "cost_usd_per_million_events": 0.0147,
+      "cost_estimated": true,
+      "steps": [
+        {
+          "state": "InvokeIngestion",
+          "seconds": 3.7
+        },
+        {
+          "state": "RunTransform",
+          "seconds": 241.6
+        },
+        {
+          "state": "RunDbt",
+          "seconds": 381.5
+        },
+        {
+          "state": "RunServingQuery",
+          "seconds": null
+        }
+      ]
+    },
+    {
+      "execution": "exercise-20261009T074853Z",
+      "kind": "exercise",
+      "status": "SUCCEEDED",
+      "start": "2026-10-09T08:07:30Z",
+      "end": "2026-10-09T08:16:13Z",
+      "run_seconds": 522.8,
+      "events_processed": 9005590,
+      "events_per_second": 17226,
+      "dq_passed": true,
+      "dq_errors": 0,
+      "dq_warnings": 1,
+      "cost_usd": 0.1012,
+      "cost_usd_per_million_events": 0.0112,
+      "cost_estimated": true,
+      "steps": [
+        {
+          "state": "InvokeIngestion",
+          "seconds": 4.3
+        },
+        {
+          "state": "RunTransform",
+          "seconds": 323.3
+        },
+        {
+          "state": "RunDbt",
+          "seconds": 132.8
+        },
+        {
+          "state": "RunServingQuery",
+          "seconds": 62.3
+        }
+      ]
+    },
+    {
+      "execution": "exercise-20261009T062108Z",
+      "kind": "exercise",
+      "status": "SUCCEEDED",
+      "start": "2026-10-09T06:35:09Z",
+      "end": "2026-10-09T06:40:44Z",
+      "run_seconds": 334.8,
+      "events_processed": 6086,
+      "events_per_second": 18,
+      "dq_passed": true,
+      "dq_errors": 0,
+      "dq_warnings": 1,
+      "cost_usd": 0.0623,
+      "cost_usd_per_million_events": 10.236,
+      "cost_estimated": true,
+      "steps": [
+        {
+          "state": "InvokeIngestion",
+          "seconds": 4.1
+        },
+        {
+          "state": "RunTransform",
+          "seconds": 159.0
+        },
+        {
+          "state": "RunDbt",
+          "seconds": 106.3
+        },
+        {
+          "state": "RunServingQuery",
+          "seconds": 65.3
+        }
+      ]
+    },
+    {
+      "execution": "exercise-20261008T160759Z",
+      "kind": "exercise",
+      "status": "SUCCEEDED",
+      "start": "2026-10-08T16:20:08Z",
+      "end": "2026-10-08T16:25:58Z",
+      "run_seconds": 349.8,
+      "events_processed": 6086,
+      "events_per_second": 17,
+      "dq_passed": true,
+      "dq_errors": 0,
+      "dq_warnings": 1,
+      "cost_usd": 0.0686,
+      "cost_usd_per_million_events": 11.2654,
+      "cost_estimated": true,
+      "steps": [
+        {
+          "state": "InvokeIngestion",
+          "seconds": 5.4
+        },
+        {
+          "state": "RunTransform",
+          "seconds": 178.3
+        },
+        {
+          "state": "RunDbt",
+          "seconds": 109.7
+        },
+        {
+          "state": "RunServingQuery",
+          "seconds": 56.3
+        }
+      ]
+    },
+    {
+      "execution": "exercise-20261008T115807Z",
+      "kind": "exercise",
+      "status": "SUCCEEDED",
+      "start": "2026-10-08T12:12:41Z",
+      "end": "2026-10-08T12:18:22Z",
+      "run_seconds": 340.3,
+      "events_processed": 6094,
+      "events_per_second": 18,
+      "dq_passed": true,
+      "dq_errors": 0,
+      "dq_warnings": 1,
+      "cost_usd": 0.0668,
+      "cost_usd_per_million_events": 10.9538,
+      "cost_estimated": true,
+      "steps": [
+        {
+          "state": "InvokeIngestion",
+          "seconds": 4.0
+        },
+        {
+          "state": "RunTransform",
+          "seconds": 163.3
+        },
+        {
+          "state": "RunDbt",
+          "seconds": 119.6
+        },
+        {
+          "state": "RunServingQuery",
+          "seconds": 53.3
+        }
+      ]
+    },
+    {
+      "execution": "exercise-20261008T095905Z",
+      "kind": "exercise",
+      "status": "SUCCEEDED",
+      "start": "2026-10-08T10:14:29Z",
+      "end": "2026-10-08T10:20:20Z",
+      "run_seconds": 351.0,
+      "events_processed": 6097,
+      "events_per_second": 17,
+      "dq_passed": true,
+      "dq_errors": 0,
+      "dq_warnings": 1,
+      "cost_usd": 0.0685,
+      "cost_usd_per_million_events": 11.2421,
+      "cost_estimated": true,
+      "steps": [
+        {
+          "state": "InvokeIngestion",
+          "seconds": 4.2
+        },
+        {
+          "state": "RunTransform",
+          "seconds": 164.9
+        },
+        {
+          "state": "RunDbt",
+          "seconds": 123.6
+        },
+        {
+          "state": "RunServingQuery",
+          "seconds": 58.2
+        }
+      ]
+    },
+    {
+      "execution": "exercise-20261008T085728Z",
+      "kind": "exercise",
+      "status": "FAILED",
+      "start": "2026-10-08T09:13:33Z",
+      "end": "2026-10-08T09:23:05Z",
+      "run_seconds": 571.6,
+      "events_processed": 1051434,
+      "events_per_second": 1840,
+      "dq_passed": false,
+      "dq_errors": 2,
+      "dq_warnings": 1,
+      "cost_usd": 0.1098,
+      "cost_usd_per_million_events": 0.1044,
+      "cost_estimated": true,
+      "steps": [
+        {
+          "state": "InvokeIngestion",
+          "seconds": 3.6
+        },
+        {
+          "state": "RunTransform",
+          "seconds": 226.7
+        },
+        {
+          "state": "RunDbt",
+          "seconds": 341.3
+        },
+        {
+          "state": "RunServingQuery",
+          "seconds": null
+        }
+      ]
+    },
+    {
+      "execution": "exercise-20261007T145442Z",
+      "kind": "exercise",
+      "status": "SUCCEEDED",
+      "start": "2026-10-07T15:13:18Z",
+      "end": "2026-10-07T15:20:09Z",
+      "run_seconds": 411.4,
+      "events_processed": 45304,
+      "events_per_second": 110,
+      "dq_passed": true,
+      "dq_errors": 0,
+      "dq_warnings": 1,
+      "cost_usd": 0.0868,
+      "cost_usd_per_million_events": 1.9169,
+      "cost_estimated": true,
+      "steps": [
+        {
+          "state": "InvokeIngestion",
+          "seconds": 4.3
+        },
+        {
+          "state": "RunTransform",
+          "seconds": 225.6
+        },
+        {
+          "state": "RunDbt",
+          "seconds": 116.2
+        },
+        {
+          "state": "RunServingQuery",
+          "seconds": 65.4
+        }
+      ]
+    },
+    {
+      "execution": "demo-7-8-take1-20261006T075445",
+      "kind": "demo",
+      "status": "SUCCEEDED",
+      "start": "2026-10-06T07:54:46Z",
+      "end": "2026-10-06T08:00:50Z",
+      "run_seconds": 363.4,
+      "events_processed": 39222,
+      "events_per_second": 108,
+      "dq_passed": null,
+      "dq_errors": null,
+      "dq_warnings": null,
+      "cost_usd": 0.042,
+      "cost_usd_per_million_events": 1.0699,
+      "cost_estimated": true,
+      "steps": [
+        {
+          "state": "InvokeIngestion",
+          "seconds": 3.1
+        },
+        {
+          "state": "RunTransform",
+          "seconds": 205.6
+        },
+        {
+          "state": "RunDbt",
+          "seconds": 100.3
+        },
+        {
+          "state": "RunServingQuery",
+          "seconds": 54.3
+        }
+      ]
+    }
+  ]
+}

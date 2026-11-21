@@ -171,6 +171,13 @@ console-site-publish: console-site ## AWS WRITE, needs approval: publish console
 	  "$$($(TF_BIN) -chdir=$(TF_STANDING_DIR) output -raw console_distribution_id)" \
 	  "$$($(TF_BIN) -chdir=$(TF_STANDING_DIR) output -raw console_url)"
 
+.PHONY: showcase-snapshot showcase-check
+showcase-snapshot: ## OFFLINE, git only: write observability/showcase/*.json from the run records, with the fail-closed redaction gate (11.2a; no AWS)
+	PYTHONPATH=console uv run --no-project --python 3.12 python -m cerberus_landing.showcase --runs observability/scale/runs --out observability/showcase
+
+showcase-check: ## OFFLINE, git only: fail if the committed observability/showcase/*.json are stale (11.2a; no AWS)
+	PYTHONPATH=console uv run --no-project --python 3.12 python -m cerberus_landing.showcase --runs observability/scale/runs --out observability/showcase --check
+
 .PHONY: fmt
 fmt: ## terraform fmt across the whole terraform/ tree
 	$(TF_BIN) fmt -recursive terraform/
@@ -198,3 +205,10 @@ console-terminal-publish: console-terminal ## AWS WRITE, needs approval: publish
 console-artifacts: ## AWS WRITE, needs approval: stage the pinned Grafana tarball and AMP plugin in the private artifacts/ prefix of the site bucket (once per version)
 	observability/grafana/console/stage_artifacts.sh \
 	  "$$($(TF_BIN) -chdir=$(TF_STANDING_DIR) output -raw console_site_bucket_name)"
+
+.PHONY: traceability traceability-check
+traceability: ## Regenerate observability/showcase/history.json and docs/traceability.md (git only, no AWS)
+	python3 tools/traceability/generate.py
+
+traceability-check: ## Fail if the traceability files are stale or a link dangles (what CI runs)
+	python3 tools/traceability/generate.py --check
