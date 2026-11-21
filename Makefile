@@ -98,6 +98,13 @@ exercise: ## one-command compute exercise: apply -> run -> collect -> destroy (o
 exercise-check: ## read-only preflight for an exercise: no cluster, empty dev-compute state, nothing running
 	orchestration/exercise.sh --check
 
+.PHONY: verify verify-full
+verify: ## OFFLINE, no AWS: the standard checks for a change (ruff, console/status/grafana tests, terraform fmt, shell syntax, account-number scan); skips what is not on the branch
+	orchestration/verify.sh
+
+verify-full: ## OFFLINE, Docker: verify plus the alert-rule, e2e and dashboard-render checks
+	orchestration/verify.sh --full
+
 .PHONY: status-e2e
 status-e2e: ## OFFLINE, Docker only: push run records to a throwaway Prometheus on 127.0.0.1:9099 and check every status query (10.2c; no AWS)
 	observability/status/e2e.sh
