@@ -1,0 +1,225 @@
+{
+  "schema_version": 1,
+  "generated_from": [
+    {
+      "path": "observability/scale/runs/demo-100m-20261108T135119Z.json",
+      "sha": "8830e48665cfcb900092bd99c2f1cab3399b4fed"
+    },
+    {
+      "path": "observability/scale/runs/rehearsal-1m-20261108T060517Z.json",
+      "sha": "3ae6ee0b7bb7d5a14a634ac91c983c43f1d2730c"
+    },
+    {
+      "path": "observability/scale/runs/rehearsal-20261107T081206Z.json",
+      "sha": "4c305ffffcdb0246858ee484ad449d2f6cd36388"
+    },
+    {
+      "path": "observability/scale/runs/exercise-20261015T145812Z.json",
+      "sha": "0eec97da2a9f2cf6ab21ad8b9cf3eaadfd02cc20"
+    },
+    {
+      "path": "observability/scale/runs/exercise-20261013T055859Z.json",
+      "sha": "44734d5bea18ef407607065d94a1a6529038c252"
+    },
+    {
+      "path": "observability/scale/runs/exercise-20261012T133620Z.json",
+      "sha": "0762e222de633102ce3ccd2c115dd979f780002d"
+    },
+    {
+      "path": "observability/scale/runs/exercise-20261012T111304Z.json",
+      "sha": "4595996b4277780a3783dbc88fc0d2ffced2c6fd"
+    },
+    {
+      "path": "observability/scale/runs/exercise-20261012T075045Z.json",
+      "sha": "6e21f48b15168065c9b12a65719cfc71b42e3876"
+    },
+    {
+      "path": "observability/scale/runs/exercise-20261009T101830Z.json",
+      "sha": "bdacbb9847b6d914ff6b10f0fd8d9c24306587db"
+    },
+    {
+      "path": "observability/scale/runs/exercise-20261009T074853Z.json",
+      "sha": "ead2523fb134d7893eff0817992e1ac3431f4096"
+    },
+    {
+      "path": "observability/scale/runs/exercise-20261009T062108Z.json",
+      "sha": "cba123a086e8c731c8d74cc1c74848c09387713e"
+    },
+    {
+      "path": "observability/scale/runs/exercise-20261008T160759Z.json",
+      "sha": "e9dac2dd6ac4ddd28b71540c537bf280d2303763"
+    },
+    {
+      "path": "observability/scale/runs/exercise-20261008T115807Z.json",
+      "sha": "cde0d43b24f240cbe9bc118ed89a91235d314a26"
+    },
+    {
+      "path": "observability/scale/runs/exercise-20261008T095905Z.json",
+      "sha": "4c5d0c40f7a16376a5ba8e121a9e360062990279"
+    },
+    {
+      "path": "observability/scale/runs/exercise-20261008T085728Z.json",
+      "sha": "85fb33d096b291581a9cfb1da0d62c8a68ea3e94"
+    },
+    {
+      "path": "observability/scale/runs/exercise-20261007T145442Z.json",
+      "sha": "0d271244a47b96c4e9bb6d5ae18922e9351fbdc8"
+    },
+    {
+      "path": "observability/scale/runs/demo-7-8-take1-20261006T075445.json",
+      "sha": "700b2dc417a03f0a1a2263f761d69fef84f50bb2"
+    },
+    {
+      "path": "observability/queries/status.json",
+      "sha": "ad1028c4e567bc325f75943c8f24b3ed710fc7f0"
+    },
+    {
+      "path": "orchestration/state_machine.asl.json.tftpl",
+      "sha": "fb44074eb3aafb5f66c6c3647df5669b86c47d2e"
+    }
+  ],
+  "generated_at": "2026-11-08T14:40:23Z",
+  "queries": {
+    "latest_status": {
+      "label": "Last run",
+      "value": 1.0
+    },
+    "latest_failed_step": {
+      "label": "What broke",
+      "value": null
+    },
+    "latest_started": {
+      "label": "Last run started",
+      "value": 1794147964.105
+    },
+    "latest_finished": {
+      "label": "Last run finished",
+      "value": 1794148823.161
+    },
+    "last_success": {
+      "label": "Last good data",
+      "value": 1794148823.161
+    },
+    "latest_run_seconds": {
+      "label": "Last run duration",
+      "value": 859.1
+    },
+    "latest_step_seconds": {
+      "label": "Time per step",
+      "by_step": {
+        "InvokeIngestion": 1.1,
+        "RunTransform": 618.3,
+        "RunDbt": 178.3,
+        "RunServingQuery": 61.3
+      }
+    },
+    "latest_events": {
+      "label": "Events handled",
+      "value": 100001897.0
+    },
+    "latest_dq_passed": {
+      "label": "Data checks",
+      "value": 1.0
+    },
+    "latest_dq_errors": {
+      "label": "Data check errors",
+      "value": 0.0
+    },
+    "latest_dq_warnings": {
+      "label": "Data check warnings",
+      "value": 1.0
+    },
+    "newest_finished_execution": {
+      "label": "Newest finished run",
+      "execution": "demo-100m-20261108T135119Z",
+      "value": 1794148823.161
+    },
+    "newest_started_execution": {
+      "label": "Newest started run",
+      "execution": "demo-100m-20261108T135119Z",
+      "value": 1794147964.105
+    },
+    "run_success_share_90d": {
+      "label": "Runs that passed (90 days)",
+      "value": 0.8823529411764706
+    },
+    "runs_90d": {
+      "label": "Runs in 90 days",
+      "value": 17
+    },
+    "runs_started_30d": {
+      "label": "Run start times",
+      "by_execution": [
+        {
+          "execution": "demo-100m-20261108T135119Z",
+          "value": 1794147964.105
+        },
+        {
+          "execution": "rehearsal-1m-20261108T060517Z",
+          "value": 1794118913.416
+        },
+        {
+          "execution": "rehearsal-20261107T081206Z",
+          "value": 1794040296.896
+        },
+        {
+          "execution": "exercise-20261015T145812Z",
+          "value": 1792077318.155
+        },
+        {
+          "execution": "exercise-20261013T055859Z",
+          "value": 1791873302.004
+        },
+        {
+          "execution": "exercise-20261012T133620Z",
+          "value": 1791813253.624
+        },
+        {
+          "execution": "exercise-20261012T111304Z",
+          "value": 1791804808.007
+        },
+        {
+          "execution": "exercise-20261012T075045Z",
+          "value": 1791792347.265
+        }
+      ]
+    },
+    "runs_finished_30d": {
+      "label": "Run finish times",
+      "by_execution": [
+        {
+          "execution": "demo-100m-20261108T135119Z",
+          "value": 1794148823.161
+        },
+        {
+          "execution": "rehearsal-1m-20261108T060517Z",
+          "value": 1794119307.726
+        },
+        {
+          "execution": "rehearsal-20261107T081206Z",
+          "value": 1794040747.53
+        },
+        {
+          "execution": "exercise-20261015T145812Z",
+          "value": 1792077899.308
+        },
+        {
+          "execution": "exercise-20261013T055859Z",
+          "value": 1791874043.981
+        },
+        {
+          "execution": "exercise-20261012T133620Z",
+          "value": 1791813771.042
+        },
+        {
+          "execution": "exercise-20261012T111304Z",
+          "value": 1791805311.519
+        },
+        {
+          "execution": "exercise-20261012T075045Z",
+          "value": 1791793134.82
+        }
+      ]
+    }
+  }
+}
