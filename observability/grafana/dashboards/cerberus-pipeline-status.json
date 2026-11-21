@@ -1,0 +1,1648 @@
+{
+  "uid": "cerberus-pipeline-status",
+  "title": "4 \u00b7 Pipeline Status: did the last run pass?",
+  "tags": [
+    "cerberus",
+    "status"
+  ],
+  "schemaVersion": 41,
+  "version": 1,
+  "editable": false,
+  "graphTooltip": 0,
+  "refresh": "",
+  "timezone": "utc",
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
+  "description": "Did the last run pass, what broke if it did not, and how the recent runs went. Written for everyone: no query language needed.",
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": false,
+        "hide": true,
+        "name": "Annotations & Alerts",
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "Right now, in plain words",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 2,
+      "title": "Last run",
+      "type": "stat",
+      "description": "Did the newest run pass? Green means it finished well. Red means it failed.",
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 4,
+        "h": 5
+      },
+      "datasource": {
+        "type": "grafana-amazonprometheus-datasource",
+        "uid": "amp"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-amazonprometheus-datasource",
+            "uid": "amp"
+          },
+          "expr": "last_over_time(cerberus_run_status[30d])",
+          "legendFormat": "__auto",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "Passed",
+                  "color": "green",
+                  "index": 0
+                },
+                "0": {
+                  "text": "Failed",
+                  "color": "red",
+                  "index": 1
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null+nan",
+                "result": {
+                  "text": "No run yet",
+                  "color": "text",
+                  "index": 9
+                }
+              }
+            }
+          ],
+          "color": {
+            "mode": "thresholds"
+          },
+          "noValue": "No run yet",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "text": {
+          "titleSize": 16,
+          "valueSize": 32
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "What broke",
+      "type": "stat",
+      "description": "The step that stopped the newest run. It says nothing broke when the last run passed.",
+      "gridPos": {
+        "x": 4,
+        "y": 1,
+        "w": 5,
+        "h": 5
+      },
+      "datasource": {
+        "type": "grafana-amazonprometheus-datasource",
+        "uid": "amp"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-amazonprometheus-datasource",
+            "uid": "amp"
+          },
+          "expr": "(last_over_time(cerberus_run_step_failed[30d]) == 1)",
+          "legendFormat": "{{step}}",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "failed here",
+                  "color": "red",
+                  "index": 0
+                }
+              }
+            }
+          ],
+          "color": {
+            "mode": "thresholds"
+          },
+          "noValue": "Nothing, the last run passed",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value_and_name",
+        "orientation": "auto",
+        "wideLayout": true,
+        "text": {
+          "titleSize": 16,
+          "valueSize": 32
+        }
+      },
+      "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "^InvokeIngestion$",
+            "renamePattern": "1 \u00b7 Receive payments"
+          }
+        },
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "^RunTransform$",
+            "renamePattern": "2 \u00b7 Clean and merge (Spark)"
+          }
+        },
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "^RunDbt$",
+            "renamePattern": "3 \u00b7 Build reports (dbt)"
+          }
+        },
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "^RunServingQuery$",
+            "renamePattern": "4 \u00b7 Answer the demo query"
+          }
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Data checks",
+      "type": "stat",
+      "description": "Did the checks on the data pass in the newest run? Not run means the checks did not take place.",
+      "gridPos": {
+        "x": 9,
+        "y": 1,
+        "w": 4,
+        "h": 5
+      },
+      "datasource": {
+        "type": "grafana-amazonprometheus-datasource",
+        "uid": "amp"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-amazonprometheus-datasource",
+            "uid": "amp"
+          },
+          "expr": "last_over_time(cerberus_dq_passed[30d])",
+          "legendFormat": "__auto",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "Passed",
+                  "color": "green",
+                  "index": 0
+                },
+                "0": {
+                  "text": "Failed",
+                  "color": "red",
+                  "index": 1
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null+nan",
+                "result": {
+                  "text": "Not run",
+                  "color": "text",
+                  "index": 9
+                }
+              }
+            }
+          ],
+          "color": {
+            "mode": "thresholds"
+          },
+          "noValue": "Not run",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "text": {
+          "titleSize": 16,
+          "valueSize": 32
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Last good data",
+      "type": "stat",
+      "description": "How long ago a run last passed. Runs are started by hand, so weeks between runs is normal.",
+      "gridPos": {
+        "x": 13,
+        "y": 1,
+        "w": 5,
+        "h": 5
+      },
+      "datasource": {
+        "type": "grafana-amazonprometheus-datasource",
+        "uid": "amp"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-amazonprometheus-datasource",
+            "uid": "amp"
+          },
+          "expr": "last_over_time(cerberus_last_success_timestamp_seconds[30d])",
+          "legendFormat": "__auto",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          },
+          "unit": "dateTimeFromNow",
+          "noValue": "No run yet",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "text": {
+          "titleSize": 16,
+          "valueSize": 32
+        }
+      },
+      "transformations": [
+        {
+          "id": "calculateField",
+          "options": {
+            "mode": "binary",
+            "alias": "Value",
+            "replaceFields": true,
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byType",
+                  "options": "number"
+                }
+              },
+              "operator": "*",
+              "right": {
+                "fixed": "1000"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Runs that passed (90 days)",
+      "type": "stat",
+      "description": "The share of runs that passed over the last three months. Green means the share meets the goal.",
+      "gridPos": {
+        "x": 18,
+        "y": 1,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "grafana-amazonprometheus-datasource",
+        "uid": "amp"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-amazonprometheus-datasource",
+            "uid": "amp"
+          },
+          "expr": "avg_over_time(cerberus_run_status[90d])",
+          "legendFormat": "__auto",
+          "range": false,
+          "instant": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "grafana-amazonprometheus-datasource",
+            "uid": "amp"
+          },
+          "expr": "count_over_time(cerberus_run_status[90d])",
+          "legendFormat": "__auto",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "color": {
+            "mode": "thresholds"
+          },
+          "unit": "percentunit",
+          "noValue": "No run yet",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0.95
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "of runs passed"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "out of"
+              },
+              {
+                "id": "unit",
+                "value": "suffix: runs"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "text"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value_and_name",
+        "orientation": "auto",
+        "wideLayout": true,
+        "text": {
+          "titleSize": 16,
+          "valueSize": 32
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "How to read this page",
+      "type": "text",
+      "description": "A short guide to the tiles above, in plain words.",
+      "gridPos": {
+        "x": 0,
+        "y": 6,
+        "w": 24,
+        "h": 5
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "- **Last run**: did the newest run pass or fail.\n- **What broke**: the step that failed, or a note that nothing did.\n- **Data checks**: whether the checks on the data passed.\n- **Last good data**: how long ago a run last passed.\n- **Runs that passed**: the share of recent runs that passed, and how many runs that is out of.\n"
+      }
+    },
+    {
+      "id": 8,
+      "type": "row",
+      "title": "The last run, step by step",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 11,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 9,
+      "title": "Time per step",
+      "description": "How long each step of the newest run took. A step that was not reached shows Not run.",
+      "type": "bargauge",
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 10,
+        "h": 9
+      },
+      "datasource": {
+        "type": "grafana-amazonprometheus-datasource",
+        "uid": "amp"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-amazonprometheus-datasource",
+            "uid": "amp"
+          },
+          "expr": "last_over_time(cerberus_step_duration_seconds[30d])",
+          "legendFormat": "{{step}}",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "^InvokeIngestion$",
+            "renamePattern": "1 \u00b7 Receive payments"
+          }
+        },
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "^RunTransform$",
+            "renamePattern": "2 \u00b7 Clean and merge (Spark)"
+          }
+        },
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "^RunDbt$",
+            "renamePattern": "3 \u00b7 Build reports (dbt)"
+          }
+        },
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "^RunServingQuery$",
+            "renamePattern": "4 \u00b7 Answer the demo query"
+          }
+        },
+        {
+          "id": "reduce",
+          "options": {
+            "mode": "seriesToRows",
+            "reducers": [
+              "lastNotNull"
+            ],
+            "includeTimeField": false
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": {},
+            "sort": [
+              {
+                "field": "Field"
+              }
+            ]
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "noValue": "No run yet",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "null+nan",
+                "result": {
+                  "text": "Not run",
+                  "color": "text",
+                  "index": 9
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": true,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Last \\*$/"
+        },
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "valueMode": "color",
+        "showUnfilled": true,
+        "namePlacement": "top",
+        "sizing": "auto",
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "maxVizHeight": 300,
+        "legend": {
+          "showLegend": false
+        }
+      }
+    },
+    {
+      "id": 10,
+      "title": "Last run duration",
+      "type": "stat",
+      "description": "How long the newest run took from start to finish.",
+      "gridPos": {
+        "x": 10,
+        "y": 12,
+        "w": 7,
+        "h": 3
+      },
+      "datasource": {
+        "type": "grafana-amazonprometheus-datasource",
+        "uid": "amp"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-amazonprometheus-datasource",
+            "uid": "amp"
+          },
+          "expr": "last_over_time(cerberus_run_duration_seconds[30d])",
+          "legendFormat": "__auto",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "null+nan",
+                "result": {
+                  "text": "Not run",
+                  "color": "text",
+                  "index": 9
+                }
+              }
+            }
+          ],
+          "color": {
+            "mode": "thresholds"
+          },
+          "unit": "s",
+          "noValue": "No run yet",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "text": {
+          "titleSize": 16,
+          "valueSize": 32
+        }
+      }
+    },
+    {
+      "id": 11,
+      "title": "Events handled",
+      "type": "stat",
+      "description": "How many events the newest run handled. Not run means the number is not known.",
+      "gridPos": {
+        "x": 17,
+        "y": 12,
+        "w": 7,
+        "h": 3
+      },
+      "datasource": {
+        "type": "grafana-amazonprometheus-datasource",
+        "uid": "amp"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-amazonprometheus-datasource",
+            "uid": "amp"
+          },
+          "expr": "last_over_time(cerberus_run_events_processed[30d])",
+          "legendFormat": "__auto",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "null+nan",
+                "result": {
+                  "text": "Not run",
+                  "color": "text",
+                  "index": 9
+                }
+              }
+            }
+          ],
+          "color": {
+            "mode": "thresholds"
+          },
+          "unit": "short",
+          "noValue": "No run yet",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "text": {
+          "titleSize": 16,
+          "valueSize": 32
+        }
+      }
+    },
+    {
+      "id": 12,
+      "title": "Data check errors",
+      "type": "stat",
+      "description": "How many data checks failed in the newest run. Not run means the checks did not take place.",
+      "gridPos": {
+        "x": 10,
+        "y": 15,
+        "w": 7,
+        "h": 3
+      },
+      "datasource": {
+        "type": "grafana-amazonprometheus-datasource",
+        "uid": "amp"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-amazonprometheus-datasource",
+            "uid": "amp"
+          },
+          "expr": "last_over_time(cerberus_dq_errors[30d])",
+          "legendFormat": "__auto",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "null+nan",
+                "result": {
+                  "text": "Not run",
+                  "color": "text",
+                  "index": 9
+                }
+              }
+            }
+          ],
+          "color": {
+            "mode": "thresholds"
+          },
+          "unit": "short",
+          "noValue": "No run yet",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "text": {
+          "titleSize": 16,
+          "valueSize": 32
+        }
+      }
+    },
+    {
+      "id": 13,
+      "title": "Data check warnings",
+      "type": "stat",
+      "description": "How many data checks gave a warning in the newest run. Not run means the checks did not take place.",
+      "gridPos": {
+        "x": 17,
+        "y": 15,
+        "w": 7,
+        "h": 3
+      },
+      "datasource": {
+        "type": "grafana-amazonprometheus-datasource",
+        "uid": "amp"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-amazonprometheus-datasource",
+            "uid": "amp"
+          },
+          "expr": "last_over_time(cerberus_dq_warnings[30d])",
+          "legendFormat": "__auto",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "null+nan",
+                "result": {
+                  "text": "Not run",
+                  "color": "text",
+                  "index": 9
+                }
+              }
+            }
+          ],
+          "color": {
+            "mode": "thresholds"
+          },
+          "unit": "short",
+          "noValue": "No run yet",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "text": {
+          "titleSize": 16,
+          "valueSize": 32
+        }
+      }
+    },
+    {
+      "id": 14,
+      "title": "Last run started",
+      "type": "stat",
+      "description": "When the newest run started.",
+      "gridPos": {
+        "x": 10,
+        "y": 18,
+        "w": 7,
+        "h": 3
+      },
+      "datasource": {
+        "type": "grafana-amazonprometheus-datasource",
+        "uid": "amp"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-amazonprometheus-datasource",
+            "uid": "amp"
+          },
+          "expr": "last_over_time(cerberus_run_started_timestamp_seconds[30d])",
+          "legendFormat": "__auto",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "color": {
+            "mode": "thresholds"
+          },
+          "unit": "dateTimeAsIso",
+          "noValue": "No run yet",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "text": {
+          "titleSize": 16,
+          "valueSize": 22
+        }
+      },
+      "transformations": [
+        {
+          "id": "calculateField",
+          "options": {
+            "mode": "binary",
+            "alias": "Value",
+            "replaceFields": true,
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byType",
+                  "options": "number"
+                }
+              },
+              "operator": "*",
+              "right": {
+                "fixed": "1000"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "title": "Last run finished",
+      "type": "stat",
+      "description": "When the newest run finished.",
+      "gridPos": {
+        "x": 17,
+        "y": 18,
+        "w": 7,
+        "h": 3
+      },
+      "datasource": {
+        "type": "grafana-amazonprometheus-datasource",
+        "uid": "amp"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-amazonprometheus-datasource",
+            "uid": "amp"
+          },
+          "expr": "last_over_time(cerberus_run_finished_timestamp_seconds[30d])",
+          "legendFormat": "__auto",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "color": {
+            "mode": "thresholds"
+          },
+          "unit": "dateTimeAsIso",
+          "noValue": "No run yet",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "text": {
+          "titleSize": 16,
+          "valueSize": 22
+        }
+      },
+      "transformations": [
+        {
+          "id": "calculateField",
+          "options": {
+            "mode": "binary",
+            "alias": "Value",
+            "replaceFields": true,
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byType",
+                  "options": "number"
+                }
+              },
+              "operator": "*",
+              "right": {
+                "fixed": "1000"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "type": "row",
+      "title": "History",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 21,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 17,
+      "title": "Run result over time",
+      "description": "Green bands are time when the newest run had passed. Red bands are time when it had failed.",
+      "type": "state-timeline",
+      "gridPos": {
+        "x": 0,
+        "y": 22,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "grafana-amazonprometheus-datasource",
+        "uid": "amp"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-amazonprometheus-datasource",
+            "uid": "amp"
+          },
+          "expr": "last_over_time(cerberus_run_status[30d])",
+          "legendFormat": "Last run",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "No run yet",
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "Passed",
+                  "color": "green",
+                  "index": 0
+                },
+                "0": {
+                  "text": "Failed",
+                  "color": "red",
+                  "index": 1
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "custom": {
+            "fillOpacity": 70,
+            "lineWidth": 0
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "mergeValues": true,
+        "showValue": "never",
+        "alignValue": "center",
+        "rowHeight": 0.8,
+        "legend": {
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 18,
+      "title": "Share of runs that passed, over time",
+      "description": "The share of runs that passed, over time. The line is the goal. Above it is good.",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 22,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "grafana-amazonprometheus-datasource",
+        "uid": "amp"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-amazonprometheus-datasource",
+            "uid": "amp"
+          },
+          "expr": "avg_over_time(cerberus_run_status[90d])",
+          "legendFormat": "Runs that passed (90 days)",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "noValue": "No run yet",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "auto",
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0.95
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 19,
+      "type": "row",
+      "title": "Runs, and how to look closer",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 29,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 20,
+      "title": "Recent runs",
+      "description": "Every run of the last month with its start and finish. Click a row to open that run on the run overview.",
+      "type": "table",
+      "gridPos": {
+        "x": 0,
+        "y": 30,
+        "w": 16,
+        "h": 6
+      },
+      "datasource": {
+        "type": "grafana-amazonprometheus-datasource",
+        "uid": "amp"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-amazonprometheus-datasource",
+            "uid": "amp"
+          },
+          "expr": "last_over_time(cerberus_execution_started_timestamp_seconds[30d])",
+          "legendFormat": "__auto",
+          "range": false,
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "grafana-amazonprometheus-datasource",
+            "uid": "amp"
+          },
+          "expr": "last_over_time(cerberus_execution_finished_timestamp_seconds[30d])",
+          "legendFormat": "__auto",
+          "range": false,
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "execution",
+            "mode": "outer"
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "mode": "binary",
+            "alias": "Started",
+            "replaceFields": false,
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Value #A"
+                }
+              },
+              "operator": "*",
+              "right": {
+                "fixed": "1000"
+              }
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "mode": "binary",
+            "alias": "Finished",
+            "replaceFields": false,
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Value #B"
+                }
+              },
+              "operator": "*",
+              "right": {
+                "fixed": "1000"
+              }
+            }
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "execution",
+                "Started",
+                "Finished"
+              ]
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "indexByName": {
+              "execution": 0,
+              "Started": 1,
+              "Finished": 2
+            },
+            "renameByName": {
+              "execution": "Run"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "No run yet",
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          },
+          "links": [
+            {
+              "title": "Open this run",
+              "url": "/d/cerberus-run-story?from=${__data.fields.Started.numeric}&to=${__data.fields.Finished.numeric}",
+              "targetBlank": false
+            }
+          ]
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Started"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "dateTimeAsIso"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Finished"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "dateTimeAsIso"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "sortBy": [
+          {
+            "displayName": "Started",
+            "desc": true
+          }
+        ]
+      }
+    },
+    {
+      "id": 21,
+      "title": "How to look closer",
+      "type": "text",
+      "description": "How to see one run in detail from the terminal.",
+      "gridPos": {
+        "x": 16,
+        "y": 30,
+        "w": 8,
+        "h": 6
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "To see one run in detail: `cerberus run <execution>` in the terminal."
+      }
+    },
+    {
+      "id": 22,
+      "type": "row",
+      "title": "AI review (Phase 14)",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 23,
+      "title": "AI review (none yet, Phase 14)",
+      "description": "No AI review yet (Phase 14). Notes from the AI review will appear here when it exists.",
+      "type": "annolist",
+      "gridPos": {
+        "x": 0,
+        "y": 37,
+        "w": 24,
+        "h": 6
+      },
+      "datasource": {
+        "type": "grafana",
+        "uid": "-- Grafana --"
+      },
+      "options": {
+        "onlyFromThisDashboard": false,
+        "onlyInTimeRange": false,
+        "tags": [
+          "cerberus-ai"
+        ],
+        "limit": 10,
+        "showUser": true,
+        "showTime": true,
+        "showTags": true,
+        "navigateToPanel": true,
+        "navigateBefore": "10m",
+        "navigateAfter": "10m"
+      }
+    }
+  ]
+}

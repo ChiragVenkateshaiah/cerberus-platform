@@ -41,6 +41,22 @@ down, the run prints one `annotation skipped` line and carries on;
 `--no-annotate` turns it off. `orchestration/annotate.sh --replay EXECUTION`
 posts the annotations of a finished run again.
 
+## Pipeline status dashboard (10.3a)
+
+`dashboards/cerberus-pipeline-status.json` is "4 · Pipeline Status: did the last run pass?" (uid `cerberus-pipeline-status`, default range 30 days, no auto-refresh because the data changes once per run). It reads only the `amp` data source and the built-in annotations one, so the console build copies it as it is. `make grafana-up` provisions it with the other dashboards; until the first status publish (10.6) the tiles show "No run yet".
+
+| Row | For | What it shows |
+|---|---|---|
+| Right now, in plain words | everyone | Last run, What broke, Data checks, Last good data, Runs that passed (90 days), and a short "How to read this page" guide |
+| The last run, step by step | operations | Time per step, run duration, events handled, data-check errors and warnings, start and finish time |
+| History | operations | Run result over time (Passed and Failed bands), and the pass share against the 95% goal |
+| Runs, and how to look closer | operations | A table of recent runs. Each row links to `1 · Run Overview` for that run |
+| AI review (Phase 14) | everyone | A list of annotations tagged `cerberus-ai`. It is empty until Phase 14 |
+
+The plain-language rule: the tiles in row 1 show words ("Passed", "Failed", "Not run", "No run yet"), never a query or a metric name. Each panel title is the `label` of its entry in `observability/queries/status.json`, and each panel has a `description` in plain words. Every panel query is copied from that file; `console/tests/test_status_dashboard.py` checks all of this offline.
+
+Unverified: the `annolist` panel has no custom empty text in Grafana 13.2.3, so it shows "No annotations found" and the panel title ("AI review (none yet, Phase 14)") carries the message. The bar gauge and "What broke" show numbered plain names for the four steps; a new step in the state machine needs a new rename (a test checks this).
+
 ## Security
 
 - Grafana binds to `127.0.0.1` only, and anonymous access is off.
