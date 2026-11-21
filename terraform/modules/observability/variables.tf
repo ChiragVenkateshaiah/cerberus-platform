@@ -90,3 +90,10 @@ variable "gold_data_freshness_threshold_seconds" {
   type        = number
   default     = 129600
 }
+
+# --- 10.4b: AMP Alertmanager publishes to the alerts topic -----------
+
+variable "amp_workspace_arn" {
+  description = "AMP workspace ARN (prometheus_workspace module output) -- the aws:SourceArn the alerts topic policy allows aps.amazonaws.com to publish from."
+  type        = string
+}

@@ -428,6 +428,27 @@ resource "aws_iam_role_policy" "ci_apply" {
         Resource = "arn:aws:aps:${var.region}:${var.account_id}:workspace/*"
       },
       {
+        # 10.4b (ADR 0021): the status alert rules (a rule-group namespace)
+        # and the Alertmanager definition, both inside the one workspace.
+        # The namespace actions take a rulegroupsnamespace ARN; the
+        # Alertmanager and List* actions take the workspace ARN. Management
+        # only, like the statement above: CI never reads or writes metrics.
+        Sid    = "ManageAmpRulesAndAlerting"
+        Effect = "Allow"
+        Action = [
+          "aps:CreateRuleGroupsNamespace", "aps:PutRuleGroupsNamespace",
+          "aps:DescribeRuleGroupsNamespace", "aps:DeleteRuleGroupsNamespace",
+          "aps:ListRuleGroupsNamespaces",
+          "aps:CreateAlertManagerDefinition", "aps:PutAlertManagerDefinition",
+          "aps:DescribeAlertManagerDefinition", "aps:DeleteAlertManagerDefinition",
+          "aps:ListTagsForResource", "aps:TagResource", "aps:UntagResource",
+        ]
+        Resource = [
+          "arn:aws:aps:${var.region}:${var.account_id}:workspace/*",
+          "arn:aws:aps:${var.region}:${var.account_id}:rulegroupsnamespace/*",
+        ]
+      },
+      {
         # Missing entirely from the first live apply -- ec2:DescribeVpcs
         # 403'd immediately, the first resource module.vpc's refresh
         # touches. envs/dev-standing's trimmed vpc module (VPC, subnets,
