@@ -10,6 +10,11 @@ Accepted (2026-11-20). It extends the data contract of
 nothing. The build steps and the facts behind this ADR are in
 [the plan](../plans/2026-11-20-databricks-free-edition-showcase.md).
 
+Amendment proposed 2026-11-21 (step 16.2): merged PRs are read from GitHub
+merge commits in `git log --merges` (number, title, date), not
+`gh pr list`; CI needs no token or API access. Squash or rebase merges would
+not be seen; revisit if the merge method changes.
+
 ## Context
 
 The owner asked for another one, for traceability of the platform

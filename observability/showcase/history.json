@@ -1,0 +1,2266 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-11-20T11:18:20Z",
+  "phases": [
+    {
+      "number": 0,
+      "title": "Foundation (built by hand)",
+      "status": "complete"
+    },
+    {
+      "number": 1,
+      "title": "MVP: end-to-end lakehouse",
+      "status": "complete"
+    },
+    {
+      "number": 2,
+      "title": "Event-driven ingestion",
+      "status": "complete"
+    },
+    {
+      "number": 3,
+      "title": "Scalable compute",
+      "status": "complete"
+    },
+    {
+      "number": 4,
+      "title": "Orchestration",
+      "status": "complete"
+    },
+    {
+      "number": 5,
+      "title": "CI/CD",
+      "status": "complete"
+    },
+    {
+      "number": 6,
+      "title": "Observability & data quality",
+      "status": "complete"
+    },
+    {
+      "number": 7,
+      "title": "End-to-end platform validation",
+      "status": "complete"
+    },
+    {
+      "number": 8,
+      "title": "Scale validation",
+      "status": "complete"
+    },
+    {
+      "number": 9,
+      "title": "Demo console (UI + terminal)",
+      "status": "in progress"
+    },
+    {
+      "number": 10,
+      "title": "Pipeline status & alerting",
+      "status": "planned"
+    },
+    {
+      "number": 11,
+      "title": "Databricks interoperability",
+      "status": "planned"
+    },
+    {
+      "number": 12,
+      "title": "Platform tooling in Go",
+      "status": "planned"
+    },
+    {
+      "number": 13,
+      "title": "Streaming ingestion",
+      "status": "planned"
+    },
+    {
+      "number": 14,
+      "title": "AI operations agents",
+      "status": "planned"
+    },
+    {
+      "number": 15,
+      "title": "Public showcase",
+      "status": "planned"
+    },
+    {
+      "number": 16,
+      "title": "Development traceability",
+      "status": "planned"
+    }
+  ],
+  "subtasks": [
+    {
+      "id": "0.1",
+      "phase": 0,
+      "title": "Repo scaffold",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "0.2",
+      "phase": 0,
+      "title": "AWS account hygiene + billing alarm",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "0.3",
+      "phase": 0,
+      "title": "Manual S3 bronze bucket",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "0.4",
+      "phase": 0,
+      "title": "Bash ingestion script on a systemd timer",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "0.5",
+      "phase": 0,
+      "title": "Manual Terraform state backend (S3 + DynamoDB lock)",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "1.1",
+      "phase": 1,
+      "title": "ADR: medallion layout (bronze/silver/gold conventions, partitioning)",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "1.2",
+      "phase": 1,
+      "title": "ADR: synthetic payments data model",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "1.3",
+      "phase": 1,
+      "title": "Synthetic payments generator landing raw records in bronze",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "1.4",
+      "phase": 1,
+      "title": "Terraform: S3 medallion module (bronze/silver/gold)",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "1.5",
+      "phase": 1,
+      "title": "Terraform: adopt the hand-built state backend as code",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "1.6",
+      "phase": 1,
+      "title": "Terraform: IAM module (least-privilege roles for the above)",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "1.7",
+      "phase": 1,
+      "title": "Minimal transform promoting bronze → silver → gold",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "1.8",
+      "phase": 1,
+      "title": "Glue Data Catalog schema registration",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "1.9",
+      "phase": 1,
+      "title": "dbt project + gold models",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "1.10",
+      "phase": 1,
+      "title": "Athena demo query against gold",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "1.11",
+      "phase": 1,
+      "title": "Verify `terraform apply` builds and `terraform destroy` tears down cleanly",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "1.12",
+      "phase": 1,
+      "title": "MVP architecture write-up (definition-of-done artifact)",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "1.13",
+      "phase": 1,
+      "title": "Well-Architected pass + ADR",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "2.1",
+      "phase": 2,
+      "title": "Lambda ingestion function",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "2.2",
+      "phase": 2,
+      "title": "S3 event / EventBridge trigger",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "2.3",
+      "phase": 2,
+      "title": "IAM role for the Lambda",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "2.4",
+      "phase": 2,
+      "title": "ADR: push vs.",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "2.5",
+      "phase": 2,
+      "title": "Retire the Phase 0 systemd timer",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "2.6",
+      "phase": 2,
+      "title": "Well-Architected pass + ADR",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "3.1",
+      "phase": 3,
+      "title": "VPC design for the cluster (subnets, AZs, routing) + ADR",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "3.2",
+      "phase": 3,
+      "title": "EKS cluster module (spin-up/destroy pattern, not standing infra)",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "3.3",
+      "phase": 3,
+      "title": "Multi-AZ node group decision",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "3.4",
+      "phase": 3,
+      "title": "Spark Operator install",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "3.5",
+      "phase": 3,
+      "title": "Spark job manifest against S3",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "3.6",
+      "phase": 3,
+      "title": "Verify writes to silver/gold",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "3.7",
+      "phase": 3,
+      "title": "`terraform destroy` after each run (cost discipline)",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "3.8",
+      "phase": 3,
+      "title": "Well-Architected pass + ADR",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "4.1",
+      "phase": 4,
+      "title": "ADR: Step Functions vs.",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "4.2",
+      "phase": 4,
+      "title": "State machine definition as code",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "4.3",
+      "phase": 4,
+      "title": "Retries + visibility",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "4.4",
+      "phase": 4,
+      "title": "Full ingest → transform → serve flow as one orchestrated run",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "4.5",
+      "phase": 4,
+      "title": "Well-Architected pass + ADR",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "5.1",
+      "phase": 5,
+      "title": "`terraform plan` on PR",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "5.2",
+      "phase": 5,
+      "title": "`terraform apply` on merge",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "5.3",
+      "phase": 5,
+      "title": "Pipeline code CI (lint/test)",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "5.4",
+      "phase": 5,
+      "title": "Green build badge on README",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "5.5",
+      "phase": 5,
+      "title": "Well-Architected pass + ADR",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "6.1",
+      "phase": 6,
+      "title": "CloudWatch dashboards (pipeline health, data freshness)",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "6.2",
+      "phase": 6,
+      "title": "CloudWatch alarms + slow-job alerting",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "6.3",
+      "phase": 6,
+      "title": "dbt tests or Great Expectations suite",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "6.4",
+      "phase": 6,
+      "title": "Lineage",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "6.5",
+      "phase": 6,
+      "title": "SLO write-up",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "6.6",
+      "phase": 6,
+      "title": "Well-Architected pass + ADR",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "7.1",
+      "phase": 7,
+      "title": "Scaled-up synthetic payments workload",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "7.2",
+      "phase": 7,
+      "title": "Full orchestrated run exercising every layer",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "7.3",
+      "phase": 7,
+      "title": "Least-privilege IAM review (repay Phase 0's `AdministratorAccess`)",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "7.4",
+      "phase": 7,
+      "title": "Self-run Well-Architected review across the whole platform (AWS Well-Architected Tool)",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "7.5",
+      "phase": 7,
+      "title": "Cost + security summary",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "7.6",
+      "phase": 7,
+      "title": "ADR: Prometheus for the EKS/Spark layer (where metrics live, how they're viewed, no new idle cost)",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "7.7",
+      "phase": 7,
+      "title": "Prometheus metrics + Grafana dashboard for Spark-on-EKS, verified live during a `dev-compute` exercise",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "7.8",
+      "phase": 7,
+      "title": "End-to-end demo (GIF or short video), including the observability view",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "8.1",
+      "phase": 8,
+      "title": "ADR 0017: Apache Iceberg tables + incremental processing",
+      "checked": true,
+      "links": {
+        "adr": [
+          "0017"
+        ],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "8.2",
+      "phase": 8,
+      "title": "Cost guardrails: AWS Budgets alerts ($15 / $20), Spot vCPU quota and EC2 restriction checks",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "8.3",
+      "phase": 8,
+      "title": "Scale harness: Spark-based synthetic generator (1M–100M events), the per-step metric set, and a baseline run at today's volume",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "8.4",
+      "phase": 8,
+      "title": "Data-quality suite as code (bronze → silver → gold reconciliation), run on every exercise",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "8.5",
+      "phase": 8,
+      "title": "1M events: Iceberg silver/gold, incremental `MERGE`, dbt incremental models",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "8.6",
+      "phase": 8,
+      "title": "10M events: Spark tuning (partition sizing, compaction, AQE, skew) with before/after measurements",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "8.7",
+      "phase": 8,
+      "title": "ADR: node autoscaling + Spot for `dev-compute`",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "8.8",
+      "phase": 8,
+      "title": "Platform under load: autoscaler, Spot node pool, Spark dynamic allocation, a Spot-interruption test",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "8.9",
+      "phase": 8,
+      "title": "100M events: full orchestrated run, SLOs under load, cost per million events at each step.",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [
+          {
+            "number": 85,
+            "title": "8.6: data-quality suite checks bronze as a manifest ledger (option C)",
+            "date": "2026-10-10",
+            "merge": "2fe8ca4"
+          },
+          {
+            "number": 98,
+            "title": "8.9: record the 100M-event run (exercise-20261013T055859Z)",
+            "date": "2026-10-15",
+            "merge": "0a3f6fd"
+          },
+          {
+            "number": 102,
+            "title": "Phase 8 close-out: fix the cost method's double-counted Athena; amend ADR 0018 and 0020",
+            "date": "2026-10-15",
+            "merge": "03645af"
+          },
+          {
+            "number": 103,
+            "title": "Raise the data-quality cutoff for one --full audit before milestone 8; plan a cheaper audit",
+            "date": "2026-10-15",
+            "merge": "419b635"
+          },
+          {
+            "number": 104,
+            "title": "Record the milestone-8 --full data-quality audit; put the cutoff back to 10 GiB",
+            "date": "2026-10-15",
+            "merge": "1061262"
+          }
+        ],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "8.10",
+      "phase": 8,
+      "title": "Results write-up (per-step numbers and charts) + demo video.",
+      "checked": true,
+      "links": {
+        "adr": [
+          "0022"
+        ],
+        "plan": [],
+        "pr": [
+          {
+            "number": 105,
+            "title": "8.10 prep: the clean 1M run; Athena engine and queue time in the collector",
+            "date": "2026-10-22",
+            "merge": "0c94d6e"
+          },
+          {
+            "number": 107,
+            "title": "8.10: results write-up for 1M, 10M and 100M, with three charts",
+            "date": "2026-11-09",
+            "merge": "250c315"
+          },
+          {
+            "number": 136,
+            "title": "8.10: record the 100M take and the two rehearsals",
+            "date": "2026-11-09",
+            "merge": "ca48bfa"
+          }
+        ],
+        "runs": [
+          "demo-100m-20261108T135119Z"
+        ]
+      },
+      "legacy": true
+    },
+    {
+      "id": "8.11",
+      "phase": 8,
+      "title": "Well-Architected pass + ADR",
+      "checked": true,
+      "links": {
+        "adr": [
+          "0023"
+        ],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "9.1",
+      "phase": 9,
+      "title": "ADR: the demo console (one start/stop EC2 instance vs.",
+      "checked": true,
+      "links": {
+        "adr": [
+          "0021",
+          "0024"
+        ],
+        "plan": [],
+        "pr": [
+          {
+            "number": 129,
+            "title": "ADR 0024 amendment: standing-edge rate bounds and sign-in pages (Accepted)",
+            "date": "2026-11-09",
+            "merge": "5f18bd9"
+          }
+        ],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "9.2",
+      "phase": 9,
+      "title": "Terraform: the standing edge (S3 + CloudFront + Cognito + API Gateway + the command Lambda, read-only roles) and the per-session Grafana…",
+      "checked": false,
+      "links": {
+        "adr": [
+          "0024"
+        ],
+        "plan": [],
+        "pr": [
+          {
+            "number": 123,
+            "title": "9.2: demo console IAM prerequisites",
+            "date": "2026-10-27",
+            "merge": "a6c5ee4"
+          },
+          {
+            "number": 124,
+            "title": "9.2: VPC-origin spike (gate passed)",
+            "date": "2026-10-28",
+            "merge": "26ac593"
+          },
+          {
+            "number": 125,
+            "title": "9.2: read-only roles, console subnet, AMP retention 400 days",
+            "date": "2026-10-29",
+            "merge": "bcbf804"
+          },
+          {
+            "number": 126,
+            "title": "9.2: local Grafana on short-lived read-only credentials (merge after 8.10)",
+            "date": "2026-11-09",
+            "merge": "abb83d7"
+          },
+          {
+            "number": 130,
+            "title": "9.2: standing console edge (applied and checked 2026-11-09)",
+            "date": "2026-11-09",
+            "merge": "4c4b6ca"
+          },
+          {
+            "number": 136,
+            "title": "8.10: record the 100M take and the two rehearsals",
+            "date": "2026-11-09",
+            "merge": "ca48bfa"
+          },
+          {
+            "number": 148,
+            "title": "ADR 0024 step 11: remove the in-cluster Grafana",
+            "date": "2026-11-12",
+            "merge": "cfeae7e"
+          }
+        ],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "9.3",
+      "phase": 9,
+      "title": "The read-only command set: `cerberus status`, `runs`, `run <id>`, `cost`, `dq`, `slo`; an allowlist, no shell, no write, fail-closed…",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [
+          {
+            "number": 127,
+            "title": "9.3: console Athena workgroup and read grants (merge after 8.10)",
+            "date": "2026-11-09",
+            "merge": "31f89cc"
+          },
+          {
+            "number": 128,
+            "title": "9.3: read-only console command set",
+            "date": "2026-11-09",
+            "merge": "5c3550c"
+          },
+          {
+            "number": 130,
+            "title": "9.2: standing console edge (applied and checked 2026-11-09)",
+            "date": "2026-11-09",
+            "merge": "4c4b6ca"
+          }
+        ],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "9.4",
+      "phase": 9,
+      "title": "The UI outline: a landing page (architecture, phase status, the latest run), Grafana and Prometheus panels, a terminal panel Builder…",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [
+          {
+            "number": 131,
+            "title": "9.4 step 8a: the landing page builder",
+            "date": "2026-11-09",
+            "merge": "fe9fa26"
+          },
+          {
+            "number": 142,
+            "title": "9.4 step 8b: publish the landing page to the console edge",
+            "date": "2026-11-12",
+            "merge": "8666cde"
+          }
+        ],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "9.5",
+      "phase": 9,
+      "title": "The terminal panel wired to the command set in the browser, with a session time limit (a 60-minute token and a 15-minute idle drop) Plan…",
+      "checked": true,
+      "links": {
+        "adr": [
+          "0024"
+        ],
+        "plan": [],
+        "pr": [
+          {
+            "number": 149,
+            "title": "9.5: ADR 0024 amendment (Proposed), a plain DOM terminal",
+            "date": "2026-11-12",
+            "merge": "7747b53"
+          },
+          {
+            "number": 151,
+            "title": "9.5 PR B: register the terminal logout URL",
+            "date": "2026-11-12",
+            "merge": "6d54c38"
+          },
+          {
+            "number": 152,
+            "title": "9.5 PR C: the browser terminal page",
+            "date": "2026-11-12",
+            "merge": "247a5fc"
+          }
+        ],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "9.6",
+      "phase": 9,
+      "title": "Safety and live check: escape and injection tests for the command set in CI; a demo from a clean browser; torn down to $0",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "9.7",
+      "phase": 9,
+      "title": "Well-Architected pass + ADR ADR 0026 Proposed 2026-11-14, Accepted 2026-11-20 (plan…",
+      "checked": false,
+      "links": {
+        "adr": [
+          "0026"
+        ],
+        "plan": [
+          "docs/plans/2026-11-13-phase-9-well-architected-review.md"
+        ],
+        "pr": [
+          {
+            "number": 163,
+            "title": "9.7 PR 2: two always-on console alarms (ADR 0026)",
+            "date": "2026-11-20",
+            "merge": "0f6fa0d"
+          }
+        ],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "10.1",
+      "phase": 10,
+      "title": "ADR: where pipeline status lives while `dev-compute` is down (local stack, AMP, or Grafana Cloud free tier), dashboard tooling, no new…",
+      "checked": true,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "10.2",
+      "phase": 10,
+      "title": "Pipeline status exporter: per-run status, failed step, step durations, events, data-quality result, last-success timestamps; per-execution…",
+      "checked": false,
+      "links": {
+        "adr": [
+          "0021"
+        ],
+        "plan": [
+          "docs/plans/2026-11-20-pipeline-status-exporter.md"
+        ],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "10.3",
+      "phase": 10,
+      "title": "Grafana pipeline-status dashboard, provisioned as code, with a reserved \"AI review\" panel (tag `cerberus-ai`)",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "10.4",
+      "phase": 10,
+      "title": "Alerting as code: failed run, DQ errors, never reported, error budget over runs (ADR 0021); alerts carry `execution`; `promtool test…",
+      "checked": false,
+      "links": {
+        "adr": [
+          "0021"
+        ],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "10.5",
+      "phase": 10,
+      "title": "Terminal status view (`make status`) from the named query set (same code as `cerberus status`)",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "10.6",
+      "phase": 10,
+      "title": "Live check: one passing and one deliberately failed exercise, shown correctly on the dashboard, in the terminal and as an alert",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "10.7",
+      "phase": 10,
+      "title": "Well-Architected pass + ADR",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "11.1",
+      "phase": 11,
+      "title": "ADR: Databricks Free Edition as the partner workspace and presentation layer; trial and Glue federation re-verified by an amendment before…",
+      "checked": false,
+      "links": {
+        "adr": [
+          "0028"
+        ],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "11.2",
+      "phase": 11,
+      "title": "Free Edition",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "11.3",
+      "phase": 11,
+      "title": "Trial preparation: IAM role in `dev-standing`; Terraform for the service credential, connection, external location, foreign catalog and…",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "11.4",
+      "phase": 11,
+      "title": "Trial: Glue federation live; Databricks SQL reads Cerberus's Iceberg gold with no copy",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "11.5",
+      "phase": 11,
+      "title": "Measured comparison: same input on both engines, run time and cost per million events.",
+      "checked": false,
+      "links": {
+        "adr": [
+          "0027"
+        ],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "11.6",
+      "phase": 11,
+      "title": "Comparison write-up + demo; trial cancelled, $0 confirmed",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "11.7",
+      "phase": 11,
+      "title": "Well-Architected pass + ADR",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "12.1",
+      "phase": 12,
+      "title": "ADR: Go for platform tooling (module layout, CLI framework, testing)",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "12.2",
+      "phase": 12,
+      "title": "Go module, `golangci-lint` + `go test` in CI, release builds",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "12.3",
+      "phase": 12,
+      "title": "`cerberusctl dq`: the data-quality suite, all checks concurrent, fail-closed",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "12.4",
+      "phase": 12,
+      "title": "`cerberusctl collect`: the metric record, `--cost-only`, `--dq-only`",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "12.5",
+      "phase": 12,
+      "title": "`cerberusctl exercise`: preflight → apply → run → collect → guaranteed teardown → account check",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "12.6",
+      "phase": 12,
+      "title": "Parity run: same record as the Python tools on one exercise; retire `exercise.sh`, `collect_run_metrics.py`, `data_quality.py`",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "12.7",
+      "phase": 12,
+      "title": "Well-Architected pass + ADR",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "13.1",
+      "phase": 13,
+      "title": "ADR: streaming design (Kafka on start/stop EC2, bronze prefix, delivery guarantees, Airflow or not)",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "13.2",
+      "phase": 13,
+      "title": "Terraform: start/stop Kafka (KRaft) instance, tagged, torn down to $0",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "13.3",
+      "phase": 13,
+      "title": "Go producer: synthetic payment events at a configurable rate",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "13.4",
+      "phase": 13,
+      "title": "Go consumer: batched JSON Lines into bronze, at-least-once",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "13.5",
+      "phase": 13,
+      "title": "Silver job and data-quality suite cover the streaming prefix",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "13.6",
+      "phase": 13,
+      "title": "Sustained-load test: throughput, consumer lag, cost per hour",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "13.7",
+      "phase": 13,
+      "title": "Well-Architected pass + ADR",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "14.1",
+      "phase": 14,
+      "title": "ADR: AI operations agents (rules detect, Claude on Bedrock explains, a human approves; local trigger; read-only role; $0 idle).",
+      "checked": true,
+      "links": {
+        "adr": [
+          "0025"
+        ],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": true
+    },
+    {
+      "id": "14.2",
+      "phase": 14,
+      "title": "Deterministic review core and the agent tool registry on the 9.3 command set: masking, size caps, a local stdio MCP server",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "14.3",
+      "phase": 14,
+      "title": "Evaluation: labelled replay set from past runs (failed runs, Glue timeouts, Spot interruption, Athena queue time, clean runs) and a scored…",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "14.4",
+      "phase": 14,
+      "title": "Run reviewer (first agent, report only): review file, Grafana annotation and an \"AI review\" panel on the Phase 10 run-status dashboard",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "14.5",
+      "phase": 14,
+      "title": "Failure triage: root cause with cited log lines and metric values; a draft issue or PR for human approval",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "14.6",
+      "phase": 14,
+      "title": "Pre-flight rules (Athena headroom, budget, Spot quota, CloudWatch SEARCH index), cost guardian and data-quality analyst",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "14.7",
+      "phase": 14,
+      "title": "Live check: one passing and one deliberately failed exercise, reviewed and triaged correctly; AI cost recorded",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "14.8",
+      "phase": 14,
+      "title": "Well-Architected pass + ADR",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "15.1",
+      "phase": 15,
+      "title": "ADR: the public showcase (a sanitised static snapshot on the standing edge vs.",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "15.2",
+      "phase": 15,
+      "title": "Showcase publish: use the 11.2a builder; add the Databricks images (11.2c); published by `console-site.yml`",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "15.3",
+      "phase": 15,
+      "title": "The showcase view on the 9.4 page: run explorer, scale story and the Cerberus | Databricks (partner engine) columns with scope and source…",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "15.4",
+      "phase": 15,
+      "title": "Public-edge protection, before any public link: the $0 CloudFront Free flat-rate plan spike (ADR 0026 gap 1), adopt or not; a CloudFront…",
+      "checked": false,
+      "links": {
+        "adr": [
+          "0026"
+        ],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "15.5",
+      "phase": 15,
+      "title": "Links: README and the LinkedIn post point at the page; the live Grafana link shows only while `live.json` `ends` is in the future",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "15.6",
+      "phase": 15,
+      "title": "Live check: from a clean browser and a phone through the GitHub and LinkedIn links; headers by curl; no account ID, ARN or S3 URI in the…",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "15.7",
+      "phase": 15,
+      "title": "Well-Architected pass + ADR",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "16.1",
+      "phase": 16,
+      "title": "ADR: platform-development traceability.",
+      "checked": false,
+      "links": {
+        "adr": [
+          "0029"
+        ],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "16.2",
+      "phase": 16,
+      "title": "Generator: `history.json` and `docs/traceability.md` from git, Phases.md, ADRs, plans, run records and merged PRs; CI dangling-link check",
+      "checked": false,
+      "links": {
+        "adr": [
+          "0029"
+        ],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "16.3",
+      "phase": 16,
+      "title": "Shown on the site and as the Databricks \"how it was built\" dashboard (with 11.2c and 15.3) Dangling-link check applies only to items on or…",
+      "checked": false,
+      "links": {
+        "adr": [
+          "0029"
+        ],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    },
+    {
+      "id": "16.4",
+      "phase": 16,
+      "title": "Well-Architected pass + ADR",
+      "checked": false,
+      "links": {
+        "adr": [],
+        "plan": [],
+        "pr": [],
+        "runs": []
+      },
+      "legacy": false
+    }
+  ],
+  "adrs": [
+    {
+      "number": "0001",
+      "file": "0001-record-architecture-decisions.md",
+      "title": "Record architecture decisions",
+      "status": "Accepted",
+      "accepted": null,
+      "plan": null,
+      "legacy": true
+    },
+    {
+      "number": "0002",
+      "file": "0002-medallion-layout.md",
+      "title": "Medallion layout: bucket topology, partitioning, and file formats",
+      "status": "Accepted",
+      "accepted": null,
+      "plan": null,
+      "legacy": true
+    },
+    {
+      "number": "0003",
+      "file": "0003-synthetic-payments-data-model.md",
+      "title": "Synthetic payments data model: entity shape, event semantics, and PII handling",
+      "status": "Accepted",
+      "accepted": null,
+      "plan": null,
+      "legacy": true
+    },
+    {
+      "number": "0004",
+      "file": "0004-phase-1-well-architected-review.md",
+      "title": "Phase 1 Well-Architected review",
+      "status": "Accepted",
+      "accepted": null,
+      "plan": null,
+      "legacy": true
+    },
+    {
+      "number": "0005",
+      "file": "0005-push-vs-pull-ingestion.md",
+      "title": "Event-driven ingestion: push (S3 event notification) vs. pull (EventBridge Scheduler)",
+      "status": "Accepted",
+      "accepted": null,
+      "plan": null,
+      "legacy": true
+    },
+    {
+      "number": "0006",
+      "file": "0006-phase-2-well-architected-review.md",
+      "title": "Phase 2 Well-Architected review",
+      "status": "Accepted",
+      "accepted": null,
+      "plan": null,
+      "legacy": true
+    },
+    {
+      "number": "0007",
+      "file": "0007-vpc-network-design.md",
+      "title": "VPC network design for Spark-on-EKS",
+      "status": "Accepted",
+      "accepted": null,
+      "plan": null,
+      "legacy": true
+    },
+    {
+      "number": "0008",
+      "file": "0008-phase-3-well-architected-review.md",
+      "title": "Phase 3 Well-Architected review",
+      "status": "Accepted",
+      "accepted": null,
+      "plan": null,
+      "legacy": true
+    },
+    {
+      "number": "0009",
+      "file": "0009-orchestration-step-functions-vs-airflow.md",
+      "title": "Orchestration: AWS Step Functions vs. Airflow",
+      "status": "Accepted",
+      "accepted": null,
+      "plan": null,
+      "legacy": true
+    },
+    {
+      "number": "0010",
+      "file": "0010-phase-4-well-architected-review.md",
+      "title": "Phase 4 Well-Architected review",
+      "status": "Accepted",
+      "accepted": null,
+      "plan": null,
+      "legacy": true
+    },
+    {
+      "number": "0011",
+      "file": "0011-ci-cd-github-actions-oidc.md",
+      "title": "CI/CD: GitHub Actions + OIDC, and splitting envs/dev",
+      "status": "Accepted",
+      "accepted": null,
+      "plan": null,
+      "legacy": true
+    },
+    {
+      "number": "0012",
+      "file": "0012-phase-5-well-architected-review.md",
+      "title": "Phase 5 Well-Architected review",
+      "status": "Accepted",
+      "accepted": null,
+      "plan": null,
+      "legacy": true
+    },
+    {
+      "number": "0013",
+      "file": "0013-lineage-openlineage-serverless-collector.md",
+      "title": "Lineage: OpenLineage events to a serverless collector",
+      "status": "Accepted",
+      "accepted": null,
+      "plan": null,
+      "legacy": true
+    },
+    {
+      "number": "0014",
+      "file": "0014-phase-6-well-architected-review.md",
+      "title": "Phase 6 Well-Architected review",
+      "status": "Accepted",
+      "accepted": null,
+      "plan": null,
+      "legacy": true
+    },
+    {
+      "number": "0015",
+      "file": "0015-phase-7-well-architected-review.md",
+      "title": "Phase 7 Well-Architected review (whole-platform)",
+      "status": "Accepted",
+      "accepted": null,
+      "plan": null,
+      "legacy": true
+    },
+    {
+      "number": "0016",
+      "file": "0016-prometheus-for-eks-spark.md",
+      "title": "Prometheus for the EKS/Spark layer",
+      "status": "Accepted",
+      "accepted": null,
+      "plan": null,
+      "legacy": true
+    },
+    {
+      "number": "0017",
+      "file": "0017-iceberg-incremental-processing.md",
+      "title": "Apache Iceberg tables and incremental processing for the scale ladder",
+      "status": "Accepted",
+      "accepted": null,
+      "plan": null,
+      "legacy": true
+    },
+    {
+      "number": "0018",
+      "file": "0018-bulk-bronze-json-lines.md",
+      "title": "Bulk synthetic events land in bronze as JSON Lines under a sibling prefix",
+      "status": "Accepted",
+      "accepted": null,
+      "plan": null,
+      "legacy": true
+    },
+    {
+      "number": "0019",
+      "file": "0019-spark-submission-ecs-wrapper-vs-native-eks.md",
+      "title": "Spark job submission: keep the ECS wrapper, with stated triggers to replace it",
+      "status": "Accepted",
+      "accepted": "2026-10-12",
+      "plan": null,
+      "legacy": true
+    },
+    {
+      "number": "0020",
+      "file": "0020-dev-compute-node-autoscaling-and-spot.md",
+      "title": "`dev-compute` nodes: an On-Demand system group, a Spot executor group, and Cluster Autoscaler",
+      "status": "Accepted",
+      "accepted": "2026-10-12",
+      "plan": null,
+      "legacy": true
+    },
+    {
+      "number": "0021",
+      "file": "0021-pipeline-status-and-alerting.md",
+      "title": "Pipeline status and alerting: AMP as the store and the alert evaluator, run-end remote-write, local Grafana",
+      "status": "Accepted",
+      "accepted": null,
+      "plan": "docs/plans/2026-11-12-phase-10-agent-hooks.md",
+      "legacy": true
+    },
+    {
+      "number": "0022",
+      "file": "0022-live-observability-for-a-recorded-run.md",
+      "title": "Live observability for a recorded run: local Grafana on AMP, native Prometheus and Spark UIs by port-forward",
+      "status": "Accepted",
+      "accepted": "2026-10-25",
+      "plan": "docs/plans/2026-10-24-live-100m-run-observability.md",
+      "legacy": true
+    },
+    {
+      "number": "0023",
+      "file": "0023-phase-8-well-architected-review.md",
+      "title": "Phase 8 Well-Architected review",
+      "status": "Accepted",
+      "accepted": "2026-10-27",
+      "plan": "docs/plans/2026-10-27-phase-8-well-architected-review.md",
+      "legacy": true
+    },
+    {
+      "number": "0024",
+      "file": "0024-demo-console.md",
+      "title": "Demo console: a serverless read-only terminal and landing page, live Grafana per session",
+      "status": "Accepted",
+      "accepted": "2026-10-27",
+      "plan": "docs/plans/2026-10-27-demo-console.md",
+      "legacy": true
+    },
+    {
+      "number": "0025",
+      "file": "0025-ai-operations-agents.md",
+      "title": "AI operations agents: rules detect, Claude on Bedrock explains, a human approves",
+      "status": "Accepted",
+      "accepted": "2026-11-08",
+      "plan": "docs/plans/2026-11-08-ai-operations-agents.md",
+      "legacy": true
+    },
+    {
+      "number": "0026",
+      "file": "0026-phase-9-well-architected-review.md",
+      "title": "Phase 9 Well-Architected review",
+      "status": "Accepted",
+      "accepted": "2026-11-20",
+      "plan": "docs/plans/2026-11-13-phase-9-well-architected-review.md",
+      "legacy": true
+    },
+    {
+      "number": "0027",
+      "file": "0027-public-showcase.md",
+      "title": "Public showcase: a published metrics snapshot on the standing edge, with Databricks as a partner column",
+      "status": "Accepted",
+      "accepted": "2026-11-20",
+      "plan": "docs/plans/2026-11-20-public-showcase.md",
+      "legacy": true
+    },
+    {
+      "number": "0028",
+      "file": "0028-databricks-free-edition.md",
+      "title": "Databricks Free Edition as the partner workspace and presentation layer",
+      "status": "Accepted",
+      "accepted": "2026-11-20",
+      "plan": "docs/plans/2026-11-20-databricks-free-edition-showcase.md",
+      "legacy": true
+    },
+    {
+      "number": "0029",
+      "file": "0029-platform-traceability.md",
+      "title": "Platform-development traceability",
+      "status": "Accepted",
+      "accepted": "2026-11-20",
+      "plan": "docs/plans/2026-11-20-databricks-free-edition-showcase.md",
+      "legacy": true
+    }
+  ],
+  "prs": [
+    {
+      "number": 85,
+      "title": "8.6: data-quality suite checks bronze as a manifest ledger (option C)",
+      "date": "2026-10-10",
+      "merge": "2fe8ca4"
+    },
+    {
+      "number": 98,
+      "title": "8.9: record the 100M-event run (exercise-20261013T055859Z)",
+      "date": "2026-10-15",
+      "merge": "0a3f6fd"
+    },
+    {
+      "number": 102,
+      "title": "Phase 8 close-out: fix the cost method's double-counted Athena; amend ADR 0018 and 0020",
+      "date": "2026-10-15",
+      "merge": "03645af"
+    },
+    {
+      "number": 103,
+      "title": "Raise the data-quality cutoff for one --full audit before milestone 8; plan a cheaper audit",
+      "date": "2026-10-15",
+      "merge": "419b635"
+    },
+    {
+      "number": 104,
+      "title": "Record the milestone-8 --full data-quality audit; put the cutoff back to 10 GiB",
+      "date": "2026-10-15",
+      "merge": "1061262"
+    },
+    {
+      "number": 105,
+      "title": "8.10 prep: the clean 1M run; Athena engine and queue time in the collector",
+      "date": "2026-10-22",
+      "merge": "0c94d6e"
+    },
+    {
+      "number": 107,
+      "title": "8.10: results write-up for 1M, 10M and 100M, with three charts",
+      "date": "2026-11-09",
+      "merge": "250c315"
+    },
+    {
+      "number": 123,
+      "title": "9.2: demo console IAM prerequisites",
+      "date": "2026-10-27",
+      "merge": "a6c5ee4"
+    },
+    {
+      "number": 124,
+      "title": "9.2: VPC-origin spike (gate passed)",
+      "date": "2026-10-28",
+      "merge": "26ac593"
+    },
+    {
+      "number": 125,
+      "title": "9.2: read-only roles, console subnet, AMP retention 400 days",
+      "date": "2026-10-29",
+      "merge": "bcbf804"
+    },
+    {
+      "number": 126,
+      "title": "9.2: local Grafana on short-lived read-only credentials (merge after 8.10)",
+      "date": "2026-11-09",
+      "merge": "abb83d7"
+    },
+    {
+      "number": 127,
+      "title": "9.3: console Athena workgroup and read grants (merge after 8.10)",
+      "date": "2026-11-09",
+      "merge": "31f89cc"
+    },
+    {
+      "number": 128,
+      "title": "9.3: read-only console command set",
+      "date": "2026-11-09",
+      "merge": "5c3550c"
+    },
+    {
+      "number": 129,
+      "title": "ADR 0024 amendment: standing-edge rate bounds and sign-in pages (Accepted)",
+      "date": "2026-11-09",
+      "merge": "5f18bd9"
+    },
+    {
+      "number": 130,
+      "title": "9.2: standing console edge (applied and checked 2026-11-09)",
+      "date": "2026-11-09",
+      "merge": "4c4b6ca"
+    },
+    {
+      "number": 131,
+      "title": "9.4 step 8a: the landing page builder",
+      "date": "2026-11-09",
+      "merge": "fe9fa26"
+    },
+    {
+      "number": 136,
+      "title": "8.10: record the 100M take and the two rehearsals",
+      "date": "2026-11-09",
+      "merge": "ca48bfa"
+    },
+    {
+      "number": 142,
+      "title": "9.4 step 8b: publish the landing page to the console edge",
+      "date": "2026-11-12",
+      "merge": "8666cde"
+    },
+    {
+      "number": 148,
+      "title": "ADR 0024 step 11: remove the in-cluster Grafana",
+      "date": "2026-11-12",
+      "merge": "cfeae7e"
+    },
+    {
+      "number": 149,
+      "title": "9.5: ADR 0024 amendment (Proposed), a plain DOM terminal",
+      "date": "2026-11-12",
+      "merge": "7747b53"
+    },
+    {
+      "number": 151,
+      "title": "9.5 PR B: register the terminal logout URL",
+      "date": "2026-11-12",
+      "merge": "6d54c38"
+    },
+    {
+      "number": 152,
+      "title": "9.5 PR C: the browser terminal page",
+      "date": "2026-11-12",
+      "merge": "247a5fc"
+    },
+    {
+      "number": 163,
+      "title": "9.7 PR 2: two always-on console alarms (ADR 0026)",
+      "date": "2026-11-20",
+      "merge": "0f6fa0d"
+    }
+  ]
+}
