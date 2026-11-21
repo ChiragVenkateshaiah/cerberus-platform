@@ -29,7 +29,7 @@ What exists today:
 - `console-site.yml` publishes the site from git on every push to main that
   touches the run records. The build step has no AWS credentials.
 - The Phase 10 status values are a function of the run records, which are
-  already in git (the 10.2 publisher reads the run record; plan F6). The named query set has 13 queries.
+  already in git (the 10.2 publisher reads the run record; plan F6). The named query set has 17 queries.
 
 What a laptop-hosted public stack would mean:
 
@@ -70,7 +70,7 @@ record.
 3. **Data and credentials.** The sources are git only: the run records and
    the 11.5 comparison record (when it exists; see ADR 0028 Decision 7). The data contract is
    `observability/showcase/*.json`. The build has no AWS credentials, and
-   no serving host has any. A parity test against the 13 named queries,
+   no serving host has any. A parity test against the 17 named queries,
    run offline, proves the numbers match. The same sanitised
    `observability/showcase/*.json` also feeds Databricks Free Edition. An
    owner-run step loads it as Delta tables (see ADR 0028). The builder is

@@ -265,6 +265,8 @@ are done; 11.2e is optional._
         fail-closed redaction, parity with the named query set (moved from
         15.2). `comparison.json` is optional until 11.5: the builder omits
         it and the page shows no Databricks column until the record exists
+        - 11.2a built 2026-11-21 (`make showcase-snapshot`, `make showcase-check`;
+          parity in the `status-e2e` job; the two ADR 0026 sanitiser xfails now pass).
       - 11.2b Workspace as code: schema, volume, load notebook or job,
         dashboards and the Genie instructions in `databricks/showcase/`;
         owner-run deploy (bundle if it works on Free Edition, else UI import)
@@ -284,7 +286,9 @@ are done; 11.2e is optional._
       cost per million events. Write the result as a record with the
       `comparison.json` fields in ADR 0027: step, input run ID and events,
       date and trial flag; per engine, run time, cost, cost per million
-      events, cost source and an estimated flag.
+      events, cost source and an estimated flag. The input file is
+      `observability/showcase/comparison-input.json`, laid out as
+      `engines.{cerberus,databricks}` (see `observability/showcase/README.md`).
 - [ ] 11.6 Comparison write-up + demo; trial cancelled, $0 confirmed
 - [ ] 11.7 Well-Architected pass + ADR
 
