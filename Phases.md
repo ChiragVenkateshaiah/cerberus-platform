@@ -383,6 +383,9 @@ only, $0 and has no dependency. It runs after Phase 10 (10.7), before 14.2
 - [ ] 16.2 Generator: `history.json` and `docs/traceability.md` from git,
       Phases.md, ADRs, plans, run records and merged PRs; CI dangling-link
       check
+      - Progress: built 2026-11-21 (`tools/traceability/`, `make traceability`,
+        `traceability` CI job, baseline of the items done at the ADR 0029
+        cut-off). Tick it after the PR merges and name the PR here.
 - [ ] 16.3 Shown on the site and as the Databricks "how it was built"
       dashboard (with 11.2c and 15.3)
       Dangling-link check applies only to items on or after the ADR 0029

@@ -198,3 +198,10 @@ console-terminal-publish: console-terminal ## AWS WRITE, needs approval: publish
 console-artifacts: ## AWS WRITE, needs approval: stage the pinned Grafana tarball and AMP plugin in the private artifacts/ prefix of the site bucket (once per version)
 	observability/grafana/console/stage_artifacts.sh \
 	  "$$($(TF_BIN) -chdir=$(TF_STANDING_DIR) output -raw console_site_bucket_name)"
+
+.PHONY: traceability traceability-check
+traceability: ## Regenerate observability/showcase/history.json and docs/traceability.md (git only, no AWS)
+	python3 tools/traceability/generate.py
+
+traceability-check: ## Fail if the traceability files are stale or a link dangles (what CI runs)
+	python3 tools/traceability/generate.py --check
