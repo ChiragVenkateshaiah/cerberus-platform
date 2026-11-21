@@ -15,6 +15,10 @@ on:
       - "lineage/**"
       - "console/**"
       - "Phases.md"
+      - "docs/adr/**"
+      - "docs/plans/**"
+      - "docs/traceability.md"
+      - "tools/traceability/**"
       - "terraform/modules/console_roles/variables.tf"
       - "terraform/modules/console_edge/main.tf"
       - "terraform/modules/console_edge/variables.tf"
@@ -184,6 +188,33 @@ jobs:
       # JavaScript with no toolchain. Uses the runner's own Node; no setup-node, no npm.
       - name: terminal.js syntax and unit tests
         run: node --check console/cerberus_terminal/static/terminal.js && node --test console/tests/js/*.test.js
+
+  # 16.2 (ADR 0029): the traceability record. Full history (fetch-depth: 0) is
+  # needed because the generator reads the PR merge commits from `git log`; it
+  # calls no API and no network, so it needs no token and no secret. It fails if
+  # history.json or docs/traceability.md is stale, or if a checked subtask, an
+  # accepted ADR, a PR number or a plan path dangles. Python 3.12, stdlib only.
+  traceability:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dev requirements
+        run: pip install --quiet -r requirements-dev.txt
+
+      - name: pytest
+        run: pytest tools/traceability
+
+      - name: traceability check
+        run: python tools/traceability/generate.py --check
 
   dbt-validate:
     runs-on: ubuntu-latest
