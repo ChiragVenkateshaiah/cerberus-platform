@@ -102,6 +102,13 @@ exercise-check: ## read-only preflight for an exercise: no cluster, empty dev-co
 status-e2e: ## OFFLINE, Docker only: push run records to a throwaway Prometheus on 127.0.0.1:9099 and check every status query (10.2c; no AWS)
 	observability/status/e2e.sh
 
+.PHONY: status-render status-render-shots
+status-render: ## OFFLINE, Docker only: throwaway Prometheus + Grafana 13.2.3 on 127.0.0.1 (9098, 3098); every status-dashboard query through Grafana (10.3b; no AWS)
+	observability/grafana/render_check/run.sh
+
+status-render-shots: ## OFFLINE, Docker + Playwright, local only: two screenshots of the status dashboard into observability/grafana/render_check/screenshots/ (git-ignored)
+	RENDER_CMD="uv run --no-project --python 3.12 --with playwright==1.65.1 python -I observability/grafana/render_check/screenshot.py" observability/grafana/render_check/run.sh
+
 .PHONY: alerts-test
 alerts-test: ## OFFLINE, Docker only: promtool check and test the alert rules, amtool check the Alertmanager template (10.4a; no AWS)
 	observability/alerts/test.sh

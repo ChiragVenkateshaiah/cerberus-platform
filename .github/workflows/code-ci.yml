@@ -108,6 +108,14 @@ jobs:
           PYTEST: python -m pytest
         run: observability/status/e2e.sh
 
+      # 10.3b: a throwaway Grafana 13.2.3 (pinned by digest) renders the status
+      # dashboard from the repo JSON; every panel query runs through Grafana
+      # against a throwaway Prometheus. Both bind to 127.0.0.1. No AWS, no secrets.
+      - name: Status dashboard render check
+        env:
+          PYTEST: python -m pytest
+        run: observability/grafana/render_check/run.sh
+
   # 10.4a (ADR 0021): the alert rules. promtool checks and tests status.rules.yaml,
   # and amtool checks the Alertmanager template rendered with a dummy ARN.
   # observability/alerts/test.sh runs both in containers pinned by digest, with
