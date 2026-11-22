@@ -18,7 +18,9 @@ the clean-browser live check (9.6) and the Tool answers plus milestone 9
 dashboard), 10.4a (alert rules) and 10.5a/b (terminal status from AMP) are
 merged; the alert rules are not live in AMP and the terminal status is
 dormant until 10.4b and 10.5c are applied. Phase 11: 11.2a (showcase
-builder) is merged. Phase 16: 16.2 (traceability generator) is merged.
+builder) is merged. Phase 14: 14.2 (review core, nine-tool registry, stdio
+MCP server) is merged; 14.3a is on an unmerged branch. Phase 16: 16.2
+(traceability generator) is merged.
 ADRs 0026-0029 are Accepted. See [Phases.md](Phases.md) for the checklist.
 
 **Phases 1–8 are all ✅ complete.** Phases 1–7 close the original roadmap;
@@ -285,29 +287,32 @@ Run `git fetch && git switch main && git pull` first; check `gh pr list`.
      status write, 10.2 smoke).
    - 10.5c (IAM `aps:QueryMetrics` for `cerberus-console-cli`, the
      `status.json` zip source block, env vars): security tier, so the
-     reviewer asked for an explicit security decision. Merge only after
-     #176 is merged.
+     reviewer asked for an explicit security decision (ask the owner about
+     an Opus security review). Merge only after #176 is merged.
    - Disable the `console-check` Cognito user (`enabled_users` is 1) and run
      the second live console session (E1-E6 via `make console-verify`).
    - Databricks Free Edition sign-up and the one-hour spike (CLI, bundles,
      invites, dashboard export), for 11.2b.
    - Use tmux for long remote runs.
-3. **Open PRs and branches to review or finish:**
-   - #180 ticks 11.1, 15.1, 16.1 and 16.2 in Phases.md and regenerates the
-     traceability record. Do not tick those four anywhere else.
-   - Stacked chain #181 (14.2a review core) -> #182 (14.2b tool registry)
-     -> #183 (14.2c stdio MCP server). Merge in order.
+3. **Open PR and branch to finish:**
+   - #180 (ticks 11.1, 15.1, 16.1, 16.2) and the chain #181 -> #182 -> #183
+     (14.2 review core, tool registry, stdio MCP server) are merged. 14.2 is
+     complete. Register the server by hand with `claude mcp add` (see
+     agents/README.md); that is the first real client test.
+   - New agents load at session start: restart Claude Code after a new
+     agent file lands, or the agent is not listed.
    - Branch `14.3a-eval-harness` (commit cca1078, no PR): replay cases and
      the scorer. The Sonnet review asked for four changes: rename
      `agents/eval` to `agents/agent_eval` (the sandbox blocks shell commands
      with `eval` in a path, so the owner runs `mv agents/eval
      agents/agent_eval` in that worktree), split "5 of 6" into detected,
      symptom-only and correct-negative, add a circularity note, and harden
-     the scorer. 14.3b (sweep) and 14.3c (wiring) are not built.
+     the scorer. 14.3b (sweep) and 14.3c (wiring) are not built; they come
+     after these fixes.
 4. **Phase 10 order (ADR 0021 amendment):** finish 10.4b (#176) and 10.5c,
    then 10.6 (live check: one passing, one failed exercise; dashboard,
    terminal and alert), then 10.7. After that: 11.2a-c and 16 (owner answer
-   2026-11-20), then 14.2-14.4 -> the rest of Phase 11. Phase 15 waits for
+   2026-11-20), then 14.3-14.4 (14.2 is done) -> the rest of Phase 11. Phase 15 waits for
    9.4, 10.3/10.6, 11.2a-b and 11.5.
 5. **Phase 9 left:** 9.4 interactive page rebuild (separate session), the
    9.2 live session, the 9.6 clean-browser live check, 9.7 Tool answers and
@@ -3301,7 +3306,7 @@ drift, 9.3, and the Phase 8 close-out. PRs #141–#144 and this PR._
 
 _Phase 9 close-out work, the Phase 10 status stack, the showcase builder,
 the traceability generator and the new workflow. PRs #155-#175, #177-#179
-and #184 (merged since 2026-11-12)._
+#180-#184 (merged since 2026-11-12)._
 
 - **Phase 9 (#154-#164):** the console Grafana session (artifacts bucket,
   pinned packages, module, `envs/dev-console`, `make console-session`),
@@ -3327,6 +3332,11 @@ and #184 (merged since 2026-11-12)._
   redaction gate (`make showcase-snapshot`, `make showcase-check`); 16.2
   generator (`tools/traceability/`, `make traceability`,
   `docs/traceability.md`).
+- **Phase 14.2 (#181-#183):** the deterministic review core (14.2a, 17
+  golden reviews), the nine-tool registry on the 9.3 command set (14.2b,
+  offline) and the stdio MCP server (14.2c, `make mcp`). #180 ticked 11.1,
+  15.1, 16.1 and 16.2. Branch `14.3a-eval-harness` (replay cases and scorer)
+  is not merged.
 - **Workflow (#179):** Opus only for `/decision`; Sonnet plans, executes and
   reviews; Haiku does git; `make verify` is the standard check. Global
   agents and commands live in `~/.claude` (decision, planner, executor,
@@ -3343,9 +3353,9 @@ and #184 (merged since 2026-11-12)._
 
 ## Notes / blockers
 
-- **Open since 2026-11-22:** the owner steps, PR #176, #180, the #181-#183
-  chain and branch `14.3a-eval-harness` are listed under "Next up". The
-  Phases.md ticks for 11.1, 15.1, 16.1 and 16.2 are left to #180 on purpose.
+- **Open since 2026-11-22:** the owner steps, PR #176 and branch
+  `14.3a-eval-harness` are listed under "Next up". #180-#183 merged on
+  2026-11-22 (Phases.md ticks for 11.1, 15.1, 16.1, 16.2 and 14.2).
   Not fixed: the standing edge still accepts TLS 1.0 and 1.1.
 - **Resolved 2026-10-05 (was: open, noted 2026-10-03):** branch
   `phase-7-prometheus-dev-compute` *had* been pushed. PR #47 merged it to

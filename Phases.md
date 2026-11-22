@@ -328,11 +328,10 @@ amendment, Accepted 2026-11-12); 14.5–14.8 follow after Phase 13._
 - [x] 14.1 ADR: AI operations agents (rules detect, Claude on Bedrock
       explains, a human approves; local trigger; read-only role; $0 idle).
       ADR 0025 Accepted 2026-11-08
-- [ ] 14.2 Deterministic review core and the agent tool registry on the 9.3
+- [x] 14.2 Deterministic review core and the agent tool registry on the 9.3
       command set: masking, size caps, a local stdio MCP server
-      _Progress 2026-11-21: 14.2a review core done (agents/cerberus_agents,
-      17 golden reviews); 14.2b tool registry done (registry.py, tools.py, 9
-      tools, offline); 14.2c built 2026-11-21 (MCP stdio server, `make mcp`)._
+      _Done 2026-11-22 (#181 review core with 17 golden reviews, #182 tool
+      registry with 9 tools, offline, #183 stdio MCP server, `make mcp`)._
 - [ ] 14.3 Evaluation: labelled replay set from past runs (failed runs,
       Glue timeouts, Spot interruption, Athena queue time, clean runs) and a
       scored harness

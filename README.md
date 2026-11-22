@@ -162,9 +162,9 @@ Databricks is a complement, not a replacement. [ADR 0028](docs/adr/0028-databric
 | 11 | Databricks interoperability | Planned: ADR 0028 accepted, showcase builder merged | [0028](docs/adr/0028-databricks-free-edition.md) |
 | 12 | Platform tooling in Go | Planned | none yet |
 | 13 | Streaming ingestion | Planned | none yet |
-| 14 | AI operations agents | Planned: ADR 0025 accepted 2026-11-08 | [0025](docs/adr/0025-ai-operations-agents.md) |
+| 14 | AI operations agents | In progress: 14.2 done (review core, tool registry, stdio MCP server); 14.3 next. ADR 0025 accepted 2026-11-08 | [0025](docs/adr/0025-ai-operations-agents.md) |
 | 15 | Public showcase | Planned: ADR 0027 accepted | [0027](docs/adr/0027-public-showcase.md) |
-| 16 | Development traceability | Planned: ADR 0029 accepted, generator merged | [0029](docs/adr/0029-platform-traceability.md) |
+| 16 | Development traceability | In progress: generator merged (16.1, 16.2); 16.3 site view and 16.4 review left. ADR 0029 accepted | [0029](docs/adr/0029-platform-traceability.md) |
 
 Subtask-level progress is in [Phases.md](Phases.md), and the full plan is in [docs/plan.md](docs/plan.md).
 
@@ -197,6 +197,7 @@ orchestration/   state machine definition, ECS runner image, exercise.sh
 observability/   Grafana dashboards, scale harness and run records, freshness probe
 lineage/         OpenLineage collector and the Pages graph renderer
 serving/         demo Athena queries against gold
+agents/          review core, tool registry and local MCP server for the AI operations agents
 console/         demo console: command set, terminal and landing pages, live-check harness
 tools/           repository tooling, including the traceability generator
 data/            sample data placeholder
