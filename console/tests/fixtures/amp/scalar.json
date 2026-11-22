@@ -1,0 +1,10 @@
+{
+ "status": "success",
+ "data": {
+  "resultType": "scalar",
+  "result": [
+   1699999999.1,
+   "1"
+  ]
+ }
+}

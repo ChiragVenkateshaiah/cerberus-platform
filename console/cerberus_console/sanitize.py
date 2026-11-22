@@ -10,7 +10,10 @@ import re
 
 from cerberus_console import config
 
-_ARN_ACCOUNT = re.compile(r"(arn:aws[a-z-]*:[a-z0-9-]*:[a-z0-9-]*:)\d{12}")
+# An ARN is `arn:aws...` up to the next space. Inside one, any run of 12 or more digits is
+# hidden: an account ID of any length (ADR 0026 gap 7), or a bucket name that is an account ID.
+_ARN = re.compile(r"arn:aws[a-z-]*:\S*")
+_LONG_DIGITS = re.compile(r"\d{12,}")
 TRUNCATED = "(truncated)"
 
 
@@ -24,7 +27,7 @@ def _chars(s: str) -> str:
         else:
             out.append("?")
     # Backstop: ARNs are not rendered, but if one slips in, hide the account.
-    return _ARN_ACCOUNT.sub(r"\1<ACCOUNT_ID>", "".join(out))
+    return _ARN.sub(lambda m: _LONG_DIGITS.sub("<ACCOUNT_ID>", m.group(0)), "".join(out))
 
 
 def clean_str(s: str, cap: int = config.FIELD_CHARS) -> str:

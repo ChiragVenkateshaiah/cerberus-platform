@@ -50,3 +50,32 @@ def test_boto3_is_imported_only_in_aws_py_and_only_inside_functions():
             if any(n.split(".")[0] in ("boto3", "botocore") for n in names):
                 assert path.name == "aws.py", path.name
                 assert id(node) not in top_level, "boto3 must be imported lazily"
+
+
+def test_urllib_request_is_imported_only_in_aws_py():
+    """The AMP reader (10.5a) is the one place that opens a network connection."""
+    for path in FILES:
+        for node in ast.walk(ast.parse(path.read_text())):
+            hit = False
+            if isinstance(node, ast.Import):
+                hit = any(a.name.split(".")[:2] == ["urllib", "request"] for a in node.names)
+            elif isinstance(node, ast.ImportFrom):
+                mod = node.module or ""
+                hit = mod.split(".")[:2] == ["urllib", "request"] or (
+                    mod == "urllib" and any(a.name == "request" for a in node.names)
+                )
+            if hit:
+                assert path.name == "aws.py", (path.name, node.lineno)
+
+
+def test_no_other_network_module_is_imported_anywhere():
+    banned = {"socket", "http", "requests", "httpx", "ftplib", "smtplib", "telnetlib"}
+    for path in FILES:
+        for node in ast.walk(ast.parse(path.read_text())):
+            names = []
+            if isinstance(node, ast.Import):
+                names = [a.name for a in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                names = [node.module or ""]
+            for n in names:
+                assert n.split(".")[0] not in banned, (path.name, node.lineno)

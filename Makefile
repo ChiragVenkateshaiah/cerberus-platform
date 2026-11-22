@@ -98,6 +98,17 @@ exercise: ## one-command compute exercise: apply -> run -> collect -> destroy (o
 exercise-check: ## read-only preflight for an exercise: no cluster, empty dev-compute state, nothing running
 	orchestration/exercise.sh --check
 
+.PHONY: verify verify-full
+verify: ## OFFLINE, no AWS: the standard checks for a change (ruff, console/status/grafana tests, terraform fmt, shell syntax, account-number scan); skips what is not on the branch
+	orchestration/verify.sh
+
+verify-full: ## OFFLINE, Docker: verify plus the alert-rule, e2e and dashboard-render checks
+	orchestration/verify.sh --full
+
+.PHONY: mcp
+mcp: ## OFFLINE, no AWS: the local stdio MCP server for the review tools (14.2c); reads stdin, writes stdout; a client such as Claude Code starts it as a stdio command (see agents/README.md)
+	@PYTHONPATH=agents:console uv run --no-project --python 3.12 python -m cerberus_agents.mcp_server
+
 .PHONY: status-e2e
 status-e2e: ## OFFLINE, Docker only: push run records to a throwaway Prometheus on 127.0.0.1:9099 and check every status query (10.2c; no AWS)
 	observability/status/e2e.sh
@@ -151,6 +162,12 @@ demo-forward: ## port-forward the agent UI (:9090) and the current Spark driver 
 cerberus: ## run one read-only console command locally as cerberus-console-cli (CMD="status"; CMD="--json run latest")
 	cd console && uv run --no-project --python 3.12 --with boto3==1.43.67 python -m cerberus_console $(CMD)
 
+.PHONY: status
+# The AMP URL is AMP_QUERY_URL, else CERBERUS_AMP_QUERY_URL, else `terraform output` (read-only, 30 s limit).
+status: ## READ-ONLY, owner-run: pipeline status from AMP + Step Functions + Athena + newest record (optional AMP_QUERY_URL=<workspace query URL>); needs cerberus-admin credentials to assume cerberus-console-cli
+	@CERBERUS_AMP_QUERY_URL="$${AMP_QUERY_URL:-$${CERBERUS_AMP_QUERY_URL:-$$(timeout 30 $(TF_BIN) -chdir=$(TF_STANDING_DIR) output -raw prometheus_endpoint 2>/dev/null || true)}}" \
+	  $(MAKE) --no-print-directory cerberus CMD=status
+
 .PHONY: console-site console-site-preview console-site-publish
 console-site: ## build the public landing page into console/site-dist (zero JavaScript, no AWS; ADR 0024)
 	cd console && rm -rf site-dist && uv run --no-project --python 3.12 python -m cerberus_landing build --out site-dist
@@ -163,6 +180,13 @@ console-site-publish: console-site ## AWS WRITE, needs approval: publish console
 	  "$$($(TF_BIN) -chdir=$(TF_STANDING_DIR) output -raw console_site_bucket_name)" \
 	  "$$($(TF_BIN) -chdir=$(TF_STANDING_DIR) output -raw console_distribution_id)" \
 	  "$$($(TF_BIN) -chdir=$(TF_STANDING_DIR) output -raw console_url)"
+
+.PHONY: showcase-snapshot showcase-check
+showcase-snapshot: ## OFFLINE, git only: write observability/showcase/*.json from the run records, with the fail-closed redaction gate (11.2a; no AWS)
+	PYTHONPATH=console uv run --no-project --python 3.12 python -m cerberus_landing.showcase --runs observability/scale/runs --out observability/showcase
+
+showcase-check: ## OFFLINE, git only: fail if the committed observability/showcase/*.json are stale (11.2a; no AWS)
+	PYTHONPATH=console uv run --no-project --python 3.12 python -m cerberus_landing.showcase --runs observability/scale/runs --out observability/showcase --check
 
 .PHONY: fmt
 fmt: ## terraform fmt across the whole terraform/ tree
@@ -191,3 +215,10 @@ console-terminal-publish: console-terminal ## AWS WRITE, needs approval: publish
 console-artifacts: ## AWS WRITE, needs approval: stage the pinned Grafana tarball and AMP plugin in the private artifacts/ prefix of the site bucket (once per version)
 	observability/grafana/console/stage_artifacts.sh \
 	  "$$($(TF_BIN) -chdir=$(TF_STANDING_DIR) output -raw console_site_bucket_name)"
+
+.PHONY: traceability traceability-check
+traceability: ## Regenerate observability/showcase/history.json and docs/traceability.md (git only, no AWS)
+	python3 tools/traceability/generate.py
+
+traceability-check: ## Fail if the traceability files are stale or a link dangles (what CI runs)
+	python3 tools/traceability/generate.py --check

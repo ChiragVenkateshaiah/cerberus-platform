@@ -2,8 +2,8 @@
 
 One file holds the `metrics` catalogue and the named PromQL `queries`. Panels
 must equal an entry, and alert rules must contain entries verbatim (ADR 0021,
-amendments of 2026-11-12 and 2026-11-20). Stdlib only, plain json.loads. Nothing
-in the console imports this module yet; 10.3 to 10.5 will.
+amendments of 2026-11-12 and 2026-11-20). Stdlib only, plain json.loads. The status command
+(10.5a) reads it through by_name().
 
 Every function returns a list of error strings, empty when the input is fine.
 """
@@ -47,6 +47,11 @@ def metric_names(doc: dict) -> list[str]:
 
 def queries(doc: dict) -> list[dict]:
     return [q for q in doc.get("queries", []) if isinstance(q, dict)]
+
+
+def by_name(doc: dict) -> dict[str, dict]:
+    """The query entries keyed by name (the reader looks an `expr` up by name)."""
+    return {q["name"]: q for q in queries(doc) if isinstance(q.get("name"), str)}
 
 
 def _string_end(text: str, i: int) -> int:

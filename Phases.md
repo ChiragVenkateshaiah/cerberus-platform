@@ -247,6 +247,9 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
         10.4c check (runbook in `observability/alerts/README.md`).
 - [ ] 10.5 Terminal status view (`make status`) from the named query set
       (same code as `cerberus status`)
+      - 10.5a and 10.5b built 2026-11-21; 10.5c (Terraform: aps:QueryMetrics
+        for cerberus-console-cli, the zip source block, env vars) waits until
+        #176 is applied and merged.
 - [ ] 10.6 Live check: one passing and one deliberately failed exercise,
       shown correctly on the dashboard, in the terminal and as an alert
       - Also: live lineage check (dbt-ol and Spark console output reach the
@@ -260,14 +263,17 @@ the AI/BI dashboards) run right after Phase 10 (10.7), before 14.2 (owner
 answer 2026-11-20, ADR 0028). 11.2d-11.7 keep their place after 14.2-14.4. 11.2 is ticked when 11.2a-d
 are done; 11.2e is optional._
 
-- [ ] 11.1 ADR: Databricks Free Edition as the partner workspace and
+- [x] 11.1 ADR: Databricks Free Edition as the partner workspace and
       presentation layer; trial and Glue federation re-verified by an
       amendment before 11.3. ADR 0028
+      ADR 0028 Accepted 2026-11-20 (#170)
 - [ ] 11.2 Free Edition
       - 11.2a Showcase builder (git only): `observability/showcase/*.json`,
         fail-closed redaction, parity with the named query set (moved from
         15.2). `comparison.json` is optional until 11.5: the builder omits
         it and the page shows no Databricks column until the record exists
+        - 11.2a built 2026-11-21 (`make showcase-snapshot`, `make showcase-check`;
+          parity in the `status-e2e` job; the two ADR 0026 sanitiser xfails now pass).
       - 11.2b Workspace as code: schema, volume, load notebook or job,
         dashboards and the Genie instructions in `databricks/showcase/`;
         owner-run deploy (bundle if it works on Free Edition, else UI import)
@@ -287,7 +293,9 @@ are done; 11.2e is optional._
       cost per million events. Write the result as a record with the
       `comparison.json` fields in ADR 0027: step, input run ID and events,
       date and trial flag; per engine, run time, cost, cost per million
-      events, cost source and an estimated flag.
+      events, cost source and an estimated flag. The input file is
+      `observability/showcase/comparison-input.json`, laid out as
+      `engines.{cerberus,databricks}` (see `observability/showcase/README.md`).
 - [ ] 11.6 Comparison write-up + demo; trial cancelled, $0 confirmed
 - [ ] 11.7 Well-Architected pass + ADR
 
@@ -323,8 +331,10 @@ amendment, Accepted 2026-11-12); 14.5–14.8 follow after Phase 13._
 - [x] 14.1 ADR: AI operations agents (rules detect, Claude on Bedrock
       explains, a human approves; local trigger; read-only role; $0 idle).
       ADR 0025 Accepted 2026-11-08
-- [ ] 14.2 Deterministic review core and the agent tool registry on the 9.3
+- [x] 14.2 Deterministic review core and the agent tool registry on the 9.3
       command set: masking, size caps, a local stdio MCP server
+      _Done 2026-11-22 (#181 review core with 17 golden reviews, #182 tool
+      registry with 9 tools, offline, #183 stdio MCP server, `make mcp`)._
 - [ ] 14.3 Evaluation: labelled replay set from past runs (failed runs,
       Glue timeouts, Spot interruption, Athena queue time, clean runs) and a
       scored harness
@@ -350,10 +360,11 @@ comparison (same input, run time and cost per million events on both
 engines), so the page can show Cerberus metrics and performance with
 Databricks as a partner column. ADR 0027._
 
-- [ ] 15.1 ADR: the public showcase (a sanitised static snapshot on the
+- [x] 15.1 ADR: the public showcase (a sanitised static snapshot on the
       standing edge vs. a laptop-hosted stack; anonymous scope; data
       contract and redaction; refresh on each merged run record; edge abuse
       controls; the Databricks partner column)
+      ADR 0027 Accepted 2026-11-20 (#169)
 - [ ] 15.2 Showcase publish: use the 11.2a builder; add the Databricks
       images (11.2c); published by `console-site.yml`
 - [ ] 15.3 The showcase view on the 9.4 page: run explorer, scale story and
@@ -378,10 +389,14 @@ _Added 2026-11-20. Numbered 16 so Phases 11–15 keep their numbers. It is git
 only, $0 and has no dependency. It runs after Phase 10 (10.7), before 14.2
 (owner answer 2026-11-20). ADR 0029._
 
-- [ ] 16.1 ADR: platform-development traceability. ADR 0029
-- [ ] 16.2 Generator: `history.json` and `docs/traceability.md` from git,
+- [x] 16.1 ADR: platform-development traceability. ADR 0029
+      ADR 0029 Accepted 2026-11-20 (#170)
+- [x] 16.2 Generator: `history.json` and `docs/traceability.md` from git,
       Phases.md, ADRs, plans, run records and merged PRs; CI dangling-link
       check
+      Done 2026-11-21 (#178): `tools/traceability/`, `make traceability`, the
+      `traceability` CI job, and a baseline of the items done at the ADR 0029
+      cut-off
 - [ ] 16.3 Shown on the site and as the Databricks "how it was built"
       dashboard (with 11.2c and 15.3)
       Dangling-link check applies only to items on or after the ADR 0029

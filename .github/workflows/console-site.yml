@@ -20,6 +20,7 @@ on:
       - "Phases.md"
       - "observability/scale/runs/**"
       - "docs/img/scale/**"
+      - "observability/showcase/**"
       - "console/publish_site.sh"
       - ".github/workflows/console-site.yml"
   workflow_dispatch:
