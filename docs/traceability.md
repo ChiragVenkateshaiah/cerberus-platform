@@ -197,7 +197,7 @@ never fail the check. Only PRs named in Phases.md appear here.
 | Subtask | Done | ADR | Plan | PR | Runs |
 | --- | --- | --- | --- | --- | --- |
 | 14.1 ADR: AI operations agents (rules detect, Claude on Bedrock explains, a human approves; local trigger; read-only role; $0 idle). | x | [0025](adr/0025-ai-operations-agents.md) AI operations agents: rules detect, Claude on Bedrock explains, a human approves | none (before traceability) | none (before traceability) | none (before traceability) |
-| 14.2 Deterministic review core and the agent tool registry on the 9.3 command set: masking, size caps, a local stdio MCP server |  | - | - | - | - |
+| 14.2 Deterministic review core and the agent tool registry on the 9.3 command set: masking, size caps, a local stdio MCP server _Progress… |  | - | - | - | - |
 | 14.3 Evaluation: labelled replay set from past runs (failed runs, Glue timeouts, Spot interruption, Athena queue time, clean runs) and a scored… |  | - | - | - | - |
 | 14.4 Run reviewer (first agent, report only): review file, Grafana annotation and an "AI review" panel on the Phase 10 run-status dashboard |  | - | - | - | - |
 | 14.5 Failure triage: root cause with cited log lines and metric values; a draft issue or PR for human approval |  | - | - | - | - |

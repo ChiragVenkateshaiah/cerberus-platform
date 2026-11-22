@@ -1,0 +1,8 @@
+# The agents package reads run records (untrusted text) and, later, serves tools
+# to a model (ADR 0025). It lints as strictly as the console: the bandit rules
+# (S) and the banned list of ways to run a program or load code. This file
+# extends the console one, so the two cannot drift.
+extend = "../console/ruff.toml"
+
+[lint.per-file-ignores]
+"tests/**" = ["S101"]

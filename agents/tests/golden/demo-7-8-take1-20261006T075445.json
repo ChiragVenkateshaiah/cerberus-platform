@@ -1,0 +1,30 @@
+{
+  "evidence": [
+    {
+      "id": "e1",
+      "rule": "dq_missing"
+    },
+    {
+      "id": "e2",
+      "rule": "cost_missing"
+    }
+  ],
+  "execution": "demo-7-8-take1-20261006T075445",
+  "findings": [
+    {
+      "evidence": [
+        "e1"
+      ],
+      "id": "f1",
+      "rule": "dq_missing"
+    },
+    {
+      "evidence": [
+        "e2"
+      ],
+      "id": "f2",
+      "rule": "cost_missing"
+    }
+  ],
+  "scale_class": "6k"
+}

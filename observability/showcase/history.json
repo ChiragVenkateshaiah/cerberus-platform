@@ -1634,7 +1634,7 @@
     {
       "id": "14.2",
       "phase": 14,
-      "title": "Deterministic review core and the agent tool registry on the 9.3 command set: masking, size caps, a local stdio MCP server",
+      "title": "Deterministic review core and the agent tool registry on the 9.3 command set: masking, size caps, a local stdio MCP server _Progress…",
       "checked": false,
       "links": {
         "adr": [],

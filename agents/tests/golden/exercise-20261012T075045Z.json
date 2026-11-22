@@ -1,0 +1,37 @@
+{
+  "evidence": [
+    {
+      "id": "e1",
+      "peer_median": 112.95,
+      "peers": 6,
+      "rule": "step_slow",
+      "seconds": 538.5,
+      "step": "RunDbt"
+    },
+    {
+      "id": "e2",
+      "peer_median": 10.595,
+      "peers": 6,
+      "rule": "cost_outlier",
+      "usd_per_million_events": 34.297
+    }
+  ],
+  "execution": "exercise-20261012T075045Z",
+  "findings": [
+    {
+      "evidence": [
+        "e1"
+      ],
+      "id": "f1",
+      "rule": "step_slow"
+    },
+    {
+      "evidence": [
+        "e2"
+      ],
+      "id": "f2",
+      "rule": "cost_outlier"
+    }
+  ],
+  "scale_class": "6k"
+}

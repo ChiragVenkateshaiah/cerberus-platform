@@ -1,0 +1,22 @@
+{
+  "evidence": [
+    {
+      "id": "e1",
+      "limit_seconds": 60.0,
+      "queue_seconds": 230.5,
+      "rule": "athena_queue",
+      "step": "RunDbt"
+    }
+  ],
+  "execution": "exercise-20261015T145812Z",
+  "findings": [
+    {
+      "evidence": [
+        "e1"
+      ],
+      "id": "f1",
+      "rule": "athena_queue"
+    }
+  ],
+  "scale_class": "1m"
+}

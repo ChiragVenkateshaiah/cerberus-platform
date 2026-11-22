@@ -14,6 +14,7 @@ on:
       - "observability/**"
       - "lineage/**"
       - "console/**"
+      - "agents/**"
       - "Phases.md"
       - "docs/adr/**"
       - "docs/plans/**"
@@ -185,6 +186,12 @@ jobs:
 
       - name: pytest
         run: pytest console
+
+      # 14.2a (ADR 0025): the agents package imports cerberus_console, so both
+      # directories go on PYTHONPATH. Run apart from console: both have a
+      # test_banned_calls.py.
+      - name: pytest agents
+        run: PYTHONPATH=agents:console pytest agents/tests
 
       # 9.5 (ADR 0024 amendment, 2026-11-12): the terminal's script is plain
       # JavaScript with no toolchain. Uses the runner's own Node; no setup-node, no npm.
