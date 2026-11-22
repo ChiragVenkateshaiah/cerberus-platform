@@ -48,6 +48,12 @@ QUERIES_FILE = Path(
     )
 )
 
+# The AMP query endpoint for `status` (10.5a). Terraform sets the env var on the
+# Lambda; `make status` passes it from AMP_QUERY_URL or `terraform output`. Empty
+# means "no AMP": the status section shows as unavailable.
+AMP_QUERY_URL_ENV = "CERBERUS_AMP_QUERY_URL"
+AMP_QUERY_URL = os.environ.get(AMP_QUERY_URL_ENV, "")
+
 # Output caps (ADR 0024 rule 4).
 FIELD_CHARS = 200
 TABLE_ROWS = 50
@@ -65,6 +71,18 @@ FRESHNESS_NEGATIVE_TTL = 60
 # Athena result reuse: containers share one result for this many minutes instead
 # of one billed query each (ADR 0024 amendment, 2026-11-02).
 RESULT_REUSE_MINUTES = 5
+
+# AMP instant queries (same limits as observability/status/aws_send.py, plus a
+# reply cap, a series cap and one deadline for all the queries of one status).
+AMP_TTL = 30
+AMP_NEGATIVE_TTL = 60
+AMP_TIMEOUT_SECONDS = 4.0  # per attempt
+AMP_ATTEMPTS = 2
+AMP_RETRY_PAUSE_SECONDS = 0.5
+AMP_DEADLINE_SECONDS = 5.0  # all queries of one status, sequential
+AMP_READ_MAX = 256 * 1024
+AMP_MAX_SERIES = 100
+STATUS_STEP_ROWS = 12  # rows of the "Time per step" table
 
 # Step Functions keeps a closed Standard execution's history this many days
 # (service quotas page, read 2026-11-01).

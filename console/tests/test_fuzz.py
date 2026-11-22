@@ -482,3 +482,71 @@ def test_a_bounded_amount_of_nesting_is_still_served(sources, monkeypatch):
 
 def test_the_sources_fixture_is_the_fake_one(sources):
     assert isinstance(sources, Sources)
+
+
+# --- AMP replies (10.5a) -------------------------------------------------------
+
+
+def random_amp_value(rng):
+    return rng.choice(
+        ["1", "0", "NaN", "+Inf", "-Inf", "", "abc", "1e999", "1_0", 5, None, ["x"], "0.5", " 7 "]
+    )
+
+
+def random_amp_reply(rng):
+    rows = []
+    for _ in range(rng.choice([0, 1, 3, 150, 400])):
+        metric = {}
+        for key in ("step", "execution", "__name__", "other"):
+            if rng.random() < 0.6:
+                metric[key] = rng.choice([random_string(rng), 7, None, "ok"])
+        row = {"metric": metric, "value": [1.5, random_amp_value(rng)]}
+        if rng.random() < 0.1:
+            row = rng.choice([[], "x", {"metric": []}, {"value": 1}, None])
+        rows.append(row)
+    reply = {"status": "success", "data": {"resultType": "vector", "result": rows}}
+    if rng.random() < 0.15:
+        reply["data"]["resultType"] = rng.choice(["matrix", "scalar", "", 7])
+    if rng.random() < 0.1:
+        reply["status"] = rng.choice(["error", None, 1])
+    return reply
+
+
+def test_amp_parsing_is_bounded_printable_and_finite_on_random_replies():
+    from cerberus_console import aws
+    from cerberus_console.sources import Unavailable
+
+    rng = random.Random(SEED + 9)
+    kept = 0
+    for _ in range(400):
+        reply = random_amp_reply(rng)
+        try:
+            rows = aws.parse_vector(reply)
+        except Unavailable:
+            continue
+        assert len(rows) <= config.AMP_MAX_SERIES
+        for row in rows:
+            assert set(row) == {"step", "execution", "value"}
+            for key in ("step", "execution"):
+                if row[key] is not None:
+                    assert PRINTABLE.fullmatch(row[key]) and "\n" not in row[key]
+                    assert len(row[key]) <= config.FIELD_CHARS
+            assert row["value"] is None or abs(row["value"]) < float("inf")
+        kept += len(rows)
+    assert kept > 100
+
+
+def test_status_never_raises_on_random_amp_replies(tmp_path):
+    runs = fakes.materialize_runs(tmp_path / "runs")
+    rng = random.Random(SEED + 10)
+    for _ in range(40):
+        body = json.dumps(random_amp_reply(rng), ensure_ascii=False).encode("utf-8", "replace")
+        reader = fakes.amp_reader(fakes.FakeOpener(body))
+        src = Sources(runs, amp_factory=lambda reader=reader: reader)
+        check_wire(
+            api.lambda_handler(
+                {"version": "2.0", "body": '{"argv": ["status"]}', "isBase64Encoded": False},
+                None,
+                sources=src,
+            )
+        )

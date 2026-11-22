@@ -1,10 +1,12 @@
 """Fakes for the AWS clients and sources. No boto3, no network."""
 
+import io
 import json
 import shutil
+import urllib.error
 from pathlib import Path
 
-from cerberus_console import aws
+from cerberus_console import aws, queries
 from cerberus_console.sources import Sources
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -125,3 +127,85 @@ class ExplodingFresh:
 
 def forbidden_factory():
     raise AssertionError("this command must not touch any source")
+
+
+# ---- AMP -------------------------------------------------------------------
+
+AMP_FIXTURES = FIXTURES / "amp"
+
+
+def amp_body(name: str) -> bytes:
+    return (AMP_FIXTURES / f"{name}.json").read_bytes()
+
+
+class FakeResponse:
+    """What urlopen returns: a context manager with `status` and a capped `read`."""
+
+    def __init__(self, body: bytes, status: int = 200):
+        self.body, self.status = body, status
+        self.read_sizes = []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def read(self, n=-1):
+        self.read_sizes.append(n)
+        return self.body if n < 0 else self.body[:n]
+
+
+class FakeOpener:
+    """Answers each call with the next item: bytes (HTTP 200), an int (an HTTP error code),
+    or an exception to raise. The last item repeats. Records (url, timeout, headers)."""
+
+    def __init__(self, *items):
+        self.items = list(items)
+        self.calls = []
+        self.responses = []
+
+    def __call__(self, req, timeout=None):
+        self.calls.append((req.full_url, timeout, dict(req.header_items())))
+        item = self.items.pop(0) if len(self.items) > 1 else self.items[0]
+        if isinstance(item, Exception):
+            raise item
+        if isinstance(item, int):
+            raise urllib.error.HTTPError(req.full_url, item, "err", {}, io.BytesIO(b"x"))
+        resp = FakeResponse(item)
+        self.responses.append(resp)
+        return resp
+
+
+def amp_reader(opener, clock=None, query_set=None):
+    """An AwsAmpReader over a fake opener and a fake signer. No botocore, no network."""
+    clock = clock or Clock()
+    return aws.AwsAmpReader(
+        lambda url: {"Authorization": "fake"},
+        "https://aps-workspaces.example.invalid/workspaces/ws-test/",
+        query_set if query_set is not None else queries.by_name(queries.load()),
+        opener=opener,
+        clock=clock,
+        sleep=clock.sleep,
+    )
+
+
+def series(value, step=None, execution=None):
+    return {"step": step, "execution": execution, "value": value}
+
+
+class FakeAmp:
+    """Reader fake: `results` maps a query name to its series list (default: no series)."""
+
+    def __init__(self, results=None):
+        self.results = results or {}
+        self.asked = []
+
+    def query(self, name):
+        self.asked.append(name)
+        return self.results.get(name, [])
+
+
+class ExplodingAmp:
+    def query(self, name):
+        raise Boom("boom")

@@ -1,0 +1,19 @@
+{
+ "status": "success",
+ "data": {
+  "resultType": "matrix",
+  "result": [
+   {
+    "metric": {
+     "step": "a"
+    },
+    "values": [
+     [
+      1699999999.1,
+      "1"
+     ]
+    ]
+   }
+  ]
+ }
+}

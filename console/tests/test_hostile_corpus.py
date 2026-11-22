@@ -219,3 +219,29 @@ def test_unavailable_is_fixed_and_has_no_input(tmp_path, monkeypatch):
     assert out["headers"] == HEADERS
     assert out["body"] == wire(UNAVAILABLE)
     assert "SECRET-TEXT" not in out["body"] and fakes.FAKE_ACCOUNT not in out["body"]
+
+
+# --- AMP replies (10.5a): every fixture through the whole request path -----
+
+AMP_NAMES = sorted(p.stem for p in fakes.AMP_FIXTURES.glob("*.json"))
+
+
+def test_the_amp_fixture_set_is_there():
+    assert len(AMP_NAMES) >= 11 and "hostile_labels" in AMP_NAMES
+
+
+@pytest.mark.parametrize("name", AMP_NAMES)
+def test_an_amp_reply_never_breaks_status_or_leaks_control_text(name, tmp_path):
+    runs = fakes.materialize_runs(tmp_path / "runs")
+    opener = fakes.FakeOpener(fakes.amp_body(name))
+    reader = fakes.amp_reader(opener)
+    src = Sources(runs, amp_factory=lambda: reader)
+    out = lambda_handler(v2_event(body(["status"])), None, sources=src)
+    assert out["statusCode"] == 200
+    assert out["headers"] == HEADERS
+    assert out["body"].isascii() and len(out["body"]) <= 64 * 1024
+    parsed = json.loads(out["body"])
+    for ch in ("\x1b", "\x00", "\x07", "\u202e", "\u200b"):
+        assert ch not in parsed["text"]
+    assert "x" * 201 not in out["body"] and "y" * 201 not in out["body"]
+    assert parsed["data"]["pipeline"]["available"] in (True, False)
