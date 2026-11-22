@@ -15,7 +15,7 @@
 
 ## At a glance
 
-Cerberus moves synthetic payments data through an S3 medallion (bronze, silver, gold), with Spark on EKS, dbt and Athena, on Apache Iceberg. Step Functions orchestrates the runs, Terraform provisions everything, and CloudWatch, Prometheus and Grafana observe it. Every non-obvious choice is an [architecture decision record](docs/adr/) (25 so far), and each phase closes with a Well-Architected review.
+Cerberus moves synthetic payments data through an S3 medallion (bronze, silver, gold), with Spark on EKS, dbt and Athena, on Apache Iceberg. Step Functions orchestrates the runs, Terraform provisions everything, and CloudWatch, Prometheus and Grafana observe it. Every non-obvious choice is an [architecture decision record](docs/adr/) (29 so far), and each phase closes with a Well-Architected review.
 
 ## Headline result: 100 million events, from no compute back to no compute
 
@@ -64,8 +64,9 @@ flowchart LR
     SLV --> GLD
     S4 --> ATH{{"Athena"}}
     GLD --> ATH
-    PROM --> AMP["Amazon Managed Prometheus"] --> GRAF["Local Grafana<br/>3 dashboards"]
+    PROM --> AMP["Amazon Managed Prometheus"] --> GRAF["Local Grafana<br/>4 dashboards"]
     RUN --> CW["CloudWatch dashboard and alarms"] --> SNS["SNS"]
+    RUN -. "Phase 10, planned: run-end status series and alert rules, not yet live (ADR 0021)" .-> AMP
     SPARK & S3 -. "OpenLineage (not yet for exercises, ADR 0021)" .-> OL["Lineage collector"] -.-> PAGES["GitHub Pages"]
     GLD -. "Phase 11, planned: Glue federation, no copy" .-> DBX["Databricks SQL"]
     COMP -.-> EKS
@@ -115,13 +116,14 @@ The clean 1M run costs more per event than the 100M runs for two reasons. Each r
 
 ## Observability for everyone
 
-Three Grafana dashboards tell the story of a run at three levels:
+Four Grafana dashboards tell the story of a run, three at the level of the run and one for the pipeline as a whole:
 
 1. **1 · Run Overview: progress, quality, cost.** For anyone, including finance and product: is the run progressing, did it pass, what did it cost.
 2. **2 · Run Health: compute and throughput.** For engineering and operations: nodes, executors and throughput.
 3. **3 · Spark and Cluster Diagnostics.** For platform and Spark engineers.
+4. **4 · Pipeline Status: did the last run pass?** For everyone: the answer to that question in plain words, with the last failure, its failed step and the data-quality result. The dashboard and its named query set are merged; it shows data once the status publisher writes to AMP (Phase 10, not yet live).
 
-Grafana runs locally in Docker Compose against Amazon Managed Prometheus, so no standing server exists ([ADR 0022](docs/adr/0022-live-observability-for-a-recorded-run.md)). A CloudWatch dashboard and alarms feed an SNS topic (most alarms arm only for scheduled runs; ADR 0021 adds exercise alerting in Phase 10), and [six SLOs](docs/slo.md) define the reliability targets. Lineage is collected for scheduled runs; exercise lineage is planned (ADR 0021). It is documented in [docs/lineage.md](docs/lineage.md), with a [dbt model DAG](https://chiragvenkateshaiah.github.io/cerberus-platform/dbt/) and a [runtime lineage graph](https://chiragvenkateshaiah.github.io/cerberus-platform/lineage/) on GitHub Pages.
+Grafana runs locally in Docker Compose against Amazon Managed Prometheus, so no standing server exists ([ADR 0022](docs/adr/0022-live-observability-for-a-recorded-run.md)). A CloudWatch dashboard and alarms feed an SNS topic (most alarms arm only for scheduled runs). Phase 10 alert rules for failed runs and data-quality errors, with `promtool` tests, are in the repository; they are planned, not yet live in AMP, so exercise alerting does not exist yet (ADR 0021). The terminal status view that reads the same named queries is merged but dormant until its IAM step is applied, and [six SLOs](docs/slo.md) define the reliability targets. Lineage is collected for scheduled runs; exercise lineage is planned (ADR 0021). It is documented in [docs/lineage.md](docs/lineage.md), with a [dbt model DAG](https://chiragvenkateshaiah.github.io/cerberus-platform/dbt/) and a [runtime lineage graph](https://chiragvenkateshaiah.github.io/cerberus-platform/lineage/) on GitHub Pages.
 
 ## Data quality and reliability
 
@@ -140,7 +142,7 @@ Grafana runs locally in Docker Compose against Amazon Managed Prometheus, so no 
 
 ## Where Databricks fits
 
-Databricks is a complement, not a replacement. In Phase 11 (planned), Databricks SQL reads Cerberus's Iceberg gold tables through Unity Catalog's AWS Glue federation, with no copy, managed in Terraform. The same workload is then measured on both engines. Cerberus stays the system of record and the only writer (see "Not a migration" in [docs/plan.md](docs/plan.md)).
+Databricks is a complement, not a replacement. [ADR 0028](docs/adr/0028-databricks-free-edition.md) (accepted, not built yet) makes Databricks Free Edition the partner presentation workspace: sanitised run and scale data loads from git into AI/BI dashboards, with exported images on the public page and live access by invitation. Free Edition offers no anonymous dashboards or public apps, so the public page stays a static snapshot on CloudFront ([ADR 0027](docs/adr/0027-public-showcase.md)). The git-only snapshot builder for that data is merged (`make showcase-snapshot`). Separately, in Phase 11 (planned), Databricks SQL reads Cerberus's Iceberg gold tables through Unity Catalog's AWS Glue federation, with no copy, managed in Terraform. The same workload is then measured on both engines. Cerberus stays the system of record and the only writer (see "Not a migration" in [docs/plan.md](docs/plan.md)).
 
 ## Roadmap
 
@@ -155,14 +157,14 @@ Databricks is a complement, not a replacement. In Phase 11 (planned), Databricks
 | 6 | Observability and data quality | Done | [0013](docs/adr/0013-lineage-openlineage-serverless-collector.md) |
 | 7 | End-to-end validation | Done | [0015](docs/adr/0015-phase-7-well-architected-review.md), [0016](docs/adr/0016-prometheus-for-eks-spark.md) |
 | 8 | Scale validation | Done | [0017](docs/adr/0017-iceberg-incremental-processing.md)-[0020](docs/adr/0020-dev-compute-node-autoscaling-and-spot.md), [0022](docs/adr/0022-live-observability-for-a-recorded-run.md), [0023](docs/adr/0023-phase-8-well-architected-review.md) |
-| 9 | Demo console | In progress: design accepted (ADR 0024), prerequisites built | [0024](docs/adr/0024-demo-console.md) |
-| 10 | Pipeline status and alerting | Planned: design accepted | [0021](docs/adr/0021-pipeline-status-and-alerting.md) |
-| 11 | Databricks interoperability | Planned: ADR 0028 accepted | [0028](docs/adr/0028-databricks-free-edition.md) |
+| 9 | Demo console | In progress: interactive landing page, second live Grafana session, clean-browser live check, Well-Architected pass | [0024](docs/adr/0024-demo-console.md), [0026](docs/adr/0026-phase-9-well-architected-review.md) |
+| 10 | Pipeline status and alerting | In progress: alert rules live in AMP, terminal status IAM, live check, Well-Architected pass | [0021](docs/adr/0021-pipeline-status-and-alerting.md) |
+| 11 | Databricks interoperability | Planned: ADR 0028 accepted, showcase builder merged | [0028](docs/adr/0028-databricks-free-edition.md) |
 | 12 | Platform tooling in Go | Planned | none yet |
 | 13 | Streaming ingestion | Planned | none yet |
 | 14 | AI operations agents | Planned: ADR 0025 accepted 2026-11-08 | [0025](docs/adr/0025-ai-operations-agents.md) |
 | 15 | Public showcase | Planned: ADR 0027 accepted | [0027](docs/adr/0027-public-showcase.md) |
-| 16 | Development traceability | Planned: ADR 0029 accepted | [0029](docs/adr/0029-platform-traceability.md) |
+| 16 | Development traceability | Planned: ADR 0029 accepted, generator merged | [0029](docs/adr/0029-platform-traceability.md) |
 
 Subtask-level progress is in [Phases.md](Phases.md), and the full plan is in [docs/plan.md](docs/plan.md).
 
@@ -195,6 +197,9 @@ orchestration/   state machine definition, ECS runner image, exercise.sh
 observability/   Grafana dashboards, scale harness and run records, freshness probe
 lineage/         OpenLineage collector and the Pages graph renderer
 serving/         demo Athena queries against gold
+console/         demo console: command set, terminal and landing pages, live-check harness
+tools/           repository tooling, including the traceability generator
+data/            sample data placeholder
 iam/             cerberus-admin least-privilege policies
 docs/            plan, ADRs, SLOs, scale metrics, runbooks
 articles/        weekly engineering write-ups
@@ -206,6 +211,7 @@ articles/        weekly engineering write-ups
 - [Phases.md](Phases.md): subtask-level progress
 - [docs/adr/](docs/adr/): architecture decision records
 - [docs/scale-metrics.md](docs/scale-metrics.md): the Phase 8 metric set, cost method and results at each scale step
+- [docs/traceability.md](docs/traceability.md): generated record linking each subtask to its ADR, plan, PR and run record
 - [docs/slo.md](docs/slo.md): service level objectives and error-budget policy
 - [docs/lineage.md](docs/lineage.md): data lineage at table and column granularity
 - [docs/cost-security-summary.md](docs/cost-security-summary.md): what the build cost, how every caller authenticates, and the accepted residual risks

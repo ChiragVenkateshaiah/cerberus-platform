@@ -8,6 +8,19 @@ pointer._
 
 ## Current phase
 
+**As of 2026-11-22:** Phase 9 (demo console) and Phase 10 (pipeline status
+and alerting) are in progress; Phases 11 and 14-16 are partly built.
+Phase 9: the console edge, read-only command set, terminal, Grafana session
+design, safety suite, live-check harness and two console alarms are merged;
+the interactive landing page (9.4), the second live console session (9.2),
+the clean-browser live check (9.6) and the Tool answers plus milestone 9
+(9.7) are open. Phase 10: 10.2 (publisher and AWS transport), 10.3 (status
+dashboard), 10.4a (alert rules) and 10.5a/b (terminal status from AMP) are
+merged; the alert rules are not live in AMP and the terminal status is
+dormant until 10.4b and 10.5c are applied. Phase 11: 11.2a (showcase
+builder) is merged. Phase 16: 16.2 (traceability generator) is merged.
+ADRs 0026-0029 are Accepted. See [Phases.md](Phases.md) for the checklist.
+
 **Phases 1–8 are all ✅ complete.** Phases 1–7 close the original roadmap;
 Phase 8 was added 2026-10-06 (see [Phases.md](Phases.md) for the subtask
 checklist and the per-phase ADRs):
@@ -261,26 +274,48 @@ Run `git fetch && git switch main && git pull` first; check `gh pr list`.
      `cerberus-decision-ai-ops-agents`, `cerberus-docs-readme-refresh`,
      `cerberus-phase-8-10-results` and `cerberus-tooling-end-day-readme`
      worktrees can go.
-2. **Phase 9 started 2026-11-09.** 9.1 is checked off (ADR 0024 Accepted
-   2026-10-27). The 8.10 take (`demo-100m-20261108T135119Z`, #136) meets
-   the "after the take" gates. #129, #126, #127, #128, #130 and #131 merged
-   2026-11-09; the #127 CI apply passed (2 added, 3 changed, 1 destroyed:
-   the console workgroup, its lifecycle, the `console_cli` policy and the
-   known Faker churn), and the live `make cerberus` check is recorded in
-   Phases.md 9.3; #142 (the landing publish) and #144 (9.3 checked off)
-   merged 2026-11-12. Next: the 9.4 interactive page rebuild (a separate session),
-   then what is left of 9.2. ADR 0024 step 11 (in-cluster Grafana
-   removal) was done 2026-11-12. 9.5 (the terminal) is checked off
-   2026-11-12. Next: step 10, the live Grafana session (`envs/dev-console`,
-   pin the AMP plugin to the version in `observability/grafana/compose.yaml`),
-   then 9.6 and 9.7.
+2. **Owner steps, in this order (Phase 9 and 10 are blocked on them):**
+   - Root-paste `cerberus-admin-iam-and-governance` (10.2 `aps:RemoteWrite`
+     and the 10.4b actions, same file), the `console-edge` `DescribeAlarms`
+     paste, then the simulate check.
+   - `make standing-plan`, then `make standing-apply` for PR #176 (10.4b,
+     the alert rules into AMP). Merge #176 right after. No other Terraform
+     PR may merge in between.
+   - `make status-smoke ARGS=--send` once the paste is done (the first real
+     status write, 10.2 smoke).
+   - 10.5c (IAM `aps:QueryMetrics` for `cerberus-console-cli`, the
+     `status.json` zip source block, env vars): security tier, so the
+     reviewer asked for an explicit security decision. Merge only after
+     #176 is merged.
+   - Disable the `console-check` Cognito user (`enabled_users` is 1) and run
+     the second live console session (E1-E6 via `make console-verify`).
+   - Databricks Free Edition sign-up and the one-hour spike (CLI, bundles,
+     invites, dashboard export), for 11.2b.
+   - Use tmux for long remote runs.
+3. **Open PRs and branches to review or finish:**
+   - #180 ticks 11.1, 15.1, 16.1 and 16.2 in Phases.md and regenerates the
+     traceability record. Do not tick those four anywhere else.
+   - Stacked chain #181 (14.2a review core) -> #182 (14.2b tool registry)
+     -> #183 (14.2c stdio MCP server). Merge in order.
+   - Branch `14.3a-eval-harness` (commit cca1078, no PR): replay cases and
+     the scorer. The Sonnet review asked for four changes: rename
+     `agents/eval` to `agents/agent_eval` (the sandbox blocks shell commands
+     with `eval` in a path, so the owner runs `mv agents/eval
+     agents/agent_eval` in that worktree), split "5 of 6" into detected,
+     symptom-only and correct-negative, add a circularity note, and harden
+     the scorer. 14.3b (sweep) and 14.3c (wiring) are not built.
+4. **Phase 10 order (ADR 0021 amendment):** finish 10.4b (#176) and 10.5c,
+   then 10.6 (live check: one passing, one failed exercise; dashboard,
+   terminal and alert), then 10.7. After that: 11.2a-c and 16 (owner answer
+   2026-11-20), then 14.2-14.4 -> the rest of Phase 11. Phase 15 waits for
+   9.4, 10.3/10.6, 11.2a-b and 11.5.
+5. **Phase 9 left:** 9.4 interactive page rebuild (separate session), the
+   9.2 live session, the 9.6 clean-browser live check, 9.7 Tool answers and
+   milestone 9.
    - **Follow-up (small):** `make cerberus status` run locally labels local
-     time as UTC ("start 19:56 UTC" on an IST machine for a 14:26 UTC run).
-     The Lambda runs in UTC, so the live terminal is correct. Convert the
-     Step Functions datetimes to UTC before formatting, and add a test.
-3. **Phase 10 order (option C, ADR 0021 amendment Accepted 2026-11-12):**
-   10.2–10.7 → 14.2a/b, `cerberus-ops-agent` IAM, 14.3, 14.4 → Phase 11.
-   Start with 10.2a (the named query set).
+     time as UTC. Convert the Step Functions datetimes to UTC before
+     formatting, and add a test (the 2026-11-13 follow-up changed the local
+     `make cerberus` times; check it covers `status`).
 
 **Open from the 2026-10-15 review (Phase 8 follow-ups)** (listed in 8.10's
 "What was not isolated"): bytes written are not measured; Athena computed
@@ -3262,8 +3297,56 @@ drift, 9.3, and the Phase 8 close-out. PRs #141–#144 and this PR._
   `TZ=UTC`) and a simulated sign-in; `docs/assets/cerberus-terminal-demo.gif`.
   The article draft and the MP4 are kept outside the repo.
 
+### 2026-11-22
+
+_Phase 9 close-out work, the Phase 10 status stack, the showcase builder,
+the traceability generator and the new workflow. PRs #155-#175, #177-#179
+and #184 (merged since 2026-11-12)._
+
+- **Phase 9 (#154-#164):** the console Grafana session (artifacts bucket,
+  pinned packages, module, `envs/dev-console`, `make console-session`),
+  `exercise.sh destroy` under `setsid`, the 9.6 safety suite (#160) and
+  live-check harness (#162), two always-on console alarms (#163), and the
+  emergency levers, invite lifecycle and `enabled_users` check (#164).
+- **ADRs 0026-0029:** 0026 (Phase 9 Well-Architected review) Accepted
+  2026-11-20. ADR 0021 amendment (2026-11-20): the 10.2 transport is a
+  hand-written remote write, no OpenTelemetry. 0027 public showcase: a
+  sanitised static snapshot on the CloudFront edge, anonymous snapshot
+  only (adds Phase 15). 0028 Databricks Free Edition is the presentation
+  workspace (no anonymous dashboards or public apps there; exported images
+  go on the CloudFront page; live access by invitation; this is 11.1). 0029
+  generated traceability from git merge commits, no GitHub API. ADR 0025
+  stays. One Phase 10 dashboard, an alert-path check rule, and a plain
+  `label` per query-set entry.
+- **Phase 10:** 10.2a-e (query set, publisher core, local end-to-end,
+  AWS transport and exercise hooks, the console names the failed task),
+  10.3a/b (status dashboard JSON and render check), 10.4a (alert rules,
+  promtool tests, Alertmanager template), 10.5a/b (terminal status view
+  reads the named queries from AMP; dormant until 10.5c).
+- **Showcase and traceability:** 11.2a showcase builder with a fail-closed
+  redaction gate (`make showcase-snapshot`, `make showcase-check`); 16.2
+  generator (`tools/traceability/`, `make traceability`,
+  `docs/traceability.md`).
+- **Workflow (#179):** Opus only for `/decision`; Sonnet plans, executes and
+  reviews; Haiku does git; `make verify` is the standard check. Global
+  agents and commands live in `~/.claude` (decision, planner, executor,
+  reviewer, gitops; `/workflow`, `/decision`); cerberus-specific ones stay
+  in `.claude/agents`.
+- **Findings:** the published SLO is honest: 15 of 17 recorded runs
+  succeeded, so the error budget is about 2.35 times used (Phase 8 tuning
+  runs). The standing edge accepts TLS 1.0 and 1.1 (ADR 0026 step 5a/5d
+  follow-up, not fixed). A missing `live.json` returns 403 through
+  CloudFront. The review core (14.2a) dropped two planned rules, headroom
+  and never_reported, after checking real records.
+- **README refreshed** (status, ADR count 29, roadmap, observability,
+  Databricks, layout, documentation).
+
 ## Notes / blockers
 
+- **Open since 2026-11-22:** the owner steps, PR #176, #180, the #181-#183
+  chain and branch `14.3a-eval-harness` are listed under "Next up". The
+  Phases.md ticks for 11.1, 15.1, 16.1 and 16.2 are left to #180 on purpose.
+  Not fixed: the standing edge still accepts TLS 1.0 and 1.1.
 - **Resolved 2026-10-05 (was: open, noted 2026-10-03):** branch
   `phase-7-prometheus-dev-compute` *had* been pushed. PR #47 merged it to
   `main`. The checkout was found on `main` at the start of 2026-10-06.
