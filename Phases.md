@@ -244,6 +244,9 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
       - 10.4a built 2026-11-20 (rules, promtool tests, template).
 - [ ] 10.5 Terminal status view (`make status`) from the named query set
       (same code as `cerberus status`)
+      - 10.5a and 10.5b built 2026-11-21; 10.5c (Terraform: aps:QueryMetrics
+        for cerberus-console-cli, the zip source block, env vars) waits until
+        #176 is applied and merged.
 - [ ] 10.6 Live check: one passing and one deliberately failed exercise,
       shown correctly on the dashboard, in the terminal and as an alert
       - Also: live lineage check (dbt-ol and Spark console output reach the

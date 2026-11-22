@@ -1,0 +1,17 @@
+{
+ "status": "success",
+ "data": {
+  "resultType": "vector",
+  "result": [
+   {
+    "metric": {
+     "step": "RunDbt"
+    },
+    "value": [
+     1699999999.1,
+     "NaN"
+    ]
+   }
+  ]
+ }
+}

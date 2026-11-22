@@ -1294,7 +1294,12 @@
       "links": {
         "adr": [],
         "plan": [],
-        "pr": [],
+        "pr": [
+          {
+            "number": 176,
+            "pending": true
+          }
+        ],
         "runs": []
       },
       "legacy": false
