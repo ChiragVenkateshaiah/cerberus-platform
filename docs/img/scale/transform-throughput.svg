@@ -59,10 +59,10 @@
 <text class="tick ink2" fill="#52514e" x="107.2" y="321.7">10M, 1 × 1 GB executor · 12 MB/s</text>
 <circle class="s1" fill="#2a78d6" cx="124.4" cy="306.3" r="5"/>
 <circle cx="124.4" cy="306.3" r="5" fill="none" class="gap" stroke-width="2"/>
-<text class="tick ink2" fill="#52514e" x="134.4" y="302.3">10M, 2 × 2 GB · 17 MB/s</text>
+<text class="tick ink2" fill="#52514e" x="134.4" y="288.3">10M, 2 × 2 GB · 17 MB/s</text>
 <circle class="s1" fill="#2a78d6" cx="287.8" cy="303.3" r="5"/>
 <circle cx="287.8" cy="303.3" r="5" fill="none" class="gap" stroke-width="2"/>
-<text class="tick ink2" fill="#52514e" x="297.8" y="307.3">9M load test · 19 MB/s</text>
+<text class="tick ink2" fill="#52514e" x="297.8" y="295.3">9M load test · 19 MB/s</text>
 <circle class="s1" fill="#2a78d6" cx="396.7" cy="309.8" r="5"/>
 <circle cx="396.7" cy="309.8" r="5" fill="none" class="gap" stroke-width="2"/>
 <text class="tick ink2" fill="#52514e" x="406.7" y="331.8">9M Spot interruption · 16 MB/s</text>

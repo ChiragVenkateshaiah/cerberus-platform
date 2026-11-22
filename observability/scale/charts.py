@@ -20,6 +20,7 @@ No AWS calls; standard library only.
 import json
 import math
 import re
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -31,6 +32,7 @@ LADDER = [
     ("1M", "exercise-20261015T145812Z"),
     ("10M", "exercise-20261009T074853Z"),
     ("100M (8.9)", "exercise-20261013T055859Z"),
+    ("100M (demo take)", "demo-100m-20261108T135119Z"),
 ]
 STATES = ["InvokeIngestion", "RunTransform", "RunDbt", "RunServingQuery"]
 
@@ -134,9 +136,9 @@ def bar(x, y, w, h, cls, round_end):
 
 
 def run_time_chart():
-    width, left, right, top = 760, 175, 30, 110
+    width, left, right, top = 760, 215, 60, 110
     row, thick = 62, 24
-    scale_max = 800
+    scale_max = 900
     plot_w = width - left - right
     height = top + row * len(LADDER) + 50
     xs = lambda s: left + s / scale_max * plot_w  # noqa: E731
@@ -166,7 +168,7 @@ def run_time_chart():
         seconds = {s["state"]: s["seconds"] for s in rec["states"]}
         y = top + r * row
         out.append(f'<text class="l ink" x="20" y="{y + 11}">{step} new events</text>')
-        out.append(f'<text class="tick muted" x="20" y="{y + 26}">{execution[9:]}</text>')
+        out.append(f'<text class="tick muted" x="20" y="{y + 26}">{execution.rsplit("-", 1)[1]}</text>')
         x = left
         for i, state in enumerate(STATES):
             w = xs(seconds[state]) - left
@@ -206,16 +208,21 @@ def run_time_chart():
 
 
 def cost_chart():
-    width, left, right, top = 760, 175, 40, 80
+    width, left, right, top = 760, 215, 40, 80
     row = 52
+    runs = [(step, ex, load(ex)) for step, ex in LADDER]
+    for step, ex, rec in runs:
+        if "cost" not in rec:
+            print(f"cost chart: skipping {ex} ({step}): no cost in its record", file=sys.stderr)
+    runs = [(step, ex, rec) for step, ex, rec in runs if "cost" in rec]
     lo, hi = 0.001, 1.0
     plot_w = width - left - right
-    height = top + row * len(LADDER) + 40
+    height = top + row * len(runs) + 64
     xs = lambda v: (
         left + (math.log10(v) - math.log10(lo)) / (math.log10(hi) - math.log10(lo)) * plot_w
     )  # noqa: E731
     out = []
-    bottom = top + row * len(LADDER) - 14
+    bottom = top + row * len(runs) - 14
     for v, label in [(0.001, "$0.001"), (0.01, "$0.01"), (0.1, "$0.10"), (1.0, "$1")]:
         x = xs(v)
         out.append(
@@ -228,8 +235,7 @@ def cost_chart():
         f'<text class="tick muted" x="{left + plot_w}" y="{bottom + 32}" text-anchor="end">'
         "per million events, log scale</text>"
     )
-    for r, (step, execution) in enumerate(LADDER):
-        rec = load(execution)
+    for r, (step, execution, rec) in enumerate(runs):
         cost = rec["cost"]
         y = top + r * row
         x = xs(cost["usd_per_million_events"])
@@ -245,12 +251,23 @@ def cost_chart():
             f'<text class="l ink" x="{x:.1f}" y="{y - 11}" text-anchor="end">'
             f"${cost['usd_per_million_events']:.4f} per M · run ${cost['run_usd']:.2f}</text>"
         )
+    for step, _, rec in runs:
+        cost = rec["cost"]
+        if step.endswith("(demo take)"):
+            note = "estimated" if cost.get("estimated") else "final"
+            if not cost.get("complete", True):
+                note += ", incomplete"
+            out.append(
+                f'<text class="tick ink2" x="20" y="{bottom + 52}">'
+                f"The demo take shares its billing day ({cost['day']}) with other runs, so its "
+                f"run cost is attributed ({note}), not a whole-day figure.</text>"
+            )
     return svg(
         width,
         height,
         "Cost per million events, orchestrated run",
-        "The run costs $0.10–0.37 at every step, so the cost per event falls about 80 times "
-        "from 1M to 100M.",
+        "The run costs $0.10–0.52 at every step, so the cost per event falls about 56 times "
+        "from 1M to the 100M demo take.",
         "\n".join(out) + "\n",
     )
 
@@ -285,7 +302,7 @@ def throughput_chart():
     out.append(
         f'<text class="tick muted" x="{left - 8}" y="{top - 12}" text-anchor="end">MB/s</text>'
     )
-    offsets = {"9M Spot interruption": 18, "1M on 137M silver": -12, "10M, 2 × 2 GB": -8}
+    offsets = {"9M Spot interruption": 18, "1M on 137M silver": -12, "10M, 2 × 2 GB": -22, "9M load test": -12}
     for label, execution, executors in THROUGHPUT_RUNS:
         rec = load(execution)
         state = next(s for s in rec["states"] if s["state"] == "RunTransform")
