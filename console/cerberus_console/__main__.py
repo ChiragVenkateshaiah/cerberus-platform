@@ -18,7 +18,9 @@ def main(argv: list[str]) -> int:
     as_json = bool(argv) and argv[0] == "--json"
     words = argv[1:] if as_json else argv
     session = aws.build_sources(session=aws.assumed_session)
-    sources = Sources(config.RUNS_DIR, session.sfn_factory, session.freshness_factory)
+    sources = Sources(
+        config.RUNS_DIR, session.sfn_factory, session.freshness_factory, session.amp_factory
+    )
     resp = api.dispatch(words, sources)
     print(resp.to_json() if as_json else resp.body["text"])
     return 0 if resp.body["ok"] else EXIT[resp.body["error"]]

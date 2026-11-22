@@ -1,0 +1,48 @@
+{
+ "status": "success",
+ "data": {
+  "resultType": "vector",
+  "result": [
+   "not a dict",
+   {
+    "value": [
+     1,
+     "1"
+    ]
+   },
+   {
+    "metric": "no",
+    "value": [
+     1,
+     "1"
+    ]
+   },
+   {
+    "metric": {},
+    "value": [
+     1
+    ]
+   },
+   {
+    "metric": {},
+    "value": "1"
+   },
+   {
+    "metric": {},
+    "value": [
+     1,
+     5
+    ]
+   },
+   {
+    "metric": {
+     "step": "kept"
+    },
+    "value": [
+     1699999999.1,
+     "3"
+    ]
+   }
+  ]
+ }
+}
