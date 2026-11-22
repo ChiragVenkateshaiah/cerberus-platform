@@ -1,0 +1,36 @@
+{
+  "evidence": [
+    {
+      "id": "e1",
+      "rule": "run_failed",
+      "status": "FAILED",
+      "step": "RunDbt"
+    },
+    {
+      "id": "e2",
+      "peer_median": 137.1,
+      "peers": 4,
+      "rule": "step_slow",
+      "seconds": 381.5,
+      "step": "RunDbt"
+    }
+  ],
+  "execution": "exercise-20261009T101830Z",
+  "findings": [
+    {
+      "evidence": [
+        "e1"
+      ],
+      "id": "f1",
+      "rule": "run_failed"
+    },
+    {
+      "evidence": [
+        "e2"
+      ],
+      "id": "f2",
+      "rule": "step_slow"
+    }
+  ],
+  "scale_class": "9m"
+}

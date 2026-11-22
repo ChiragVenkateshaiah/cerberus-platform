@@ -1,0 +1,41 @@
+{
+  "evidence": [
+    {
+      "id": "e1",
+      "rule": "run_failed",
+      "status": "FAILED",
+      "step": "RunDbt"
+    },
+    {
+      "check": "silver_caught_up",
+      "errors": 2,
+      "id": "e2",
+      "rule": "dq_errors"
+    },
+    {
+      "check": "silver_to_gold_transactions",
+      "errors": 2,
+      "id": "e3",
+      "rule": "dq_errors"
+    }
+  ],
+  "execution": "exercise-20261008T085728Z",
+  "findings": [
+    {
+      "evidence": [
+        "e1"
+      ],
+      "id": "f1",
+      "rule": "run_failed"
+    },
+    {
+      "evidence": [
+        "e2",
+        "e3"
+      ],
+      "id": "f2",
+      "rule": "dq_errors"
+    }
+  ],
+  "scale_class": "1m"
+}

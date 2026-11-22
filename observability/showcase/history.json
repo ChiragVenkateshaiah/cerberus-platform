@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-20T11:18:20Z",
+  "generated_at": "2026-11-21T15:27:20Z",
   "phases": [
     {
       "number": 0,
@@ -1334,13 +1334,20 @@
       "id": "11.1",
       "phase": 11,
       "title": "ADR: Databricks Free Edition as the partner workspace and presentation layer; trial and Glue federation re-verified by an amendment before…",
-      "checked": false,
+      "checked": true,
       "links": {
         "adr": [
           "0028"
         ],
         "plan": [],
-        "pr": [],
+        "pr": [
+          {
+            "number": 170,
+            "title": "ADR 0028 and 0029 (Proposed): Databricks Free Edition, platform traceability",
+            "date": "2026-11-20",
+            "merge": "6a29682"
+          }
+        ],
         "runs": []
       },
       "legacy": false
@@ -1627,7 +1634,7 @@
     {
       "id": "14.2",
       "phase": 14,
-      "title": "Deterministic review core and the agent tool registry on the 9.3 command set: masking, size caps, a local stdio MCP server",
+      "title": "Deterministic review core and the agent tool registry on the 9.3 command set: masking, size caps, a local stdio MCP server _Progress…",
       "checked": false,
       "links": {
         "adr": [],
@@ -1719,11 +1726,20 @@
       "id": "15.1",
       "phase": 15,
       "title": "ADR: the public showcase (a sanitised static snapshot on the standing edge vs.",
-      "checked": false,
+      "checked": true,
       "links": {
-        "adr": [],
+        "adr": [
+          "0027"
+        ],
         "plan": [],
-        "pr": [],
+        "pr": [
+          {
+            "number": 169,
+            "title": "ADR 0027 (Proposed): public showcase, and the new Phase 15",
+            "date": "2026-11-20",
+            "merge": "96b894b"
+          }
+        ],
         "runs": []
       },
       "legacy": false
@@ -1812,13 +1828,20 @@
       "id": "16.1",
       "phase": 16,
       "title": "ADR: platform-development traceability.",
-      "checked": false,
+      "checked": true,
       "links": {
         "adr": [
           "0029"
         ],
         "plan": [],
-        "pr": [],
+        "pr": [
+          {
+            "number": 170,
+            "title": "ADR 0028 and 0029 (Proposed): Databricks Free Edition, platform traceability",
+            "date": "2026-11-20",
+            "merge": "6a29682"
+          }
+        ],
         "runs": []
       },
       "legacy": false
@@ -1827,13 +1850,20 @@
       "id": "16.2",
       "phase": 16,
       "title": "Generator: `history.json` and `docs/traceability.md` from git, Phases.md, ADRs, plans, run records and merged PRs; CI dangling-link check",
-      "checked": false,
+      "checked": true,
       "links": {
         "adr": [
           "0029"
         ],
         "plan": [],
-        "pr": [],
+        "pr": [
+          {
+            "number": 178,
+            "title": "16.2: the generated platform-development traceability record",
+            "date": "2026-11-21",
+            "merge": "dbd524c"
+          }
+        ],
         "runs": []
       },
       "legacy": false
@@ -2268,6 +2298,24 @@
       "title": "9.7 PR 2: two always-on console alarms (ADR 0026)",
       "date": "2026-11-20",
       "merge": "0f6fa0d"
+    },
+    {
+      "number": 169,
+      "title": "ADR 0027 (Proposed): public showcase, and the new Phase 15",
+      "date": "2026-11-20",
+      "merge": "96b894b"
+    },
+    {
+      "number": 170,
+      "title": "ADR 0028 and 0029 (Proposed): Databricks Free Edition, platform traceability",
+      "date": "2026-11-20",
+      "merge": "6a29682"
+    },
+    {
+      "number": 178,
+      "title": "16.2: the generated platform-development traceability record",
+      "date": "2026-11-21",
+      "merge": "dbd524c"
     }
   ]
 }

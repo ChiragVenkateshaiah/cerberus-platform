@@ -260,9 +260,10 @@ the AI/BI dashboards) run right after Phase 10 (10.7), before 14.2 (owner
 answer 2026-11-20, ADR 0028). 11.2d-11.7 keep their place after 14.2-14.4. 11.2 is ticked when 11.2a-d
 are done; 11.2e is optional._
 
-- [ ] 11.1 ADR: Databricks Free Edition as the partner workspace and
+- [x] 11.1 ADR: Databricks Free Edition as the partner workspace and
       presentation layer; trial and Glue federation re-verified by an
       amendment before 11.3. ADR 0028
+      ADR 0028 Accepted 2026-11-20 (#170)
 - [ ] 11.2 Free Edition
       - 11.2a Showcase builder (git only): `observability/showcase/*.json`,
         fail-closed redaction, parity with the named query set (moved from
@@ -329,6 +330,9 @@ amendment, Accepted 2026-11-12); 14.5–14.8 follow after Phase 13._
       ADR 0025 Accepted 2026-11-08
 - [ ] 14.2 Deterministic review core and the agent tool registry on the 9.3
       command set: masking, size caps, a local stdio MCP server
+      _Progress 2026-11-21: 14.2a review core done (agents/cerberus_agents,
+      17 golden reviews); 14.2b tool registry done (registry.py, tools.py, 9
+      tools, offline); 14.2c built 2026-11-21 (MCP stdio server, `make mcp`)._
 - [ ] 14.3 Evaluation: labelled replay set from past runs (failed runs,
       Glue timeouts, Spot interruption, Athena queue time, clean runs) and a
       scored harness
@@ -354,10 +358,11 @@ comparison (same input, run time and cost per million events on both
 engines), so the page can show Cerberus metrics and performance with
 Databricks as a partner column. ADR 0027._
 
-- [ ] 15.1 ADR: the public showcase (a sanitised static snapshot on the
+- [x] 15.1 ADR: the public showcase (a sanitised static snapshot on the
       standing edge vs. a laptop-hosted stack; anonymous scope; data
       contract and redaction; refresh on each merged run record; edge abuse
       controls; the Databricks partner column)
+      ADR 0027 Accepted 2026-11-20 (#169)
 - [ ] 15.2 Showcase publish: use the 11.2a builder; add the Databricks
       images (11.2c); published by `console-site.yml`
 - [ ] 15.3 The showcase view on the 9.4 page: run explorer, scale story and
@@ -382,13 +387,14 @@ _Added 2026-11-20. Numbered 16 so Phases 11–15 keep their numbers. It is git
 only, $0 and has no dependency. It runs after Phase 10 (10.7), before 14.2
 (owner answer 2026-11-20). ADR 0029._
 
-- [ ] 16.1 ADR: platform-development traceability. ADR 0029
-- [ ] 16.2 Generator: `history.json` and `docs/traceability.md` from git,
+- [x] 16.1 ADR: platform-development traceability. ADR 0029
+      ADR 0029 Accepted 2026-11-20 (#170)
+- [x] 16.2 Generator: `history.json` and `docs/traceability.md` from git,
       Phases.md, ADRs, plans, run records and merged PRs; CI dangling-link
       check
-      - Progress: built 2026-11-21 (`tools/traceability/`, `make traceability`,
-        `traceability` CI job, baseline of the items done at the ADR 0029
-        cut-off). Tick it after the PR merges and name the PR here.
+      Done 2026-11-21 (#178): `tools/traceability/`, `make traceability`, the
+      `traceability` CI job, and a baseline of the items done at the ADR 0029
+      cut-off
 - [ ] 16.3 Shown on the site and as the Databricks "how it was built"
       dashboard (with 11.2c and 15.3)
       Dangling-link check applies only to items on or after the ADR 0029

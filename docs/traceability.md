@@ -160,7 +160,7 @@ never fail the check. Only PRs named in Phases.md appear here.
 
 | Subtask | Done | ADR | Plan | PR | Runs |
 | --- | --- | --- | --- | --- | --- |
-| 11.1 ADR: Databricks Free Edition as the partner workspace and presentation layer; trial and Glue federation re-verified by an amendment before… |  | [0028](adr/0028-databricks-free-edition.md) Databricks Free Edition as the partner workspace and presentation layer | - | - | - |
+| 11.1 ADR: Databricks Free Edition as the partner workspace and presentation layer; trial and Glue federation re-verified by an amendment before… | x | [0028](adr/0028-databricks-free-edition.md) Databricks Free Edition as the partner workspace and presentation layer | - | #170 ADR 0028 and 0029 (Proposed): Databricks Free Edition, platform traceability (2026-11-20) | - |
 | 11.2 Free Edition |  | [0026](adr/0026-phase-9-well-architected-review.md) Phase 9 Well-Architected review | - | - | - |
 | 11.3 Trial preparation: IAM role in `dev-standing`; Terraform for the service credential, connection, external location, foreign catalog and… |  | - | - | - | - |
 | 11.4 Trial: Glue federation live; Databricks SQL reads Cerberus's Iceberg gold with no copy |  | - | - | - | - |
@@ -197,7 +197,7 @@ never fail the check. Only PRs named in Phases.md appear here.
 | Subtask | Done | ADR | Plan | PR | Runs |
 | --- | --- | --- | --- | --- | --- |
 | 14.1 ADR: AI operations agents (rules detect, Claude on Bedrock explains, a human approves; local trigger; read-only role; $0 idle). | x | [0025](adr/0025-ai-operations-agents.md) AI operations agents: rules detect, Claude on Bedrock explains, a human approves | none (before traceability) | none (before traceability) | none (before traceability) |
-| 14.2 Deterministic review core and the agent tool registry on the 9.3 command set: masking, size caps, a local stdio MCP server |  | - | - | - | - |
+| 14.2 Deterministic review core and the agent tool registry on the 9.3 command set: masking, size caps, a local stdio MCP server _Progress… |  | - | - | - | - |
 | 14.3 Evaluation: labelled replay set from past runs (failed runs, Glue timeouts, Spot interruption, Athena queue time, clean runs) and a scored… |  | - | - | - | - |
 | 14.4 Run reviewer (first agent, report only): review file, Grafana annotation and an "AI review" panel on the Phase 10 run-status dashboard |  | - | - | - | - |
 | 14.5 Failure triage: root cause with cited log lines and metric values; a draft issue or PR for human approval |  | - | - | - | - |
@@ -209,7 +209,7 @@ never fail the check. Only PRs named in Phases.md appear here.
 
 | Subtask | Done | ADR | Plan | PR | Runs |
 | --- | --- | --- | --- | --- | --- |
-| 15.1 ADR: the public showcase (a sanitised static snapshot on the standing edge vs. |  | - | - | - | - |
+| 15.1 ADR: the public showcase (a sanitised static snapshot on the standing edge vs. | x | [0027](adr/0027-public-showcase.md) Public showcase: a published metrics snapshot on the standing edge, with Databricks as a partner column | - | #169 ADR 0027 (Proposed): public showcase, and the new Phase 15 (2026-11-20) | - |
 | 15.2 Showcase publish: use the 11.2a builder; add the Databricks images (11.2c); published by `console-site.yml` |  | - | - | - | - |
 | 15.3 The showcase view on the 9.4 page: run explorer, scale story and the Cerberus \| Databricks (partner engine) columns with scope and source… |  | - | - | - | - |
 | 15.4 Public-edge protection, before any public link: the $0 CloudFront Free flat-rate plan spike (ADR 0026 gap 1), adopt or not; a CloudFront… |  | [0026](adr/0026-phase-9-well-architected-review.md) Phase 9 Well-Architected review | - | - | - |
@@ -221,8 +221,8 @@ never fail the check. Only PRs named in Phases.md appear here.
 
 | Subtask | Done | ADR | Plan | PR | Runs |
 | --- | --- | --- | --- | --- | --- |
-| 16.1 ADR: platform-development traceability. |  | [0029](adr/0029-platform-traceability.md) Platform-development traceability | - | - | - |
-| 16.2 Generator: `history.json` and `docs/traceability.md` from git, Phases.md, ADRs, plans, run records and merged PRs; CI dangling-link check |  | [0029](adr/0029-platform-traceability.md) Platform-development traceability | - | - | - |
+| 16.1 ADR: platform-development traceability. | x | [0029](adr/0029-platform-traceability.md) Platform-development traceability | - | #170 ADR 0028 and 0029 (Proposed): Databricks Free Edition, platform traceability (2026-11-20) | - |
+| 16.2 Generator: `history.json` and `docs/traceability.md` from git, Phases.md, ADRs, plans, run records and merged PRs; CI dangling-link check | x | [0029](adr/0029-platform-traceability.md) Platform-development traceability | - | #178 16.2: the generated platform-development traceability record (2026-11-21) | - |
 | 16.3 Shown on the site and as the Databricks "how it was built" dashboard (with 11.2c and 15.3) Dangling-link check applies only to items on or… |  | [0029](adr/0029-platform-traceability.md) Platform-development traceability | - | - | - |
 | 16.4 Well-Architected pass + ADR |  | - | - | - | - |
 
