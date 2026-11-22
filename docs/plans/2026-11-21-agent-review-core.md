@@ -46,6 +46,7 @@ It runs offline, uses no AWS and no model, and stays $0 (ADR 0025 decisions 1, 4
 - Errors are one fixed text, as in the console.
 - No new tool reaches the console API.
 - Acceptance: the tool list is identical in-process and over MCP. A tool-input hostile corpus passes (see Tests).
+- **Built 2026-11-21 (14.2b):** `registry.py` (Tool, Registry, `RESPONSE_BYTES` 65536, `CALL_BUDGET` 100) and `tools.py` (the 9 tools, `QueryReader` Protocol, default reader "unavailable"). Records are rebuilt from allowlisted fields before the console handlers run, so a check `detail` or other free text never reaches an output. Offline, `status` and `run` show their AWS sections as "unavailable"; `run` with an id not in the records gives the fixed unavailable text. Errors are the console's three fixed texts plus one fixed budget text.
 
 **PR 3: MCP stdio server (14.2b-ii).** Files: `agents/cerberus_agents/mcp_server.py`, `__main__.py`, `Makefile` target `mcp`, tests.
 - Stdlib JSON-RPC 2.0, newline-delimited, over stdin and stdout. Methods: `initialize`, `notifications/initialized`, `tools/list`, `tools/call`, `ping`.
@@ -79,6 +80,7 @@ None for 14.2. The IAM step, Bedrock model access and the first apply come later
 - The 2 untracked rehearsal records in the ADR 0025 text are now tracked. The count there (16) is out of date.
 - MCP spec revision and client compatibility are unverified. Check one real client (Claude Code) by hand.
 - **Known limit (review of 2026-11-21):** the output allowlist accepts any token that matches its pattern. A check named `ignore_all_previous_instructions` (64 characters or fewer) or an execution named `IGNORE-ALL-PREVIOUS-INSTRUCTIONS` would pass. Before 14.4 feeds a review to a model, restrict check names to a list of known names.
+- **Narrowed 2026-11-21 (review of 14.2b):** execution names in any output must match the committed shape (kind exercise, demo or rehearsal, up to 3 segments of 1 to 8 characters, then the UTC stamp) and check names must be in `KNOWN_CHECKS` in `evidence.py` (else `unknown_check` in the tools, skipped in the review core). A new check name must be added to that constant. Cost service keys must start with Amazon or AWS or be in `_OTHER_SERVICES` in `tools.py`; hidden keys show as a count. Residual: short tokens within the shape can still carry words. This is accepted, because the tools take named input only, the role is read-only and a human approves each action (ADR 0025).
 - **Built 2026-11-21 (14.2a):** the `headroom` rule was dropped (a record holds bytes summed over all queries of a step, so a successful 100M run would trigger it) and `never_reported` was dropped (it needs a clock). `record_invalid` was added. `ATHENA_QUEUE_LIMIT_SECONDS`, the scale-class bounds and the two factors are proposals that 14.3 scores.
 
 ## Owner answers (2026-11-21)
