@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-21T15:27:20Z",
+  "generated_at": "2026-11-22T07:50:04Z",
   "phases": [
     {
       "number": 0,
@@ -1634,12 +1634,31 @@
     {
       "id": "14.2",
       "phase": 14,
-      "title": "Deterministic review core and the agent tool registry on the 9.3 command set: masking, size caps, a local stdio MCP server _Progress…",
-      "checked": false,
+      "title": "Deterministic review core and the agent tool registry on the 9.3 command set: masking, size caps, a local stdio MCP server _Done…",
+      "checked": true,
       "links": {
         "adr": [],
         "plan": [],
-        "pr": [],
+        "pr": [
+          {
+            "number": 181,
+            "title": "14.2a: the model-free review core for the AI operations agents",
+            "date": "2026-11-22",
+            "merge": "05a78d1"
+          },
+          {
+            "number": 182,
+            "title": "14.2b: the agent tool registry on the 9.3 command set",
+            "date": "2026-11-22",
+            "merge": "d29dbb1"
+          },
+          {
+            "number": 183,
+            "title": "14.2c: the local stdio MCP server for the nine review tools",
+            "date": "2026-11-22",
+            "merge": "cb8003a"
+          }
+        ],
         "runs": []
       },
       "legacy": false
@@ -2316,6 +2335,24 @@
       "title": "16.2: the generated platform-development traceability record",
       "date": "2026-11-21",
       "merge": "dbd524c"
+    },
+    {
+      "number": 181,
+      "title": "14.2a: the model-free review core for the AI operations agents",
+      "date": "2026-11-22",
+      "merge": "05a78d1"
+    },
+    {
+      "number": 182,
+      "title": "14.2b: the agent tool registry on the 9.3 command set",
+      "date": "2026-11-22",
+      "merge": "d29dbb1"
+    },
+    {
+      "number": 183,
+      "title": "14.2c: the local stdio MCP server for the nine review tools",
+      "date": "2026-11-22",
+      "merge": "cb8003a"
     }
   ]
 }
