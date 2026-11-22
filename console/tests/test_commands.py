@@ -97,10 +97,11 @@ def test_status_sections(runs):
 def test_status_sections_fail_independently(runs):
     src = Sources(runs, lambda: fakes.ExplodingSfn(), lambda: fakes.ExplodingFresh())
     data, text = run(["status"], src)
+    assert data["pipeline"] == {"available": False}  # no AMP source in this Sources
     assert data["execution"] == {"available": False}
     assert data["gold"] == {"available": False}
     assert data["newest_record"]["available"] is True
-    assert text.count("unavailable") == 2
+    assert text.count("unavailable") == 3
 
 
 def test_cost_ladder_and_detail_call_no_source(runs):

@@ -1,0 +1,62 @@
+{
+ "status": "success",
+ "data": {
+  "resultType": "vector",
+  "result": [
+   {
+    "metric": {
+     "step": "inf"
+    },
+    "value": [
+     1699999999.1,
+     "+Inf"
+    ]
+   },
+   {
+    "metric": {
+     "step": "neg-inf"
+    },
+    "value": [
+     1699999999.1,
+     "-Inf"
+    ]
+   },
+   {
+    "metric": {
+     "step": "empty"
+    },
+    "value": [
+     1699999999.1,
+     ""
+    ]
+   },
+   {
+    "metric": {
+     "step": "word"
+    },
+    "value": [
+     1699999999.1,
+     "abc"
+    ]
+   },
+   {
+    "metric": {
+     "step": "underscore"
+    },
+    "value": [
+     1699999999.1,
+     "1_0"
+    ]
+   },
+   {
+    "metric": {
+     "step": "good"
+    },
+    "value": [
+     1699999999.1,
+     "2"
+    ]
+   }
+  ]
+ }
+}

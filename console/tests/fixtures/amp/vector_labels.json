@@ -1,0 +1,19 @@
+{
+ "status": "success",
+ "data": {
+  "resultType": "vector",
+  "result": [
+   {
+    "metric": {
+     "step": "RunDbt",
+     "execution": "exercise-20261013T055859Z",
+     "__name__": "m"
+    },
+    "value": [
+     1699999999.1,
+     "7.5"
+    ]
+   }
+  ]
+ }
+}
