@@ -158,6 +158,12 @@ demo-forward: ## port-forward the agent UI (:9090) and the current Spark driver 
 cerberus: ## run one read-only console command locally as cerberus-console-cli (CMD="status"; CMD="--json run latest")
 	cd console && uv run --no-project --python 3.12 --with boto3==1.43.67 python -m cerberus_console $(CMD)
 
+.PHONY: status
+# The AMP URL is AMP_QUERY_URL, else CERBERUS_AMP_QUERY_URL, else `terraform output` (read-only, 30 s limit).
+status: ## READ-ONLY, owner-run: pipeline status from AMP + Step Functions + Athena + newest record (optional AMP_QUERY_URL=<workspace query URL>); needs cerberus-admin credentials to assume cerberus-console-cli
+	@CERBERUS_AMP_QUERY_URL="$${AMP_QUERY_URL:-$${CERBERUS_AMP_QUERY_URL:-$$(timeout 30 $(TF_BIN) -chdir=$(TF_STANDING_DIR) output -raw prometheus_endpoint 2>/dev/null || true)}}" \
+	  $(MAKE) --no-print-directory cerberus CMD=status
+
 .PHONY: console-site console-site-preview console-site-publish
 console-site: ## build the public landing page into console/site-dist (zero JavaScript, no AWS; ADR 0024)
 	cd console && rm -rf site-dist && uv run --no-project --python 3.12 python -m cerberus_landing build --out site-dist

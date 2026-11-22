@@ -11,7 +11,7 @@ import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
-from cerberus_console import config, records, render
+from cerberus_console import config, queries, records, render
 from cerberus_console.grammar import COMMANDS, Command
 from cerberus_console.sources import Sources, Unavailable
 
@@ -33,7 +33,7 @@ class Context:
 
 SUMMARIES = {
     "help": ("help [command]", "list the commands"),
-    "status": ("status", "latest execution, gold freshness, newest run record"),
+    "status": ("status", "pipeline status, latest execution, gold freshness, newest run record"),
     "runs": ("runs", "the newest run records"),
     "run": ("run <id|latest>", "one run: record, plus Step Functions detail"),
     "cost": ("cost [id]", "cost per run, from the records"),
@@ -105,9 +105,142 @@ def cmd_help(ctx: Context, args: tuple) -> tuple[dict, str]:
     return data, text
 
 
+# The named queries the status layout reads (observability/queries/status.json).
+PIPELINE_QUERIES = (
+    "latest_status",
+    "latest_failed_step",
+    "latest_started",
+    "latest_finished",
+    "last_success",
+    "latest_run_seconds",
+    "latest_step_seconds",
+    "latest_events",
+    "latest_dq_passed",
+    "latest_dq_errors",
+    "latest_dq_warnings",
+    "newest_finished_execution",
+    "run_success_share_90d",
+    "runs_90d",
+)
+
+
+def _read_pipeline(ctx: Context) -> tuple[dict, dict]:
+    """(labels, series by query name). Any failure raises; _section turns it into unavailable."""
+    amp = ctx.sources.amp()
+    entries = queries.by_name(queries.load())
+    labels = {n: str(entries.get(n, {}).get("label") or n) for n in PIPELINE_QUERIES}
+    return labels, {n: amp.query(n) for n in PIPELINE_QUERIES}
+
+
+def _first(series: dict, name: str):
+    """The value of the first series of a query, or None (no series, or NaN)."""
+    rows = series.get(name) or []
+    return rows[0]["value"] if rows else None
+
+
+def _moment(seconds, now: datetime) -> tuple[str, str | None]:
+    """(text, iso) for a Unix-seconds value: time plus age."""
+    if seconds is None:
+        return "-", None
+    try:
+        then = datetime.fromtimestamp(seconds, UTC)
+    except (OverflowError, OSError, ValueError):
+        return "-", None
+    return f"{_when(then.isoformat())} ({_age(then, now)} ago)", then.isoformat()
+
+
+def _pipeline_view(labels: dict, series: dict, now: datetime) -> tuple[dict, list[str]]:
+    """The AMP section: (JSON data, text lines). Empty AMP gives 'no data yet'."""
+    if not any(series.values()):
+        return {"available": True, "none": True}, ["  no data yet"]
+    status = _first(series, "latest_status")
+    failed = status is not None and status < 0.5
+    steps = sorted(
+        {r["step"] for r in series["latest_failed_step"] if r.get("step")},
+    )
+    started, started_iso = _moment(_first(series, "latest_started"), now)
+    finished, finished_iso = _moment(_first(series, "latest_finished"), now)
+    good, good_iso = _moment(_first(series, "last_success"), now)
+    seconds, events = _first(series, "latest_run_seconds"), _first(series, "latest_events")
+    dq = _first(series, "latest_dq_passed")
+    errors, warnings = _first(series, "latest_dq_errors"), _first(series, "latest_dq_warnings")
+    share, runs = _first(series, "run_success_share_90d"), _first(series, "runs_90d")
+    newest = next(
+        (r["execution"] for r in series["newest_finished_execution"] if r.get("execution")), None
+    )
+    step_rows = sorted(
+        ((r["step"] or "-", r["value"]) for r in series["latest_step_seconds"]),
+        key=lambda r: r[0],
+    )
+    shown = step_rows[: config.STATUS_STEP_ROWS]
+
+    pairs: list[tuple[str, object]] = [
+        (labels["latest_status"], "unknown" if status is None else "failed" if failed else "passed")
+    ]
+    if failed:
+        pairs.append((labels["latest_failed_step"], ", ".join(steps) or "unknown"))
+    pairs += [
+        (labels["latest_started"], started),
+        (labels["latest_finished"], finished),
+        (labels["last_success"], good),
+        (labels["latest_run_seconds"], "-" if seconds is None else f"{seconds:.0f} s"),
+        (labels["latest_events"], render.num(events)),
+        (
+            labels["latest_dq_passed"],
+            "not run" if dq is None else "passed" if dq >= 0.5 else "failed",
+        ),
+    ]
+    if errors is not None:
+        pairs.append((labels["latest_dq_errors"], render.num(errors)))
+    if warnings is not None:
+        pairs.append((labels["latest_dq_warnings"], render.num(warnings)))
+    pairs += [
+        (labels["run_success_share_90d"], "-" if share is None else f"{share * 100:.0f}%"),
+        (labels["runs_90d"], render.num(runs)),
+        (labels["newest_finished_execution"], newest),
+    ]
+    width = max(len(k) for k, _ in pairs)
+    lines = [f"  {k.ljust(width)} : {'-' if v is None else v}" for k, v in pairs]
+    lines.append("")
+    lines.append(f"  {labels['latest_step_seconds']}")
+    table_rows = [[s, "not reached" if v is None else f"{v:.1f} s"] for s, v in shown]
+    lines.append(render.table(["step", "seconds"], table_rows) if shown else "  none")
+    if len(step_rows) > len(shown):
+        lines.append(f"({len(step_rows) - len(shown)} more not shown)")
+    data = {
+        "available": True,
+        "none": False,
+        "last_run": None if status is None else "failed" if failed else "passed",
+        "what_broke": steps if failed else [],
+        "started": started_iso,
+        "finished": finished_iso,
+        "last_good": good_iso,
+        "seconds": seconds,
+        "events": events,
+        "data_checks": None if dq is None else dq >= 0.5,
+        "data_check_errors": errors,
+        "data_check_warnings": warnings,
+        "success_share_90d": share,
+        "runs_90d": runs,
+        "newest_finished_run": newest,
+        "steps": [{"step": s, "seconds": v} for s, v in shown],
+    }
+    return data, lines
+
+
 def cmd_status(ctx: Context, args: tuple) -> tuple[dict, str]:
     data: dict = {}
     lines: list[str] = []
+
+    amp = _section("pipeline status", lambda: _read_pipeline(ctx))
+    lines.append("Pipeline status (from Prometheus)")
+    if amp is None:
+        data["pipeline"] = {"available": False}
+        lines.append("  " + UNAVAILABLE)
+    else:
+        data["pipeline"], pipeline_lines = _pipeline_view(*amp, ctx.now)
+        lines.extend(pipeline_lines)
+    lines.append("")
 
     def latest_execution():
         sfn = ctx.sources.sfn()

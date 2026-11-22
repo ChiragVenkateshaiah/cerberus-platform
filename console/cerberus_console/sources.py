@@ -1,8 +1,8 @@
 """What the commands read. Protocols plus the container that hands them out.
 
 The commands never import boto3; they ask a Sources object for a reader. Tests
-pass fakes. The AWS implementations are in aws.py. Phase 10 adds an AMP reader
-here without touching the grammar.
+pass fakes. The AWS implementations are in aws.py. The AMP reader (10.5a) is
+called by query name, never with a PromQL string.
 """
 
 from collections.abc import Callable
@@ -31,11 +31,22 @@ class FreshnessReader(Protocol):
         """{tables: [{table, last_commit}], bytes_scanned}."""
 
 
+class AmpReader(Protocol):
+    def query(self, name: str) -> list[dict]:
+        """The series of one named query (observability/queries/status.json).
+
+        Each series is {step, execution, value}: step and execution are cleaned
+        strings or None, value is a finite float or None (NaN). An empty list
+        means AMP answered with no data. An unknown name raises.
+        """
+
+
 @dataclass
 class Sources:
     runs_dir: Path
     sfn_factory: Callable[[], StepFunctionsReader] | None = None
     freshness_factory: Callable[[], FreshnessReader] | None = None
+    amp_factory: Callable[[], AmpReader] | None = None
 
     def sfn(self) -> StepFunctionsReader:
         if self.sfn_factory is None:
@@ -46,3 +57,8 @@ class Sources:
         if self.freshness_factory is None:
             raise Unavailable
         return self.freshness_factory()
+
+    def amp(self) -> AmpReader:
+        if self.amp_factory is None:
+            raise Unavailable
+        return self.amp_factory()

@@ -5,7 +5,7 @@ The read-only commands behind `cerberus` on the console site: `status`, `runs`,
 
 - The local CLI: `make cerberus CMD="status"` (also `CMD="--json run latest"`).
   It assumes `cerberus-console-cli` with your `cerberus-admin` profile and runs
-  the same code as the Lambda. Phase 10's `make status` reuses it (ADR 0021).
+  the same code as the Lambda. `make status` (10.5b) runs `status` through it (ADR 0021).
 - `cerberus_console.api.lambda_handler`, for the console site's Lambda (step 7).
 
 It is not a shell. It has no shell, no write and no free text: a request is
@@ -16,7 +16,7 @@ either exactly an allowed command or it is refused.
 | Command | Arguments | Reads |
 |---|---|---|
 | `help` | none, or one command name | nothing |
-| `status` | none | Step Functions, one Athena query on gold, the newest record |
+| `status` | none | the named status queries on AMP (Prometheus), Step Functions, one Athena query on gold, the newest record |
 | `runs` | none (newest 50) | run records |
 | `run <id>` | `latest` or a known id | run records; Step Functions detail if within 90 days |
 | `cost [id]` | none, or a run-record id | run records |
@@ -68,7 +68,26 @@ Caches bound it: the execution list for 30 s, the freshness result for 300 s. A 
 make cerberus CMD="help"
 make cerberus CMD="status"
 make cerberus CMD="--json slo"
+make status
 ```
+
+`make status` is read-only and owner-run. It runs `status` as `cerberus-console-cli`
+(your `cerberus-admin` credentials assume the role). The first section, "Pipeline
+status (from Prometheus)", reads the named queries in
+`observability/queries/status.json` from AMP. It needs the workspace query URL:
+pass `make status AMP_QUERY_URL=<workspace query URL>`, set
+`CERBERUS_AMP_QUERY_URL`, or let the target read `terraform output
+prometheus_endpoint`. Without a URL, or if AMP fails, that section prints
+`unavailable` and the three sections below it still show. If AMP answers with no
+data, it prints `no data yet`, never `failed`.
+
+The AMP reader (`aws.py`, `AwsAmpReader`) is called by query name only. It signs
+a GET with SigV4 (service `aps`), waits at most 4 s per attempt with 2 attempts,
+reads at most 256 KiB per reply and 100 series per query, and gives all the
+queries of one `status` 5 s together. It keeps a reply 30 s and a failure 60 s.
+It reads only the `step` and `execution` labels and the value. Every string is
+cleaned and cut at 200 characters. The role needs `aps:QueryMetrics` on the
+workspace (10.5c, Terraform, not built yet).
 
 The Athena query runs in the `cerberus_platform_console` workgroup (enforced,
 10 MB scan cutoff) and writes one result object under `console/` in the results
