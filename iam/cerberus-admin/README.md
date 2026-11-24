@@ -192,13 +192,22 @@ larger and is not the limit.
   statement: CI changes the API's tags or the stage's log settings only
   when they change ([the standing-edge plan](../../docs/plans/2026-11-02-standing-edge.md)).
 - **2026-11-20 (9.7, PR 2, ADR 0026 finding A3):**
-  `cerberus-admin-console-edge` gains `AlarmsRead`: `cloudwatch:DescribeAlarms`
-  on `*` (the action has no resource-level scoping, so the alarm-ARN grant in
-  `cerberus-admin-orchestration` never matched it). `iam simulate-principal-policy`
-  showed `implicitDeny` before the paste. Counted size after the change:
-  4,820 of 6,144 characters. `cerberus-ci-apply` needs nothing: it already
-  allows the alarm actions on `cerberus-*` and `DescribeAlarms` on `*`. The
-  paste is not done yet; this line is updated when it is.
+  `cloudwatch:DescribeAlarms` on `*` (the action has no resource-level scoping,
+  so the alarm-ARN grant in `cerberus-admin-orchestration` never matched it)
+  for the owner's read-back of the live alarms. `iam simulate-principal-policy`
+  showed `implicitDeny` before the paste. `cerberus-ci-apply` needs nothing: it
+  already allows the alarm actions on `cerberus-*` and `DescribeAlarms` on `*`.
+  **Moved 2026-11-25:** the grant first sat in `cerberus-admin-console-edge` as
+  `AlarmsRead`. The root console refused to save that file ("The policy failed
+  legacy parsing"): its `ApiGatewayStageTags` statement uses
+  `apigateway:TagResource` and `UntagResource`, which the editor flags as
+  invalid actions (lines 195-196, Errors: 2). Instead the action is now in the
+  `CloudwatchAccount` statement of `cerberus-admin-orchestration` (3,066 of
+  6,144 counted characters); `console-edge` is back to 4,730. The paste is not
+  done yet; this line is updated when it is. The `ApiGatewayStageTags` actions
+  are an open question: AWS lists tagging under `apigateway:PATCH`, `POST` and
+  `PUT`, so the statement needs a corrected grant before `console-edge` can be
+  pasted again.
 - **2026-11-20 (10.2d, [ADR 0021](../../docs/adr/0021-pipeline-status-and-alerting.md)
   amendment):** `cerberus-admin-iam-and-governance` gains `aps:RemoteWrite` in
   the statement now named `AmpQueryAndStatusWrite` (was `AmpQuery`). It stays

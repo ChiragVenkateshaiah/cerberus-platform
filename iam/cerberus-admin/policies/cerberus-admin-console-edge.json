@@ -208,12 +208,6 @@
         "logs:ListLogDeliveries"
       ],
       "Resource": "*"
-    },
-    {
-      "Sid": "AlarmsRead",
-      "Effect": "Allow",
-      "Action": "cloudwatch:DescribeAlarms",
-      "Resource": "*"
     }
   ]
 }
