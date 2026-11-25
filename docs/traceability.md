@@ -230,12 +230,12 @@ never fail the check. Only PRs named in Phases.md appear here.
 
 | Subtask | Done | ADR | Plan | PR | Runs |
 | --- | --- | --- | --- | --- | --- |
-| 17.0 Phases.md, docs/plan.md and README get Phase 17; the plan is saved in `docs/plans/` |  | - | - | - | - |
+| 17.0 Phases.md, docs/plan.md and README get Phase 17; the plan is saved in `docs/plans/` (done 2026-11-25, #188) | x | - | - | #188 17.0: add Phase 17 (Launch Day) and its plan (2026-11-25) | - |
 | 17.1 ADR 0030: launch day, a second event family and a per-session delivery edge (via `/decision`) |  | [0030](adr/0030-launch-day.md) Launch day: a second event family and a per-session delivery edge | - | - | - |
-| 17.2 Generator `generate_bulk_downloads.py`: deterministic, two-pass congestion, unit tests, 10k-event sample |  | - | - | - | - |
-| 17.3 Terraform: `modules/launch_edge` and `envs/dev-launch` (buckets, distribution, key group, release function, logging, load generator) |  | - | - | - | - |
-| 17.4 Session tooling: scenarios, k6 scripts, byte guard, `launch-*` Make targets |  | - | - | - | - |
-| 17.5 Silver job `promote_downloads_spark.py`, `launch-exercise`, dbt `marts/downloads/` and the data-quality suite |  | - | - | - | - |
+| 17.2 Generator `generate_bulk_downloads.py`: deterministic, two-pass congestion, unit tests, 10k-event sample (built 2026-11-25, #194) | x | - | - | #194 17.2: deterministic downloads generator (2026-11-25) | - |
+| 17.3 Terraform: `modules/launch_edge` and `envs/dev-launch` (buckets, distribution, key group, release function, logging, load generator)… |  | - | - | #192 17.3a: cerberus-admin-launch policy file (2026-11-25)<br>#195 17.3a: README fixes from the Opus security review (2026-11-25)<br>#196 17.3b: the launch edge Terraform root and module (2026-11-25) | - |
+| 17.4 Session tooling: scenarios, k6 scripts, byte guard, `launch-*` Make targets (built 2026-11-25, #199; proven live only in 17.6) | x | - | - | #199 17.4: launch session tooling, byte guards, ledger and scenarios (2026-11-25) | - |
+| 17.5 Silver job `promote_downloads_spark.py`, `launch-exercise`, dbt `marts/downloads/` and the data-quality suite (built 2026-11-25, #197 and… | x | - | - | #197 17.5a: downloads catalog tables and grants (2026-11-25)<br>#198 17.5b: downloads silver, launch exercise, marts and data quality (2026-11-25) | - |
 | 17.6 Live runs (owner): smoke, then pre-load, release, probe and the 100M-event telemetry; `launch-check` shows 0 resources |  | - | - | - | - |
 | 17.7 Results document and charts, every number traced to a run record |  | - | - | - | - |
 | 17.8 LinkedIn article, owner publishes by Sun 2026-11-29 |  | - | - | - | - |
