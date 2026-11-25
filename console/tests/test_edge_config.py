@@ -61,6 +61,7 @@ CLI_WRITE_ACTIONS = {
 LAMBDA_LOG_ACTIONS = {"logs:CreateLogStream", "logs:PutLogEvents"}
 RESULTS_RESOURCE = "${var.athena_results_bucket_arn}/${var.athena_results_prefix}*"
 READ_PREFIXES = ("Get", "List", "Describe")
+NON_PREFIX_READS = {"aps:QueryMetrics"}  # 10.5c: a read, though its name has no read prefix
 
 
 # --- a small, strict reader for the HCL we use ----------------------------------
@@ -515,7 +516,7 @@ def test_console_cli_write_set_is_exactly_the_four_actions(roles):
         for action in actions_of(st):
             assert "*" not in action, action
             op = action.split(":", 1)[1]
-            if not op.startswith(READ_PREFIXES):
+            if not op.startswith(READ_PREFIXES) and action not in NON_PREFIX_READS:
                 write.add(action)
     assert write == CLI_WRITE_ACTIONS
 
@@ -628,3 +629,58 @@ def test_the_topic_comes_from_the_observability_module(edge):
     env = hcl_text(ROOT / "terraform" / "envs" / "dev-standing" / "main.tf")
     module = block(env, r'module\s+"console_edge"')
     assert attr(module, "alarm_topic_arn") == "module.observability.alerts_topic_arn"
+
+
+# --- 10.5c: the status view's AMP read and the queries file in the zip -----------------
+
+DEV_STANDING = ROOT / "terraform" / "envs" / "dev-standing"
+QUERIES_REPO_FILE = ROOT / "observability" / "queries" / "status.json"
+QUERIES_ZIP_NAME = "observability/queries/status.json"
+
+
+def test_the_only_aps_statement_is_query_metrics_on_the_workspace_arn(roles):
+    policy = resource(roles, "aws_iam_role_policy", "console_cli")
+    aps = [s for s in statements(policy) if any(a.startswith("aps:") for a in actions_of(s))]
+    assert len(aps) == 1
+    assert strings(aps[0]["Action"]) == ["aps:QueryMetrics"]
+    assert aps[0]["Resource"] == "var.amp_workspace_arn"
+    assert one_string(aps[0]["Effect"]) == "Allow"
+    assert "Condition" not in aps[0] and "NotAction" not in aps[0]
+    assert "workspace/*" not in policy and "aps:*" not in policy
+
+
+def test_the_lambda_zip_carries_the_queries_file(edge):
+    locals_ = block(edge, r"locals")
+    assert attr(locals_, "queries_file") == '"${local.repo_root}/observability/queries/status.json"'
+    assert one_string(attr(locals_, "queries_in_zip")) == QUERIES_ZIP_NAME
+    assert one_string(attr(locals_, "queries_in_task")) == "/var/task/${local.queries_in_zip}"
+    archive = block(edge, r'data\s+"archive_file"\s+"command"')
+    sources = [
+        b for b in re.findall(r"^[ \t]*source[ \t]*\{(.*?)^[ \t]*\}", archive, re.M | re.S) if b
+    ]
+    direct = [
+        b for b in sources if "content" in b and "filename" in b and "local.queries_file" in b
+    ]
+    assert len(direct) == 1
+    assert attr(direct[0], "content") == "file(local.queries_file)"
+    assert attr(direct[0], "filename") == "local.queries_in_zip"
+    # the zipped content is the repo file: the path ends at the committed file
+    assert QUERIES_REPO_FILE.is_file()
+    assert QUERIES_REPO_FILE.relative_to(ROOT).as_posix() == QUERIES_ZIP_NAME
+
+
+def test_the_lambda_env_has_the_queries_file_and_the_amp_url(edge):
+    fn = resource(edge, "aws_lambda_function", "command")
+    env = attr(nested(fn, "environment"), "variables")
+    assert re.search(r"CERBERUS_QUERIES_FILE\s*=\s*local\.queries_in_task\b", env)
+    assert re.search(r"CERBERUS_AMP_QUERY_URL\s*=\s*var\.amp_query_url\b", env)
+    # the zip path and the task path agree with the default the code expects
+    assert "/var/task/" + QUERIES_ZIP_NAME == "/var/task/observability/queries/status.json"
+
+
+def test_the_amp_url_has_no_default_and_comes_from_the_workspace_endpoint(variables):
+    var = block(variables, r'variable\s+"amp_query_url"')
+    assert not re.search(r"^[ \t]*default[ \t]*=", var, re.M)
+    dev = module_text(DEV_STANDING)
+    console_edge = block(dev, r'module\s+"console_edge"')
+    assert attr(console_edge, "amp_query_url") == "module.prometheus_workspace.prometheus_endpoint"
