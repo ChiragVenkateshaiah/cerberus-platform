@@ -233,3 +233,10 @@ launch-plan: ## READ-ONLY, owner-run: init dev-launch against the shared state b
 
 launch-function-test: ## offline: node tests of the /license Function and the launch edge Terraform (no AWS, no network)
 	node --test terraform/modules/launch_edge/function/license.test.mjs terraform/modules/launch_edge/static.test.mjs
+
+# 17.5 (ADR 0030): the downloads telemetry exercise. Owner-run: it applies
+# dev-compute, then destroys it before dbt and data quality. The other launch-*
+# targets belong to 17.4.
+.PHONY: launch-exercise
+launch-exercise: ## OWNER-RUN, AWS: apply dev-compute -> generate downloads events -> silver -> destroy -> dbt marts -> data quality (orchestration/launch_exercise.sh; ARGS="--generate 1000000"; fails closed without the spend guard)
+	orchestration/launch_exercise.sh $(ARGS)

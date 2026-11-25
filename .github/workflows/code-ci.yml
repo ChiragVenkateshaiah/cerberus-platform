@@ -15,6 +15,7 @@ on:
       - "lineage/**"
       - "console/**"
       - "agents/**"
+      - "orchestration/test_launch_exercise.py"
       - "Phases.md"
       - "docs/adr/**"
       - "docs/plans/**"
@@ -77,6 +78,11 @@ jobs:
       # 17.2: the downloads generator core (pure Python, no pyspark).
       - name: pytest spark generator
         run: pytest transform/spark/tests
+
+      # 17.5: the downloads data-quality suite (fake boto3 clients) and its
+      # queries parsed as Trino. No AWS.
+      - name: pytest launch data quality
+        run: pip install --quiet sqlglot==30.35.0 && pytest observability/launch
 
   # 10.2b (ADR 0021 amendment): the status publisher core (run record to
   # series, remote-write encoding, dry run) and, in 10.2d, the AWS send path
@@ -200,6 +206,11 @@ jobs:
       - name: pytest agents
         run: PYTHONPATH=agents:console pytest agents/tests
 
+      # 17.5: launch_exercise.sh against stubs of aws, kubectl, terraform and the
+      # ledger on PATH. Nothing reaches AWS.
+      - name: pytest launch_exercise (stubs)
+        run: pytest orchestration/test_launch_exercise.py
+
       # 9.5 (ADR 0024 amendment, 2026-11-12): the terminal's script is plain
       # JavaScript with no toolchain. Uses the runner's own Node; no setup-node, no npm.
       - name: terminal.js syntax and unit tests
@@ -285,3 +296,8 @@ jobs:
 
       - name: sqlfluff lint
         run: sqlfluff lint models/
+
+      # 17.5: the downloads models and sources are off unless vars turn them on.
+      # Parse in each mode and assert from manifest.json (see check_gating.sh).
+      - name: dbt downloads gating (parse in every mode)
+        run: ./check_gating.sh
