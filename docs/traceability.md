@@ -152,7 +152,7 @@ never fail the check. Only PRs named in Phases.md appear here.
 | 10.2 Pipeline status exporter: per-run status, failed step, step durations, events, data-quality result, last-success timestamps; per-execution… |  | [0021](adr/0021-pipeline-status-and-alerting.md) Pipeline status and alerting: AMP as the store and the alert evaluator, run-end remote-write, local Grafana | [2026-11-20-pipeline-status-exporter.md](plans/2026-11-20-pipeline-status-exporter.md) | - | - |
 | 10.3 Grafana pipeline-status dashboard, provisioned as code, with a reserved "AI review" panel (tag `cerberus-ai`) |  | - | - | - | - |
 | 10.4 Alerting as code: failed run, DQ errors, never reported, error budget over runs (ADR 0021); alerts carry `execution`; `promtool test… |  | [0021](adr/0021-pipeline-status-and-alerting.md) Pipeline status and alerting: AMP as the store and the alert evaluator, run-end remote-write, local Grafana | - | - | - |
-| 10.5 Terminal status view (`make status`) from the named query set (same code as `cerberus status`) |  | - | - | #176 (pending) | - |
+| 10.5 Terminal status view (`make status`) from the named query set (same code as `cerberus status`) |  | - | - | #176 10.4b: Terraform and IAM that put the status alert rules into AMP (2026-11-25) | - |
 | 10.6 Live check: one passing and one deliberately failed exercise, shown correctly on the dashboard, in the terminal and as an alert |  | - | - | - | - |
 | 10.7 Well-Architected pass + ADR |  | - | - | - | - |
 
