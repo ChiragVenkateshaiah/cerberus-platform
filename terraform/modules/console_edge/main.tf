@@ -38,6 +38,12 @@ locals {
   repo_root     = "${path.module}/../../.."
   package_files = fileset("${local.repo_root}/console/cerberus_console", "*.py")
   run_files     = fileset("${local.repo_root}/observability/scale/runs", "*.json")
+
+  # 10.5c: the named status queries. config.QUERIES_FILE resolves to
+  # parents[2] outside the zip, so the Lambda gets CERBERUS_QUERIES_FILE.
+  queries_file    = "${local.repo_root}/observability/queries/status.json"
+  queries_in_zip  = "observability/queries/status.json"
+  queries_in_task = "/var/task/${local.queries_in_zip}"
 }
 
 # --- 1. Site bucket -------------------------------------------------------
@@ -449,6 +455,11 @@ data "archive_file" "command" {
     }
   }
 
+  source {
+    content  = file(local.queries_file)
+    filename = local.queries_in_zip
+  }
+
   lifecycle {
     precondition {
       condition     = contains(local.package_files, "api.py")
@@ -500,6 +511,8 @@ resource "aws_lambda_function" "command" {
     variables = {
       CERBERUS_RUNS_DIR          = "/var/task/runs"
       CERBERUS_STATE_MACHINE_ARN = var.state_machine_arn
+      CERBERUS_QUERIES_FILE      = local.queries_in_task
+      CERBERUS_AMP_QUERY_URL     = var.amp_query_url
     }
   }
 

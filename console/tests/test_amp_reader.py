@@ -120,7 +120,7 @@ def test_the_url_is_the_signed_percent_encoded_instant_query():
     fakes.amp_reader(opener).query("latest_status")
     url, timeout, headers = opener.calls[0]
     assert url.startswith(
-        "https://aps-workspaces.example.invalid/workspaces/ws-test/api/v1/query?query="
+        "https://aps-workspaces.us-east-1.amazonaws.com/workspaces/ws-test/api/v1/query?query="
     )
     assert "+" not in url and "%28" in url  # %20 style, never '+'
     assert "last_over_time" in url
@@ -292,7 +292,8 @@ def test_build_sources_without_a_url_has_an_unavailable_amp(tmp_path):
 def test_build_sources_with_a_url_builds_the_reader_lazily():
     built = []
     src = aws.build_sources(
-        session=lambda: built.append(1) or object(), amp_query_url="https://x.invalid/"
+        session=lambda: built.append(1) or object(),
+        amp_query_url="https://aps-workspaces.us-east-1.amazonaws.com/workspaces/ws-test/",
     )
     assert built == []  # nothing built yet
     reader = src.amp()
@@ -343,6 +344,24 @@ def test_the_default_opener_has_no_proxy_and_no_redirect():
         "http://aps.example.invalid/ws/",
         "aps.example.invalid/ws/",
         "",
+        # review conditions: only this region's AMP host and workspace path
+        "https://evil.example.invalid/workspaces/ws-test/",
+        "https://aps-workspaces.us-east-1.amazonaws.com.evil.com/workspaces/ws-test/",
+        "https://evil.com/aps-workspaces.us-east-1.amazonaws.com/workspaces/ws-test/",
+        "https://aps-workspaces.us-west-2.amazonaws.com/workspaces/ws-test/",
+        "https://x.aps-workspaces.us-east-1.amazonaws.com/workspaces/ws-test/",
+        "https://aps-workspaces.us-east-1.amazonaws.com@evil.com/workspaces/ws-test/",
+        "https://user@aps-workspaces.us-east-1.amazonaws.com/workspaces/ws-test/",
+        "https://aps-workspaces.us-east-1.amazonaws.com:8443/workspaces/ws-test/",
+        "https://aps-workspaces.us-east-1.amazonaws.com:443/workspaces/ws-test/",
+        "http://aps-workspaces.us-east-1.amazonaws.com/workspaces/ws-test/",
+        "https://aps-workspaces.us-east-1.amazonaws.com/",
+        "https://aps-workspaces.us-east-1.amazonaws.com/workspaces/WS-test/",
+        "https://aps-workspaces.us-east-1.amazonaws.com/workspaces/ws-test/x",
+        "https://aps-workspaces.us-east-1.amazonaws.com/workspaces/ws-test/\n",
+        "https://aps-workspaces.us-east-1.amazonaws.com/workspaces/ws-test/\t",
+        " https://aps-workspaces.us-east-1.amazonaws.com/workspaces/ws-test/",
+        "https://aps-workspaces.us-east-1.amazonaws.com:/workspaces/ws-test/",
     ],
 )
 def test_a_bad_base_url_raises_and_makes_no_call(base):
@@ -370,3 +389,69 @@ def test_parse_vector_never_returns_a_control_character(name):
     for row in rows:
         for text in (row["step"], row["execution"], json.dumps(row)):
             assert text is None or not re.search(r"[\x00-\x1f\x7f-\x9f]", text)
+
+
+def test_the_real_shape_of_the_endpoint_is_accepted():
+    for base in (
+        "https://aps-workspaces.us-east-1.amazonaws.com/workspaces/ws-1a2b-3c/",
+        "https://aps-workspaces.us-east-1.amazonaws.com/workspaces/ws-1a2b-3c",
+    ):
+        assert aws._base_ok(base)
+
+
+# --- no secret in a log line or an error (review condition 4) ---------------
+
+SECRETS = ("Authorization", "X-Amz-Security-Token", "x-amz-security-token", "fake-token")
+
+
+class Failing:
+    """An opener that raises the given error on every call."""
+
+    def __init__(self, err):
+        self.err = err
+
+    def __call__(self, req, timeout=None):
+        raise self.err
+
+
+BASE = "https://aps-workspaces.us-east-1.amazonaws.com/workspaces/ws-test/"
+
+
+@pytest.mark.parametrize(
+    "err",
+    [
+        urllib.error.HTTPError(BASE, 500, "boom", {}, io.BytesIO(b"x")),
+        urllib.error.HTTPError(BASE, 403, "denied", {}, io.BytesIO(b"x")),
+        urllib.error.URLError("unreachable"),
+        TimeoutError("timed out"),
+    ],
+)
+def test_failure_paths_leak_no_credential_or_signed_url(err, caplog):
+    signed = []
+
+    def sign(url):
+        signed.append(url)
+        return {"Authorization": "fake-token", "X-Amz-Security-Token": "fake-token"}
+
+    clock = fakes.Clock()
+    reader = aws.AwsAmpReader(
+        sign,
+        BASE,
+        {"q": {"expr": "up"}},
+        opener=Failing(err),
+        clock=clock,
+        sleep=clock.sleep,
+    )
+    with caplog.at_level("DEBUG"), pytest.raises(Unavailable) as info:
+        reader.query("q")
+    texts = [caplog.text, str(info.value), repr(info.value)]
+    texts += [r.getMessage() for r in caplog.records]
+    for text in texts:
+        for secret in (*SECRETS, signed[0]):
+            assert secret not in text, text
+    # a bad base is refused before signing, so nothing is signed at all
+    bad = aws.AwsAmpReader(sign, "https://evil.com/workspaces/ws-x/", {"q": {"expr": "up"}})
+    count = len(signed)
+    with caplog.at_level("DEBUG"), pytest.raises(Unavailable):
+        bad.query("q")
+    assert len(signed) == count

@@ -60,7 +60,7 @@ No NEEDS DECISION. Everything below fits ADR 0021 and its two amendments. A desi
   - Acceptance: `make status` offline prints the record section and no traceback.
 - **10.5c, Terraform (only after #176 merges).**
   - Files: `console_roles/main.tf` (the `aps:QueryMetrics` statement), `console_edge/main.tf` (add `local.queries_file` as a third `source` block with filename `observability/queries/status.json`, plus env `CERBERUS_QUERIES_FILE=/var/task/observability/queries/status.json` and `CERBERUS_AMP_QUERY_URL`), `console_edge/variables.tf`, and the `dev-standing/main.tf` wiring from `module.prometheus_workspace.prometheus_endpoint`. `config.QUERIES_FILE` otherwise resolves to `parents[2]`, which is wrong inside the zip.
-  - Add a host allowlist for the AMP URL (`*.aps-workspaces.<region>.amazonaws.com`) in `aws.py` once the value is known.
+  - Add a URL allowlist in `aws.py` `_base_ok`, checked before signing: https only, host exactly `aps-workspaces.<config.REGION>.amazonaws.com` (no wildcard, no subdomain), no port, no userinfo, path `^/workspaces/ws-[a-z0-9-]+/?$`.
   - Add a test in `test_edge_config.py` for the `aps:` statement and the zip source block.
   - Acceptance: `make verify` passes, and the plan shows only the policy, the zip and the env change.
 
@@ -73,10 +73,10 @@ No NEEDS DECISION. Everything below fits ADR 0021 and its two amendments. A desi
 
 **Risks and unverified**
 - **Security tier S.** 10.5c widens the IAM role `cerberus-console-cli`, which the public console Lambda runs as. It gains read access to all metrics in the AMP workspace (`aps:QueryMetrics`, workspace scope only). Mitigations: queries are fixed constants, only three label or value fields are parsed, and output is sanitised and capped. The reviewer must treat 10.5c as security-tier S.
-- AMP query cost and rate. A visitor flood is bounded by the 30 s cache and the Lambda reserved concurrency, but the first AMP bill line is unverified.
+- AMP query cost and rate. The real cost bound is the stage throttle (1 rps, burst 3), invite-only Cognito sign-in and the 30 s cache. Concurrency is NOT reserved (`command_reserved_concurrency` default -1). The AMP query rate limit is shared per workspace with Grafana (unverified). The AMP query price estimate is unverified.
 - Lambda timeout versus about 14 sequential AMP queries. Unverified, so check `lambda_timeout_seconds`. If it is too short, run the queries in parallel threads or query only the 10 entries the layout uses.
 - `topk(1, ...)` returns a series with an `execution` label. Behaviour on AMP is the same as in 10.4c (unverified there too).
-- CI permission for `lambda:UpdateFunctionConfiguration` is assumed, not checked.
+- CI permission for the Lambda update is verified: `lambda:*` on `cerberus-console-*` at `terraform/modules/github_oidc/main.tf` ~L622.
 
 **Open questions**
 1. Where does the Lambda get the AMP endpoint? Recommended: Terraform passes it as env var `CERBERUS_AMP_QUERY_URL` from the existing `prometheus_endpoint` output. This needs no `aps:ListWorkspaces` grant, so the policy stays narrowest. For local `make status`, read the same value with `terraform output` in the Makefile, or accept `AMP_QUERY_URL=` as an argument. Do not add `ListWorkspaces` on `*`.

@@ -211,6 +211,9 @@ module "console_edge" {
   console_cli_role_name = module.console_roles.console_cli_role_name
   state_machine_arn     = module.step_functions.state_machine_arn
 
+  # 10.5c: the status view's AMP base URL, from the workspace resource itself.
+  amp_query_url = module.prometheus_workspace.prometheus_endpoint
+
   # 9.7 (ADR 0026): the two console alarms notify the shared alerts topic.
   alarm_topic_arn = module.observability.alerts_topic_arn
 }
