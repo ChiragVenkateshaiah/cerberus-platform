@@ -147,6 +147,10 @@ the design in seven places:
    - Without `PREWARM` or `HOLD`, the EXIT trap runs stage 1, then stage 2.
    - With either flag, no automation runs stage 2. The owner runs
      `make launch-destroy` by the printed deadline. It needs no shell state.
+   - A failed stage 1 (after one retry) or a byte-budget stop runs stage 2 even
+     with `HOLD`.
+   - Stage 1 removes the private key first, then terminates the instance
+     directly, then applies Terraform. `launch-destroy` also terminates directly.
    - A failed PREWARM apply runs both stages.
    - A trap does not survive SIGKILL or power loss (the notes in
      `orchestration/console_session.sh` say the same of a trap that died). So
@@ -194,8 +198,16 @@ the design in seven places:
 6. **Load generator.** One Spot instance in the `dev-standing` public subnet
    with a public IPv4, no ingress, egress 443 plus DNS, IMDSv2, a pinned k6
    (version and sha256), per-client DNS (`ttl=0`, random select) and under
-   5 Gbps. Its role holds one SSM parameter, seed writes to the build bucket
-   and Session Manager. The traffic stays below the EC2 testing policy's
+   5 Gbps. Its role may read the one session-cookie parameter; write `build/*`
+   and `patch/*` (seed) and `results/*` (k6 summaries, the nftables evidence
+   and the `seeded` and `done` markers) in the build bucket; list and read
+   `scenarios/*`; and use the Session Manager agent actions. It has no delete,
+   no read of `results/*` and no managed policy. The instance runs itself from
+   user data, because the admin policy has no `ssm:SendCommand`. CloudFront
+   cannot read `results/*` or `scenarios/*`. The generator can overwrite its
+   own results, so CDN logs and CloudWatch `BytesDownloaded` are the
+   independent check. The session clears `results/` before it creates the
+   instance. The traffic stays below the EC2 testing policy's
    limits ([EC2 testing](https://aws.amazon.com/ec2/testing/)).
 7. **Envelope (`downloads` v1).** The seven launch-plan fields: `event_id`,
    `event_family`, `event_type`, `occurred_at`, `ingested_at`,
@@ -219,6 +231,11 @@ the design in seven places:
       (Decision 13).
     - `collect.sh` checks every file's fields against the allowlist BEFORE it
       copies, and refuses any path or content that holds an account ID.
+    - Lines outside the session window are dropped before the 12-digit scan.
+      `cs-uri-stem` is replaced by `/other` unless it is one of our own object
+      paths or `/license`; it is then exempt from the scan, because a sha256
+      chunk name can hold 12 digits in a row. So viewer free text never enters
+      bronze.
     - CDN gold has no client address and no user agent.
 11. **Silver and gold.** Silver is `cerberus_platform.download_events` under
     `silver/iceberg/download_events/`, with the same watermark method as ADR
@@ -227,7 +244,8 @@ the design in seven places:
     reading bronze is new, so it is a named exception: read on
     `downloads_cdn/*` and its one catalog table only, with no silver step. The
     reason: the CDN run logs are small, already structured and have one
-    consumer. The exception is listed under Costs.
+    consumer. The exception is listed under Costs. `cerberus-transform` (data quality
+    and local dbt) gains the same read, plus `downloads_bulk/*`.
 12. **Cost and controls.** The exception covers usage dated 2026-11-25 to
     2026-11-30. The Tuesday 2026-12-01 read is read-only confirmation, with
     its range fixed to November. From 2026-12-01 stored data counts against the
@@ -237,7 +255,8 @@ the design in seven places:
       of the decision review, for the owner to confirm on acceptance.
     - Attributable is the November `Usage` total (credits excluded, all
       services) minus the total through 2026-11-24, recorded once in a
-      committed baseline file before Run A. Plus a ledger estimate for the
+      committed baseline file before Run A. The first baseline creates an empty
+      ledger; a missing ledger is a refusal. Plus a ledger estimate for the
       period Cost Explorer has not yet reported.
     - The ledger uses one all-in dev-compute hourly rate (about $0.40/h,
       launch plan section 6), load-generator instance hours and GB over the free
@@ -256,7 +275,8 @@ the design in seven places:
       2. k6 uses fixed iterations, not duration.
       3. An `nftables` quota drops instance ingress above budget plus 10%
          (headers and TLS add about 3%, an estimate; licence responses and
-         retransmits add more). It has no exemptions and Run A tests it. Root
+         retransmits add more). It has no exemptions. Run A checks the rule and
+         its counter; the drop is tested by a run with a small `BUDGET_BYTES`. Root
          on the instance could remove it; then expiry is the limit.
       4. `session.sh` polls `BytesDownloaded` each minute and runs stage 1
          above budget. It can lag by minutes.
