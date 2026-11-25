@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-22T07:50:04Z",
+  "generated_at": "2026-11-25T05:59:53Z",
   "phases": [
     {
       "number": 0,
@@ -1302,7 +1302,9 @@
         "pr": [
           {
             "number": 176,
-            "pending": true
+            "title": "10.4b: Terraform and IAM that put the status alert rules into AMP",
+            "date": "2026-11-25",
+            "merge": "d1e25a8"
           }
         ],
         "runs": []
@@ -1939,7 +1941,9 @@
       "title": "ADR 0030: launch day, a second event family and a per-session delivery edge (via `/decision`)",
       "checked": false,
       "links": {
-        "adr": [],
+        "adr": [
+          "0030"
+        ],
         "plan": [],
         "pr": [],
         "runs": []
@@ -1962,7 +1966,7 @@
     {
       "id": "17.3",
       "phase": 17,
-      "title": "Terraform: `modules/launch_edge` and `envs/dev-launch` (buckets, distribution, key group, release function, logging, load generator, alarm)",
+      "title": "Terraform: `modules/launch_edge` and `envs/dev-launch` (buckets, distribution, key group, release function, logging, load generator)",
       "checked": false,
       "links": {
         "adr": [],
@@ -2325,6 +2329,15 @@
       "accepted": "2026-11-20",
       "plan": "docs/plans/2026-11-20-databricks-free-edition-showcase.md",
       "legacy": true
+    },
+    {
+      "number": "0030",
+      "file": "0030-launch-day.md",
+      "title": "Launch day: a second event family and a per-session delivery edge",
+      "status": "Proposed",
+      "accepted": null,
+      "plan": "docs/plans/2026-11-25-launch-day-decision.md",
+      "legacy": false
     }
   ],
   "prs": [
@@ -2477,6 +2490,12 @@
       "title": "ADR 0028 and 0029 (Proposed): Databricks Free Edition, platform traceability",
       "date": "2026-11-20",
       "merge": "6a29682"
+    },
+    {
+      "number": 176,
+      "title": "10.4b: Terraform and IAM that put the status alert rules into AMP",
+      "date": "2026-11-25",
+      "merge": "d1e25a8"
     },
     {
       "number": 178,

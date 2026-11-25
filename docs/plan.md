@@ -34,7 +34,7 @@ build, automate, and operate a data platform.
    `terraform destroy` is part of the workflow, not an afterthought.
    Phase 17 is an exception to the $20/month guardrail: owner-approved
    2026-11-25 for Phase 17: ceiling $40, stop at $25 attributable; terms in
-   ADR 0030 (17.1).
+   ADR 0030 (17.1, Proposed).
 6. **Decisions are recorded.** Every significant choice becomes a numbered ADR
    in `docs/adr/`.
 7. **The build leads, courses follow.** Building this platform is the primary
@@ -157,7 +157,7 @@ layered on top of a platform that already works.
 | 14 | AI operations agents | Claude on Amazon Bedrock (Converse API tool use), a local MCP server over the read-only command set, an evaluation set replayed from past runs | _(Amazon Bedrock docs; MCP specification; Anthropic tool-use and evaluation docs)_ | ⬜ Planned |
 | 15 | Public showcase | A sanitised metrics snapshot on the standing edge (S3 + CloudFront), an interactive run explorer, a Databricks partner column from Phase 11 | _(CloudFront docs)_ | ⬜ Planned |
 | 16 | Development traceability | A generated record linking each subtask to its ADR, plan, PR and run record (`history.json`), shown on the site and as a Databricks AI/BI dashboard | _(Git documentation, merge commits; ADR 0029)_ | ⬜ Planned |
-| 17 | Launch Day | A modelled game-launch download surge: CloudFront delivery per session, a second synthetic event family through bronze, silver and gold | _(CloudFront docs; ADR 0030, to be written in 17.1)_ | ⬜ Planned |
+| 17 | Launch Day | A modelled game-launch download surge: CloudFront delivery per session, a second synthetic event family through bronze, silver and gold | _(CloudFront docs; ADR 0030 (Proposed))_ | ⬜ Planned |
 
 🎯 **MVP is complete at the end of Phase 1.**
 

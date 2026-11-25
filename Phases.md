@@ -418,8 +418,7 @@ $25 attributable spend. The plan is
 - [ ] 17.2 Generator `generate_bulk_downloads.py`: deterministic, two-pass
       congestion, unit tests, 10k-event sample
 - [ ] 17.3 Terraform: `modules/launch_edge` and `envs/dev-launch` (buckets,
-      distribution, key group, release function, logging, load generator,
-      alarm)
+      distribution, key group, release function, logging, load generator)
 - [ ] 17.4 Session tooling: scenarios, k6 scripts, byte guard, `launch-*`
       Make targets
 - [ ] 17.5 Silver job `promote_downloads_spark.py`, `launch-exercise`, dbt

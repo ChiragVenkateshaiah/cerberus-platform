@@ -6,6 +6,8 @@ Date: 2026-10-07
 
 Accepted
 
+Amended by [ADR 0030](0030-launch-day.md) (Proposed, 2026-11-25): a second bulk prefix, `downloads_bulk/`, gains write and delete for `cerberus-spark` only.
+
 ## Context
 
 Phase 8 ([plan.md](../plan.md#phase-8--scale-validation)) climbs a scale
