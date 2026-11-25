@@ -152,11 +152,15 @@ aws iam simulate-principal-policy --policy-source-arn $P --action-names ec2:Canc
 Must be `implicitDeny` (the scope holds): `cloudfront:PublishFunction` on
 `function/cerberus-console-x`, `s3:PutBucketPolicy` on
 `cerberus-platform-bronze-${ACCT}`, `ssm:PutParameter` on
-`parameter/cerberus/other`, `iam:PassRole` on `role/cerberus-launch-x` with
-`iam:PassedToService=lambda.amazonaws.com`, `iam:AttachUserPolicy` on
+`parameter/cerberus/other`, `iam:PassRole` on `role/cerberus-x` with
+`iam:PassedToService=ec2.amazonaws.com`, `iam:AttachUserPolicy` on
 `user/cerberus-admin`, `iam:CreatePolicyVersion` on
 `policy/cerberus-admin-launch`, and `cloudfront:UpdateDistribution` on a
 distribution without the `Project` tag (no `aws:ResourceTag/Project` context).
+
+Detach only after `launch-check` is 0: stage 2 needs this policy. First
+confirm that no `cerberus-launch-*` role remains
+(`aws iam list-roles --query "Roles[?starts_with(RoleName,'cerberus-launch-')].RoleName"`).
 
 Detach after 17.9 (the cost read and the final `launch-check` of 0): in the
 root console, Users, `cerberus-admin`, remove `cerberus-admin-launch`.
@@ -177,15 +181,21 @@ Why some grants are wide:
   ARN cannot be named. The action only allows log delivery from a
   distribution; it cannot change one.
 
-Risk: `IamRoleMgmt` (existing) plus `PassLaunchRoleToEc2` lets the admin
-place an admin-level role on an instance. So "cannot change its own
-policies" holds for direct calls only. This is not new in kind: the same
-holds with `PassRole` to Lambda or ECS. The detach after 17.9 removes the
-`PassRole` path.
+Risk: `cerberus-admin` is already admin-equivalent. `IamRoleMgmt` (no
+permissions boundary) plus `sts:AssumeRole` on `role/cerberus-*` lets it
+create an admin role and assume it. So "cannot change its own policies" holds
+for direct calls only. `PassLaunchRoleToEc2` adds one more path to the same
+end, on EC2. The detach after 17.9 removes that path only; the older paths
+stay. The fix is a permissions boundary on `IamRoleMgmt`, which needs its own
+decision.
 
-Unverified: whether `ssm:PutParameter` of a `SecureString` also needs a KMS
-grant (the default `alias/aws/ssm` key is expected to need none). The 17.6
-smoke settles it.
+`SecureString` needs no KMS grant with the default `aws/ssm` key ([Parameter
+Store access](https://docs.aws.amazon.com/systems-manager/latest/userguide/sysman-paramstore-access.html)).
+Omit `--key-id` and use the standard tier (4,096 bytes maximum). Do not call
+`kms:DescribeKey`; it is denied. The 17.6 smoke confirms it.
+
+For `simulate-custom-policy`, pass one statement per input; an input over
+2,000 characters is rejected.
 
 Two limits of the checks. `simulate-principal-policy` does not model the
 request tags on `CreateDistribution`. The KeyValueStore ARN uses an ID, not
