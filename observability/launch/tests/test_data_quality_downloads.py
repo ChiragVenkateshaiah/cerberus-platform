@@ -27,6 +27,7 @@ CHECKS = [
     "no_license_before_release",
     "gold_sessions_match_silver",
     "cdn_logs_present",
+    "cdn_logs_complete",
     "no_account_or_arn_in_outputs",
 ]
 
@@ -102,7 +103,7 @@ def by_name(suite):
     return {c["name"]: c for c in suite["checks"]}
 
 
-def test_all_nine_checks_pass_on_clean_data(tmp_path):
+def test_all_ten_checks_pass_on_clean_data(tmp_path):
     suite = run(tmp_path)
     assert [c["name"] for c in suite["checks"]] == CHECKS
     assert suite["passed"] and suite["errors"] == 0
@@ -187,7 +188,10 @@ def test_cdn_check_fails_when_a_record_says_collected_and_rows_are_absent(tmp_pa
     athena = FakeAthena(lambda n, sql: 1 if n == "cdn_logs_present" else None)
     suite = run(tmp_path, FakeSession(athena), records={"sess-1/run.json": record})
     check = by_name(suite)["cdn_logs_present"]
+    # Decision 13: a warning, visible, never a plain pass, and it does not fail the suite.
+    assert check["status"] == "warning" and check["severity"] == "warning"
     assert not check["passed"] and "skipped" not in check
+    assert suite["passed"] and suite["errors"] == 0 and suite["warnings"] >= 1
     assert "'sess-1'" in [sql for n, sql in athena.queries if n == "cdn_logs_present"][0]
 
 
@@ -200,7 +204,10 @@ def test_cdn_check_passes_when_collected_and_rows_exist(tmp_path):
 
 def test_cdn_check_fails_on_an_unreadable_record(tmp_path):
     suite = run(tmp_path, records={"bad/run.json": "{not json"})
-    assert not by_name(suite)["cdn_logs_present"]["passed"]
+    for name in ("cdn_logs_present", "cdn_logs_complete"):
+        assert by_name(suite)[name]["status"] == "fail"
+    assert not suite["passed"]
+    assert dq.print_suite(suite) is None
 
 
 # The shape of 17.4's real record (launch_session.sh collect_results), with the key
@@ -227,8 +234,8 @@ def test_17_4_record_with_the_key_true_is_checked_and_fails_with_zero_rows(tmp_p
     record = {**RECORD_17_4, "cdn_logs_collected": True}
     athena = FakeAthena(lambda n, sql: 1 if n == "cdn_logs_present" else None)
     suite = run(tmp_path, FakeSession(athena), records={"sess-1/run.json": record})
-    assert not by_name(suite)["cdn_logs_present"]["passed"]
-    assert not suite["passed"]
+    assert by_name(suite)["cdn_logs_present"]["status"] == "warning"
+    assert suite["passed"]
 
 
 def test_17_4_record_with_the_key_false_is_skipped(tmp_path):
@@ -328,9 +335,9 @@ def test_main_fails_closed_when_the_suite_cannot_run(tmp_path):
 
 def test_every_query_parses_as_trino(tmp_path):
     athena = FakeAthena()
-    record = {"run_id": "sess-1", "cdn_logs_collected": True}
+    record = {"run_id": "sess-1", "cdn_logs_collected": True, "k6_requests": 10}
     run(tmp_path, FakeSession(athena), records={"s/run.json": record})
-    assert {n for n, _ in athena.queries} == set(CHECKS[:8])
+    assert {n for n, _ in athena.queries} == set(CHECKS[:9])
     for name, sql in athena.queries:
         assert sqlglot.parse_one(sql, read="trino"), name
 
@@ -353,3 +360,79 @@ def test_constants_match_the_generator():
     assert ms(dq.RELEASE_UTC) == g.RELEASE_UTC_MS
     assert dq.TITLE_BYTES == g.TITLE_BYTES
     assert dq.EVENT_TYPES == g.TYPES
+
+
+# cdn_logs_complete (ADR 0030 Decision 13): log lines versus the k6 count, 99% line.
+def complete_run(tmp_path, lines, k6="absent", collected=True):
+    record = {**RECORD_17_4, "cdn_logs_collected": collected}
+    if k6 != "absent":
+        record["k6_requests"] = k6
+
+    def respond(name, sql):
+        if name != "cdn_logs_complete":
+            return None
+        wanted = int(re.search(r"< 99 \* (\d+)", sql).group(1))
+        return 1 if lines * 100 < 99 * wanted else 0
+
+    athena = FakeAthena(respond)
+    suite = run(tmp_path, FakeSession(athena), records={"sess-1/run.json": record})
+    return suite, by_name(suite)["cdn_logs_complete"], athena
+
+
+def test_logs_complete_when_all_lines_are_there(tmp_path):
+    suite, check, _ = complete_run(tmp_path, lines=1000, k6=1000)
+    assert check["status"] == "complete" and check["passed"]
+    assert suite["passed"]
+
+
+def test_logs_at_98_9_percent_are_partial_and_a_warning_only(tmp_path):
+    suite, check, _ = complete_run(tmp_path, lines=989, k6=1000)
+    assert check["status"] == "partial" and check["severity"] == "warning"
+    assert not check["passed"]
+    assert suite["passed"] and suite["errors"] == 0 and suite["warnings"] == 1
+
+
+def test_logs_at_exactly_99_percent_are_complete(tmp_path):
+    _, check, _ = complete_run(tmp_path, lines=990, k6=1000)
+    assert check["status"] == "complete"
+
+
+def test_a_missing_k6_count_is_unknown_never_complete(tmp_path):
+    suite, check, athena = complete_run(tmp_path, lines=1000)
+    assert check["status"] == "unknown" and not check["passed"]
+    assert "sess-1" in check["detail"]
+    assert not [n for n, _ in athena.queries if n == "cdn_logs_complete"]
+    assert suite["passed"]  # a warning, not a failure
+
+
+@pytest.mark.parametrize("k6", ["1000", 0, -5, 12.5, True, None])
+def test_a_bad_k6_count_is_unknown(tmp_path, k6):
+    _, check, _ = complete_run(tmp_path, lines=1000, k6=k6)
+    assert check["status"] == "unknown"
+
+
+def test_complete_is_skipped_with_no_collected_record(tmp_path):
+    check = by_name(run(tmp_path))["cdn_logs_complete"]
+    assert check["status"] == "skipped"
+
+
+def test_a_failed_complete_query_fails_closed(tmp_path):
+    record = {**RECORD_17_4, "cdn_logs_collected": True, "k6_requests": 10}
+    athena = FakeAthena(lambda n, sql: "FAILED" if n == "cdn_logs_complete" else None)
+    suite = run(tmp_path, FakeSession(athena), records={"sess-1/run.json": record})
+    assert by_name(suite)["cdn_logs_complete"]["status"] == "fail"
+    assert not suite["passed"]
+
+
+def test_warnings_do_not_change_the_exit_code(tmp_path, capsys):
+    records = tmp_path / "runs" / "sess-1"
+    records.mkdir(parents=True)
+    (records / "run.json").write_text(json.dumps({**RECORD_17_4, "cdn_logs_collected": True}))
+    out = tmp_path / "out"
+    out.mkdir()
+    (out / "run.log").write_text("clean\n")
+    session = FakeSession(FakeAthena(lambda n, sql: 1 if n == "cdn_logs_present" else None))
+    argv = ["--run-id", RUN, "--bronze-bucket", "b", "--records-dir", str(tmp_path / "runs")]
+    argv += ["--scan", str(out)]
+    assert dq.main(argv, session=session) == 0
+    assert "WARN" in capsys.readouterr().out

@@ -17,9 +17,17 @@ Date: 2026-11-25. Planner: Sonnet (`cerberus-planner`).
 4. Spend guard: `python3 launch/ledger.py guard --next-usd N`, then `record`
    and `correct` with `--kind exercise`. `launch_exercise.sh` fails closed
    when the file is absent or exits non-zero. The teardown never calls guard.
-5. DQ check 8 fails when a launch run record says logs were collected and
-   rows are absent; it reports "skipped, telemetry only" when no such record
-   exists. It is never a silent pass.
+5. DQ check 8 ("logs present") is a WARNING (ADR 0030 Decision 13): when a
+   launch run record says logs were collected and rows are absent it shows the
+   status "warning", which is never a plain pass and does not fail the exit
+   code. It reports "skipped, telemetry only" when no such record exists. An
+   unreadable or invalid run record still fails closed. New check 9,
+   `cdn_logs_complete`, compares distinct `x-edge-request-id` rows per run with
+   the integer `k6_requests` in `runs/<run_id>/run.json` (17.4 writes it):
+   below 99% is "partial", a missing count is "unknown" (labelled partial,
+   never complete). Readers of `fct_cdn_run` see `logs_status`
+   (complete, partial, unknown), fed by the dbt var `k6_requests_by_run` that
+   `launch_exercise.sh` builds from the run records.
 6. Open questions 1 and 3: yes to both.
 7. The anti-join must be limited by touched days AND stay correct for a
    second `run_id` covering the same days.
@@ -98,7 +106,7 @@ Date: 2026-11-25. Planner: Sonnet (`cerberus-planner`).
    - **Gating:** `dbt_project.yml` gets `vars: {enable_downloads: false, enable_downloads_cdn: false}`. `+enabled` for the `marts/downloads` models and for the downloads sources reads these vars.
    - **Sources:** a new `models/downloads_sources.yml`, not the existing `sources.yml`, so disabled sources run no tests in the scheduled build.
    - **Tests:** schema tests on `event_id`, `event_type` accepted values, `non_negative` bytes, and unique `(run_id, client_id)`.
-9. `observability/launch/data_quality_downloads.py` (9 checks; run as `cerberus-transform`, workgroup `cerberus_platform_dq`):
+9. `observability/launch/data_quality_downloads.py` (10 checks; run as `cerberus-transform`, workgroup `cerberus_platform_dq`):
    1. bronze to silver count per run (manifest events versus silver count by `run_id`)
    2. `event_id` unique
    3. lifecycle valid
@@ -106,8 +114,9 @@ Date: 2026-11-25. Planner: Sonnet (`cerberus-planner`).
    5. timestamps inside the window, and `occurred_at` ≤ `ingested_at`
    6. no `license_granted` before local release
    7. gold session count equals silver distinct (`run_id`, `client_id`)
-   8. CDN logs present for every run record with `"cdn_logs_collected": true` (reads `runs/*/run.json`; fails on zero rows, missing CDN models, an unreadable record or a non-boolean value; skipped, telemetry only, when no record says collected)
-   9. no account ID or ARN in published outputs
+   8. CDN logs present for every run record with `"cdn_logs_collected": true` (reads `runs/*/run.json`; a WARNING on zero rows, with a distinct "warning" status that is not a pass and does not fail the exit code; fails on missing CDN models, an unreadable record or a non-boolean value; skipped, telemetry only, when no record says collected)
+   9. `cdn_logs_complete`: distinct `x-edge-request-id` rows per collected run versus `k6_requests` in its record; a WARNING below 99% ("partial") or with no count ("unknown")
+   10. no account ID or ARN in published outputs
 
    An Athena failure, an unreadable manifest, zero runs found, or a missing table counts as a fail. Exit 3 means failure, as in payments.
 10. Tests:

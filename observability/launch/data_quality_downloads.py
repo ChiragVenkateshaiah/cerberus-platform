@@ -1,9 +1,13 @@
 """Cerberus 17.5 -- the data-quality suite for the downloads family, as Athena queries.
 
-Nine checks over one launch-exercise run, fail-closed (ADR 0030): a query that
+Ten checks over one launch-exercise run, fail-closed (ADR 0030): a query that
 cannot run, a manifest that cannot be read, a run with zero events and a table
-that is missing all count as a FAIL, never a pass. Exit code 0 = all passed,
-3 = a check failed (the same code the payments suite uses).
+that is missing all count as a FAIL, never a pass. Exit code 0 = no check
+failed, 3 = a check failed (the same code the payments suite uses). Checks 8
+and 9 are WARNINGS (ADR 0030 Decision 13): they show a distinct status
+("warning", "partial", "unknown", "skipped"), are never counted as a plain
+pass and do not change the exit code. Only a record or query that cannot be
+read is a FAIL.
 
     1. bronze_to_silver_count     manifest events = bronze = silver, per day of the run
     2. event_id_unique            no event_id appears twice in silver
@@ -13,11 +17,15 @@ that is missing all count as a FAIL, never a pass. Exit code 0 = all passed,
     5. timestamps_in_window       occurred_at inside the window, occurred_at <= ingested_at
     6. no_license_before_release  no license_granted before the region's local release
     7. gold_sessions_match_silver fct_download_sessions rows = silver distinct (run, client)
-    8. cdn_logs_present           every launch run record that says CDN logs were
-                                  collected has rows in fct_cdn_requests; with no such
-                                  record it reports "skipped, telemetry only" (never a
-                                  silent pass)
-    9. no_account_or_arn_in_outputs  no 12-digit account number or ARN in the run records,
+    8. cdn_logs_present           WARNING: every launch run record that says CDN logs
+                                  were collected has rows in fct_cdn_requests; with no
+                                  such record it reports "skipped, telemetry only"
+                                  (never a silent pass)
+    9. cdn_logs_complete          WARNING: distinct x-edge-request-id rows per collected
+                                  run versus the integer `k6_requests` in its run record;
+                                  below 99% the status is "partial", a missing count is
+                                  "unknown" (labelled partial, never "complete")
+   10. no_account_or_arn_in_outputs  no 12-digit account number or ARN in the run records,
                                   exercise logs or this suite's own result text
 
 Runs as cerberus-transform (Athena workgroup cerberus_platform_dq, bronze read for
@@ -32,9 +40,12 @@ manifest. Checks that need ingested_at, client_id or event_family use silver.
 
 A launch run record is observability/launch/runs/<run_id>/run.json (the layout 17.4's
 launch_session.sh writes; launch_exercise.sh writes its record there too). This suite
-reads one key: `cdn_logs_collected`, which 17.4's launch_collect.sh sets to true after
-its manifest upload. A missing key means not collected. An unreadable record, or a
-value that is not a JSON boolean, is a FAIL (fail closed).
+reads two keys: `cdn_logs_collected`, which 17.4's launch_collect.sh sets to true after
+its manifest upload (a missing key means not collected), and `k6_requests`, the integer
+request count 17.4 writes (a missing or non-positive-integer value means "unknown").
+An unreadable record, or a `cdn_logs_collected` that is not a JSON boolean, is a FAIL
+(fail closed). dbt shows the same label in fct_cdn_run.logs_status (launch_exercise.sh
+passes the counts as the dbt var `k6_requests_by_run`).
 """
 
 import argparse
@@ -57,6 +68,8 @@ ACCOUNT_RE = re.compile(r"(?<!\d)\d{12}(?!\d)")
 ARN_RE = re.compile(r"arn:aws[a-z-]*:")
 
 # The generator's constants (generate_bulk_downloads.py; a test compares them).
+THRESHOLD_PCT = 99  # ADR 0030 Decision 13: below 99% the CDN marts are labelled partial
+WARNING_CHECKS = {"cdn_logs_present", "cdn_logs_complete"}
 TITLE_BYTES = 212 * 10**9
 WINDOW_START = "2026-11-10 00:00:00"
 WINDOW_END = "2026-11-22 00:00:00"
@@ -216,8 +229,9 @@ def read_manifest(s3, bucket, run_id):
 
 
 def collected_runs(records_dir):
-    """(run_ids whose record says CDN logs were collected, problems reading records)."""
-    runs, problems = [], []
+    """({run_id: k6_requests or None} for records that say CDN logs were collected,
+    problems reading records). k6_requests is None unless a positive integer."""
+    runs, problems = {}, []
     directory = Path(records_dir)
     if not directory.is_dir():
         return runs, problems
@@ -234,10 +248,12 @@ def collected_runs(records_dir):
                 run_id = record.get("run_id")
                 if not isinstance(run_id, str) or not RUN_ID_RE.match(run_id):
                     raise ValueError("cdn_logs_collected without a valid run_id")
-                runs.append(run_id)
+                k6 = record.get("k6_requests")
+                valid = isinstance(k6, int) and not isinstance(k6, bool) and k6 > 0
+                runs[run_id] = k6 if valid else None
         except (OSError, ValueError) as exc:
             problems.append(f"{name}: {exc}")
-    return sorted(set(runs)), problems
+    return runs, problems
 
 
 def cdn_check(records_dir):
@@ -255,7 +271,7 @@ def cdn_check(records_dir):
             "about": about,
             "result": {"violations": 0, "detail": "skipped, telemetry only", "skipped": True},
         }
-    values = ", ".join(f"('{run}')" for run in runs)
+    values = ", ".join(f"('{run}')" for run in sorted(runs))
     return {
         "name": "cdn_logs_present",
         "about": about,
@@ -269,6 +285,39 @@ FROM (SELECT r.run_id, count(c.request_id) AS n
       LEFT JOIN fct_cdn_requests c ON c.run_id = r.run_id GROUP BY r.run_id)"""
         ],
     }
+
+
+def complete_check(records_dir):
+    """Check 9: distinct x-edge-request-id rows per run versus k6_requests (>= 99%)."""
+    runs, problems = collected_runs(records_dir)
+    about = "CDN log lines per run versus the k6 request count (99% = complete)"
+    name = "cdn_logs_complete"
+    if problems:
+        detail = "unreadable record: " + "; ".join(problems)
+        return {"name": name, "about": about, "result": {"violations": None, "detail": detail}}
+    if not runs:
+        return {
+            "name": name,
+            "about": about,
+            "result": {"violations": 0, "detail": "skipped, telemetry only", "skipped": True},
+        }
+    unknown = sorted(run for run, k6 in runs.items() if k6 is None)
+    sqls = [
+        f"""/* check:cdn_logs_complete */
+SELECT if(count(DISTINCT request_id) * 100 < {THRESHOLD_PCT} * {k6}, 1, 0) AS violations,
+       '{run}: ' || cast(count(DISTINCT request_id) AS varchar)
+       || ' log lines of {k6} k6 requests' AS detail
+FROM fct_cdn_requests WHERE run_id = '{run}'"""
+        for run, k6 in sorted(runs.items())
+        if k6 is not None
+    ]
+    check = {"name": name, "about": about, "unknown_runs": unknown}
+    if sqls:
+        check["sqls"] = sqls
+    else:
+        detail = f"unknown: no k6_requests in the record of {', '.join(unknown)}"
+        check["result"] = {"violations": 0, "detail": detail}
+    return check
 
 
 def scan_text(text):
@@ -363,6 +412,43 @@ def run_queries(athena, checks, poll_seconds=1.0):
     return scanned
 
 
+def entry_for(check):
+    """One result row. status: pass, fail, skipped, warning, partial or unknown.
+
+    An unreadable result (violations None) is always a fail. Of the warning checks
+    only a real finding is a warning: it is not a pass and not a fail."""
+    result = check["result"]
+    name, violations = check["name"], result["violations"]
+    entry = {"name": name, "severity": "error", "about": check["about"], **result}
+    if violations is None:
+        status = "fail"
+    elif result.get("skipped"):
+        status = "skipped"
+    elif name == "cdn_logs_complete":
+        if violations > 0:
+            status = "partial"
+        elif check.get("unknown_runs"):
+            status = "unknown"
+        else:
+            status = "complete"
+    elif violations == 0:
+        status = "pass"
+    elif name in WARNING_CHECKS:
+        status = "warning"
+    else:
+        status = "fail"
+    if name in WARNING_CHECKS:
+        entry["severity"] = "warning"
+        if violations is None:
+            entry["severity"] = "error"
+        if status == "unknown" and check.get("unknown_runs"):
+            entry["detail"] = (
+                f"{entry['detail']}; unknown (no k6_requests): " + ", ".join(check["unknown_runs"])
+            )[:300]
+    entry.update(status=status, passed=status in ("pass", "complete", "skipped"))
+    return entry
+
+
 def run_suite(
     session,
     run_id,
@@ -385,7 +471,7 @@ def run_suite(
     first = count_check(run_id, manifest)
     if manifest is None:
         first["result"] = {"violations": None, "detail": manifest_error}
-    checks = [first] + silver_checks(run_id) + [cdn_check(records_dir)]
+    checks = [first] + silver_checks(run_id) + [cdn_check(records_dir), complete_check(records_dir)]
     # Gold check 7 sits after the silver checks in the printed order; keep the plan's order.
     order = [
         "bronze_to_silver_count",
@@ -396,33 +482,24 @@ def run_suite(
         "no_license_before_release",
         "gold_sessions_match_silver",
         "cdn_logs_present",
+        "cdn_logs_complete",
     ]
     checks.sort(key=lambda c: order.index(c["name"]))
     scanned = run_queries(athena, [c for c in checks if "result" not in c], poll_seconds)
 
     results = []
     for check in checks:
-        result = check["result"]
-        entry = {"name": check["name"], "severity": "error", "about": check["about"]}
-        entry.update(result, passed=result["violations"] == 0)
-        results.append(entry)
+        results.append(entry_for(check))
     text = json.dumps(results)
     paths = DEFAULT_SCAN if scan_paths is None else scan_paths
     last = scan_check([str(p) for p in paths], set(explicit_scan), text)
-    result = last["result"]
-    results.append(
-        {
-            "name": last["name"],
-            "severity": "error",
-            "about": last["about"],
-            **result,
-            "passed": result["violations"] == 0,
-        }
-    )
-    errors = sum(1 for r in results if not r["passed"])
+    results.append(entry_for(last))
+    errors = sum(1 for r in results if r["status"] == "fail")
+    warnings = sum(1 for r in results if r["status"] in ("warning", "partial", "unknown"))
     return {
         "passed": errors == 0,
         "errors": errors,
+        "warnings": warnings,
         "checks": results,
         "run_id": run_id,
         "bytes_scanned": scanned,
@@ -432,13 +509,13 @@ def run_suite(
 
 def print_suite(suite):
     for r in suite["checks"]:
-        mark = "ok  " if r["passed"] else "FAIL"
-        if r.get("skipped"):
-            mark = "skip"
+        marks = {"pass": "ok  ", "complete": "ok  ", "skipped": "skip", "fail": "FAIL"}
+        mark = marks.get(r["status"], "WARN")
         print(f"  {mark} {r['name']:30} {str(r['violations']):>8}  {r['detail']}")
     verdict = "PASSED" if suite["passed"] else "FAILED"
     print(
         f"  downloads data quality {verdict}: {suite['errors']} error(s), "
+        f"{suite['warnings']} warning(s), "
         f"{suite['bytes_scanned'] / 1e6:.1f} MB scanned in {suite['seconds']}s"
     )
 

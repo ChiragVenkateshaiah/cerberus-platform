@@ -39,6 +39,8 @@ models:
 vars:
   enable_downloads: false
   enable_downloads_cdn: false
+  # {run_id: k6 request count}; launch_exercise.sh fills it. Empty = logs_status unknown.
+  k6_requests_by_run: {}
   release_utc: "2026-11-19 00:00:00"
 
 sources:

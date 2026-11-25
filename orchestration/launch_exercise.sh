@@ -359,7 +359,7 @@ write_record "silver_done"
 
 # dbt runs locally as cerberus-transform. The CDN models need real log files in
 # bronze (launch-collect); an unreadable listing leaves them off, and data-quality
-# check 8 then fails if a run record says logs were collected.
+# check 8 then warns (and check 9 fails to query) if a run record says logs were collected.
 # The backticks below are JMESPath literals, not shell.
 # shellcheck disable=SC2016
 CDN_KEYS="$(aws --profile "$TRANSFORM_PROFILE" --region "$REGION" s3api list-objects-v2 \
@@ -370,13 +370,31 @@ case "$CDN_KEYS" in
   error) CDN="false"; log "WARNING: cannot list downloads_cdn/: CDN models stay off" ;;
   *) CDN="true" ;;
 esac
+# The k6 request counts of the run records label fct_cdn_run (logs_status). A
+# record without an integer count is left out: that run reads "unknown".
+K6="$(python3 - "$RUN_DIR" <<'PY' || echo "{}"
+import glob, json, os, re, sys
+counts = {}
+for path in sorted(glob.glob(os.path.join(sys.argv[1], "*", "run.json"))):
+    try:
+        with open(path) as handle:
+            record = json.load(handle)
+        run_id, k6 = record.get("run_id"), record.get("k6_requests")
+        if (isinstance(run_id, str) and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}", run_id)
+                and isinstance(k6, int) and not isinstance(k6, bool) and k6 > 0):
+            counts[run_id] = k6
+    except (OSError, ValueError, AttributeError):
+        pass
+print(json.dumps(counts))
+PY
+)"
 log "dbt build (downloads marts, enable_downloads_cdn=$CDN)"
 DBT_RC=0
 (
   cd "$REPO/transform/dbt"
   env -u AWS_PROFILE uv run --no-project --python 3.12 --with-requirements requirements.txt \
     dbt build --select path:models/marts/downloads source:cerberus_downloads \
-    --vars "{enable_downloads: true, enable_downloads_cdn: $CDN}"
+    --vars "{enable_downloads: true, enable_downloads_cdn: $CDN, k6_requests_by_run: $K6}"
 ) || DBT_RC=$?
 
 log "data quality (downloads)"

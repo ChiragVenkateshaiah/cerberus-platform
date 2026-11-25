@@ -180,7 +180,10 @@ def test_happy_path_order_and_destroy_before_dbt(tree):
     assert has(calls, "ledger record --run-id dl-1000-") and "--kind exercise" in " ".join(calls)
     assert has(calls, "ledger correct --run-id dl-1000-")
     assert not [c for c in calls if c.startswith("ledger guard")][1:]  # the teardown never guards
-    assert "--vars {enable_downloads: true, enable_downloads_cdn: false}" in " ".join(calls)
+    assert (
+        "--vars {enable_downloads: true, enable_downloads_cdn: false, k6_requests_by_run: {}}"
+        in " ".join(calls)
+    )
 
 
 def test_cdn_models_turn_on_only_when_bronze_has_log_files(tree):

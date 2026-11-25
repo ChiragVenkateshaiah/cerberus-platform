@@ -70,7 +70,15 @@ models:
     description: >
       Per run and per POP (pop = 'ALL' is the run): hit ratio, origin misses
       and the edge's own TTFB p50 and p99. Not the k6 client TTFB.
+      logs_status is complete (at least 99% of the k6 request count), partial
+      (below 99%) or unknown (no k6 count; read it as partial).
     tests:
       - unique_combination:
           arguments:
             combination_of_columns: [run_id, pop]
+    columns:
+      - name: logs_status
+        tests:
+          - accepted_values:
+              arguments:
+                values: [complete, partial, unknown]
