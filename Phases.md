@@ -20,7 +20,7 @@ the specific "what's next" live in [checkpoint.md](checkpoint.md)._
   own work plus an ADR. This is a real checkbox in each phase below, not an
   aspiration: architecture is built by repetition, so it is tracked like any
   other deliverable. Two parts are required to check a "Well-Architected pass
-  + ADR" subtask off (3.8, 4.5, 5.5, 6.6, 7.4, 8.11, 9.7, 10.7, 11.7, 12.7, 13.7, 14.8, 15.7, 16.4), not just the ADR: also save a
+  + ADR" subtask off (3.8, 4.5, 5.5, 6.6, 7.4, 8.11, 9.7, 10.7, 11.7, 12.7, 13.7, 14.8, 15.7, 16.4, 17.10), not just the ADR: also save a
   new milestone on the `cerberus-platform` AWS Well-Architected Tool workload
   (`phase-N-<slug>-complete`). See [docs/plan.md](docs/plan.md)'s
   Architecture guiding principle and [checkpoint.md](checkpoint.md)'s
@@ -399,6 +399,34 @@ only, $0 and has no dependency. It runs after Phase 10 (10.7), before 14.2
       Dangling-link check applies only to items on or after the ADR 0029
       acceptance date
 - [ ] 16.4 Well-Architected pass + ADR
+
+## Phase 17 — Launch Day ⬜
+
+_Added 2026-11-25, numbered 17 so 10–16 keep their numbers; runs ahead of
+9.4/9.6/9.7 by owner decision. Phase 9's open items (9.2 close-out, 9.4, 9.6,
+9.7) pause until Mon 2026-11-30. Budget: owner-approved ceiling $40, stop at
+$25 attributable spend. The plan is
+[docs/plans/2026-11-25-launch-day.md](docs/plans/2026-11-25-launch-day.md)._
+
+- [ ] 17.0 Phases.md, docs/plan.md and README get Phase 17; the plan is saved
+      in `docs/plans/`
+- [ ] 17.1 ADR 0030: launch day, a second event family and a per-session
+      delivery edge (via `/decision`)
+- [ ] 17.2 Generator `generate_bulk_downloads.py`: deterministic, two-pass
+      congestion, unit tests, 10k-event sample
+- [ ] 17.3 Terraform: `modules/launch_edge` and `envs/dev-launch` (buckets,
+      distribution, key group, release function, logging, load generator,
+      alarm)
+- [ ] 17.4 Session tooling: scenarios, k6 scripts, byte guard, `launch-*`
+      Make targets
+- [ ] 17.5 Silver job `promote_downloads_spark.py`, `launch-exercise`, dbt
+      `marts/downloads/` and the data-quality suite
+- [ ] 17.6 Live runs (owner): smoke, then pre-load, release, probe and the
+      100M-event telemetry; `launch-check` shows 0 resources
+- [ ] 17.7 Results document and charts, every number traced to a run record
+- [ ] 17.8 LinkedIn article, owner publishes by Sun 2026-11-29
+- [ ] 17.9 Teardown proof and Cost Explorer read (Mon 2026-11-30)
+- [ ] 17.10 Well-Architected pass + ADR
 
 ---
 

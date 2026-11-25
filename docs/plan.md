@@ -32,6 +32,9 @@ build, automate, and operate a data platform.
 5. **Cost discipline is a feature.** Free tier wherever possible; non-free
    resources (notably EKS) are spun up per-exercise and destroyed immediately.
    `terraform destroy` is part of the workflow, not an afterthought.
+   Phase 17 is an exception to the $20/month guardrail: owner-approved
+   2026-11-25 for Phase 17: ceiling $40, stop at $25 attributable; terms in
+   ADR 0030 (17.1).
 6. **Decisions are recorded.** Every significant choice becomes a numbered ADR
    in `docs/adr/`.
 7. **The build leads, courses follow.** Building this platform is the primary
@@ -154,6 +157,7 @@ layered on top of a platform that already works.
 | 14 | AI operations agents | Claude on Amazon Bedrock (Converse API tool use), a local MCP server over the read-only command set, an evaluation set replayed from past runs | _(Amazon Bedrock docs; MCP specification; Anthropic tool-use and evaluation docs)_ | ⬜ Planned |
 | 15 | Public showcase | A sanitised metrics snapshot on the standing edge (S3 + CloudFront), an interactive run explorer, a Databricks partner column from Phase 11 | _(CloudFront docs)_ | ⬜ Planned |
 | 16 | Development traceability | A generated record linking each subtask to its ADR, plan, PR and run record (`history.json`), shown on the site and as a Databricks AI/BI dashboard | _(Git documentation, merge commits; ADR 0029)_ | ⬜ Planned |
+| 17 | Launch Day | A modelled game-launch download surge: CloudFront delivery per session, a second synthetic event family through bronze, silver and gold | _(CloudFront docs; ADR 0030, to be written in 17.1)_ | ⬜ Planned |
 
 🎯 **MVP is complete at the end of Phase 1.**
 
@@ -694,6 +698,29 @@ after Phase 10 (10.7), before 14.2. ADR 0029 (Accepted). The plan is
   site and in Databricks.
 - **Artifact:** `docs/traceability.md`, the ADR, and Well-Architected
   milestone 16.
+
+### Phase 17 — Launch Day
+_Added 2026-11-25, numbered 17 so Phases 10–16 keep their numbers. It
+supersedes the 2026-11-08 sequencing for this week only (through Sun
+2026-11-29); Phase 9 items resume Mon 2026-11-30. The plan is
+`docs/plans/2026-11-25-launch-day.md`._
+
+- **Goal:** Model a record-breaking game launch end to end, honestly and in
+  one weekend: a delivery plane (CloudFront with a pre-load window, a release
+  unlock and a day-one patch) and a telemetry plane (synthetic console
+  clients through bronze, silver and gold).
+- **Stack:** CloudFront (pay-as-you-go, Origin Shield, signed cookies, a
+  CloudFront Function and KeyValueStore), a per-session `dev-launch` root, k6
+  on one Spot instance, a deterministic Spark generator, an Iceberg silver
+  job, dbt on Athena and a data-quality suite.
+- **Honesty rule:** it models the launch and does not replicate it. Every
+  result states the scale ratio to the public peak figure, and all telemetry
+  is synthetic.
+- **Budget:** owner-approved ceiling $40, stop at $25 attributable spend.
+- **Done when:** the runs are recorded, `launch-check` shows 0 resources, every
+  published number traces to a run record or gold query, and the article is
+  published.
+- **Artifact:** `docs/launch-day-results.md`, ADR 0030 and the article.
 
 ## Planned later work (no phase number yet)
 
