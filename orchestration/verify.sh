@@ -4,7 +4,8 @@
 # branch, and it prints at most 15 lines of a failing check.
 #
 #   orchestration/verify.sh           ruff, tests, terraform fmt, shell syntax, scan
-#   orchestration/verify.sh --full    also the Docker checks (alerts, e2e, render)
+#   orchestration/verify.sh --full    also the Docker checks (alerts, e2e, render,
+#                                     downloads silver job) and the dbt gating parse
 #
 # VERIFY_BASE (default origin/main) is the base for the account-number scan.
 set -uo pipefail
@@ -49,6 +50,12 @@ check "grafana module tests (py3.9)" uv run --no-project --python 3.9 \
 # runs on the Spark image's Python 3.10.
 check "spark generator tests (py3.10)" uv run --no-project --python 3.10 \
   --with pytest==9.1.1 python -m pytest -q transform/spark/tests
+# 17.5: the downloads data-quality suite (fake boto3 clients; sqlglot parses every
+# query as Trino) and launch_exercise.sh against stubs on PATH. No AWS.
+check "launch data-quality tests (py3.10)" uv run --no-project --python 3.10 \
+  --with pytest==9.1.1 --with sqlglot==30.35.0 python -m pytest -q observability/launch
+check "launch_exercise tests (stubs)" uv run --no-project --python 3.12 \
+  --with pytest==9.1.1 python -m pytest -q orchestration/test_launch_exercise.py
 
 if [ -f tools/traceability/generate.py ]; then
   check "traceability tests" uv run --no-project --python 3.12 \
@@ -105,6 +112,13 @@ if [ "$FULL" = 1 ]; then
   check "alert rules (Docker)" make alerts-test
   check "status e2e (Docker)" make status-e2e
   check "dashboard render (Docker)" make status-render
+  # 17.5: the downloads silver job on a real Spark, and the dbt gating in both modes.
+  check "downloads silver job (Docker Spark)" env RUN_SPARK_DOCKER=1 uv run --no-project \
+    --python 3.10 --with pytest==9.1.1 python -m pytest -q \
+    transform/spark/tests/test_promote_downloads_docker.py
+  check "dbt downloads gating (dbt parse x4)" env \
+    DBT="uv run --no-project --python 3.12 --with-requirements requirements.txt dbt" \
+    transform/dbt/check_gating.sh
 fi
 
 if [ "$fail" = 0 ]; then

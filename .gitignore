@@ -85,3 +85,8 @@ console/live-check-reports/
 
 # 10.3b status-dashboard screenshots (make status-render-shots), local only.
 observability/grafana/render_check/screenshots/
+
+# 17.5: raw launch-exercise logs stay local (check 9 of the downloads data-quality
+# suite still scans them). The run records, observability/launch/runs/<run_id>/run.json,
+# are committable.
+observability/launch/exercises/

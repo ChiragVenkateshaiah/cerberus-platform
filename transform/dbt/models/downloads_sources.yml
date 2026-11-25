@@ -1,0 +1,58 @@
+version: 2
+
+# 17.5 (ADR 0030 Decision 11). A file of its own, not sources.yml, and both
+# sources are switched off in dbt_project.yml unless a launch exercise sets
+# enable_downloads: a disabled source runs no tests, so the scheduled
+# `dbt-ol build` is unchanged.
+sources:
+  - name: cerberus_downloads
+    database: awsdatacatalog
+    schema: cerberus_platform
+    tables:
+      - name: download_events
+        description: >
+          Silver event stream of the downloads family (Iceberg, written by
+          promote_downloads_spark.py), one row per event_id. The payload is
+          flattened and `run_id` comes from the bronze path.
+        columns:
+          - name: event_id
+            tests: [not_null, unique]
+          - name: event_type
+            tests:
+              - not_null
+              - accepted_values:
+                  arguments:
+                    values:
+                      [
+                        "preload_started",
+                        "chunk_completed",
+                        "stalled",
+                        "retried",
+                        "preload_completed",
+                        "license_requested",
+                        "license_granted",
+                        "patch_started",
+                        "patch_completed",
+                        "install_completed",
+                        "abandoned",
+                      ]
+          - name: occurred_at
+            tests: [not_null]
+          - name: run_id
+            tests: [not_null]
+          - name: client_id
+            tests: [not_null]
+          - name: bytes
+            tests: [not_null, non_negative]
+
+      - name: bronze_downloads_cdn
+        description: >
+          The real CloudFront log lines that launch-collect copied to bronze
+          (allowlisted fields only, no client address or user agent). Every
+          column is a string: the table keeps the files' values verbatim and
+          dbt casts them with try_cast. The run id is the `run_id=` segment of
+          "$path". The `_manifest.json` beside the parts is hidden from Athena
+          by its leading underscore and also filtered by path in the model.
+        columns:
+          - name: x_edge_request_id
+            tests: [not_null]

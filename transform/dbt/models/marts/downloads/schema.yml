@@ -1,0 +1,76 @@
+version: 2
+
+# 17.5: tests on the downloads marts. They run only in a launch exercise
+# (enable_downloads), as part of `dbt build --select path:models/marts/downloads`.
+# A failure here fails the exercise's dbt step.
+models:
+  - name: fct_download_sessions
+    description: >
+      One row per (run_id, client_id): the milestone times of one console's
+      download. Built from silver's download_events.
+    tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: [run_id, client_id]
+    columns:
+      - name: run_id
+        tests: [not_null]
+      - name: client_id
+        tests: [not_null]
+      - name: bytes_downloaded
+        tests: [not_null, non_negative]
+      - name: status
+        tests:
+          - accepted_values:
+              arguments:
+                values: ["waiting", "downloading", "installed", "abandoned"]
+
+  - name: fct_isp_minute
+    description: >
+      Per (run_id, isp, minute): active clients, modelled Gbps (bytes spread
+      over each transfer's duration) and the share of active clients that
+      stalled. Modelled from synthetic events, not measured.
+    tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: [run_id, isp, minute_at]
+    columns:
+      - name: active_clients
+        tests: [not_null, non_negative]
+      - name: modelled_gbps
+        tests: [not_null, non_negative]
+
+  - name: fct_release_window
+    description: >
+      Per (run_id, region, minute) from 60 minutes before to 6 hours after the
+      region's local release midnight.
+    tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: [run_id, region, minute_at]
+    columns:
+      - name: minutes_from_release
+        tests: [not_null]
+
+  - name: fct_cdn_requests
+    description: >
+      Real CloudFront log lines, allowlisted columns, one row per
+      x-edge-request-id.
+    columns:
+      - name: request_id
+        tests: [not_null, unique]
+      - name: run_id
+        tests: [not_null]
+      - name: requested_at
+        tests: [not_null]
+      - name: bytes
+        tests: [non_negative]
+
+  - name: fct_cdn_run
+    description: >
+      Per run and per POP (pop = 'ALL' is the run): hit ratio, origin misses
+      and the edge's own TTFB p50 and p99. Not the k6 client TTFB.
+    tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: [run_id, pop]

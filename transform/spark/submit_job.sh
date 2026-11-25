@@ -27,16 +27,28 @@ AWS_REGION="us-east-1"
 TRANSFORM_PROFILE="cerberus-transform"
 ADMIN_PROFILE="cerberus-admin"
 SILVER_BUCKET="cerberus-platform-silver-131715059025"
-SCRIPT_S3_KEY="_spark_jobs/promote_payments_spark.py"
 NAMESPACE="spark-jobs"
-APP_NAME="cerberus-promote-payments"
+
+# 17.5: the downloads silver job reuses this script through these overrides
+# (orchestration/launch_exercise.sh sets them). The defaults are the payments
+# job, so a bare ./submit_job.sh renders and runs exactly as before.
+#   APP_NAME       the SparkApplication's name
+#   SCRIPT_NAME    the Python file in this directory to upload
+#   MANIFEST_YAML  the SparkApplication YAML in this directory
+#   EXTRA_SED      a sed script applied to the rendered manifest after the
+#                  lineage substitution (placeholder values; empty by default)
+APP_NAME="${APP_NAME:-cerberus-promote-payments}"
+SCRIPT_NAME="${SCRIPT_NAME:-promote_payments_spark.py}"
+MANIFEST_YAML="${MANIFEST_YAML:-spark-application.yaml}"
+EXTRA_SED="${EXTRA_SED:-}"
+SCRIPT_S3_KEY="_spark_jobs/$SCRIPT_NAME"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 log() { echo "[$(date -u +%FT%TZ)] $*"; }
 
-log "uploading promote_payments_spark.py to s3://$SILVER_BUCKET/$SCRIPT_S3_KEY"
-aws s3 cp "$SCRIPT_DIR/promote_payments_spark.py" \
+log "uploading $SCRIPT_NAME to s3://$SILVER_BUCKET/$SCRIPT_S3_KEY"
+aws s3 cp "$SCRIPT_DIR/$SCRIPT_NAME" \
   "s3://$SILVER_BUCKET/$SCRIPT_S3_KEY" \
   --profile "$TRANSFORM_PROFILE" --region "$AWS_REGION"
 
@@ -57,12 +69,16 @@ OPENLINEAGE_URL="${OPENLINEAGE_URL:-$(cd "$SCRIPT_DIR/../../terraform/envs/dev-s
 MANIFEST="$(mktemp)"
 if [[ -n "$OPENLINEAGE_URL" ]]; then
   log "lineage: OpenLineage events -> $OPENLINEAGE_URL"
-  sed "s|__OPENLINEAGE_URL__|${OPENLINEAGE_URL}|" "$SCRIPT_DIR/spark-application.yaml" >"$MANIFEST"
+  sed "s|__OPENLINEAGE_URL__|${OPENLINEAGE_URL}|" "$SCRIPT_DIR/$MANIFEST_YAML" >"$MANIFEST"
 else
   log "lineage: no OPENLINEAGE_URL -- Spark events to the driver console only"
   sed -e 's|spark.openlineage.transport.type: "http"|spark.openlineage.transport.type: "console"|' \
     -e '/spark.openlineage.transport.url:/d' \
-    "$SCRIPT_DIR/spark-application.yaml" >"$MANIFEST"
+    "$SCRIPT_DIR/$MANIFEST_YAML" >"$MANIFEST"
+fi
+
+if [[ -n "$EXTRA_SED" ]]; then
+  sed -i -e "$EXTRA_SED" "$MANIFEST"
 fi
 
 log "submitting $APP_NAME"

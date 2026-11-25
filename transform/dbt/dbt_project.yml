@@ -23,3 +23,28 @@ models:
       # prefix -- new metadata included (ICEBERG_MISSING_METADATA, 2026-10-08).
       +table_type: iceberg
       +s3_data_naming: schema_table_unique
+      downloads:
+        +enabled: "{{ var('enable_downloads', false) }}"
+        fct_cdn_requests:
+          +enabled: "{{ var('enable_downloads', false) and var('enable_downloads_cdn', false) }}"
+        fct_cdn_run:
+          +enabled: "{{ var('enable_downloads', false) and var('enable_downloads_cdn', false) }}"
+
+# 17.5 (ADR 0030 Decision 11): the downloads marts and sources are off unless a
+# `launch-exercise` run turns them on with --vars. The scheduled `dbt-ol build`
+# never sets these, so it builds no downloads model and runs no downloads source
+# test. (17.5a gives the Fargate dbt role the reads; it does not use them yet.)
+# `enable_downloads_cdn` also needs `enable_downloads`.
+# `release_utc` is the generator's RELEASE_UTC_MS (a test compares them).
+vars:
+  enable_downloads: false
+  enable_downloads_cdn: false
+  release_utc: "2026-11-19 00:00:00"
+
+sources:
+  cerberus_platform:
+    cerberus_downloads:
+      download_events:
+        +enabled: "{{ var('enable_downloads', false) }}"
+      bronze_downloads_cdn:
+        +enabled: "{{ var('enable_downloads', false) and var('enable_downloads_cdn', false) }}"

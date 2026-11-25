@@ -1,0 +1,163 @@
+# Cerberus 17.5 -- the downloads silver job (ADR 0030 Decision 9), submitted
+# by orchestration/launch_exercise.sh through submit_job.sh, not
+# Terraform-managed: a job run, not standing infrastructure.
+#
+# A copy of spark-application.yaml (read that file for how the image, the
+# hadoop-aws pairing, the Iceberg 1.10.2 pin, the Ivy path, the metrics and the
+# dynamic-allocation settings were chosen and verified). Differences:
+#   - name cerberus-promote-downloads, and the script is
+#     promote_downloads_spark.py.
+#   - no account ID in this file. submit_job.sh substitutes __SILVER_BUCKET__,
+#     __BRONZE_ROOT__ and __WAREHOUSE__ (through EXTRA_SED) and
+#     __OPENLINEAGE_URL__, as for payments.
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: cerberus-promote-downloads
+  namespace: spark-jobs
+spec:
+  type: Python
+  pythonVersion: "3"
+  mode: cluster
+  image: "apache/spark:3.5.9"
+  imagePullPolicy: IfNotPresent
+  sparkVersion: "3.5.9"
+  # Uploaded by submit_job.sh to the silver bucket's _spark_jobs/ prefix, which
+  # cerberus-spark already reads (see spark-application.yaml).
+  mainApplicationFile: "s3a://__SILVER_BUCKET__/_spark_jobs/promote_downloads_spark.py"
+  arguments:
+    - "--bronze-root"
+    - "__BRONZE_ROOT__"
+    - "--warehouse"
+    - "__WAREHOUSE__"
+  restartPolicy:
+    type: Never
+  deps:
+    # aws-java-sdk-bundle is pulled in transitively by hadoop-aws's own POM
+    # at the matching version -- not pinned separately here to avoid hand-
+    # picking a pair that doesn't actually match.
+    #
+    # openlineage-spark_2.12 (6.4c): the OpenLineage Spark listener. Scala
+    # 2.12 suffix matches apache/spark:3.5.9. Resolved via Ivy the same way
+    # hadoop-aws is. Verified live 2026-09-07 on a dev-compute exercise:
+    # 1.53.0 resolves and pairs cleanly with Spark 3.5.9, the listener
+    # loads, and the job's bronze -> silver write emitted dataset +
+    # column-level lineage to the 6.4b collector (job COMPLETED, silver
+    # 8,723 rows intact).
+    #
+    # Iceberg (8.5, ADR 0017): the Spark 3.5 / Scala 2.12 runtime and the AWS
+    # bundle (Glue catalog + S3FileIO, AWS SDK v2). 1.10.2 is the newest
+    # release that runs here: 1.11.0 and 1.12.0 are built for Java 17
+    # (class file 61) and apache/spark:3.5.9 runs Java 11 -- both failed
+    # locally with UnsupportedClassVersionError on 2026-10-08, and 1.10.2
+    # passed the same MERGE/append tests. The catalog itself is configured
+    # in promote_downloads_spark.py, not here.
+    packages:
+      - org.apache.hadoop:hadoop-aws:3.3.4
+      - io.openlineage:openlineage-spark_2.12:1.53.0
+      - org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.10.2
+      - org.apache.iceberg:iceberg-aws-bundle:1.10.2
+  sparkConf:
+    spark.hadoop.fs.s3a.aws.credentials.provider: "com.amazonaws.auth.WebIdentityTokenCredentialsProvider"
+    # The Spark Operator's controller resolves `deps.packages` locally via
+    # Ivy *inside its own pod* before ever creating a driver -- and that
+    # pod's $HOME is /nonexistent (a hardened non-root container), so Ivy's
+    # default $HOME/.ivy2 cache path fails outright. Point it at /tmp
+    # instead, which is writable in any container. Discovered live: the
+    # first submission attempt failed with a FileNotFoundException under
+    # /nonexistent/.ivy2.5.2/cache before a driver pod was ever scheduled.
+    spark.jars.ivy: "/tmp/.ivy2"
+    # 6.4c: OpenLineage listener -> the 6.4b collector. __OPENLINEAGE_URL__
+    # is substituted by entrypoint_transform.sh / submit_job.sh from the
+    # OPENLINEAGE_URL env var before `kubectl apply`; when that var is
+    # unset those scripts rewrite transport.type to "console" and drop the
+    # url line, so a manual submit without it still works. The http
+    # transport POSTs to <url>/api/v1/lineage (the collector's route).
+    # timeout caps each POST so a collector outage can't stall the job.
+    spark.extraListeners: "io.openlineage.spark.agent.OpenLineageSparkListener"
+    spark.openlineage.transport.type: "http"
+    spark.openlineage.transport.url: "__OPENLINEAGE_URL__"
+    spark.openlineage.transport.timeout: "10"
+    spark.openlineage.namespace: "cerberus-platform"
+    # 7.7 (ADR 0016): metrics for the in-cluster Prometheus agent
+    # (terraform/modules/eks_observability), which scrapes the driver pod's
+    # UI port 4040 -- no new dependency, both endpoints are built into Spark.
+    #   /metrics/prometheus/            the PrometheusServlet sink (driver
+    #                                   metrics system: DAGScheduler, JVM...)
+    #   /metrics/executors/prometheus/  per-executor summary, behind
+    #                                   spark.ui.prometheus.enabled
+    # Both are marked experimental in Spark's docs.
+    spark.ui.prometheus.enabled: "true"
+    spark.metrics.conf.*.sink.prometheusServlet.class: "org.apache.spark.metrics.sink.PrometheusServlet"
+    spark.metrics.conf.*.sink.prometheusServlet.path: "/metrics/prometheus"
+    # The JVM source isn't registered by default -- without it there is no
+    # driver heap/GC data at all.
+    spark.metrics.conf.driver.source.jvm.class: "org.apache.spark.metrics.source.JvmSource"
+    # Metric names otherwise embed spark.app.id, minting a new set of series
+    # names every run. A fixed namespace keeps them stable across runs (the
+    # dashboard queries metrics_cerberus_driver_*).
+    spark.metrics.namespace: "cerberus"
+    # 8.8 (ADR 0020): dynamic allocation. Kubernetes has no external
+    # shuffle service, so shuffle tracking is required: an executor that
+    # still holds shuffle output isn't released until that output is no
+    # longer needed (or the tracking timeout passes). The job starts with
+    # executor.instances (below) and can grow to maxExecutors; executors it
+    # can't place make pods Pending, which is what Cluster Autoscaler scales
+    # the Spot group on. Idle executors leave after 30 s.
+    spark.dynamicAllocation.enabled: "true"
+    spark.dynamicAllocation.shuffleTracking.enabled: "true"
+    spark.dynamicAllocation.shuffleTracking.timeout: "300s"
+    spark.dynamicAllocation.minExecutors: "1"
+    spark.dynamicAllocation.initialExecutors: "2"
+    spark.dynamicAllocation.maxExecutors: "16"
+    spark.dynamicAllocation.executorIdleTimeout: "30s"
+    # 8.9 (100M): 16 executors = the executor group's max of 4 nodes x 4
+    # (8 until 8.9). And more shuffle partitions to start from: at 100M the
+    # shuffle is ~36 GB (3.3 GB at 9M), ~180 MB a partition at the default
+    # 200. AQE coalesces small partitions but never splits large ones, so
+    # start at 800 (~45 MB) and let it coalesce -- at 9M it still ends near
+    # the ~30 partitions 8.6 measured.
+    spark.sql.shuffle.partitions: "800"
+    # 8.8: decommissioning, for Spot. When EKS drains a reclaimed Spot
+    # node, an executor that is being shut down first migrates its shuffle
+    # and cached blocks to the remaining executors, so the stages after it
+    # need not recompute them (shuffleBlocks / rddBlocks default to true).
+    # With dynamic allocation on, Spark also decommissions -- rather than
+    # kills -- the executors it releases. Best effort: blocks that don't
+    # make it in time are recomputed. No fallback storage (it would need
+    # an S3 path the job may write, and Spark never cleans it up).
+    spark.decommission.enabled: "true"
+    spark.storage.decommission.enabled: "true"
+    spark.executor.decommission.forceKillTimeout: "90s"
+  # 8.6 (10M step): two 2 GB executors in place of one 1 GB executor --
+  # the "after" of the 10M before/after pair. Same requests as
+  # spark-application-generate.yaml: driver 500m and executors 800m CPU,
+  # so a driver and two executors fit on the two m7i-flex.large nodes
+  # beside the system and monitoring pods. Each executor still runs one
+  # task at a time.
+  driver:
+    cores: 1
+    coreRequest: "500m"
+    memory: "1g"
+    serviceAccount: cerberus-spark
+    labels:
+      version: "3.5.9"
+    # ADR 0020: the driver stays on On-Demand -- losing it loses the run.
+    # (It can't land on the Spot nodes anyway: it doesn't tolerate their
+    # taint. The selector says so explicitly.)
+    nodeSelector:
+      eks.amazonaws.com/capacityType: ON_DEMAND
+  executor:
+    cores: 1
+    coreRequest: "800m"
+    instances: 2  # 8.8: the starting count; dynamic allocation then runs 1-16
+    memory: "2g"
+    labels:
+      version: "3.5.9"
+    # ADR 0020: executors run on the Spot executor nodes, and only there.
+    nodeSelector:
+      eks.amazonaws.com/capacityType: SPOT
+    tolerations:
+      - key: cerberus/spot
+        operator: Exists
+        effect: NoSchedule
