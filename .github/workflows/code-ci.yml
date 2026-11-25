@@ -71,6 +71,10 @@ jobs:
       - name: pytest
         run: pytest observability/spark_progress
 
+      # 17.2: the downloads generator core (pure Python, no pyspark).
+      - name: pytest spark generator
+        run: pytest transform/spark/tests
+
   # 10.2b (ADR 0021 amendment): the status publisher core (run record to
   # series, remote-write encoding, dry run) and, in 10.2d, the AWS send path
   # against fake clients. boto3 (botocore) is installed only so the SigV4

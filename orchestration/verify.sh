@@ -43,6 +43,10 @@ check "status tests" uv run --no-project --python 3.12 \
   --with pytest==9.1.1 --with boto3==1.43.67 python -m pytest -q observability/status
 check "grafana module tests (py3.9)" uv run --no-project --python 3.9 \
   --with "pytest>=8.4,<9" python -m pytest -q observability/grafana/console
+# 17.2: the downloads generator core is pure Python, so no pyspark here. It
+# runs on the Spark image's Python 3.10.
+check "spark generator tests (py3.10)" uv run --no-project --python 3.10 \
+  --with pytest==9.1.1 python -m pytest -q transform/spark/tests
 
 if [ -f tools/traceability/generate.py ]; then
   check "traceability tests" uv run --no-project --python 3.12 \
