@@ -82,6 +82,7 @@ across all three roots (`bootstrap`, `dev-standing`, `dev-compute`) with
 | `cerberus-admin-iam-and-governance.json` | IAM role management (`role/cerberus-*` only), `PassRole`, Well-Architected Tool, budgets/cost anomaly detection, read-only Cost Explorer + tag inventory (added 7.5), CloudTrail self-audit, API Gateway |
 | `cerberus-admin-console-edge.json` | Demo console, standing edge (9.2): site bucket, workgroup `cerberus_platform_console`, `cerberus-console-*` Lambda, CloudFront (create and change only with the `Project` tag), Cognito user pools |
 | `cerberus-admin-console-host.json` | Demo console, session host (9.2): EC2 describe, tag-scoped terminate, security group ingress, AMI alias, Session Manager, instance profile and `PassRole` to EC2 for `cerberus-console-grafana*`, and `policy/cerberus-ci-apply-*` management |
+| `cerberus-admin-launch.json` | Launch day (17.3a, [ADR 0030](../../docs/adr/0030-launch-day.md) Decision 14), the `dev-launch` root: CloudFront public key, key group, Function and KeyValueStore, KVS data plane, vended log delivery, CloudWatch Logs v2 delivery, `cerberus-platform-launch-*` buckets, `parameter/cerberus/launch/*`, instance profile and `PassRole` to EC2 for `cerberus-launch-*`, Spot cancel. Temporary: detach after 17.9 |
 
 ### Placeholder and size
 
@@ -98,6 +99,97 @@ IAM limits a managed policy to 6,144 characters and does not count
 whitespace. Check the counted size with
 `jq -c . FILE | tr -d ' \n\t' | wc -c`. The file size with whitespace is
 larger and is not the limit.
+
+### Launch policy (17.3a): root paste and detach
+
+`cerberus-admin-launch.json` is a new ninth policy. Nothing in an existing
+file changes. Counted size: 5,081 of 6,144 characters. It holds no Deny, and
+`cerberus-admin` has 8 of 10 managed-policy slots used, so the attach fits.
+Role create, tag and policy actions for `cerberus-launch-*` are already
+covered by `IamRoleMgmt` (`role/cerberus-*`, no permissions boundary).
+`ec2:Describe*` (so `DescribeSpotInstanceRequests`), `RunInstances`,
+`CreateServiceLinkedRole` and the tag-scoped terminate also exist already.
+
+Root paste, by Thursday 2026-11-26 evening IST (fallback at Friday noon IST
+is in the ADR). Render as `cerberus-admin`, then create and attach in the
+root console. No root access key is used:
+
+```
+export AWS_PROFILE=cerberus-admin
+ACCT=$(aws sts get-caller-identity --query Account --output text)
+F=$(mktemp)
+sed "s/<ACCOUNT_ID>/${ACCT}/g" iam/cerberus-admin/policies/cerberus-admin-launch.json > "$F"
+jq -c . "$F" | tr -d ' \n\t' | wc -c        # expect 5081, limit 6144
+cat "$F"
+```
+
+1. Sign in to the console as root. Open IAM, Policies, Create policy, JSON.
+2. Paste the printed JSON. Name the policy `cerberus-admin-launch`.
+3. Open Users, `cerberus-admin`, Add permissions, Attach policies directly.
+   Attach `cerberus-admin-launch`.
+4. Sign out of root. In the shell, run `rm -f "$F"`.
+
+Then check, as `cerberus-admin`, in the same shell (so `ACCT` is set). Each
+line must print `allowed`, except where noted:
+
+```
+P="arn:aws:iam::${ACCT}:user/cerberus-admin"
+aws iam simulate-principal-policy --policy-source-arn $P --action-names cloudfront:CreatePublicKey cloudfront:CreateKeyGroup cloudfront:CreateFunction cloudfront:CreateKeyValueStore cloudfront:ListFunctions --query 'EvaluationResults[].[EvalActionName,EvalDecision]' --output text
+aws iam simulate-principal-policy --policy-source-arn $P --action-names cloudfront:PublishFunction --resource-arns "arn:aws:cloudfront::${ACCT}:function/cerberus-launch-x" --query 'EvaluationResults[].[EvalActionName,EvalDecision]' --output text
+aws iam simulate-principal-policy --policy-source-arn $P --action-names cloudfront-keyvaluestore:PutKey cloudfront-keyvaluestore:UpdateKeys --resource-arns "arn:aws:cloudfront::${ACCT}:key-value-store/x" --query 'EvaluationResults[].[EvalActionName,EvalDecision]' --output text
+aws iam simulate-principal-policy --policy-source-arn $P --action-names cloudfront:AllowVendedLogDeliveryForResource --resource-arns "arn:aws:cloudfront::${ACCT}:distribution/E1" --query 'EvaluationResults[].[EvalActionName,EvalDecision]' --output text
+aws iam simulate-principal-policy --policy-source-arn $P --action-names logs:PutDeliverySource logs:PutDeliveryDestination --resource-arns "arn:aws:logs:us-east-1:${ACCT}:delivery-source:cerberus-launch-x" "arn:aws:logs:us-east-1:${ACCT}:delivery-destination:cerberus-launch-x" --query 'EvaluationResults[].[EvalActionName,EvalResourceName,EvalDecision]' --output text
+aws iam simulate-principal-policy --policy-source-arn $P --action-names logs:DescribeDeliveries logs:DescribeConfigurationTemplates ssm:DescribeParameters ssm:DescribeInstanceInformation freetier:GetFreeTierUsage --query 'EvaluationResults[].[EvalActionName,EvalDecision]' --output text
+aws iam simulate-principal-policy --policy-source-arn $P --action-names s3:PutBucketPolicy s3:CreateBucket s3:ListBucketMultipartUploads --resource-arns arn:aws:s3:::cerberus-platform-launch-x --query 'EvaluationResults[].[EvalActionName,EvalDecision]' --output text
+aws iam simulate-principal-policy --policy-source-arn $P --action-names s3:PutObjectTagging s3:GetObjectTagging s3:AbortMultipartUpload --resource-arns arn:aws:s3:::cerberus-platform-launch-x/k --query 'EvaluationResults[].[EvalActionName,EvalDecision]' --output text
+aws iam simulate-principal-policy --policy-source-arn $P --action-names ssm:PutParameter ssm:GetParameter ssm:DeleteParameter ssm:AddTagsToResource --resource-arns "arn:aws:ssm:us-east-1:${ACCT}:parameter/cerberus/launch/cookies" --query 'EvaluationResults[].[EvalActionName,EvalDecision]' --output text
+aws iam simulate-principal-policy --policy-source-arn $P --action-names iam:CreateInstanceProfile iam:AddRoleToInstanceProfile --resource-arns "arn:aws:iam::${ACCT}:instance-profile/cerberus-launch-x" --query 'EvaluationResults[].[EvalActionName,EvalDecision]' --output text
+aws iam simulate-principal-policy --policy-source-arn $P --action-names iam:UntagRole iam:ListRoleTags iam:UpdateRole --resource-arns "arn:aws:iam::${ACCT}:role/cerberus-launch-x" --query 'EvaluationResults[].[EvalActionName,EvalDecision]' --output text
+aws iam simulate-principal-policy --policy-source-arn $P --action-names iam:PassRole --resource-arns "arn:aws:iam::${ACCT}:role/cerberus-launch-x" --context-entries ContextKeyName=iam:PassedToService,ContextKeyValues=ec2.amazonaws.com,ContextKeyType=string --query 'EvaluationResults[].[EvalActionName,EvalDecision]' --output text
+aws iam simulate-principal-policy --policy-source-arn $P --action-names ec2:CancelSpotInstanceRequests --resource-arns "arn:aws:ec2:us-east-1:${ACCT}:spot-instances-request/sir-1" --query 'EvaluationResults[].[EvalActionName,EvalDecision]' --output text
+```
+
+Must be `implicitDeny` (the scope holds): `cloudfront:PublishFunction` on
+`function/cerberus-console-x`, `s3:PutBucketPolicy` on
+`cerberus-platform-bronze-${ACCT}`, `ssm:PutParameter` on
+`parameter/cerberus/other`, `iam:PassRole` on `role/cerberus-launch-x` with
+`iam:PassedToService=lambda.amazonaws.com`, `iam:AttachUserPolicy` on
+`user/cerberus-admin`, `iam:CreatePolicyVersion` on
+`policy/cerberus-admin-launch`, and `cloudfront:UpdateDistribution` on a
+distribution without the `Project` tag (no `aws:ResourceTag/Project` context).
+
+Detach after 17.9 (the cost read and the final `launch-check` of 0): in the
+root console, Users, `cerberus-admin`, remove `cerberus-admin-launch`.
+
+Deleting the policy is optional; the JSON file stays as the audit trail.
+
+Why some grants are wide:
+
+- `ec2:CancelSpotInstanceRequests` is not tag-scoped. The request ID
+  (`sir-*`) does not exist before launch, and the cancel is a cleanup action
+  on a temporary policy. It can only cancel Spot requests, not terminate
+  instances.
+- `logs:*Delivery` on `delivery:*`: a delivery ARN holds a generated ID, so
+  it cannot carry the `cerberus-launch-` prefix. The source and destination
+  ARNs stay prefixed.
+- `cloudfront:AllowVendedLogDeliveryForResource` on `distribution/*`: the
+  distribution ID does not exist until the distribution is created, so the
+  ARN cannot be named. The action only allows log delivery from a
+  distribution; it cannot change one.
+
+Risk: `IamRoleMgmt` (existing) plus `PassLaunchRoleToEc2` lets the admin
+place an admin-level role on an instance. So "cannot change its own
+policies" holds for direct calls only. This is not new in kind: the same
+holds with `PassRole` to Lambda or ECS. The detach after 17.9 removes the
+`PassRole` path.
+
+Unverified: whether `ssm:PutParameter` of a `SecureString` also needs a KMS
+grant (the default `alias/aws/ssm` key is expected to need none). The 17.6
+smoke settles it.
+
+Two limits of the checks. `simulate-principal-policy` does not model the
+request tags on `CreateDistribution`. The KeyValueStore ARN uses an ID, not
+the name, so that statement uses `key-value-store/*`.
 
 ## Changes since 7.3
 
@@ -229,3 +321,10 @@ larger and is not the limit.
   this file also carries the 10.2d `aps:RemoteWrite` change above. The steps
   are in [observability/alerts/README.md](../../observability/alerts/README.md#putting-the-rules-live-owner).
   This line is updated when the paste is done.
+- **2026-11-25 (17.3a, [ADR 0030](../../docs/adr/0030-launch-day.md) Decision 14):**
+  new file `cerberus-admin-launch.json` (ninth slot), counted size 5,081 of
+  6,144 characters. The `console-edge` file is not edited. Every action name
+  was checked against the Service Authorization JSON for `cloudfront`,
+  `cloudfront-keyvaluestore`, `logs`, `s3`, `ssm`, `iam`, `ec2` and
+  `freetier`. The paste and the detach after 17.9 are pending; this line is
+  updated when they are done.
