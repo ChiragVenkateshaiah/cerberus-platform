@@ -224,12 +224,34 @@ traceability: ## Regenerate observability/showcase/history.json and docs/traceab
 traceability-check: ## Fail if the traceability files are stale or a link dangles (what CI runs)
 	python3 tools/traceability/generate.py --check
 
-# 17.3b (ADR 0030): the per-session launch edge. launch-session, launch-destroy,
-# launch-check and launch-collect belong to 17.4.
+# 17.3b (ADR 0030): the per-session launch edge. The 17.4 targets sit between
+# launch-plan and launch-function-test; launch-exercise (17.5) goes at the end of the file.
 .PHONY: launch-plan launch-function-test
 launch-plan: ## READ-ONLY, owner-run: init dev-launch against the shared state backend, then terraform plan with no load generator (applies nothing)
 	@TF_BIN=$(TF_BIN) orchestration/launch_init.sh && \
 	$(TF_BIN) -chdir=$(TF_LAUNCH_DIR) plan -var create_load_gen=false
+
+# 17.4 (ADR 0030): the launch session tooling. Pass flags with ARGS, for
+# example `make launch-session SCENARIO=bcd MINUTES=90 ARGS=--yes`. SCENARIO,
+# MINUTES, PREWARM and HOLD reach the script through the environment.
+.PHONY: launch-baseline launch-session launch-collect launch-check launch-destroy launch-test
+launch-baseline: ## READ-ONLY (Cost Explorer), owner-run once before Run A: write launch/cost_baseline.json (November Usage through 11-24, credits excluded)
+	python3 launch/ledger.py baseline
+
+launch-session: ## AWS WRITE, owner-run: one launch session (SCENARIO, MINUTES, PREWARM, HOLD; ARGS=--dry-run prints the plan and calls nothing)
+	@TF_BIN=$(TF_BIN) orchestration/launch_session.sh $(ARGS)
+
+launch-collect: ## AWS WRITE (bronze), owner-run: copy the CDN logs of RUN_ID to bronze (checked against the field allowlist first; repeatable)
+	@orchestration/launch_collect.sh $(RUN_ID)
+
+launch-check: ## READ-ONLY: report 0 for every launch resource; exit 1 on any leftover or unreadable value
+	@TF_BIN=$(TF_BIN) orchestration/launch_check.sh
+
+launch-destroy: ## AWS WRITE, owner-run: stage 1 (leftover cookie parameter) and stage 2 destroy of dev-launch, then launch-check. Needs no shell state
+	@TF_BIN=$(TF_BIN) orchestration/launch_destroy.sh
+
+launch-test: ## offline: pytest of the launch tooling (stubs aws, terraform, openssl, k6 and curl on PATH)
+	uv run --no-project --python 3.12 --with pytest==9.1.1 python -m pytest -q launch/tests
 
 launch-function-test: ## offline: node tests of the /license Function and the launch edge Terraform (no AWS, no network)
 	node --test terraform/modules/launch_edge/function/license.test.mjs terraform/modules/launch_edge/static.test.mjs

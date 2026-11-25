@@ -1,7 +1,7 @@
 # The Spot load generator (ADR 0030 Decision 6). PREWARM has no instance:
 # create_load_gen defaults to false and every resource here has count 0.
-# 17.4 fixes the k6 pin and the size (variables k6_version, k6_sha256 and
-# instance_type; the first two are unused until then).
+# 17.4: the k6 pin (k6_version, k6_sha256), the nftables byte budget
+# (budget_bytes) and the self-run from user data (no SendCommand path exists).
 #
 # Security review 2026-11-25 (docs/plans/2026-11-25-launch-edge.md):
 # - the role does NOT attach AmazonSSMManagedInstanceCore, which reads any SSM
@@ -57,6 +57,16 @@ resource "aws_iam_role_policy" "load_gen" {
         Resource = ["${aws_s3_bucket.build.arn}/build/*", "${aws_s3_bucket.build.arn}/patch/*"]
       },
       {
+        # Beyond ADR 0030 Decision 6 ("seed writes"): the generator writes the
+        # k6 summaries and the seeded/done markers under results/. Nothing else.
+        # Added in 17.4 because the admin policy has no SendCommand; the owner
+        # decides on it (escalate: opus-security).
+        Sid      = "ResultsWrite"
+        Effect   = "Allow"
+        Action   = "s3:PutObject"
+        Resource = "${aws_s3_bucket.build.arn}/results/*"
+      },
+      {
         Sid      = "ReadScenarios"
         Effect   = "Allow"
         Action   = "s3:GetObject"
@@ -97,8 +107,10 @@ resource "aws_iam_instance_profile" "load_gen" {
 }
 
 # No ingress. Egress is HTTPS only: the VPC resolver is not filtered by a
-# security group (same note as dev-console). If the per-client DNS of ADR 0030
-# Decision 6 needs another resolver, add tcp and udp 53 egress in 17.4.
+# security group (same note as dev-console). 17.4 checked this against the
+# existing rules and added no port 53 rule: k6 per-client DNS (ttl 0, random
+# select) uses the VPC resolver. If Run A shows lookups failing, add tcp and udp
+# 53 egress then (unverified until Run A).
 resource "aws_security_group" "load_gen" {
   count       = local.gen_count
   name        = local.gen_name
@@ -156,12 +168,14 @@ resource "aws_instance" "load_gen" {
 
   user_data = templatefile("${path.module}/user_data.sh.tftpl", {
     shutdown_minutes = local.shutdown_minutes
+    minutes          = var.minutes
     region           = var.region
     build_bucket     = aws_s3_bucket.build.bucket
     cookie_parameter = var.cookie_parameter_name
     domain_name      = aws_cloudfront_distribution.this.domain_name
     k6_version       = var.k6_version
     k6_sha256        = var.k6_sha256
+    budget_bytes     = var.budget_bytes
   })
   user_data_replace_on_change = true
 
@@ -169,6 +183,14 @@ resource "aws_instance" "load_gen" {
   # cerberus-admin terminate and StartSession grants test it.
   tags        = merge(local.tags, { Name = local.gen_name })
   volume_tags = merge(local.tags, { Name = local.gen_name })
+
+  # Fail closed: an instance with no byte budget never starts.
+  lifecycle {
+    precondition {
+      condition     = var.budget_bytes > 0
+      error_message = "budget_bytes must be above 0 when the load generator is created (launch/plan_bytes.py prints it)."
+    }
+  }
 
   depends_on = [aws_iam_role_policy.load_gen]
 }

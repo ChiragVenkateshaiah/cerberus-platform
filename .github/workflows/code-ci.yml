@@ -29,6 +29,8 @@ on:
       - "terraform/envs/dev-launch/**"
       - "terraform/modules/launch_edge/**"
       - "orchestration/launch_init.sh"
+      - "orchestration/launch_*.sh"
+      - "launch/**"
       - "pyproject.toml"
       - "requirements-dev.txt"
       - ".github/workflows/code-ci.yml"
@@ -225,6 +227,20 @@ jobs:
 
       - name: license Function and Terraform static tests
         run: node --test terraform/modules/launch_edge/function/license.test.mjs terraform/modules/launch_edge/static.test.mjs
+
+      # 17.4: the launch tooling. Stubs for aws, terraform, openssl, k6 and curl
+      # are put on PATH by the tests; there is no AWS access and no network.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: shellcheck (launch scripts)
+        run: shellcheck orchestration/launch_*.sh
+
+      - name: pytest launch
+        run: |
+          pip install --quiet pytest==9.1.1
+          python -m pytest -q launch/tests
 
   # 16.2 (ADR 0029): the traceability record. Full history (fetch-depth: 0) is
   # needed because the generator reads the PR merge commits from `git log`; it

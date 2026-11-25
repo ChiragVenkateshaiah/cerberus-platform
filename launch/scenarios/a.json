@@ -1,0 +1,16 @@
+{
+  "name": "a",
+  "description": "Run A: one client, the full build, then licence 403, wait for the release, licence 200, then the patch",
+  "runs": [
+    {
+      "id": "a",
+      "workloads": [
+        {
+          "kind": "sequence",
+          "name": "client",
+          "steps": ["fetch:build", "licence:403", "wait:release", "licence:200", "fetch:patch"]
+        }
+      ]
+    }
+  ]
+}

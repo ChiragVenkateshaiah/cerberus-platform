@@ -1,0 +1,20 @@
+{
+  "description": "Object sets and planning constants for the launch scenarios (ADR 0030, docs/plans/2026-11-25-launch-day-decision.md section 2).",
+  "chunk_bytes": 67108864,
+  "licence_bytes": { "200": 17, "403": 18 },
+  "sets": {
+    "build": { "prefix": "build", "manifest": "build/manifest.json", "chunks": 64 },
+    "patch": { "prefix": "patch", "manifest": "patch/manifest.json", "chunks": 8 },
+    "patch2": { "prefix": "patch", "manifest": "patch/manifest-2.json", "chunks": 8 }
+  },
+  "timing_unverified": {
+    "boot_minutes": 10,
+    "seed_mb_per_s": 25,
+    "client_mbit_per_s": 200,
+    "link_gbit_per_s": 4,
+    "release_margin_minutes": 5,
+    "prep_minutes": 5,
+    "slack_minutes": 15,
+    "drain_minutes": 1
+  }
+}

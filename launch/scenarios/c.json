@@ -1,0 +1,15 @@
+{
+  "name": "c",
+  "description": "Run C: release at T0. The patch for 50 clients, 1,000,000 licence requests (rate bounded), and 20 late clients that each download the full build.",
+  "runs": [
+    {
+      "id": "c",
+      "gate": "release",
+      "workloads": [
+        { "kind": "fetch", "name": "patch", "set": "patch", "clients": 50 },
+        { "kind": "licence", "name": "licence", "total": 1000000, "vus": 250, "rate_cap_per_s": 1667 },
+        { "kind": "fetch", "name": "late", "set": "build", "clients": 20 }
+      ]
+    }
+  ]
+}

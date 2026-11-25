@@ -1,0 +1,12 @@
+{
+  "name": "b",
+  "description": "Run B: pre-load. 50 clients each download the full build, started over 30 minutes. It does not wait for the release.",
+  "runs": [
+    {
+      "id": "b",
+      "workloads": [
+        { "kind": "fetch", "name": "preload", "set": "build", "clients": 50, "ramp_minutes": 30 }
+      ]
+    }
+  ]
+}

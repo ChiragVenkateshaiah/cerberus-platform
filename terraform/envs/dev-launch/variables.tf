@@ -23,25 +23,31 @@ variable "minutes" {
 }
 
 variable "shutdown_margin_minutes" {
-  description = "The instance shuts itself down at boot + minutes + this margin (17.4 may change it)."
+  description = "The instance shuts itself down at boot + minutes + this margin (unverified)."
   type        = number
-  default     = 45
+  default     = 30
 }
 
 variable "instance_type" {
-  description = "Load generator instance type (unverified default; 17.4 fixes the size)."
+  description = "Load generator instance type (unverified default)."
   type        = string
   default     = "c6gn.xlarge"
 }
 
 variable "k6_version" {
-  description = "Pinned k6 version (empty until 17.4)."
+  description = "Pinned k6 version (no leading v)."
   type        = string
-  default     = ""
+  default     = "2.4.0"
 }
 
 variable "k6_sha256" {
-  description = "sha256 of the pinned k6 archive (empty until 17.4)."
+  description = "sha256 of the pinned k6 linux-arm64 archive, from the release checksums file."
   type        = string
-  default     = ""
+  default     = "7bb415f59d81ad649a86f6da6b3e1bd2e4e64e84909deef13e9bca70608abccb"
+}
+
+variable "budget_bytes" {
+  description = "Ingress byte budget of the instance (planned bytes x 1.10, from launch/plan_bytes.py). 0 is refused when the instance is created."
+  type        = number
+  default     = 0
 }

@@ -1,0 +1,19 @@
+{
+  "name": "p",
+  "description": "Probe P: one client reads the build manifest through the signed edge, then downloads its first 30 chunks (run from the laptop inside a live session; SCENARIO=p alone runs it on the instance, so its TTFB source is the instance)",
+  "runs": [
+    {
+      "id": "p",
+      "workloads": [
+        {
+          "kind": "fetch",
+          "name": "probe",
+          "set": "build",
+          "clients": 1,
+          "chunks": 30,
+          "manifest_from_edge": true
+        }
+      ]
+    }
+  ]
+}

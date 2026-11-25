@@ -1,15 +1,20 @@
 #!/usr/bin/env bash
-# Launch load generator boot script (ADR 0030 Decision 6). Minimal on purpose:
-# the k6 pin and the run itself are added in 17.4. Rendered by templatefile();
-# every dollar-brace below is a Terraform value, the shell uses bare $VAR.
-# Never turn on set -x here.
+# Launch load generator boot script (ADR 0030 Decision 6, built in 17.4). The
+# instance runs the whole session by itself: the admin policy has no
+# ssm:SendCommand. Rendered by templatefile(): every dollar-brace below is a
+# Terraform value, the shell uses bare $VAR. Never turn on set -x here: the
+# cookies are read by this script.
 set -euo pipefail
 set +x
+umask 077
 
 # The backstop if the session trap dies; the instance terminates on shutdown.
 shutdown -h +${shutdown_minutes}
+# Any failure below stops the instance at once. A failed byte budget or a
+# failed k6 pin must never leave a running generator.
+trap 'rc=$?; if [ "$rc" -ne 0 ]; then shutdown -h now; fi' EXIT
 
-install -d -m 0755 /etc/cerberus-launch /opt/cerberus-launch/hooks
+install -d -m 0755 /etc/cerberus-launch /opt/cerberus-launch/scenarios /opt/cerberus-launch/k6
 cat > /etc/cerberus-launch/env <<'ENV'
 AWS_REGION=${region}
 AWS_DEFAULT_REGION=${region}
@@ -18,5 +23,64 @@ COOKIE_PARAMETER=${cookie_parameter}
 EDGE_DOMAIN=${domain_name}
 K6_VERSION=${k6_version}
 K6_SHA256=${k6_sha256}
+BUDGET_BYTES=${budget_bytes}
+MINUTES=${minutes}
 ENV
 chmod 0644 /etc/cerberus-launch/env
+# shellcheck disable=SC1091
+. /etc/cerberus-launch/env
+export AWS_REGION AWS_DEFAULT_REGION
+
+# --- Layer 3: the ingress byte budget (ADR 0030 Decision 12). Fail closed. ---
+[ "$BUDGET_BYTES" -gt 0 ]
+command -v nft >/dev/null 2>&1 || dnf install -y nftables
+nft add table inet cerberus_launch
+nft add chain inet cerberus_launch input '{ type filter hook input priority 0 ; policy accept ; }'
+nft add rule inet cerberus_launch input iifname != "lo" quota over "$BUDGET_BYTES" bytes drop
+nft list ruleset | grep -q 'quota over'
+
+# --- Pinned k6: version and sha256 from the release checksums file. ---
+[ -n "$K6_VERSION" ] && [ -n "$K6_SHA256" ]
+cd /opt/cerberus-launch/k6
+curl -fsSL -o k6.tar.gz "https://github.com/grafana/k6/releases/download/v$K6_VERSION/k6-v$K6_VERSION-linux-arm64.tar.gz"
+echo "$K6_SHA256  k6.tar.gz" | sha256sum -c -
+tar -xzf k6.tar.gz --strip-components=1 "k6-v$K6_VERSION-linux-arm64/k6"
+rm -f k6.tar.gz
+
+# --- Scenarios from S3 and the cookies from the one parameter. ---
+aws s3 cp "s3://$BUILD_BUCKET/scenarios/" /opt/cerberus-launch/scenarios/ --recursive --only-show-errors
+aws ssm get-parameter --name "$COOKIE_PARAMETER" --with-decryption \
+  --query Parameter.Value --output text > /run/cerberus-cookies
+chmod 0600 /run/cerberus-cookies
+
+# --- Seed the sets the run downloads (launch/seed.py, copied with the scenarios). ---
+# Each set is distinct random chunks named by their sha256, uploaded to
+# build/ or patch/, then the manifest (build/manifest.json, patch/manifest.json,
+# patch/manifest-2.json). k6 reads the local manifest copies in MANIFEST_DIR.
+SCN=/opt/cerberus-launch/scenarios
+MANIFEST_DIR=/opt/cerberus-launch/manifests
+install -d -m 0755 "$MANIFEST_DIR"
+for set_name in $(cat "$SCN/seed"); do
+  python3 "$SCN/seed.py" "$SCN/sets.json" "$set_name" "$MANIFEST_DIR" --bucket "$BUILD_BUCKET"
+done
+echo seeded | aws s3 cp - "s3://$BUILD_BUCKET/results/seeded" --only-show-errors
+
+# --- Run each scenario once, with fixed iterations. A scenario file has one or
+# more runs (one k6 process each, in order); each writes results/<name>-<run>.json.
+for name in $(cat "$SCN/order"); do
+  runs=$(python3 -c 'import json, sys; print(len(json.load(open(sys.argv[1]))["runs"]))' "$SCN/$name.json")
+  idx=0
+  while [ "$idx" -lt "$runs" ]; do
+    /opt/cerberus-launch/k6/k6 run --quiet --summary-export "/tmp/$name-$idx.json" \
+      -e "SCENARIO_FILE=$SCN/$name.json" -e "SETS_FILE=$SCN/sets.json" -e "RUN_INDEX=$idx" \
+      -e "MANIFEST_DIR=$MANIFEST_DIR" -e COOKIE_FILE=/run/cerberus-cookies \
+      -e "EDGE_DOMAIN=$EDGE_DOMAIN" -e "MINUTES=$MINUTES" \
+      -e "RELEASE_AT=$(cat "$SCN/release_at")" "$SCN/download.js"
+    aws s3 cp "/tmp/$name-$idx.json" "s3://$BUILD_BUCKET/results/$name-$idx.json" --only-show-errors
+    idx=$((idx + 1))
+  done
+done
+echo done | aws s3 cp - "s3://$BUILD_BUCKET/results/done" --only-show-errors
+
+shred -u /run/cerberus-cookies
+shutdown -h now

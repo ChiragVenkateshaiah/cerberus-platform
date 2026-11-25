@@ -1,0 +1,15 @@
+{
+  "name": "d",
+  "description": "Run D: a cold patch (a second patch set, distinct from C's) for 50 clients at T0, then a warm repeat by one client. Origin requests show request collapsing.",
+  "runs": [
+    {
+      "id": "d-cold",
+      "gate": "release",
+      "workloads": [{ "kind": "fetch", "name": "cold", "set": "patch2", "clients": 50 }]
+    },
+    {
+      "id": "d-warm",
+      "workloads": [{ "kind": "fetch", "name": "warm", "set": "patch2", "clients": 1 }]
+    }
+  ]
+}
