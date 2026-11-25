@@ -93,8 +93,9 @@ is_on "$HOLD" && HOLD_ON=true
 # The layer 4 poll: a whole number of seconds from 10 to 120 (a smaller one hammers
 # CloudWatch, a larger one is blind). LAUNCH_ALLOW_FAST_POLL=1 is the tests' override.
 if [[ "${LAUNCH_ALLOW_FAST_POLL:-0}" != "1" ]]; then
-  [[ "$POLL_SECONDS" =~ ^[0-9]+$ ]] && ((10#$POLL_SECONDS >= 10 && 10#$POLL_SECONDS <= 120)) \
-    || die "LAUNCH_POLL_SECONDS must be a whole number from 10 to 120 (got: $POLL_SECONDS)"
+  if ! [[ "$POLL_SECONDS" =~ ^[0-9]+$ ]] || ((10#$POLL_SECONDS < 10 || 10#$POLL_SECONDS > 120)); then
+    die "LAUNCH_POLL_SECONDS must be a whole number from 10 to 120 (got: $POLL_SECONDS)"
+  fi
   POLL_SECONDS=$((10#$POLL_SECONDS))
 fi
 case "$SCENARIO" in a | b | c | d | bcd | p) ;; *) die "SCENARIO must be a, b, c, d, bcd or p (got: $SCENARIO)" ;; esac
