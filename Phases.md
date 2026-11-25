@@ -242,6 +242,9 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
       budget over runs (ADR 0021); alerts carry `execution`;
       `promtool test rules` in CI
       - 10.4a built 2026-11-20 (rules, promtool tests, template).
+      - 10.4b built 2026-11-21 (Terraform module, topic policy, CI and admin
+        IAM, tests). Owner steps pending: root paste, local apply, then the
+        10.4c check (runbook in `observability/alerts/README.md`).
 - [ ] 10.5 Terminal status view (`make status`) from the named query set
       (same code as `cerberus status`)
       - 10.5a and 10.5b built 2026-11-21; 10.5c (Terraform: aps:QueryMetrics
