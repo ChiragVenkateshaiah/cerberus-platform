@@ -219,3 +219,115 @@ resource "aws_glue_catalog_table" "bronze_payments_bulk_by_run" {
     }
   }
 }
+
+# --- 17.5a: downloads bronze tables (ADR 0030 Decisions 10-11) ---------------
+# download_events (silver) is Iceberg-owned like payments_events, so it is not
+# declared here; the downloads silver job creates it.
+
+# The downloads generator's files, one run and one day at a time, same
+# projection as bronze_payments_bulk_by_run. run_id and dt come from the S3
+# path (the files carry neither). Key columns only: the JSON SerDe ignores the
+# rest. _manifest.json sits in the run prefix, not under dt=, and Athena
+# skips _-prefixed objects anyway.
+resource "aws_glue_catalog_table" "bronze_downloads_bulk_by_run" {
+  name          = "bronze_downloads_bulk_by_run"
+  database_name = aws_glue_catalog_database.this.name
+  table_type    = "EXTERNAL_TABLE"
+
+  parameters = {
+    classification              = "json"
+    "projection.enabled"        = "true"
+    "projection.run_id.type"    = "injected"
+    "projection.dt.type"        = "injected"
+    "storage.location.template" = "s3://${var.bronze_bucket_name}/downloads_bulk/run_id=$${run_id}/dt=$${dt}/"
+  }
+
+  partition_keys {
+    name = "run_id"
+    type = "string"
+  }
+  partition_keys {
+    name = "dt"
+    type = "string"
+  }
+
+  storage_descriptor {
+    location      = "s3://${var.bronze_bucket_name}/downloads_bulk/"
+    input_format  = "org.apache.hadoop.mapred.TextInputFormat"
+    output_format = "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat"
+
+    ser_de_info {
+      serialization_library = "org.openx.data.jsonserde.JsonSerDe"
+    }
+
+    columns {
+      name = "event_id"
+      type = "string"
+    }
+    columns {
+      name = "event_type"
+      type = "string"
+    }
+    columns {
+      name = "occurred_at"
+      type = "string"
+    }
+    columns {
+      name = "payload"
+      type = "struct<bytes:bigint>"
+    }
+  }
+}
+
+# CloudFront run logs collected by launch/collect.sh (17.4): JSON Lines under
+# downloads_cdn/run_id=<id>/part-*.json plus _manifest.json (skipped by Athena
+# as a _ file). Unpartitioned: dbt takes run_id from "$path". All 12 allowlisted
+# fields are strings with snake_case names; dbt casts with try_cast. The
+# SerDe mapping.* properties map the AWS names (hyphens, "(ms)") to them.
+locals {
+  cdn_log_fields = {
+    timestamp_ms                = "timestamp(ms)"
+    x_edge_request_id           = "x-edge-request-id"
+    x_edge_location             = "x-edge-location"
+    x_edge_result_type          = "x-edge-result-type"
+    x_edge_response_result_type = "x-edge-response-result-type"
+    sc_status                   = "sc-status"
+    sc_bytes                    = "sc-bytes"
+    cs_method                   = "cs-method"
+    cs_uri_stem                 = "cs-uri-stem"
+    time_taken                  = "time-taken"
+    time_to_first_byte          = "time-to-first-byte"
+    cs_protocol                 = "cs-protocol"
+  }
+}
+
+resource "aws_glue_catalog_table" "bronze_downloads_cdn" {
+  name          = "bronze_downloads_cdn"
+  database_name = aws_glue_catalog_database.this.name
+  table_type    = "EXTERNAL_TABLE"
+
+  parameters = {
+    classification = "json"
+  }
+
+  storage_descriptor {
+    location      = "s3://${var.bronze_bucket_name}/downloads_cdn/"
+    input_format  = "org.apache.hadoop.mapred.TextInputFormat"
+    output_format = "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat"
+
+    ser_de_info {
+      serialization_library = "org.openx.data.jsonserde.JsonSerDe"
+      parameters = {
+        for col, field in local.cdn_log_fields : "mapping.${col}" => field
+      }
+    }
+
+    dynamic "columns" {
+      for_each = keys(local.cdn_log_fields)
+      content {
+        name = columns.value
+        type = "string"
+      }
+    }
+  }
+}

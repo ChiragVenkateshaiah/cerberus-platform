@@ -51,6 +51,9 @@ module "iam" {
   glue_partition_table_name = module.glue_catalog.table_names["payments_events"]
   glue_bronze_table_names   = values(module.glue_catalog.bronze_table_names)
 
+  glue_downloads_silver_table_name = module.glue_catalog.download_events_table_name
+  glue_downloads_cdn_table_name    = module.glue_catalog.bronze_table_names["bronze_downloads_cdn"]
+
   athena_workgroup_name     = module.athena.workgroup_name
   athena_dq_workgroup_name  = module.athena.dq_workgroup_name
   athena_results_bucket_arn = module.athena.results_bucket_arn

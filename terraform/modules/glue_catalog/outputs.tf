@@ -22,5 +22,16 @@ output "bronze_table_names" {
     bronze_payments_bulk = aws_glue_catalog_table.bronze_payments_bulk.name
     # 8.6: per-run, partition-projected view of the same files.
     bronze_payments_bulk_by_run = aws_glue_catalog_table.bronze_payments_bulk_by_run.name
+    # 17.5a: downloads bronze (ADR 0030 Decision 10).
+    bronze_downloads_bulk_by_run = aws_glue_catalog_table.bronze_downloads_bulk_by_run.name
+    bronze_downloads_cdn         = aws_glue_catalog_table.bronze_downloads_cdn.name
   }
+}
+
+# A literal, like payments_events in table_names: the Iceberg table is created
+# by the downloads silver job (17.5b), but its name is fixed and the IAM grants
+# need it. Not in table_names, which feeds cerberus-serving's catalog grant.
+output "download_events_table_name" {
+  description = "Downloads silver Iceberg table (17.5a, ADR 0030 Decision 11)."
+  value       = "download_events"
 }
