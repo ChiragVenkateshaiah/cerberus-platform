@@ -127,6 +127,15 @@ def test_ledger_with_a_bad_line_is_an_error(env):
     assert plan_bytes.main(["a", "--ledger", str(env.ledger), "--offline"]) == 3
 
 
+def test_a_missing_ledger_fails_closed_except_offline(env):
+    env.ledger.unlink()
+    assert plan_bytes.main(["a", "--ledger", str(env.ledger)]) == 3
+    assert plan_bytes.main(["a", "--ledger", str(env.ledger), "--mtd-gb", "0"]) == 0
+    assert plan_bytes.main(["a", "--ledger", str(env.ledger), "--offline"]) == 0  # dry run
+    env.ledger.write_text("")  # an empty ledger is zero entries
+    assert plan_bytes.main(["a", "--ledger", str(env.ledger)]) == 0
+
+
 def test_runs_match_the_approved_design():
     sets = scenario.load_sets()
     assert sets["chunk_bytes"] == 64 * 2**20

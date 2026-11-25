@@ -5,10 +5,15 @@ Used by orchestration/launch_collect.sh. It reads every file in --in-dir (named
 _manifest.json. Nothing is written unless every file passes (ADR 0030 Decision 10):
 
 - every line is a JSON object whose keys are a subset of launch/cdn_fields.json;
-- no value, except x-edge-request-id and timestamp(ms), holds a 12-digit run
-  that is not part of a longer digit run (a possible account ID). The bound
-  matters: a 13-digit timestamp must not match;
-- lines outside the session window are dropped (timestamp(ms) within start and end).
+- lines outside the session window are dropped (timestamp(ms) within start and end;
+  an unusable timestamp refuses). They are dropped before the 12-digit scan, so
+  traffic from before or after the session cannot block a collection;
+- cs-uri-stem is replaced by "/other" unless it fully matches one of the known
+  paths: /build|patch/<64 hex>.bin, /build|patch/manifest[-2].json or /license.
+  A sha256 can hold a 12-digit run, so the stem is not scanned after that;
+- no other value, except x-edge-request-id and timestamp(ms), of a kept line holds a
+  12-digit run that is not part of a longer digit run (a possible account ID).
+  The bound matters: a 13-digit timestamp must not match.
 
 Output is uncompressed UTF-8 JSON Lines with the original key names. A gzip
 input is accepted. The message of a refusal never holds a value.
@@ -28,7 +33,9 @@ from pathlib import Path
 ALLOWLIST = Path(__file__).resolve().parent / "cdn_fields.json"
 RUN_ID = re.compile(r"^[a-z0-9-]{1,40}$")
 TWELVE = re.compile(r"(?<!\d)\d{12}(?!\d)")
-EXEMPT = ("x-edge-request-id", "timestamp(ms)")
+EXEMPT = ("x-edge-request-id", "timestamp(ms)", "cs-uri-stem")
+STEM = re.compile(r"/(build|patch)/[0-9a-f]{64}\.bin|/(build|patch)/manifest(-2)?\.json|/license")
+OTHER = "/other"
 PART = re.compile(r"^[0-9a-f]{16}$")
 
 
@@ -63,15 +70,20 @@ def filter_text(text: str, fields: list[str], start_ms: int, end_ms: int, label:
         extra = sorted(set(item) - allowed)
         if extra:
             raise Refused(f"{where} has {len(extra)} field(s) outside the allowlist")
-        for key, value in item.items():
-            if key not in EXEMPT and TWELVE.search(str(value)):
-                raise Refused(f"{where} has a 12-digit value in {key}")
         try:
             stamp = int(item["timestamp(ms)"])
         except (KeyError, ValueError, TypeError) as err:
             raise Refused(f"{where} has no usable timestamp(ms)") from err
-        if start_ms <= stamp <= end_ms:
-            kept.append(json.dumps(item, ensure_ascii=False, separators=(",", ":")))
+        if not start_ms <= stamp <= end_ms:
+            continue
+        if "cs-uri-stem" in item and not (
+            isinstance(item["cs-uri-stem"], str) and STEM.fullmatch(item["cs-uri-stem"])
+        ):
+            item["cs-uri-stem"] = OTHER
+        for key, value in item.items():
+            if key not in EXEMPT and TWELVE.search(str(value)):
+                raise Refused(f"{where} has a 12-digit value in {key}")
+        kept.append(json.dumps(item, ensure_ascii=False, separators=(",", ":")))
     return kept
 
 

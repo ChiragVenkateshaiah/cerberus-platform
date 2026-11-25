@@ -35,6 +35,7 @@ class Env:
         self.xdg = tmpfs_dir()
         self.vars: dict[str, str] = {}
         self.write_baseline("10.00")
+        self.ledger.touch()  # as `make launch-baseline` leaves it
         self.set_marker("results/done")
         self.set_marker("results/seeded")
 
@@ -66,6 +67,7 @@ class Env:
             "LAUNCH_BASELINE": str(self.baseline),
             "LAUNCH_RUNS_DIR": str(self.runs),
             "LAUNCH_POLL_SECONDS": "0.05",
+            "LAUNCH_ALLOW_FAST_POLL": "1",  # the test override of the 10 to 120 s check
             "LAUNCH_RUN_ID": "t-run",
             "XDG_RUNTIME_DIR": self.xdg,
             "SCENARIO": "bcd",

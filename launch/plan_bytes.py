@@ -12,7 +12,8 @@ Usage: python3 launch/plan_bytes.py SCENARIO [--mtd-gb N] [--offline]
                                    [--distribution-id ID] [--ledger PATH]
 
 SCENARIO is a, b, c, d, bcd or p. --mtd-gb gives the month-to-date directly (no
-ledger, no AWS). --offline reads the ledger only and makes no AWS call.
+ledger, no AWS). --offline reads the ledger only and makes no AWS call (a missing ledger is
+zero there, for the dry run; otherwise it is an error: fail closed).
 
 Output (stdout, key=value): session_gb, probe_gb, mtd_gb, total_gb (GB to 3
 places), session_bytes, probe_bytes, total_bytes (exact) and budget_bytes.
@@ -81,9 +82,12 @@ def evaluate(session_gb: Decimal, mtd_gb: Decimal) -> None:
         raise Refused(f"month-to-date {mtd_gb} + session {session_gb} GB is over {MONTH_CAP_GB} GB")
 
 
-def ledger_gb(path: Path) -> Decimal:
-    """GB of earlier runs in the ledger. A missing file is zero; a bad line is an error."""
+def ledger_gb(path: Path, required: bool = True) -> Decimal:
+    """GB of earlier runs in the ledger. A bad line is an error. A missing file is an
+    error too (a deleted ledger would hide spend), except in the offline dry run (zero)."""
     if not path.exists():
+        if required:
+            raise FileNotFoundError("the ledger file is absent: run `make launch-baseline`")
         return Decimal(0)
     total = Decimal(0)
     for line in path.read_text().splitlines():
@@ -128,7 +132,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.mtd_gb is not None:
             mtd = Decimal(args.mtd_gb)
         else:
-            mtd = ledger_gb(Path(args.ledger))
+            mtd = ledger_gb(Path(args.ledger), required=not args.offline)
             if not args.offline and args.distribution_id:
                 mtd = max(mtd, cloudwatch_gb(args.distribution_id))
         total = session + probe

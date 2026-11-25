@@ -54,7 +54,7 @@ def test_dry_run_calls_nothing(env):
     assert f"budget_bytes: {BUDGET}" in proc.stdout
     assert "ledger estimate" in proc.stdout
     assert env.key_dirs() == []
-    assert not env.ledger.exists()
+    assert env.ledger.read_text() == ""  # nothing recorded
 
 
 def test_dry_run_prewarm_and_refusal(env):
@@ -689,3 +689,103 @@ def test_a_missing_summary_makes_the_k6_count_incomplete(env):
     assert env.run(SESSION, "--yes").returncode == 0
     record = json.loads((env.runs / "t-run" / "run.json").read_text())
     assert record["k6_complete"] is False and record["k6_requests"] is None
+
+
+# --- review fixes (Opus security review of the launch tooling) ---------------
+
+
+def test_a_changed_signing_key_stops_the_session_before_the_second_licence_check(env):
+    proc = env.run(SESSION, "--yes", STUB_KEY_CHANGE="1")
+    assert proc.returncode != 0
+    assert "the signing key changed after the cookies were minted" in proc.stdout
+    gen = env.find("terraform", " apply ", "create_load_gen=true")
+    assert gen != -1
+    assert env.find("curl", start=gen) == -1  # no /license check after the second apply
+    assert stage1_apply(env) != -1 and env.find("terraform", " destroy ") != -1
+    assert_clean_exit_state(env)
+
+
+def test_old_results_are_cleared_before_the_instance_apply(env):
+    assert env.run(SESSION, "--yes").returncode == 0
+    rm = env.find("s3 rm s3://stub-build/results/", "--recursive")
+    assert rm != -1 and rm < env.find("terraform", " apply ", "create_load_gen=true")
+    proc = env.run(SESSION, "--yes", FAIL_AWS="s3 rm", LAUNCH_RUN_ID="t-run2")
+    assert proc.returncode != 0 and "could not clear old results" in proc.stdout
+    assert_clean_exit_state(env)
+
+
+def test_stage_one_always_terminates_directly_and_removes_the_key_first(env):
+    assert env.run(SESSION, "--yes", STUB_INSTANCE_IDS="i-0stub").returncode == 0
+    gen = env.find("terraform", " apply ", "create_load_gen=true")
+    term = env.find("ec2 terminate-instances", "i-0stub", start=gen)
+    s1 = stage1_apply(env, gen)
+    assert gen < term < s1  # direct termination, even with a good apply, before stage 1 apply
+
+
+def test_stage_one_apply_is_retried_once(env):
+    # the first stage 1 apply fails, the second works: no failure, no forced stage 2 under HOLD
+    proc = env.run(
+        SESSION, "--yes", HOLD="1", FAIL_TF_ONCE="create_load_gen=false -var minutes=120"
+    )
+    # FAIL_TF_ONCE matches only the stage 1 argument order (apply 1 has minutes first)
+    s1 = [
+        i
+        for i, c in enumerate(env.calls())
+        if c.startswith("terraform")
+        and " apply " in c
+        and "public_key_pem" not in c
+        and "create_load_gen=false" in c
+    ]
+    assert len(s1) == 2, env.calls()
+    assert proc.returncode == 0, proc.stdout
+    assert env.find("terraform", " destroy ") == -1  # HOLD kept the edge
+
+
+def test_stage_one_apply_failing_twice_runs_stage_two_despite_hold(env):
+    proc = env.run(SESSION, "--yes", HOLD="1", FAIL_TF="create_load_gen=false",
+                   FAIL_TF_NOT="public_key_pem")  # fmt: skip
+    assert proc.returncode != 0
+    s1 = [
+        i
+        for i, c in enumerate(env.calls())
+        if c.startswith("terraform")
+        and " apply " in c
+        and "public_key_pem" not in c
+        and "create_load_gen=false" in c
+    ]
+    assert len(s1) == 2
+    assert env.find("terraform", " destroy ") != -1
+    assert "HOLD is ignored" in proc.stdout
+
+
+def test_a_budget_stop_runs_stage_two_despite_hold(env):
+    env.clear_marker("results/done")
+    proc = env.run(SESSION, "--yes", HOLD="1", STUB_CW_SUM=str(LIMIT + 1))
+    assert proc.returncode == 3
+    assert env.find("terraform", " destroy ") != -1
+
+
+def test_a_state_lock_error_prints_the_force_unlock_hint_and_never_runs_it(env):
+    proc = env.run(SESSION, "--yes", FAIL_TF="create_load_gen=false", FAIL_TF_NOT="public_key_pem",
+                   FAIL_TF_LOCK="1")  # fmt: skip
+    assert "force-unlock <LOCK_ID>" in proc.stdout
+    assert env.find("force-unlock") == -1
+
+
+def test_the_cloudwatch_sum_is_logged_each_poll(env):
+    env.clear_marker("results/done")
+    proc = env.run(SESSION, "--yes", STUB_CW_SUM="12345", STUB_DONE_AFTER_CW="4")
+    assert proc.returncode == 0, proc.stdout
+    assert proc.stdout.count("BytesDownloaded since the start: 12345") >= 2
+
+
+@pytest.mark.parametrize("bad", ["0", "9", "121", "abc", "1.5"])
+def test_the_poll_interval_is_checked_without_the_test_override(env, bad):
+    proc = env.run(SESSION, "--yes", LAUNCH_ALLOW_FAST_POLL="0", LAUNCH_POLL_SECONDS=bad)
+    assert proc.returncode != 0 and "LAUNCH_POLL_SECONDS" in proc.stdout
+    assert env.calls() == []
+
+
+def test_a_good_poll_interval_passes_the_check(env):
+    proc = env.run(SESSION, "--dry-run", LAUNCH_ALLOW_FAST_POLL="0", LAUNCH_POLL_SECONDS="60")
+    assert proc.returncode == 0
