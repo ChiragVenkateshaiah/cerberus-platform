@@ -15,6 +15,7 @@ import contextlib
 import json
 import logging
 import math
+import re
 import time
 import urllib.error
 import urllib.request
@@ -296,20 +297,33 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 _OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect)
 
 
+_AMP_PATH = re.compile(r"^/workspaces/ws-[a-z0-9-]+/?$")
+
+
 def _base_ok(base: str) -> bool:
-    """True for a plain https URL: a host, no userinfo, no query, no fragment."""
+    """True only for the AMP workspace URL of this region, checked before signing.
+
+    https, host exactly aps-workspaces.<REGION>.amazonaws.com, no port, no
+    userinfo, no query or fragment, path /workspaces/ws-<id>/.
+    """
+    # urlsplit drops tabs and newlines, so check the raw string too: what is
+    # validated must be the string that is later requested.
+    if not base.isascii() or re.search(r"[\x00-\x20\x7f]", base):
+        return False
     try:
         parts = urlsplit(base)
-        parts.port  # noqa: B018  (raises ValueError on a bad port)
+        port = parts.port
     except ValueError:
         return False
     return (
         parts.scheme == "https"
-        and bool(parts.hostname)
+        and parts.netloc == f"aps-workspaces.{config.REGION}.amazonaws.com"
+        and port is None
         and parts.username is None
         and parts.password is None
         and not parts.query
         and not parts.fragment
+        and bool(_AMP_PATH.fullmatch(parts.path))
     )
 
 

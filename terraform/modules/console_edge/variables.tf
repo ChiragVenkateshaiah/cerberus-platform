@@ -30,6 +30,11 @@ variable "cognito_domain_prefix" {
   default     = "cerberus-console"
 }
 
+variable "amp_query_url" {
+  description = "AMP workspace base URL (the workspace's prometheus_endpoint output) -- passed to the command Lambda as CERBERUS_AMP_QUERY_URL. No default: dev-standing wires it from the workspace resource. The reader accepts only https://aps-workspaces.<region>.amazonaws.com/workspaces/ws-<id>/."
+  type        = string
+}
+
 variable "throttle_rate_limit" {
   description = "Steady-state request/sec ceiling on the console API stage (ADR 0024 amendment 2026-11-02). With no reserved concurrency this throttle, plus invite-only sign-in, is the cost bound."
   type        = number

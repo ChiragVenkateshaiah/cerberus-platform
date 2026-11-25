@@ -182,7 +182,7 @@ def amp_reader(opener, clock=None, query_set=None):
     clock = clock or Clock()
     return aws.AwsAmpReader(
         lambda url: {"Authorization": "fake"},
-        "https://aps-workspaces.example.invalid/workspaces/ws-test/",
+        "https://aps-workspaces.us-east-1.amazonaws.com/workspaces/ws-test/",
         query_set if query_set is not None else queries.by_name(queries.load()),
         opener=opener,
         clock=clock,

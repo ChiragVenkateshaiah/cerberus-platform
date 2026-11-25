@@ -130,6 +130,9 @@ module "observability" {
   # alarms are created only while an exercise is active.
   alert_email     = var.alert_email
   pipeline_active = var.pipeline_active
+
+  # 10.4b: the topic policy lets this workspace's Alertmanager publish.
+  amp_workspace_arn = module.prometheus_workspace.workspace_arn
 }
 
 module "lineage" {
@@ -148,6 +151,20 @@ module "prometheus_workspace" {
   # 7.7 (ADR 0016): the AMP workspace the EKS/Spark layer's metrics land
   # in. Standing, zero idle cost -- dev-compute's Prometheus agent and
   # Grafana read its endpoints via terraform_remote_state.
+}
+
+module "pipeline_alerts" {
+  source = "../../modules/pipeline_alerts"
+
+  # 10.4b (ADR 0021): the pipeline-status alert rules and the Alertmanager
+  # definition, loaded into the AMP workspace from observability/alerts/.
+  # Standing; AMP bills rule evaluation by samples, no idle fee.
+  workspace_id     = module.prometheus_workspace.workspace_id
+  alerts_topic_arn = module.observability.alerts_topic_arn
+
+  # The topic policy (module.observability) must exist before AMP checks the
+  # SNS receiver.
+  depends_on = [module.observability]
 }
 
 module "github_oidc" {
@@ -193,6 +210,9 @@ module "console_edge" {
   console_cli_role_arn  = module.console_roles.console_cli_role_arn
   console_cli_role_name = module.console_roles.console_cli_role_name
   state_machine_arn     = module.step_functions.state_machine_arn
+
+  # 10.5c: the status view's AMP base URL, from the workspace resource itself.
+  amp_query_url = module.prometheus_workspace.prometheus_endpoint
 
   # 9.7 (ADR 0026): the two console alarms notify the shared alerts topic.
   alarm_topic_arn = module.observability.alerts_topic_arn

@@ -370,3 +370,25 @@ def test_wrapped_entry_keeps_its_meaning_under_multiplication(doc):
 def test_dashboard_allows_a_name_matcher_that_misses_the_catalogue(doc, expr, rejected):
     dash = {"panels": [{"title": "P", "targets": [{"expr": expr}]}]}
     assert bool(queries.check_dashboard(dash, doc)) is rejected
+
+
+def test_every_expr_names_only_cerberus_metrics_and_no_name_matcher(doc):
+    """The role can read the whole workspace, so the fixed queries stay on cerberus_ series."""
+    import re
+
+    words = {"by", "without", "on", "ignoring", "bool", "and", "or", "unless", "NaN"}
+    for q in doc["queries"]:
+        expr = q["expr"]
+        assert "__name__" not in expr, q["name"]
+        text = re.sub(r'"(?:[^"\\]|\\.)*"', '""', expr)  # drop label values
+        text = re.sub(r"\{[^}]*\}", "", text)  # drop label matchers
+        text = re.sub(r"\[[^\]]*\]", "", text)  # drop range selectors
+        text = re.sub(r"\b(?:by|without|on|ignoring)\s*\([^)]*\)", "", text)
+        metrics = [
+            i
+            for i in re.findall(r"[A-Za-z_:][A-Za-z0-9_:]*(?![\w:]|\s*\()", text)
+            if i not in words and not re.fullmatch(r"\d+[smhdwy]", i)
+        ]
+        assert metrics, q["name"]
+        for m in metrics:
+            assert m.startswith("cerberus_"), (q["name"], m)

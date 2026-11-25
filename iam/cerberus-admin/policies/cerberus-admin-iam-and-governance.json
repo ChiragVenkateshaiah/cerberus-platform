@@ -228,9 +228,24 @@
         "aps:GetSeries",
         "aps:GetLabels",
         "aps:GetMetricMetadata",
-        "aps:RemoteWrite"
+        "aps:RemoteWrite",
+        "aps:CreateRuleGroupsNamespace",
+        "aps:PutRuleGroupsNamespace",
+        "aps:DescribeRuleGroupsNamespace",
+        "aps:DeleteRuleGroupsNamespace",
+        "aps:ListRuleGroupsNamespaces",
+        "aps:CreateAlertManagerDefinition",
+        "aps:PutAlertManagerDefinition",
+        "aps:DescribeAlertManagerDefinition",
+        "aps:DeleteAlertManagerDefinition",
+        "aps:ListTagsForResource",
+        "aps:TagResource",
+        "aps:UntagResource"
       ],
-      "Resource": "arn:aws:aps:us-east-1:131715059025:workspace/*"
+      "Resource": [
+        "arn:aws:aps:us-east-1:131715059025:workspace/*",
+        "arn:aws:aps:us-east-1:*:rulegroupsnamespace/*"
+      ]
     },
     {
       "Sid": "Sts",

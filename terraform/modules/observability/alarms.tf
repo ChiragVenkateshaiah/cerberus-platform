@@ -27,6 +27,49 @@ resource "aws_sns_topic" "alerts" {
   name = local.alerts_topic_name
 }
 
+data "aws_caller_identity" "current" {}
+
+# 10.4b (ADR 0021): the topic policy holds two statements.
+#  1. The topic's default statement, kept equivalent so the CloudWatch alarms
+#     keep publishing. Setting any policy replaces the default one.
+#  2. The AMP Alertmanager (aps.amazonaws.com), limited to this account and
+#     this one workspace by aws:SourceAccount and aws:SourceArn, so no other
+#     AMP workspace can publish here.
+resource "aws_sns_topic_policy" "alerts" {
+  arn = aws_sns_topic.alerts.arn
+
+  policy = jsonencode({
+    Version = "2008-10-17"
+    Id      = "__default_policy_ID"
+    Statement = [
+      {
+        Sid       = "__default_statement_ID"
+        Effect    = "Allow"
+        Principal = { AWS = "*" }
+        Action = [
+          "SNS:GetTopicAttributes", "SNS:SetTopicAttributes", "SNS:AddPermission", "SNS:RemovePermission",
+          "SNS:DeleteTopic", "SNS:Subscribe", "SNS:ListSubscriptionsByTopic", "SNS:Publish",
+        ]
+        Resource = aws_sns_topic.alerts.arn
+        Condition = {
+          StringEquals = { "AWS:SourceOwner" = data.aws_caller_identity.current.account_id }
+        }
+      },
+      {
+        Sid       = "AllowAmpAlertmanagerPublish"
+        Effect    = "Allow"
+        Principal = { Service = "aps.amazonaws.com" }
+        Action    = ["sns:Publish", "sns:GetTopicAttributes"]
+        Resource  = aws_sns_topic.alerts.arn
+        Condition = {
+          StringEquals = { "aws:SourceAccount" = data.aws_caller_identity.current.account_id }
+          ArnLike      = { "aws:SourceArn" = var.amp_workspace_arn }
+        }
+      },
+    ]
+  })
+}
+
 resource "aws_sns_topic_subscription" "alerts_email" {
   topic_arn = aws_sns_topic.alerts.arn
   protocol  = "email"
