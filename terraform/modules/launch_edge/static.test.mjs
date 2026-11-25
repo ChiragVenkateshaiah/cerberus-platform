@@ -99,3 +99,62 @@ test('the environment root sets Stack=dev-launch and Project as default tags', (
   assert.match(provider, /Stack\s+=\s+"dev-launch"/);
   assert.match(provider, /Project\s+=\s+"cerberus-platform"/);
 });
+
+// --- 17.4: the instance runs itself, with a pinned k6 and a byte budget ------
+
+test('k6 is pinned by version and a 64-hex sha256 in the module and the root', () => {
+  const sha = /default\s+=\s+"([0-9a-f]{64})"/;
+  const mod = read('variables.tf');
+  const root = readFileSync(join(terraformDir, 'envs', 'dev-launch', 'variables.tf'), 'utf8');
+  const modSha = mod.match(/variable "k6_sha256"[\s\S]*?default\s+=\s+"([0-9a-f]{64})"/);
+  const rootSha = root.match(/variable "k6_sha256"[\s\S]*?default\s+=\s+"([0-9a-f]{64})"/);
+  assert.ok(modSha && rootSha, 'k6_sha256 default must be 64 hex');
+  assert.equal(modSha[1], rootSha[1]);
+  assert.ok(sha.test(mod));
+  const ver = (t) => t.match(/variable "k6_version"[\s\S]*?default\s+=\s+"(\d+\.\d+\.\d+)"/)?.[1];
+  assert.ok(ver(mod));
+  assert.equal(ver(mod), ver(root));
+});
+
+test('user data checks the k6 sha256, sets the nftables quota and fails closed', () => {
+  const ud = read('user_data.sh.tftpl');
+  assert.match(ud, /sha256sum -c -/);
+  assert.match(ud, /quota over "\$BUDGET_BYTES" bytes drop/);
+  assert.match(ud, /\[ "\$BUDGET_BYTES" -gt 0 \]/);
+  assert.match(ud, /\[ -n "\$K6_VERSION" \] && \[ -n "\$K6_SHA256" \]/);
+  assert.match(ud, /trap .*shutdown -h now/);
+  assert.ok(!/^\s*set -x/m.test(ud), 'no trace output: the cookies pass through');
+  assert.ok(ud.indexOf('quota over') < ud.indexOf('k6 run'), 'the quota is set before k6 runs');
+});
+
+test('the instance needs a byte budget and the role has one isolated results/* write', () => {
+  const gen = read('load_gen.tf');
+  assert.match(gen, /precondition\s*\{[\s\S]*?var\.budget_bytes > 0/);
+  const stmts = [...gen.matchAll(/Sid\s+=\s+"([^"]+)"[\s\S]*?Resource\s+=\s+(\[[^\]]*\]|"[^"]*")/g)];
+  const withResults = stmts.filter((m) => m[2].includes('/results/'));
+  assert.equal(withResults.length, 1, 'exactly one statement names results/*');
+  assert.equal(withResults[0][1], 'ResultsWrite');
+  assert.ok(!withResults[0][2].includes('build/') && !withResults[0][2].includes('patch/'));
+  assert.match(gen, /Sid\s+=\s+"ResultsWrite"\s+Effect\s+=\s+"Allow"\s+Action\s+=\s+"s3:PutObject"/);
+  // nothing else gained a write: the other PutObject statement is build/ and patch/ only
+  assert.equal((gen.match(/"s3:PutObject"/g) || []).length, 2);
+});
+
+test('the public key ID is an output of the module and the root', () => {
+  assert.match(read('outputs.tf'), /output "public_key_id"[\s\S]*aws_cloudfront_public_key\.this\.id/);
+  const root = readFileSync(join(terraformDir, 'envs', 'dev-launch', 'outputs.tf'), 'utf8');
+  assert.match(root, /output "public_key_id"/);
+  assert.match(read('variables.tf'), /variable "budget_bytes"/);
+  assert.match(read('variables.tf'), /variable "shutdown_margin_minutes"[\s\S]*?default\s+=\s+30/);
+});
+
+test('user data seeds content-addressed sets with seed.py and runs each run with its manifest', () => {
+  const ud = read('user_data.sh.tftpl');
+  assert.match(ud, /seed\.py" "\$SCN\/sets\.json" "\$set_name" "\$MANIFEST_DIR" --bucket "\$BUILD_BUCKET"/);
+  assert.ok(!ud.includes('/dev/urandom'), 'chunks come from seed.py, not a repeated seed file');
+  assert.match(ud, /-e "RUN_INDEX=\$idx"/);
+  assert.match(ud, /-e "MANIFEST_DIR=\$MANIFEST_DIR"/);
+  assert.match(ud, /results\/\$name-\$idx\.json/);
+  assert.ok(ud.indexOf('seed.py') < ud.indexOf('k6 run'), 'seed before k6 runs');
+  assert.ok(ud.indexOf('results/seeded') < ud.indexOf('k6 run'));
+});

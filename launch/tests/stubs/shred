@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Test stub for shred: logs, and either fails or removes the files.
+echo "shred $*" >>"$STUB_LOG"
+[[ "${FAIL_SHRED:-0}" == 1 ]] && exit 1
+for a in "$@"; do [[ "$a" == -* ]] || rm -f "$a"; done
+exit 0

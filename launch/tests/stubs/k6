@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Test stub for k6. STUB_K6_SLEEP=N keeps it running N seconds (a slow probe P).
+echo "k6 $*" >>"$STUB_LOG"
+[[ -n "${STUB_K6_SLEEP:-}" ]] && sleep "$STUB_K6_SLEEP"
+echo "k6 finished" >>"$STUB_LOG"
+[[ "${FAIL_K6:-0}" == 1 ]] && exit 1
+exit 0

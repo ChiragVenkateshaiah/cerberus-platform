@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Test stub for terraform. Calls are logged to $STUB_LOG (one line each).
+#   TF_HANG=first|second  the first apply (public key, no instance) or the second
+#                         (create_load_gen=true) waits until it gets INT or TERM
+#   FAIL_TF="pat"         fail a call whose arguments contain pat ...
+#   FAIL_TF_NOT="pat2"    ... unless they also contain pat2
+#   FAIL_TF_ONCE="pat"    fail only the first call that contains pat
+args="$*"
+args="${args//$'\n'/ }"
+echo "terraform $args" >>"$STUB_LOG"
+mkdir -p "$STUB_STATE/counts"
+cmd=""
+for a in "$@"; do
+  case "$a" in -chdir=*) ;; *) cmd="$a"; break ;; esac
+done
+
+if [[ -n "${FAIL_TF:-}" && "$args" == *"$FAIL_TF"* ]]; then
+  if [[ -z "${FAIL_TF_NOT:-}" || "$args" != *"$FAIL_TF_NOT"* ]]; then
+    echo "Error: stub failure" >&2
+    exit 1
+  fi
+fi
+if [[ -n "${FAIL_TF_ONCE:-}" && "$args" == *"$FAIL_TF_ONCE"* && ! -e "$STUB_STATE/counts/tf_once" ]]; then
+  : >"$STUB_STATE/counts/tf_once"
+  echo "Error: stub failure (once)" >&2
+  exit 1
+fi
+
+hang=false
+if [[ "$cmd" == apply ]]; then
+  [[ "${TF_HANG:-}" == first && "$args" == *public_key_pem=* && "$args" == *create_load_gen=false* ]] && hang=true
+  [[ "${TF_HANG:-}" == second && "$args" == *create_load_gen=true* ]] && hang=true
+fi
+if $hang; then
+  : >"$STUB_STATE/hanging"
+  sleep 120 &
+  sp=$!
+  trap 'echo "terraform: interrupted, state saved" >>"$STUB_LOG"; kill "$sp" 2>/dev/null; exit 1' INT TERM
+  wait "$sp"
+  exit 0
+fi
+
+case "$cmd" in
+  output)
+    cat <<JSON
+{"domain_name":{"value":"d-stub.example.test"},"distribution_id":{"value":"DSTUB"},"public_key_id":{"value":"KSTUB"},"build_bucket":{"value":"stub-build"},"log_bucket":{"value":"stub-logs"},"instance_id":{"value":null}}
+JSON
+    ;;
+  state) printf '%s' "${STUB_STATE_LIST:-}" ;;
+esac
+exit 0

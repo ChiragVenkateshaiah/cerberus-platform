@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Test stub for curl: prints the HTTP status the test wants.
+#   /license with a cookie header   STUB_LICENSE_CODE (default 403, before T0)
+#   no cookie header                STUB_NOCOOKIE_CODE (default 403)
+#   a /build/ or /patch/ object with a cookie header   STUB_BUILD_CODE (default 200)
+echo "curl $*" >>"$STUB_LOG"
+args="$*"
+if [[ "$args" == *"/license"* ]]; then
+  printf '%s' "${STUB_LICENSE_CODE:-403}"
+elif [[ "$args" != *" -H "* ]]; then
+  printf '%s' "${STUB_NOCOOKIE_CODE:-403}"
+else
+  printf '%s' "${STUB_BUILD_CODE:-200}"
+fi

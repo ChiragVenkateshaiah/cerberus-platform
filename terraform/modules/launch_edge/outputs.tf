@@ -32,3 +32,8 @@ output "kvs_arn" {
   description = "ARN of the release KeyValueStore."
   value       = aws_cloudfront_key_value_store.release.arn
 }
+
+output "public_key_id" {
+  description = "The CloudFront public key ID: the Key-Pair-Id of the signed cookies."
+  value       = aws_cloudfront_public_key.this.id
+}

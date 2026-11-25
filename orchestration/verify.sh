@@ -57,6 +57,15 @@ check "launch data-quality tests (py3.10)" uv run --no-project --python 3.10 \
 check "launch_exercise tests (stubs)" uv run --no-project --python 3.12 \
   --with pytest==9.1.1 python -m pytest -q orchestration/test_launch_exercise.py
 
+# 17.4: the launch tooling. Pure Python and shell, with stubs for aws, terraform,
+# openssl, k6 and curl on PATH: no AWS and no network.
+if [ -d launch/tests ]; then
+  check "launch tests" uv run --no-project --python 3.12 \
+    --with pytest==9.1.1 python -m pytest -q launch/tests
+else
+  skip "launch tests" "not on this branch"
+fi
+
 if [ -f tools/traceability/generate.py ]; then
   check "traceability tests" uv run --no-project --python 3.12 \
     --with pytest==9.1.1 python -m pytest -q tools/traceability

@@ -40,4 +40,5 @@ module "launch_edge" {
   instance_type           = var.instance_type
   k6_version              = var.k6_version
   k6_sha256               = var.k6_sha256
+  budget_bytes            = var.budget_bytes
 }

@@ -58,9 +58,9 @@ variable "minutes" {
 }
 
 variable "shutdown_margin_minutes" {
-  description = "The instance shuts itself down at boot + minutes + this margin. 45 is the console's margin; 17.4 sets the final value (unverified)."
+  description = "The instance shuts itself down at boot + minutes + this margin. 30 is the 17.4 value (unverified: not measured against a real session)."
   type        = number
-  default     = 45
+  default     = 30
 
   validation {
     condition     = var.shutdown_margin_minutes >= 0 && var.shutdown_margin_minutes == floor(var.shutdown_margin_minutes)
@@ -69,7 +69,7 @@ variable "shutdown_margin_minutes" {
 }
 
 variable "instance_type" {
-  description = "Graviton network-optimised type for the load generator. Unverified default; 17.4 fixes the size against the 5 Gbps byte plan."
+  description = "Graviton network-optimised type for the load generator. Unverified default (Spot capacity for this type is not checked)."
   type        = string
   default     = "c6gn.xlarge"
 }
@@ -86,13 +86,29 @@ variable "cookie_parameter_name" {
 }
 
 variable "k6_version" {
-  description = "Pinned k6 version. Empty and unused until 17.4."
+  description = "Pinned k6 version (no leading v). The instance downloads the linux-arm64 archive of this release."
   type        = string
-  default     = ""
+  default     = "2.4.0"
 }
 
 variable "k6_sha256" {
-  description = "sha256 of the pinned k6 archive. Empty and unused until 17.4."
+  description = "sha256 of k6-v<k6_version>-linux-arm64.tar.gz, from the release's k6-v<version>-checksums.txt (fetched 2026-11-25). The instance refuses to start k6 if it differs or is empty."
   type        = string
-  default     = ""
+  default     = "7bb415f59d81ad649a86f6da6b3e1bd2e4e64e84909deef13e9bca70608abccb"
+
+  validation {
+    condition     = can(regex("^[0-9a-f]{64}$", var.k6_sha256))
+    error_message = "k6_sha256 must be 64 lowercase hex characters."
+  }
+}
+
+variable "budget_bytes" {
+  description = "Ingress byte budget of the instance: planned bytes x 1.10, from launch/plan_bytes.py. The instance drops input above it (nftables quota). 0 is refused when the instance is created."
+  type        = number
+  default     = 0
+
+  validation {
+    condition     = var.budget_bytes >= 0 && var.budget_bytes == floor(var.budget_bytes)
+    error_message = "budget_bytes must be a whole number, 0 or more."
+  }
 }

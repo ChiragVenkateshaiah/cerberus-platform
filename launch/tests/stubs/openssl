@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Test stub for openssl: fake key files, a fixed fake signature.
+echo "openssl $1" >>"$STUB_LOG"
+[[ "${FAIL_OPENSSL:-0}" == 1 ]] && exit 1
+out=""
+args=("$@")
+for ((i = 0; i < ${#args[@]}; i++)); do
+  [[ "${args[i]}" == -out ]] && out="${args[i + 1]}"
+done
+case "$1" in
+  genrsa) printf 'stub-key-material-%s\n' "$RANDOM" >"$out" ;;
+  rsa) printf -- '-----BEGIN PUBLIC KEY-----\nSTUBPUBLIC\n-----END PUBLIC KEY-----\n' >"$out" ;;
+  dgst) cat >/dev/null; printf 'stub-signature-bytes' ;;
+esac
+exit 0

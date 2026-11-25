@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+# Test stub for the aws CLI. Every call is logged to $STUB_LOG. S3 is a fake
+# directory tree under $STUB_STATE/s3/<bucket>/<key>. Failure injection:
+#   FAIL_AWS="pat1=N;pat2"  fail a call whose arguments contain pat, from its
+#                            Nth call on (default 1st). Calls are counted per pattern.
+#   STUB_HANG="pat"         a matching call sleeps 60 s (a hung copy)
+#   PARAM_NOT_FOUND=1        ssm delete-parameter answers ParameterNotFound
+#   STUB_CE_USD, STUB_CW_SUM, STUB_ACCT, STUB_NONZERO="pat;pat" (a count query
+#   for pat answers 1), STUB_ROLE=1 (iam get-role/get-instance-profile exist)
+args="$*"
+echo "aws $args" >>"$STUB_LOG"
+S3="$STUB_STATE/s3"
+mkdir -p "$S3" "$STUB_STATE/counts"
+
+if [[ -n "${FAIL_AWS:-}" ]]; then
+  IFS=';' read -ra pats <<<"$FAIL_AWS"
+  for entry in "${pats[@]}"; do
+    pat="${entry%%=*}"
+    nth=1
+    [[ "$entry" == *=* ]] && nth="${entry##*=}"
+    if [[ "$args" == *"$pat"* ]]; then
+      f="$STUB_STATE/counts/$(printf '%s' "$pat" | tr -c 'a-z0-9' _)"
+      n=$(($(cat "$f" 2>/dev/null || echo 0) + 1))
+      echo "$n" >"$f"
+      if ((n >= nth)); then
+        echo "An error occurred (StubError) when calling the operation" >&2
+        exit 255
+      fi
+    fi
+  done
+fi
+
+# STUB_HANG="pat": a call whose arguments contain pat sleeps (a hung copy).
+if [[ -n "${STUB_HANG:-}" && "$args" == *"$STUB_HANG"* ]]; then exec sleep 60; fi
+
+s3path() { # s3://bucket/key -> file path
+  local p="${1#s3://}"
+  echo "$S3/$p"
+}
+notfound() { echo "An error occurred (404) when calling the operation: Not Found" >&2; exit 254; }
+
+case "$args" in
+  *"sts get-caller-identity"*)
+    if [[ "$args" == *Account* ]]; then echo "$STUB_ACCT"; else echo "arn:aws:iam::$STUB_ACCT:user/stub"; fi ;;
+  *"ce get-cost-and-usage"*)
+    printf '{"ResultsByTime":[{"Total":{"UnblendedCost":{"Amount":"%s","Unit":"USD"}}}]}\n' "${STUB_CE_USD:-0}" ;;
+  *"cloudwatch get-metric-statistics"*)
+    # STUB_DONE_AFTER_CW=N: the instance "finishes" (results/done appears) at the Nth poll.
+    if [[ -n "${STUB_DONE_AFTER_CW:-}" ]]; then
+      n=$(($(cat "$STUB_STATE/counts/cw" 2>/dev/null || echo 0) + 1))
+      echo "$n" >"$STUB_STATE/counts/cw"
+      if ((n >= STUB_DONE_AFTER_CW)); then
+        mkdir -p "$S3/stub-build/results"
+        : >"$S3/stub-build/results/done"
+      fi
+    fi
+    printf '{"Datapoints":[{"Sum":%s}]}\n' "${STUB_CW_SUM:-0}" ;;
+  *"cloudfront wait"*) ;;
+  *"ssm delete-parameter"*)
+    if [[ "${PARAM_NOT_FOUND:-0}" == 1 ]]; then echo "ParameterNotFound" >&2; exit 255; fi ;;
+  *"ssm put-parameter"*) echo '{"Version":1}' ;;
+  *"ec2 terminate-instances"*) echo '{}' ;;
+  *"ec2 describe-instances"*"InstanceId"*) echo "${STUB_INSTANCE_IDS:-}" ;;
+  *"s3api head-object"*)
+    bucket="" key=""
+    while (($#)); do
+      case "$1" in --bucket) bucket="$2"; shift ;; --key) key="$2"; shift ;; esac
+      shift
+    done
+    [[ -f "$S3/$bucket/$key" ]] || notfound ;;
+  *"s3api head-bucket"*)
+    bucket="${args##*--bucket }"
+    bucket="${bucket%% *}"
+    [[ -d "$S3/$bucket" ]] || notfound ;;
+  *"s3api list-objects-v2"*)
+    bucket="" prefix=""
+    while (($#)); do
+      case "$1" in --bucket) bucket="$2"; shift ;; --prefix) prefix="$2"; shift ;; esac
+      shift
+    done
+    if [[ -d "$S3/$bucket" ]]; then
+      (cd "$S3/$bucket" && find . -type f -path "./$prefix*" | sed 's#^\./##' | sort) | jq -R . | jq -s 'if length==0 then null else . end'
+    else
+      echo null
+    fi ;;
+  *"s3 cp "*)
+    shift 2 # the --region pair; now "s3 cp SRC DST ..."
+    src="$3" dst="$4"
+    if [[ "$src" == "-" ]]; then
+      mkdir -p "$(dirname "$(s3path "$dst")")"
+      cat >"$(s3path "$dst")"
+    elif [[ "$src" == s3://* && "$args" == *--recursive* ]]; then
+      mkdir -p "$dst"
+      d="$(s3path "$src")"
+      [[ -d "$d" ]] && cp -r "$d/." "$dst/"
+    elif [[ "$src" == s3://* ]]; then
+      [[ -f "$(s3path "$src")" ]] || notfound
+      cp "$(s3path "$src")" "$dst"
+    else
+      mkdir -p "$(dirname "$(s3path "$dst")")"
+      cp "$src" "$(s3path "$dst")"
+    fi ;;
+  *"iam get-role"* | *"iam get-instance-profile"*)
+    if [[ "${STUB_ROLE:-0}" == 1 ]]; then echo '{}'; else echo "NoSuchEntity" >&2; exit 255; fi ;;
+  *"length("*)
+    if [[ -n "${STUB_NONZERO:-}" ]]; then
+      IFS=';' read -ra nz <<<"$STUB_NONZERO"
+      for pat in "${nz[@]}"; do
+        [[ "$args" == *"$pat"* ]] && { echo 1; exit 0; }
+      done
+    fi
+    echo 0 ;;
+  *) ;;
+esac
+exit 0

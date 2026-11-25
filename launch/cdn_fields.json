@@ -1,0 +1,17 @@
+{
+  "comment": "The single allowlist of CloudFront log fields that may enter bronze (ADR 0030 Decision 10). Keys are verbatim CloudFront names. Must equal log_fields in terraform/modules/launch_edge/main.tf (a test checks).",
+  "fields": [
+    "timestamp(ms)",
+    "x-edge-request-id",
+    "x-edge-location",
+    "x-edge-result-type",
+    "x-edge-response-result-type",
+    "sc-status",
+    "sc-bytes",
+    "cs-method",
+    "cs-uri-stem",
+    "time-taken",
+    "time-to-first-byte",
+    "cs-protocol"
+  ]
+}

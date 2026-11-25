@@ -34,3 +34,8 @@ output "kvs_arn" {
   description = "ARN of the release KeyValueStore."
   value       = module.launch_edge.kvs_arn
 }
+
+output "public_key_id" {
+  description = "The CloudFront public key ID (Key-Pair-Id of the signed cookies)."
+  value       = module.launch_edge.public_key_id
+}
