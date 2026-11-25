@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-25T05:59:53Z",
+  "generated_at": "2026-11-25T17:03:25Z",
   "phases": [
     {
       "number": 0,
@@ -1925,12 +1925,19 @@
     {
       "id": "17.0",
       "phase": 17,
-      "title": "Phases.md, docs/plan.md and README get Phase 17; the plan is saved in `docs/plans/`",
-      "checked": false,
+      "title": "Phases.md, docs/plan.md and README get Phase 17; the plan is saved in `docs/plans/` (done 2026-11-25, #188)",
+      "checked": true,
       "links": {
         "adr": [],
         "plan": [],
-        "pr": [],
+        "pr": [
+          {
+            "number": 188,
+            "title": "17.0: add Phase 17 (Launch Day) and its plan",
+            "date": "2026-11-25",
+            "merge": "d2f4c88"
+          }
+        ],
         "runs": []
       },
       "legacy": false
@@ -1953,12 +1960,19 @@
     {
       "id": "17.2",
       "phase": 17,
-      "title": "Generator `generate_bulk_downloads.py`: deterministic, two-pass congestion, unit tests, 10k-event sample",
-      "checked": false,
+      "title": "Generator `generate_bulk_downloads.py`: deterministic, two-pass congestion, unit tests, 10k-event sample (built 2026-11-25, #194)",
+      "checked": true,
       "links": {
         "adr": [],
         "plan": [],
-        "pr": [],
+        "pr": [
+          {
+            "number": 194,
+            "title": "17.2: deterministic downloads generator",
+            "date": "2026-11-25",
+            "merge": "ff9260d"
+          }
+        ],
         "runs": []
       },
       "legacy": false
@@ -1966,12 +1980,31 @@
     {
       "id": "17.3",
       "phase": 17,
-      "title": "Terraform: `modules/launch_edge` and `envs/dev-launch` (buckets, distribution, key group, release function, logging, load generator)",
+      "title": "Terraform: `modules/launch_edge` and `envs/dev-launch` (buckets, distribution, key group, release function, logging, load generator)…",
       "checked": false,
       "links": {
         "adr": [],
         "plan": [],
-        "pr": [],
+        "pr": [
+          {
+            "number": 192,
+            "title": "17.3a: cerberus-admin-launch policy file",
+            "date": "2026-11-25",
+            "merge": "e4896cf"
+          },
+          {
+            "number": 195,
+            "title": "17.3a: README fixes from the Opus security review",
+            "date": "2026-11-25",
+            "merge": "f12460c"
+          },
+          {
+            "number": 196,
+            "title": "17.3b: the launch edge Terraform root and module",
+            "date": "2026-11-25",
+            "merge": "d8974fe"
+          }
+        ],
         "runs": []
       },
       "legacy": false
@@ -1979,12 +2012,19 @@
     {
       "id": "17.4",
       "phase": 17,
-      "title": "Session tooling: scenarios, k6 scripts, byte guard, `launch-*` Make targets",
-      "checked": false,
+      "title": "Session tooling: scenarios, k6 scripts, byte guard, `launch-*` Make targets (built 2026-11-25, #199; proven live only in 17.6)",
+      "checked": true,
       "links": {
         "adr": [],
         "plan": [],
-        "pr": [],
+        "pr": [
+          {
+            "number": 199,
+            "title": "17.4: launch session tooling, byte guards, ledger and scenarios",
+            "date": "2026-11-25",
+            "merge": "85ada6f"
+          }
+        ],
         "runs": []
       },
       "legacy": false
@@ -1992,12 +2032,25 @@
     {
       "id": "17.5",
       "phase": 17,
-      "title": "Silver job `promote_downloads_spark.py`, `launch-exercise`, dbt `marts/downloads/` and the data-quality suite",
-      "checked": false,
+      "title": "Silver job `promote_downloads_spark.py`, `launch-exercise`, dbt `marts/downloads/` and the data-quality suite (built 2026-11-25, #197 and…",
+      "checked": true,
       "links": {
         "adr": [],
         "plan": [],
-        "pr": [],
+        "pr": [
+          {
+            "number": 197,
+            "title": "17.5a: downloads catalog tables and grants",
+            "date": "2026-11-25",
+            "merge": "d465e57"
+          },
+          {
+            "number": 198,
+            "title": "17.5b: downloads silver, launch exercise, marts and data quality",
+            "date": "2026-11-25",
+            "merge": "f9f492e"
+          }
+        ],
         "runs": []
       },
       "legacy": false
@@ -2520,6 +2573,54 @@
       "title": "14.2c: the local stdio MCP server for the nine review tools",
       "date": "2026-11-22",
       "merge": "cb8003a"
+    },
+    {
+      "number": 188,
+      "title": "17.0: add Phase 17 (Launch Day) and its plan",
+      "date": "2026-11-25",
+      "merge": "d2f4c88"
+    },
+    {
+      "number": 192,
+      "title": "17.3a: cerberus-admin-launch policy file",
+      "date": "2026-11-25",
+      "merge": "e4896cf"
+    },
+    {
+      "number": 194,
+      "title": "17.2: deterministic downloads generator",
+      "date": "2026-11-25",
+      "merge": "ff9260d"
+    },
+    {
+      "number": 195,
+      "title": "17.3a: README fixes from the Opus security review",
+      "date": "2026-11-25",
+      "merge": "f12460c"
+    },
+    {
+      "number": 196,
+      "title": "17.3b: the launch edge Terraform root and module",
+      "date": "2026-11-25",
+      "merge": "d8974fe"
+    },
+    {
+      "number": 197,
+      "title": "17.5a: downloads catalog tables and grants",
+      "date": "2026-11-25",
+      "merge": "d465e57"
+    },
+    {
+      "number": 198,
+      "title": "17.5b: downloads silver, launch exercise, marts and data quality",
+      "date": "2026-11-25",
+      "merge": "f9f492e"
+    },
+    {
+      "number": 199,
+      "title": "17.4: launch session tooling, byte guards, ledger and scenarios",
+      "date": "2026-11-25",
+      "merge": "85ada6f"
     }
   ]
 }

@@ -411,18 +411,20 @@ _Added 2026-11-25, numbered 17 so 10–16 keep their numbers; runs ahead of
 $25 attributable spend. The plan is
 [docs/plans/2026-11-25-launch-day.md](docs/plans/2026-11-25-launch-day.md)._
 
-- [ ] 17.0 Phases.md, docs/plan.md and README get Phase 17; the plan is saved
-      in `docs/plans/`
+- [x] 17.0 Phases.md, docs/plan.md and README get Phase 17; the plan is saved
+      in `docs/plans/` (done 2026-11-25, #188)
 - [ ] 17.1 ADR 0030: launch day, a second event family and a per-session
       delivery edge (via `/decision`)
-- [ ] 17.2 Generator `generate_bulk_downloads.py`: deterministic, two-pass
-      congestion, unit tests, 10k-event sample
+- [x] 17.2 Generator `generate_bulk_downloads.py`: deterministic, two-pass
+      congestion, unit tests, 10k-event sample (built 2026-11-25, #194)
 - [ ] 17.3 Terraform: `modules/launch_edge` and `envs/dev-launch` (buckets,
       distribution, key group, release function, logging, load generator)
-- [ ] 17.4 Session tooling: scenarios, k6 scripts, byte guard, `launch-*`
-      Make targets
-- [ ] 17.5 Silver job `promote_downloads_spark.py`, `launch-exercise`, dbt
-      `marts/downloads/` and the data-quality suite
+      (built 2026-11-25, #192, #195, #196; open: root paste, `make launch-plan`)
+- [x] 17.4 Session tooling: scenarios, k6 scripts, byte guard, `launch-*`
+      Make targets (built 2026-11-25, #199; proven live only in 17.6)
+- [x] 17.5 Silver job `promote_downloads_spark.py`, `launch-exercise`, dbt
+      `marts/downloads/` and the data-quality suite (built 2026-11-25, #197
+      and #198; proven live only in 17.6)
 - [ ] 17.6 Live runs (owner): smoke, then pre-load, release, probe and the
       100M-event telemetry; `launch-check` shows 0 resources
 - [ ] 17.7 Results document and charts, every number traced to a run record
