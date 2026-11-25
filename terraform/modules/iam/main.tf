@@ -43,6 +43,10 @@ locals {
   # payments_events/payments_current (those stay Terraform-owned via 1.8).
   glue_dbt_fct_table_arn = "arn:aws:glue:${var.region}:${var.account_id}:table/${var.glue_database_name}/fct_*"
   glue_dbt_dim_table_arn = "arn:aws:glue:${var.region}:${var.account_id}:table/${var.glue_database_name}/dim_*"
+  # 17.5a (ADR 0030 Decision 11): downloads silver (Iceberg, created by the
+  # downloads silver job) and the one bronze table dbt may read.
+  glue_downloads_silver_table_arn = "arn:aws:glue:${var.region}:${var.account_id}:table/${var.glue_database_name}/${var.glue_downloads_silver_table_name}"
+  glue_downloads_cdn_table_arn    = "arn:aws:glue:${var.region}:${var.account_id}:table/${var.glue_database_name}/${var.glue_downloads_cdn_table_name}"
   glue_bronze_table_arns = [
     for name in var.glue_bronze_table_names :
     "arn:aws:glue:${var.region}:${var.account_id}:table/${var.glue_database_name}/${name}"
@@ -153,6 +157,10 @@ resource "aws_iam_role_policy" "transform" {
         Resource = [
           "${var.bucket_arns["bronze"]}/payments/*",
           "${var.bucket_arns["bronze"]}/payments_bulk/*",
+          # 17.5a (ADR 0030 Decision 10): read-only, for the downloads
+          # data-quality suite and the local dbt run.
+          "${var.bucket_arns["bronze"]}/downloads_bulk/*",
+          "${var.bucket_arns["bronze"]}/downloads_cdn/*",
         ]
       },
       {
@@ -161,7 +169,7 @@ resource "aws_iam_role_policy" "transform" {
         Action   = "s3:ListBucket"
         Resource = var.bucket_arns["bronze"]
         Condition = {
-          StringLike = { "s3:prefix" = ["payments/*", "payments_bulk/*"] }
+          StringLike = { "s3:prefix" = ["payments/*", "payments_bulk/*", "downloads_bulk/*", "downloads_cdn/*"] }
         }
       },
       {
@@ -206,6 +214,8 @@ resource "aws_iam_role_policy" "transform" {
           local.glue_catalog_arn,
           local.glue_database_arn,
           local.glue_partition_table_arn,
+          # 17.5a: downloads silver, same read-only reason.
+          local.glue_downloads_silver_table_arn,
         ]
       },
       {
@@ -429,6 +439,44 @@ resource "aws_iam_role_policy" "orchestration_dbt" {
         Resource = var.bucket_arns["silver"]
         Condition = {
           StringLike = { "s3:prefix" = ["iceberg/payments_events/*"] }
+        }
+      },
+      {
+        # 17.5a (ADR 0030 Decision 11): the downloads marts read
+        # download_events as a dbt source, and bronze_downloads_cdn as the
+        # named bronze exception (the one table, no silver step). The
+        # scheduled build gates these models off, so this is not exercised
+        # there. Read-only on both layers: catalog, then data.
+        Sid      = "ReadDownloadsSources"
+        Effect   = "Allow"
+        Action   = ["glue:GetTable", "glue:GetPartitions"]
+        Resource = [local.glue_downloads_silver_table_arn, local.glue_downloads_cdn_table_arn]
+      },
+      {
+        Sid    = "ReadDownloadsData"
+        Effect = "Allow"
+        Action = "s3:GetObject"
+        Resource = [
+          "${var.bucket_arns["silver"]}/iceberg/download_events/*",
+          "${var.bucket_arns["bronze"]}/downloads_cdn/*",
+        ]
+      },
+      {
+        Sid      = "ListDownloadsSilverPrefixOnly"
+        Effect   = "Allow"
+        Action   = "s3:ListBucket"
+        Resource = var.bucket_arns["silver"]
+        Condition = {
+          StringLike = { "s3:prefix" = ["iceberg/download_events/*"] }
+        }
+      },
+      {
+        Sid      = "ListDownloadsCdnPrefixOnly"
+        Effect   = "Allow"
+        Action   = "s3:ListBucket"
+        Resource = var.bucket_arns["bronze"]
+        Condition = {
+          StringLike = { "s3:prefix" = ["downloads_cdn/*"] }
         }
       },
       {

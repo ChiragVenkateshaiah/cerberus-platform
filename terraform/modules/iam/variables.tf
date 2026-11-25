@@ -66,3 +66,13 @@ variable "eks_cluster_name" {
   type        = string
   default     = "cerberus-platform-eks"
 }
+
+variable "glue_downloads_silver_table_name" {
+  description = "The downloads silver Iceberg table (17.5a, ADR 0030): read by cerberus-transform and cerberus-orchestration-dbt."
+  type        = string
+}
+
+variable "glue_downloads_cdn_table_name" {
+  description = "bronze_downloads_cdn (17.5a, ADR 0030 Decision 11): the one bronze table cerberus-orchestration-dbt may read."
+  type        = string
+}

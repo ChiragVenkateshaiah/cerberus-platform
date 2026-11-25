@@ -13,8 +13,9 @@
 # the bronze -> silver step. Until 8.5 it had no Glue permissions at all
 # (an MSCK REPAIR run as cerberus-transform registered silver's partitions).
 # Since 8.5 silver is an Iceberg table whose commits go through the Glue
-# catalog, so the role has Glue read/create/update on that one table
-# (ADR 0017) -- and still nothing else in Glue.
+# catalog, so the role has Glue read/create/update on the silver tables
+# (ADR 0017; since 17.5a also download_events, ADR 0030) -- and still
+# nothing else in Glue.
 
 data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}
@@ -23,6 +24,13 @@ locals {
   # OIDC issuer URL without its https:// scheme -- how it appears as the
   # Condition key prefix in an IRSA trust policy.
   oidc_issuer_host = replace(var.eks_oidc_issuer_url, "https://", "")
+}
+
+locals {
+  silver_table_arns = [
+    for t in var.silver_table_names :
+    "arn:aws:glue:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/${var.glue_database_name}/${t}"
+  ]
 }
 
 resource "aws_iam_role" "spark" {
@@ -76,12 +84,25 @@ resource "aws_iam_role_policy" "spark" {
         ]
       },
       {
+        # 17.5a (ADR 0030 Decision 10): the downloads generator writes JSON
+        # Lines here and the downloads silver job reads them. Same shape as
+        # WriteBronzePaymentsBulk, the bare key included; nothing else in
+        # bronze gains write or delete.
+        Sid    = "WriteBronzeDownloadsBulk"
+        Effect = "Allow"
+        Action = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:AbortMultipartUpload"]
+        Resource = [
+          "${var.bucket_arns["bronze"]}/downloads_bulk",
+          "${var.bucket_arns["bronze"]}/downloads_bulk/*",
+        ]
+      },
+      {
         Sid      = "ListBronzePaymentsPrefixOnly"
         Effect   = "Allow"
         Action   = "s3:ListBucket"
         Resource = var.bucket_arns["bronze"]
         Condition = {
-          StringLike = { "s3:prefix" = ["payments/*", "payments_bulk", "payments_bulk/*"] }
+          StringLike = { "s3:prefix" = ["payments/*", "payments_bulk", "payments_bulk/*", "downloads_bulk", "downloads_bulk/*"] }
         }
       },
       {
@@ -101,17 +122,20 @@ resource "aws_iam_role_policy" "spark" {
       {
         # 8.5 (ADR 0017): Iceberg's Glue catalog commits each silver write by
         # updating the table's metadata pointer in Glue, so the job needs
-        # table read/create/update -- scoped to the one silver table. No
-        # DeleteTable: the Hive table it replaces is dropped by Terraform
-        # (dev-standing), not by the job.
+        # table read/create/update -- scoped to the silver tables listed in
+        # var.silver_table_names (payments_events, and download_events since
+        # 17.5a). No DeleteTable: the Hive table it replaces is dropped by
+        # Terraform (dev-standing), not by the job.
         Sid    = "IcebergSilverCatalog"
         Effect = "Allow"
         Action = ["glue:GetDatabase", "glue:GetTable", "glue:CreateTable", "glue:UpdateTable"]
-        Resource = [
-          "arn:aws:glue:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:catalog",
-          "arn:aws:glue:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:database/${var.glue_database_name}",
-          "arn:aws:glue:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/${var.glue_database_name}/${var.silver_table_name}",
-        ]
+        Resource = concat(
+          [
+            "arn:aws:glue:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:catalog",
+            "arn:aws:glue:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:database/${var.glue_database_name}",
+          ],
+          local.silver_table_arns,
+        )
       }
     ]
   })

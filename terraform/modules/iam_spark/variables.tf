@@ -25,8 +25,8 @@ variable "glue_database_name" {
   default     = "cerberus_platform"
 }
 
-variable "silver_table_name" {
-  description = "The Iceberg silver table cerberus-spark commits to (8.5, ADR 0017)."
-  type        = string
-  default     = "payments_events"
+variable "silver_table_names" {
+  description = "The Iceberg silver tables cerberus-spark commits to: payments_events (8.5, ADR 0017) and download_events (17.5a, ADR 0030). No DeleteTable on any of them."
+  type        = list(string)
+  default     = ["payments_events", "download_events"]
 }
