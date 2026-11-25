@@ -6,6 +6,8 @@ Date: 2026-10-06
 
 Accepted
 
+Extended by [ADR 0030](0030-launch-day.md) (Proposed, 2026-11-25): the silver scope gains `download_events`, with the same watermark method.
+
 ## Context
 
 Phase 8 ([plan.md](../plan.md#phase-8--scale-validation)) takes the

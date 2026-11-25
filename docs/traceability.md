@@ -231,9 +231,9 @@ never fail the check. Only PRs named in Phases.md appear here.
 | Subtask | Done | ADR | Plan | PR | Runs |
 | --- | --- | --- | --- | --- | --- |
 | 17.0 Phases.md, docs/plan.md and README get Phase 17; the plan is saved in `docs/plans/` |  | - | - | - | - |
-| 17.1 ADR 0030: launch day, a second event family and a per-session delivery edge (via `/decision`) |  | - | - | - | - |
+| 17.1 ADR 0030: launch day, a second event family and a per-session delivery edge (via `/decision`) |  | [0030](adr/0030-launch-day.md) Launch day: a second event family and a per-session delivery edge | - | - | - |
 | 17.2 Generator `generate_bulk_downloads.py`: deterministic, two-pass congestion, unit tests, 10k-event sample |  | - | - | - | - |
-| 17.3 Terraform: `modules/launch_edge` and `envs/dev-launch` (buckets, distribution, key group, release function, logging, load generator, alarm) |  | - | - | - | - |
+| 17.3 Terraform: `modules/launch_edge` and `envs/dev-launch` (buckets, distribution, key group, release function, logging, load generator) |  | - | - | - | - |
 | 17.4 Session tooling: scenarios, k6 scripts, byte guard, `launch-*` Make targets |  | - | - | - | - |
 | 17.5 Silver job `promote_downloads_spark.py`, `launch-exercise`, dbt `marts/downloads/` and the data-quality suite |  | - | - | - | - |
 | 17.6 Live runs (owner): smoke, then pre-load, release, probe and the 100M-event telemetry; `launch-check` shows 0 resources |  | - | - | - | - |
@@ -275,3 +275,4 @@ never fail the check. Only PRs named in Phases.md appear here.
 | [0027](adr/0027-public-showcase.md) Public showcase: a published metrics snapshot on the standing edge, with Databricks as a partner column | Accepted | 2026-11-20 | [2026-11-20-public-showcase.md](plans/2026-11-20-public-showcase.md) |
 | [0028](adr/0028-databricks-free-edition.md) Databricks Free Edition as the partner workspace and presentation layer | Accepted | 2026-11-20 | [2026-11-20-databricks-free-edition-showcase.md](plans/2026-11-20-databricks-free-edition-showcase.md) |
 | [0029](adr/0029-platform-traceability.md) Platform-development traceability | Accepted | 2026-11-20 | [2026-11-20-databricks-free-edition-showcase.md](plans/2026-11-20-databricks-free-edition-showcase.md) |
+| [0030](adr/0030-launch-day.md) Launch day: a second event family and a per-session delivery edge | Proposed | - | [2026-11-25-launch-day-decision.md](plans/2026-11-25-launch-day-decision.md) |

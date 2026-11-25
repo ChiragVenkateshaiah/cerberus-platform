@@ -165,7 +165,7 @@ Databricks is a complement, not a replacement. [ADR 0028](docs/adr/0028-databric
 | 14 | AI operations agents | In progress: 14.2 done (review core, tool registry, stdio MCP server); 14.3 next. ADR 0025 accepted 2026-11-08 | [0025](docs/adr/0025-ai-operations-agents.md) |
 | 15 | Public showcase | Planned: ADR 0027 accepted | [0027](docs/adr/0027-public-showcase.md) |
 | 16 | Development traceability | In progress: generator merged (16.1, 16.2); 16.3 site view and 16.4 review left. ADR 0029 accepted | [0029](docs/adr/0029-platform-traceability.md) |
-| 17 | Launch Day | Planned: a modelled game-launch download surge on CloudFront plus synthetic telemetry (models the event, does not replicate it) | none yet |
+| 17 | Launch Day | Planned: a modelled game-launch download surge on CloudFront plus synthetic telemetry (models the event, does not replicate it) | [0030](docs/adr/0030-launch-day.md) (Proposed) |
 
 Subtask-level progress is in [Phases.md](Phases.md), and the full plan is in [docs/plan.md](docs/plan.md).
 
