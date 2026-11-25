@@ -12,9 +12,9 @@
 --
 -- logs_status labels how complete the logs are (ADR 0030 Decision 13): the
 -- run's distinct x-edge-request-id rows against the k6 request count of the
--- run, passed in the var k6_requests_by_run ({run_id: count}; launch_exercise.sh
+-- run, in the var k6_requests_by_run ({run_id: count}; launch_exercise.sh
 -- reads it from runs/<run_id>/run.json). complete = at least 99%; partial =
--- below 99%; unknown = no count, which is labelled partial and never complete.
+-- below 99%; unknown = no count, never complete.
 with run_totals as (
     select
         run_id,
@@ -44,6 +44,7 @@ grouped as (
 
 select
     grouped.*,
-    {{ cdn_logs_status('run_totals.run_requests', 'grouped.run_id') }} as logs_status
+    {{ cdn_logs_status('run_totals.run_requests', 'grouped.run_id') }}
+        as logs_status
 from grouped
 inner join run_totals on grouped.run_id = run_totals.run_id

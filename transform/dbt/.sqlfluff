@@ -4,3 +4,7 @@ dialect = athena
 
 [sqlfluff:templater:jinja]
 apply_dbt_builtins = true
+
+# The jinja templater does not load macros/; this stub only lets the lint parse.
+[sqlfluff:templater:jinja:macros]
+cdn_logs_status = {% macro cdn_logs_status(lines, run_id_column) %}'unknown'{% endmacro %}
