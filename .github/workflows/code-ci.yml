@@ -26,6 +26,9 @@ on:
       - "terraform/modules/console_edge/main.tf"
       - "terraform/modules/console_edge/variables.tf"
       - "docs/adr/0024-demo-console.md"
+      - "terraform/envs/dev-launch/**"
+      - "terraform/modules/launch_edge/**"
+      - "orchestration/launch_init.sh"
       - "pyproject.toml"
       - "requirements-dev.txt"
       - ".github/workflows/code-ci.yml"
@@ -201,6 +204,27 @@ jobs:
       # JavaScript with no toolchain. Uses the runner's own Node; no setup-node, no npm.
       - name: terminal.js syntax and unit tests
         run: node --check console/cerberus_terminal/static/terminal.js && node --test console/tests/js/*.test.js
+
+  # 17.3b (ADR 0030): the launch edge. No AWS: validate runs after
+  # init -backend=false, and the node tests use
+  # the runner's own Node with no network. The root is never planned or
+  # applied by CI (ADR 0030 Decision 2).
+  launch-edge:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: terraform validate (dev-launch)
+        run: |
+          terraform -chdir=terraform/envs/dev-launch init -backend=false -input=false
+          terraform -chdir=terraform/envs/dev-launch validate
+
+      - name: license Function and Terraform static tests
+        run: node --test terraform/modules/launch_edge/function/license.test.mjs terraform/modules/launch_edge/static.test.mjs
 
   # 16.2 (ADR 0029): the traceability record. Full history (fetch-depth: 0) is
   # needed because the generator reads the PR merge commits from `git log`; it
