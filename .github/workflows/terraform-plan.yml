@@ -42,6 +42,9 @@ on:
       - "console/cerberus_console/**"
       - "observability/scale/runs/**"
       - "observability/freshness_probe/**"
+      # 10.4b (ADR 0021): the alert rules and the Alertmanager template that
+      # modules/pipeline_alerts loads into AMP with file()/templatefile().
+      - "observability/alerts/**"
       - "orchestration/state_machine.asl.json.tftpl"
       - "serving/queries/**"
 

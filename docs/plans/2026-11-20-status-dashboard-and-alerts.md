@@ -286,6 +286,12 @@ Additive items to record without an amendment: the alert-path check rule (if acc
   2. On the PR branch: `make standing-plan`. The plan must match the CI plan; otherwise stop.
   3. `make standing-apply`.
   4. Merge. The CI apply should then show no changes.
+- Built 2026-11-21. Notes for the record:
+  - The read-only plan showed 3 resources to add (namespace, Alertmanager definition, topic policy), 1 in-place change (`ci_apply` policy) and the known Faker churn.
+  - The module is `terraform/modules/pipeline_alerts`. The observability module gained its own `aws_caller_identity` data source for the policy.
+  - The admin policy's `Resource` for `AmpQueryAndStatusWrite` became a list with `arn:aws:aps:us-east-1:*:rulegroupsnamespace/*` (no new account-ID line), and the statement also got the three tag actions, so the owner's local apply can tag the namespace.
+  - `cerberus-ci-plan` (ReadOnlyAccess) allows the Describe and List actions (checked with `iam simulate-principal-policy`).
+  - Owner steps are pending. The runbook is in `observability/alerts/README.md`, "Putting the rules live (owner)".
 
 **10.4c: owner check. No PR, $0, no cluster.**
 1. After the 10.2 and 10.4 pastes: `aws amp describe-rule-groups-namespace --workspace-id <id> --name cerberus-status` shows ACTIVE. `aws amp describe-alert-manager-definition` shows ACTIVE.

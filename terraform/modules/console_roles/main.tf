@@ -169,6 +169,15 @@ resource "aws_iam_role_policy" "console_cli" {
         Resource = var.athena_results_bucket_arn
       },
       {
+        # 10.5c (plan 2026-11-22-status-from-amp): the status view runs fixed
+        # PromQL against AMP. One action, the one workspace ARN: never
+        # workspace/* or *. No aps:ListWorkspaces (the URL comes from env).
+        Sid      = "QueryStatusMetrics"
+        Effect   = "Allow"
+        Action   = ["aps:QueryMetrics"]
+        Resource = var.amp_workspace_arn
+      },
+      {
         Sid      = "ListConsoleResultsPrefix"
         Effect   = "Allow"
         Action   = ["s3:ListBucket"]

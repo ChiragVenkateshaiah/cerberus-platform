@@ -41,7 +41,7 @@ class FakeAmp:
     def __init__(self, workspaces=None):
         self.calls = []
         self.workspaces = (
-            [{"alias": "cerberus-platform", "prometheusEndpoint": ENDPOINT[:-1]}]
+            [{"alias": "cerberus-platform", "workspaceId": "ws-fake"}]
             if workspaces is None
             else workspaces
         )
@@ -220,7 +220,7 @@ def test_no_workspace_id_in_the_code():
 
 @pytest.mark.parametrize("found", [0, 2])
 def test_workspace_must_match_one_alias(capsys, net, monkeypatch, found):
-    one = {"alias": "cerberus-platform", "prometheusEndpoint": ENDPOINT}
+    one = {"alias": "cerberus-platform", "workspaceId": "ws-fake"}
     sess = FakeSession(FakeAmp([one] * found))
     monkeypatch.setattr(aws_send, "make_session", lambda: sess)
     code, _, err = run(capsys, "start", "--execution", "e1", "--send")

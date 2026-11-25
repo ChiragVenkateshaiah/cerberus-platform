@@ -72,9 +72,12 @@ class Target:
         found = [w for w in found if w.get("alias") == ALIAS]
         if len(found) != 1:
             raise AwsError(f"expected 1 AMP workspace with alias {ALIAS!r}, found {len(found)}")
-        self.base = found[0]["prometheusEndpoint"]
-        if not self.base.endswith("/"):
-            self.base += "/"
+        # list_workspaces returns summaries without prometheusEndpoint (only
+        # describe_workspace has it), so build the URL from the workspace id, as
+        # observability/scale/collect_run_metrics.py does.
+        self.base = (
+            f"https://aps-workspaces.{REGION}.amazonaws.com/workspaces/{found[0]['workspaceId']}/"
+        )
 
     def _request(self, method, url, body, headers):
         from botocore.auth import SigV4Auth
