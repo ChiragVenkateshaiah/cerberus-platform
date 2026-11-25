@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-22T07:50:04Z",
+  "generated_at": "2026-11-25T05:59:53Z",
   "phases": [
     {
       "number": 0,
@@ -1302,7 +1302,9 @@
         "pr": [
           {
             "number": 176,
-            "pending": true
+            "title": "10.4b: Terraform and IAM that put the status alert rules into AMP",
+            "date": "2026-11-25",
+            "merge": "d1e25a8"
           }
         ],
         "runs": []
@@ -2488,6 +2490,12 @@
       "title": "ADR 0028 and 0029 (Proposed): Databricks Free Edition, platform traceability",
       "date": "2026-11-20",
       "merge": "6a29682"
+    },
+    {
+      "number": 176,
+      "title": "10.4b: Terraform and IAM that put the status alert rules into AMP",
+      "date": "2026-11-25",
+      "merge": "d1e25a8"
     },
     {
       "number": 178,
