@@ -12,6 +12,7 @@ export AWS_PROFILE ?= cerberus-admin
 TF_STANDING_DIR := terraform/envs/dev-standing
 TF_COMPUTE_DIR := terraform/envs/dev-compute
 TF_CONSOLE_DIR := terraform/envs/dev-console
+TF_LAUNCH_DIR := terraform/envs/dev-launch
 TF_BOOTSTRAP_DIR := terraform/bootstrap
 
 .PHONY: help
@@ -222,3 +223,13 @@ traceability: ## Regenerate observability/showcase/history.json and docs/traceab
 
 traceability-check: ## Fail if the traceability files are stale or a link dangles (what CI runs)
 	python3 tools/traceability/generate.py --check
+
+# 17.3b (ADR 0030): the per-session launch edge. launch-session, launch-destroy,
+# launch-check and launch-collect belong to 17.4.
+.PHONY: launch-plan launch-function-test
+launch-plan: ## READ-ONLY, owner-run: init dev-launch against the shared state backend, then terraform plan with no load generator (applies nothing)
+	@TF_BIN=$(TF_BIN) orchestration/launch_init.sh && \
+	$(TF_BIN) -chdir=$(TF_LAUNCH_DIR) plan -var create_load_gen=false
+
+launch-function-test: ## offline: node tests of the /license Function and the launch edge Terraform (no AWS, no network)
+	node --test terraform/modules/launch_edge/function/license.test.mjs terraform/modules/launch_edge/static.test.mjs

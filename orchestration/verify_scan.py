@@ -3,7 +3,9 @@
 It checks the added lines of `git diff -U0 <base>` and every untracked file. It
 prints `file:line` only, never the text, so an account ID can never reach a log.
 It exits 1 when it finds something. A line is allowed when it holds a sha256
-digest, the fake test account 123456789012, or a whole 40-hex blob SHA field.
+digest, the fake test account 123456789012, a whole 40-hex blob SHA field, or
+a whole provider hash line (`"zh:" + 64 hex`) in a file named
+`.terraform.lock.hcl`.
 
 Usage: python3 orchestration/verify_scan.py [base]   (default origin/main)
 """
@@ -14,11 +16,18 @@ import sys
 
 RUN = re.compile(r"\d{12}")
 SHA_FIELD = re.compile(r'"sha"\s*:\s*"[0-9a-f]{40}"')
+LOCK_HASH = re.compile(r'^\s*"zh:[0-9a-f]{64}",?\s*$')
+LOCK_FILE = ".terraform.lock.hcl"
 MAX_BYTES = 1_000_000
 
 
-def allowed(line: str) -> bool:
-    return "sha256" in line or "123456789012" in line or bool(SHA_FIELD.search(line))
+def allowed(line: str, path: str = "") -> bool:
+    return (
+        "sha256" in line
+        or "123456789012" in line
+        or bool(SHA_FIELD.search(line))
+        or (path.endswith(LOCK_FILE) and bool(LOCK_HASH.match(line)))
+    )
 
 
 def git(*args: str) -> str:
@@ -56,7 +65,7 @@ def main() -> int:
     hits = [
         f"{path}:{number}"
         for path, number, line in [*added_lines(base), *untracked_lines()]
-        if RUN.search(line) and not allowed(line)
+        if RUN.search(line) and not allowed(line, path)
     ]
     for hit in hits:
         print(f"12-digit run at {hit}")

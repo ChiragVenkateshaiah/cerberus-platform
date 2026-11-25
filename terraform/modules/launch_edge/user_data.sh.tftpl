@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Launch load generator boot script (ADR 0030 Decision 6). Minimal on purpose:
+# the k6 pin and the run itself are added in 17.4. Rendered by templatefile();
+# every dollar-brace below is a Terraform value, the shell uses bare $VAR.
+# Never turn on set -x here.
+set -euo pipefail
+set +x
+
+# The backstop if the session trap dies; the instance terminates on shutdown.
+shutdown -h +${shutdown_minutes}
+
+install -d -m 0755 /etc/cerberus-launch /opt/cerberus-launch/hooks
+cat > /etc/cerberus-launch/env <<'ENV'
+AWS_REGION=${region}
+AWS_DEFAULT_REGION=${region}
+BUILD_BUCKET=${build_bucket}
+COOKIE_PARAMETER=${cookie_parameter}
+EDGE_DOMAIN=${domain_name}
+K6_VERSION=${k6_version}
+K6_SHA256=${k6_sha256}
+ENV
+chmod 0644 /etc/cerberus-launch/env
