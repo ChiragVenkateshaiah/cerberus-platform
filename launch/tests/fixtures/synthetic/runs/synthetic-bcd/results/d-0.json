@@ -1,0 +1,39 @@
+{
+  "metrics": {
+    "bytes_build": {
+      "count": 0
+    },
+    "bytes_licence": {
+      "count": 40000
+    },
+    "bytes_patch": {
+      "count": 0
+    },
+    "http_req_waiting": {
+      "avg": 38,
+      "max": 300,
+      "med": 38,
+      "min": 1,
+      "p(50)": 38,
+      "p(90)": 145,
+      "p(95)": 148,
+      "p(99)": 150
+    },
+    "http_reqs": {
+      "count": 400,
+      "rate": 1.5
+    },
+    "req_build": {
+      "count": 395
+    },
+    "req_licence": {
+      "count": 2
+    },
+    "req_manifest": {
+      "count": 0
+    },
+    "req_patch": {
+      "count": 3
+    }
+  }
+}

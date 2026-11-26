@@ -251,7 +251,24 @@ launch-destroy: ## AWS WRITE, owner-run: stage 1 (leftover cookie parameter) and
 	@TF_BIN=$(TF_BIN) orchestration/launch_destroy.sh
 
 launch-test: ## offline: pytest of the launch tooling (stubs aws, terraform, openssl, k6 and curl on PATH)
-	uv run --no-project --python 3.12 --with pytest==9.1.1 python -m pytest -q launch/tests
+	uv run --no-project --python 3.12 --with pytest==9.1.1 --with sqlglot==30.35.0 python -m pytest -q launch/tests
+
+# 17.7: the launch results. The two pulls are read-only and owner-run; the render
+# reads the files they write and needs no AWS.
+.PHONY: launch-pull-results launch-pull-cost launch-results-render
+launch-pull-results: ## READ-ONLY (Athena), owner-run: pull the gold marts into observability/launch/extracts/ (SESSION= one or more run ids separated by spaces, EXERCISE= the exercise run id)
+	@printf '%s\n' "$$SESSION $$EXERCISE" | grep -Eqx '[a-z0-9-]+( [a-z0-9-]+)+' \
+	  || { echo "SESSION= (one or more run ids) and EXERCISE= are required, as [a-z0-9-] ids"; exit 2; }
+	set -f; args=""; for s in $$SESSION; do args="$$args --session $$s"; done; \
+	  uv run -q --no-project --python 3.12 --with boto3==1.43.67 \
+	  python launch/results_pull.py results $$args --exercise "$$EXERCISE"
+
+launch-pull-cost: ## READ-ONLY (Cost Explorer), owner-run: write observability/launch/extracts/cost.json (November Usage total and daily cost by service; needs ce:GetCostAndUsage)
+	AWS_PROFILE=cerberus-admin uv run -q --no-project --python 3.12 --with boto3==1.43.67 \
+	  python launch/results_pull.py cost
+
+launch-results-render: ## OFFLINE, no AWS: render docs/launch-day-results.md and docs/img/launch/*.svg from the run records, ledger and extracts
+	python3 launch/results_render.py
 
 launch-function-test: ## offline: node tests of the /license Function and the launch edge Terraform (no AWS, no network)
 	node --test terraform/modules/launch_edge/function/license.test.mjs terraform/modules/launch_edge/static.test.mjs

@@ -1,0 +1,10 @@
+{
+  "cdn_logs_collected": false,
+  "cdn_models_built": true,
+  "cluster_seconds": 1800,
+  "events_requested": 1000000,
+  "kind": "exercise",
+  "run_id": "synthetic-exercise",
+  "stage": "done",
+  "started": "2026-11-28T09:00:00Z"
+}

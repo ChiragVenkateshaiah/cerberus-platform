@@ -1,0 +1,21 @@
+{
+  "budget_bytes": 1500000000,
+  "cdn_logs_collected": true,
+  "curl_requests": 4,
+  "hold": false,
+  "k6_complete": true,
+  "k6_requests": 12,
+  "k6_requests_by_type": {
+    "build": 8,
+    "licence": 1,
+    "manifest": 0,
+    "patch": 3
+  },
+  "minutes": 20,
+  "planned_gb": "1.000",
+  "release_at_epoch": 1795000000,
+  "run_id": "synthetic-a",
+  "scenario": "a",
+  "window_end_ms": 1795774800000,
+  "window_start_ms": 1795773600000
+}

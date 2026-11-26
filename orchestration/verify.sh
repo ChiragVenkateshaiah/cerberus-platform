@@ -61,7 +61,7 @@ check "launch_exercise tests (stubs)" uv run --no-project --python 3.12 \
 # openssl, k6 and curl on PATH: no AWS and no network.
 if [ -d launch/tests ]; then
   check "launch tests" uv run --no-project --python 3.12 \
-    --with pytest==9.1.1 python -m pytest -q launch/tests
+    --with pytest==9.1.1 --with sqlglot==30.35.0 python -m pytest -q launch/tests
 else
   skip "launch tests" "not on this branch"
 fi

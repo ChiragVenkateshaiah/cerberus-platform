@@ -1,0 +1,21 @@
+{
+  "budget_bytes": 30000000000,
+  "cdn_logs_collected": true,
+  "curl_requests": 6,
+  "hold": true,
+  "k6_complete": true,
+  "k6_requests": 3100,
+  "k6_requests_by_type": {
+    "build": 2000,
+    "licence": 400,
+    "manifest": 100,
+    "patch": 600
+  },
+  "minutes": 60,
+  "planned_gb": "25.000",
+  "release_at_epoch": 1795086400,
+  "run_id": "synthetic-bcd",
+  "scenario": "bcd",
+  "window_end_ms": 1795863600000,
+  "window_start_ms": 1795860000000
+}
