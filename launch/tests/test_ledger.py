@@ -107,7 +107,7 @@ def test_record_rejects_bad_run_id_and_kind(env):
         run(env, "record", "--run-id", "ok", "--kind", "other", "--estimate-usd", "1").returncode
         != 0
     )
-    assert not env.ledger.exists()
+    assert env.ledger.read_text() == ""
 
 
 def test_estimate(env):
@@ -131,3 +131,25 @@ def test_baseline_is_written_once_and_never_invented(env):
     assert not env.baseline.exists()
     # the query is Usage only (credits excluded)
     assert "RECORD_TYPE" in env.log.read_text()
+
+
+def test_baseline_creates_an_empty_ledger_and_never_truncates_one(env):
+    env.baseline.unlink()
+    env.ledger.unlink()
+    assert run(env, "baseline", STUB_CE_USD="12.34").returncode == 0
+    assert env.ledger.exists() and env.ledger.read_text() == ""
+    assert guard(env, "1.00", STUB_CE_USD="15.00").returncode == 0  # empty = zero entries
+    assert (
+        run(env, "record", "--run-id", "r1", "--kind", "session", "--estimate-usd", "2").returncode
+        == 0
+    )
+    env.baseline.unlink()
+    assert run(env, "baseline", STUB_CE_USD="12.34").returncode == 0
+    assert "r1" in env.ledger.read_text()  # kept
+
+
+def test_guard_fails_closed_when_the_ledger_is_missing(env):
+    env.ledger.unlink()
+    result = guard(env, "1.00", STUB_CE_USD="15.00")
+    assert result.returncode == 2
+    assert "ledger" in result.stderr

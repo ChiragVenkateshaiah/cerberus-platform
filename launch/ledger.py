@@ -12,7 +12,8 @@ The CLI is the contract with 17.5 (launch_exercise.sh):
   ledger.py record  --run-id ID --kind session|exercise --estimate-usd N [--gb N]
   ledger.py correct --run-id ID --usd N
   ledger.py estimate --minutes M --gb G [--mtd-gb X]    print the run estimate in USD
-  ledger.py baseline                  READ-ONLY: write cost_baseline.json once
+  ledger.py baseline                  READ-ONLY: write cost_baseline.json once; also create an
+                                      empty ledger if there is none (an existing one is kept)
 
 `launch-destroy` and `launch-collect` never call guard. cost_baseline.json is the
 owner's to generate (`make launch-baseline`); no number in it is invented here.
@@ -145,6 +146,11 @@ def read_baseline(path: Path) -> Decimal:
 
 def guard(next_usd: Decimal, ledger: Path, baseline: Path) -> tuple[bool, str]:
     base = read_baseline(baseline)
+    # Fail closed: a deleted ledger would hide earlier spend. `baseline` creates it empty.
+    if not ledger.exists():
+        raise LedgerError(
+            "the ledger file is absent: run `make launch-baseline` (it creates an empty one)"
+        )
     end = min(
         (datetime.now(UTC).date() + timedelta(days=1)).isoformat(),
         MONTH_END,
@@ -215,6 +221,9 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if baseline.exists():
             raise LedgerError("cost_baseline.json exists: it is recorded once, not rewritten")
+        # Only on the first baseline: a rerun must not hide a lost ledger.
+        ledger.parent.mkdir(parents=True, exist_ok=True)
+        ledger.touch(exist_ok=True)  # never truncates
         usd = usage_total(MONTH_START, BASELINE_END)
         baseline.write_text(json.dumps({
             "through": BASELINE_THROUGH, "record_type": "Usage", "credits": "excluded",

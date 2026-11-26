@@ -32,11 +32,13 @@ set -uo pipefail
 # instance with an explicit release_at. T0 is fixed after Deployed, so the wait for the
 # distribution does not eat the schedule. Both applies pass the same PEM.
 #
-# Stage 1 (instance, cookie parameter, private key) always runs from the EXIT
-# trap, after a failed apply, Ctrl-C or SIGTERM. Its three steps are
-# independent: each runs even if another failed, and any failure ends the
-# script non-zero with a loud message. Stage 1 applies the default PEM, so no
-# valid signer remains. Stage 2 (orchestration/launch_destroy.sh --stage2) runs
+# Stage 1 (private key, instance, cookie parameter) always runs from the EXIT
+# trap, after a failed apply, Ctrl-C or SIGTERM. Its steps are independent: each
+# runs even if another failed, and any failure ends the script non-zero with a
+# loud message. The instance is always terminated directly (tag Stack=dev-launch),
+# then the stage 1 apply (default PEM, so no valid signer remains) runs, with one
+# retry. If that apply fails twice, or a byte-budget stop ended the run, stage 2
+# runs even with HOLD. Stage 2 (orchestration/launch_destroy.sh --stage2) runs
 # from the trap too, unless PREWARM or HOLD asks the owner to run it. A failed
 # PREWARM apply runs both stages. A trap does not survive SIGKILL or power
 # loss: the instance shuts itself down at MINUTES plus a margin.
@@ -88,6 +90,14 @@ is_on "$PREWARM" && PREWARM_ON=true
 is_on "$HOLD" && HOLD_ON=true
 
 # --- input checks (no AWS) ---------------------------------------------------
+# The layer 4 poll: a whole number of seconds from 10 to 120 (a smaller one hammers
+# CloudWatch, a larger one is blind). LAUNCH_ALLOW_FAST_POLL=1 is the tests' override.
+if [[ "${LAUNCH_ALLOW_FAST_POLL:-0}" != "1" ]]; then
+  if ! [[ "$POLL_SECONDS" =~ ^[0-9]+$ ]] || ((10#$POLL_SECONDS < 10 || 10#$POLL_SECONDS > 120)); then
+    die "LAUNCH_POLL_SECONDS must be a whole number from 10 to 120 (got: $POLL_SECONDS)"
+  fi
+  POLL_SECONDS=$((10#$POLL_SECONDS))
+fi
 case "$SCENARIO" in a | b | c | d | bcd | p) ;; *) die "SCENARIO must be a, b, c, d, bcd or p (got: $SCENARIO)" ;; esac
 
 # The timeline comes from the scenario files (launch/scenario.py): the seed list,
@@ -303,26 +313,50 @@ terminate_instances() {
   ids="$(aws_ ec2 describe-instances --filters Name=tag:Stack,Values=dev-launch \
     Name=instance-state-name,Values=pending,running,stopping,stopped \
     --query 'Reservations[].Instances[].InstanceId' --output text)" || return 1
-  [[ -z "$ids" ]] && return 0
+  [[ -z "$ids" || "$ids" == "None" ]] && return 0
   # shellcheck disable=SC2086  # a word per instance ID
   aws_ ec2 terminate-instances --instance-ids $ids >/dev/null
 }
 
+STAGE1_APPLY_FAILED=false
+
+# A state-lock error leaves the lock behind: print the command, never run it.
+lock_hint() {
+  grep -q 'Error acquiring the state lock' "$1" 2>/dev/null || return 0
+  loud "TERRAFORM STATE LOCK HELD. When no apply runs, free it by hand: terraform -chdir=terraform/envs/dev-launch force-unlock <LOCK_ID> (the ID is in the error above)"
+}
+
 stage1() {
-  local rc=0
-  log "STAGE 1: terminate the instance, delete the cookie parameter, remove the key"
+  local rc=0 out
+  log "STAGE 1: remove the key, terminate the instance, delete the cookie parameter"
+  # The key first: it is the one secret, and it needs no network.
+  remove_key || rc=1
+  # Always terminate directly: this does not wait on a Terraform lock or a failed apply.
+  terminate_instances || { loud "DIRECT TERMINATION FAILED: check EC2 by hand"; rc=1; }
   if $LIVE_STARTED; then
     # The default key and sentinel release_at are the variable defaults: no
-    # valid signer remains after this apply. No -target.
-    if ! setsid -w "$TF" -chdir="$ENV_DIR" apply -auto-approve -input=false -no-color \
-      -lock-timeout=120s -var create_load_gen=false -var "minutes=$MINUTES"; then
-      loud "STAGE 1 APPLY FAILED: terminating any launch instance directly"
-      terminate_instances || loud "DIRECT TERMINATION FAILED: check EC2 by hand"
+    # valid signer remains after this apply. No -target. One retry.
+    out="$(mktemp)" || out=/dev/null
+    local try ok=false
+    for try in 1 2; do
+      if setsid -w "$TF" -chdir="$ENV_DIR" apply -auto-approve -input=false -no-color \
+        -lock-timeout=120s -var create_load_gen=false -var "minutes=$MINUTES" >"$out" 2>&1; then
+        cat "$out"
+        ok=true
+        break
+      fi
+      cat "$out"
+      lock_hint "$out"
+      ((try == 1)) && log "stage 1 apply failed; trying once more"
+    done
+    [[ "$out" == /dev/null ]] || rm -f "$out"
+    if ! $ok; then
+      loud "STAGE 1 APPLY FAILED TWICE: the instance was terminated directly; stage 2 will run"
+      STAGE1_APPLY_FAILED=true
       rc=1
     fi
   fi
   delete_parameter || { loud "COOKIE PARAMETER DELETE FAILED: run: make launch-destroy"; rc=1; }
-  remove_key || rc=1
   return "$rc"
 }
 
@@ -399,6 +433,12 @@ teardown() {
       run_stage2=true # a failed PREWARM apply runs both stages
     elif $HOLD_ON; then
       run_stage2=false
+      # HOLD keeps the edge only when nothing is wrong: a failed stage 1 apply or a
+      # byte-budget stop must not leave the edge up for 24 h.
+      if $STAGE1_APPLY_FAILED || $BUDGET_STOP; then
+        loud "HOLD is ignored: running stage 2 now"
+        run_stage2=true
+      fi
     fi
   fi
 
@@ -467,7 +507,7 @@ KEYDIR="$(mktemp -d "$XDG_RUNTIME_DIR/launch-XXXXXX")" || die "could not create 
 chmod 0700 "$KEYDIR"
 openssl genrsa -out "$KEYDIR/key.pem" 2048 >/dev/null 2>&1 || die "openssl could not generate the key"
 openssl rsa -in "$KEYDIR/key.pem" -pubout -out "$KEYDIR/pub.pem" >/dev/null 2>&1 || die "openssl could not derive the public key"
-PUB_PEM="$(cat "$KEYDIR/pub.pem")"
+PUB_PEM="$(cat "$KEYDIR/pub.pem")" # the trailing newline is lost here; the module adds one back
 live_vars
 
 # Apply 1: the public key and the edge, no instance, the default (far-future)
@@ -529,10 +569,16 @@ tr ' ' '\n' <<<"$ORDER" | aws_ s3 cp - "s3://$BUCKET/scenarios/order" --only-sho
 tr ' ' '\n' <<<"$SEED" | aws_ s3 cp - "s3://$BUCKET/scenarios/seed" --only-show-errors || die "seed upload failed"
 mkdir -p "$RUN_DIR"
 
+# Old results (a done marker from an earlier run) must not end this run at once.
+aws_ s3 rm "s3://$BUCKET/results/" --recursive --only-show-errors || die "could not clear old results"
+
 log "creating the load generator (the budget is $BUDGET bytes)"
 # Apply 2: the same PEM, the explicit release_at, and the instance.
 run_apply "${LIVE_VARS[@]}" -var "release_at_epoch=$RELEASE_AT" -var create_load_gen=true -var "budget_bytes=$BUDGET" \
   || die "the instance apply failed"
+
+# The signing key must be the one the cookies name: a replaced key would void them.
+[[ "$(tf output -raw public_key_id)" == "$KEYID" ]] || die "the signing key changed after the cookies were minted"
 
 # T0 is set and has not come: /license must still say 403.
 CURL_REQUESTS=$((CURL_REQUESTS + 1))
@@ -581,6 +627,7 @@ while ((SECONDS < deadline)); do
     | jq -r '[.Datapoints[].Sum] | add // 0 | floor' 2>/dev/null)" || sum=""
   if [[ "$sum" =~ ^[0-9]+$ ]]; then
     UNREADABLE=0
+    log "BytesDownloaded since the start: $sum (stop above $LIMIT)"
     if ((sum > LIMIT)); then
       BUDGET_STOP=true
       exit 3

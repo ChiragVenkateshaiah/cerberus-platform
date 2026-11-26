@@ -15,7 +15,9 @@
 locals {
   build_bucket_name = "cerberus-platform-launch-build-${var.account_id}"
   logs_bucket_name  = "cerberus-platform-launch-logs-${var.account_id}"
-  public_key_pem    = coalesce(var.public_key_pem, file("${path.module}/default_public_key.pem"))
+  # One trailing newline always: the session script passes the PEM without it, and a
+  # different encoded_key would force a replacement on every apply.
+  public_key_pem = "${trimspace(coalesce(var.public_key_pem, file("${path.module}/default_public_key.pem")))}\n"
 
   tags = {
     Project = "cerberus-platform"

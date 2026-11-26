@@ -158,3 +158,18 @@ test('user data seeds content-addressed sets with seed.py and runs each run with
   assert.ok(ud.indexOf('seed.py') < ud.indexOf('k6 run'), 'seed before k6 runs');
   assert.ok(ud.indexOf('results/seeded') < ud.indexOf('k6 run'));
 });
+
+test('the public key is normalised to one trailing newline, so the session PEM never forces a replacement', () => {
+  const main = read('main.tf');
+  assert.match(main, /public_key_pem\s+=\s+"\$\{trimspace\(coalesce\(var\.public_key_pem, file\("\$\{path\.module\}\/default_public_key\.pem"\)\)\)\}\\n"/);
+  assert.match(main, /encoded_key = local\.public_key_pem/);
+});
+
+test('user data writes the nftables table to results/nft.txt before the done marker', () => {
+  const ud = read('user_data.sh.tftpl');
+  const nft = ud.indexOf('nft list table inet cerberus_launch | aws s3 cp - "s3://$BUILD_BUCKET/results/nft.txt"');
+  assert.ok(nft > 0, 'nft.txt is written');
+  assert.ok(nft > ud.indexOf('k6 run'), 'after the run, so the counter is read');
+  assert.ok(nft < ud.indexOf('results/done'), 'before the done marker');
+  assert.match(ud, /results\/nft\.txt" --only-show-errors \\\n  \|\| echo/, 'a failure does not block done');
+});

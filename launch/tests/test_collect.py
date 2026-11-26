@@ -65,11 +65,10 @@ def test_twelve_digit_scan_is_bounded():
     # a 13-digit timestamp and a 13-digit byte count must pass
     cdn_filter.filter_text(line(**{"sc-bytes": 1234567890123}), FIELDS, START, END, "f")
     # exactly 12 digits in a value is refused ...
-    for field, value in [("cs-uri-stem", "/x/" + ACCT + "/y"), ("sc-bytes", int(ACCT)),
-                         ("x-edge-location", "ab" + ACCT)]:  # fmt: skip
+    for field, value in [("sc-bytes", int(ACCT)), ("x-edge-location", "ab" + ACCT)]:
         with pytest.raises(cdn_filter.Refused):
             cdn_filter.filter_text(line(**{field: value}), FIELDS, START, END, "f")
-    # ... but not in the two exempt fields
+    # ... but not in the two exempt fields (and cs-uri-stem, see the stem tests)
     cdn_filter.filter_text(line(**{"x-edge-request-id": "q" + ACCT + "q"}), FIELDS, START, END, "f")
 
 
@@ -82,7 +81,9 @@ def test_filter_refuses_bad_json_and_a_missing_timestamp():
 def test_run_writes_nothing_when_one_file_is_bad(tmp_path):
     (tmp_path / "in").mkdir()
     (tmp_path / "in" / "0123456789abcdef").write_text(line() + "\n")
-    (tmp_path / "in" / "fedcba9876543210").write_text(line(**{"cs-uri-stem": "/" + ACCT}) + "\n")
+    (tmp_path / "in" / "fedcba9876543210").write_text(
+        line(**{"x-edge-location": "ab" + ACCT}) + "\n"
+    )
     with pytest.raises(cdn_filter.Refused):
         cdn_filter.run("run-1", START, END, tmp_path / "in", tmp_path / "out")
     assert not (tmp_path / "out").exists()
@@ -191,7 +192,7 @@ def test_collect_copies_nothing_for_a_twelve_digit_path_or_value(env):
     env2_key = "cdn/E/ok.json"
     for p in (env.state / "s3" / LOGS).rglob("*.json"):
         p.unlink()
-    prepare_extra = {env2_key: line(**{"cs-uri-stem": "/" + ACCT}) + "\n"}
+    prepare_extra = {env2_key: line(**{"x-edge-location": "ab" + ACCT}) + "\n"}
     for key, body in prepare_extra.items():
         env.set_marker(key, bucket=LOGS)
         (env.state / "s3" / LOGS / key).write_text(body)
@@ -275,7 +276,7 @@ def test_collect_failure_leaves_the_flag_false(env, fail):
 
 
 def test_collect_refusal_leaves_the_flag_false(env):
-    prepare(env, {"cdn/E/a.json": line(**{"cs-uri-stem": "/" + ACCT}) + "\n"})
+    prepare(env, {"cdn/E/a.json": line(**{"x-edge-location": "ab" + ACCT}) + "\n"})
     assert collect(env).returncode != 0 and record(env)["cdn_logs_collected"] is False
 
 
@@ -292,3 +293,71 @@ def test_collect_with_no_log_bucket_leaves_the_flag_false(env):
 def test_collect_without_a_run_record_is_an_error(env):
     assert collect(env, "missing-run").returncode != 0
     assert not (env.runs / "missing-run").exists()
+
+
+# --- cs-uri-stem is normalised, the window comes before the 12-digit scan ----
+
+SHA = "0123456789" + ACCT[:2] + "a" * 52  # 64 hex characters
+SHA12 = "a" * 20 + ACCT + "b" * 32  # a sha256 with a 12-digit run inside
+assert len(SHA) == 64 and len(SHA12) == 64
+
+
+def stem_of(stem):
+    kept = cdn_filter.filter_text(line(**{"cs-uri-stem": stem}), FIELDS, START, END, "f")
+    return json.loads(kept[0])["cs-uri-stem"]
+
+
+def test_a_known_stem_with_a_twelve_digit_sha_passes_unchanged():
+    for stem in (f"/build/{SHA12}.bin", f"/patch/{SHA12}.bin", f"/build/{SHA}.bin"):
+        assert stem_of(stem) == stem
+    for stem in (
+        "/build/manifest.json",
+        "/patch/manifest.json",
+        "/patch/manifest-2.json",
+        "/license",
+    ):
+        assert stem_of(stem) == stem
+
+
+def test_any_other_stem_becomes_other_and_no_attack_path_is_kept():
+    attack = [
+        "/x/" + ACCT + "/y",
+        "/" + ACCT,
+        f"/build/{SHA12}.bin/" + ACCT,
+        f"/build/{SHA12}.bin?x=" + ACCT,
+        f"/build/{SHA12}.binx",
+        f"/other/{SHA12}.bin",
+        "/license/" + ACCT,
+        "/build/main-1.bin",
+        "",
+    ]
+    for stem in attack:
+        assert stem_of(stem) == "/other", stem
+    kept = cdn_filter.filter_text(line(**{"cs-uri-stem": "/x/" + ACCT}), FIELDS, START, END, "f")
+    assert ACCT not in kept[0]
+
+
+def test_an_out_of_window_bad_line_is_dropped_not_refused():
+    text = "\n".join(
+        [
+            line(**{"timestamp(ms)": START - 1, "x-edge-location": "ab" + ACCT}),
+            line(**{"timestamp(ms)": END + 1, "sc-bytes": int(ACCT)}),
+            line(),
+        ]
+    )
+    assert len(cdn_filter.filter_text(text, FIELDS, START, END, "f")) == 1
+
+
+def test_out_of_window_lines_still_need_json_fields_and_a_timestamp():
+    bad = json.loads(line(**{"timestamp(ms)": START - 1}))
+    bad["c-ip"] = "203.0.113.9"
+    for text in ("not json", json.dumps(bad), json.dumps({"sc-status": 200}),
+                 line(**{"timestamp(ms)": "soon"})):  # fmt: skip
+        with pytest.raises(cdn_filter.Refused):
+            cdn_filter.filter_text(text, FIELDS, START, END, "f")
+
+
+def test_twelve_digits_in_another_field_in_the_window_is_still_refused():
+    for field in ("x-edge-location", "x-edge-result-type", "cs-method", "cs-protocol"):
+        with pytest.raises(cdn_filter.Refused):
+            cdn_filter.filter_text(line(**{field: "a" + ACCT + "b"}), FIELDS, START, END, "f")

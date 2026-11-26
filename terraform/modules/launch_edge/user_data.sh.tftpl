@@ -80,6 +80,9 @@ for name in $(cat "$SCN/order"); do
     idx=$((idx + 1))
   done
 done
+# The nftables table with its quota counter, as evidence that layer 3 was in place.
+nft list table inet cerberus_launch | aws s3 cp - "s3://$BUILD_BUCKET/results/nft.txt" --only-show-errors \
+  || echo "nft evidence not written" >&2 # must not block the done marker
 echo done | aws s3 cp - "s3://$BUILD_BUCKET/results/done" --only-show-errors
 
 shred -u /run/cerberus-cookies

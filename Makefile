@@ -241,8 +241,8 @@ launch-baseline: ## READ-ONLY (Cost Explorer), owner-run once before Run A: writ
 launch-session: ## AWS WRITE, owner-run: one launch session (SCENARIO, MINUTES, PREWARM, HOLD; ARGS=--dry-run prints the plan and calls nothing)
 	@TF_BIN=$(TF_BIN) orchestration/launch_session.sh $(ARGS)
 
-launch-collect: ## AWS WRITE (bronze), owner-run: copy the CDN logs of RUN_ID to bronze (checked against the field allowlist first; repeatable)
-	@orchestration/launch_collect.sh $(RUN_ID)
+launch-collect: ## AWS WRITE (bronze), owner-run: copy the CDN logs of RUN_ID (read from the environment) to bronze (checked against the field allowlist first; repeatable)
+	@orchestration/launch_collect.sh
 
 launch-check: ## READ-ONLY: report 0 for every launch resource; exit 1 on any leftover or unreadable value
 	@TF_BIN=$(TF_BIN) orchestration/launch_check.sh

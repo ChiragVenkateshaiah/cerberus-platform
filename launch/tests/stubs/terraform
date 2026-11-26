@@ -5,6 +5,8 @@
 #   FAIL_TF="pat"         fail a call whose arguments contain pat ...
 #   FAIL_TF_NOT="pat2"    ... unless they also contain pat2
 #   FAIL_TF_ONCE="pat"    fail only the first call that contains pat
+#   FAIL_TF_LOCK=1        a failing call also prints the state-lock error text
+#   STUB_KEY_CHANGE=1     `output -raw public_key_id` answers a different ID
 args="$*"
 args="${args//$'\n'/ }"
 echo "terraform $args" >>"$STUB_LOG"
@@ -17,6 +19,7 @@ done
 if [[ -n "${FAIL_TF:-}" && "$args" == *"$FAIL_TF"* ]]; then
   if [[ -z "${FAIL_TF_NOT:-}" || "$args" != *"$FAIL_TF_NOT"* ]]; then
     echo "Error: stub failure" >&2
+    [[ -n "${FAIL_TF_LOCK:-}" ]] && echo "Error: Error acquiring the state lock" >&2
     exit 1
   fi
 fi
@@ -42,6 +45,10 @@ fi
 
 case "$cmd" in
   output)
+    if [[ "$args" == *"-raw public_key_id"* ]]; then
+      if [[ "${STUB_KEY_CHANGE:-0}" == 1 ]]; then printf 'KCHANGED'; else printf 'KSTUB'; fi
+      exit 0
+    fi
     cat <<JSON
 {"domain_name":{"value":"d-stub.example.test"},"distribution_id":{"value":"DSTUB"},"public_key_id":{"value":"KSTUB"},"build_bucket":{"value":"stub-build"},"log_bucket":{"value":"stub-logs"},"instance_id":{"value":null}}
 JSON

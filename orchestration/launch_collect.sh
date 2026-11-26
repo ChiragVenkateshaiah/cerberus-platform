@@ -17,7 +17,8 @@ set -uo pipefail
 #         part-<16 hex of sha256(source key)>.json, then _manifest.json last.
 # Everything is checked by launch/cdn_filter.py BEFORE the first copy: every
 # field must be in launch/cdn_fields.json, and no path or value (except
-# x-edge-request-id and timestamp(ms)) may hold a 12-digit run. One violation
+# x-edge-request-id and timestamp(ms)) of a line in the window may hold a 12-digit
+# run; cs-uri-stem is replaced by /other unless it is a known path. One violation
 # copies nothing. Messages never print a key, a value or a bucket name.
 
 REGION="us-east-1"
