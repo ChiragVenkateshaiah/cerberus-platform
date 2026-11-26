@@ -43,6 +43,7 @@ class FakeAthena:
     @staticmethod
     def name_of(sql):
         for name, marker in (
+            ("cdn_subrun", "with windows"),
             ("cdn_class", "as uri_class"),
             ("cdn_minute", "fct_cdn_requests"),
             ("release_window", "fct_release_window"),
@@ -119,11 +120,23 @@ def good_rows():
         ],
         "cdn_minute": [["synthetic-a", "2026-11-27 10:05:00.000", "10", "1.0"]],
         "cdn_class": [["synthetic-a", "SEA", "build", "10", "6", "1", "3", "1.0"]],
+        "cdn_subrun": [
+            ["synthetic-a", "d-1", "5", "5", "0", "0", "1.000000"],
+            ["synthetic-a", "d-0", "10", "6", "1", "3", "0.600000"],
+        ],
     }
 
 
-def pull(tmp_path, athena, sessions=("synthetic-a",), exercise="synthetic-exercise"):
-    return rp.pull_results(athena, list(sessions), exercise, tmp_path, date(2026, 11, 29))
+def put_window(runs, session, sub, start=1795862000000, end=1795862600000, **extra):
+    results = runs / session / "results"
+    results.mkdir(parents=True, exist_ok=True)
+    body = {"run": sub, "start_ms": start, "end_ms": end, **extra}
+    (results / f"{sub}.window.json").write_text(json.dumps(body))
+
+
+def pull(tmp_path, athena, sessions=("synthetic-a",), exercise="synthetic-exercise", runs=None):
+    runs = runs if runs is not None else tmp_path.parent / "no-runs"
+    return rp.pull_results(athena, list(sessions), exercise, tmp_path, date(2026, 11, 29), runs)
 
 
 def test_pull_writes_sorted_csvs_with_fixed_headers_and_manifest(tmp_path):
@@ -249,3 +262,60 @@ def test_fixture_extract_headers_match_the_pull():
     for name, (_, header) in rp.QUERIES.items():
         with (fx / f"{name}.csv").open() as handle:
             assert next(csv.reader(handle)) == header.split(), name
+
+
+def test_subrun_query_takes_validated_windows_as_numbers(tmp_path):
+    runs = tmp_path / "runs"
+    put_window(runs, "synthetic-a", "d-0")
+    put_window(runs, "synthetic-a", "d-1", 1795862700000, 1795862760000)
+    athena = FakeAthena(good_rows())
+    pull(tmp_path / "o", athena, runs=runs)
+    (sql,) = [q for q in athena.sql.values() if "with windows" in q]
+    assert "('synthetic-a', 'd-0', 1795862000000, 1795862600000)" in sql
+    assert "('synthetic-a', 'd-1', 1795862700000, 1795862760000)" in sql
+    assert "{" not in sql
+    with (tmp_path / "o" / "cdn_subrun.csv").open() as handle:
+        rows = list(csv.reader(handle))
+    assert rows[0] == rp.QUERIES["cdn_subrun"][1].split()
+    assert [r[1] for r in rows[1:]] == ["d-0", "d-1"]  # sorted
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {"start_ms": "1795862000000"},  # a string, not an int
+        {"start_ms": 1.7958620000e12},  # a float
+        {"start_ms": True},
+        {"start_ms": 10**11},  # 12 digits
+        {"start_ms": 10**13},  # 14 digits
+        {"end_ms": 1795861000000},  # before the start
+        {"run": "d-9"},  # the name differs from the file
+        {"run": "d-0'; drop table x; --"},
+    ],
+)
+def test_a_bad_window_adds_no_row_and_no_text_reaches_the_sql(tmp_path, bad):
+    runs = tmp_path / "runs"
+    put_window(runs, "synthetic-a", "d-0", **bad)
+    athena = FakeAthena(good_rows())
+    pull(tmp_path / "o", athena, runs=runs)
+    assert not [q for q in athena.sql.values() if "with windows" in q]  # no query: no window
+    with (tmp_path / "o" / "cdn_subrun.csv").open() as handle:
+        assert len(list(csv.reader(handle))) == 1  # the header only
+
+
+def test_a_window_file_name_that_is_not_a_sub_run_is_skipped(tmp_path):
+    runs = tmp_path / "runs"
+    put_window(runs, "synthetic-a", "d-0")
+    (runs / "synthetic-a" / "results" / "x'y.window.json").write_text("{}")
+    assert [w[:2] for w in rp.load_windows(runs, ["synthetic-a"])] == [("synthetic-a", "d-0")]
+    with pytest.raises(rp.PullError):
+        rp.windows_sql([("synthetic-a", "d-0'", 1795862000000, 1795862600000)])
+    with pytest.raises(rp.PullError):
+        rp.windows_sql([("Bad_ID", "d-0", 1795862000000, 1795862600000)])
+
+
+def test_thirteen_digit_windows_are_not_refused_as_twelve_digit_runs(tmp_path):
+    runs = tmp_path / "runs"
+    put_window(runs, "synthetic-a", "d-0")
+    manifest = pull(tmp_path / "o", FakeAthena(good_rows()), runs=runs)
+    assert manifest["queries"]["cdn_subrun"]["rows"] == 2

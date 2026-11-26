@@ -779,6 +779,22 @@ def test_the_cloudwatch_sum_is_logged_each_poll(env):
     assert proc.stdout.count("BytesDownloaded since the start: 12345") >= 2
 
 
+def test_the_run_record_keeps_the_cloudwatch_bytes_read_by_the_poll(env):
+    env.clear_marker("results/done")
+    proc = env.run(SESSION, "--yes", STUB_CW_SUM="12345", STUB_DONE_AFTER_CW="4")
+    assert proc.returncode == 0, proc.stdout
+    record = json.loads((env.runs / "t-run" / "run.json").read_text())
+    assert record["cloudwatch_bytes_downloaded"] == 12345
+    assert record["cloudwatch_bytes_last"] == 12345
+
+
+def test_the_cloudwatch_bytes_are_null_when_the_poll_never_read_them(env):
+    assert env.run(SESSION, "--yes").returncode == 0  # results/done is there at once: no poll
+    record = json.loads((env.runs / "t-run" / "run.json").read_text())
+    assert record["cloudwatch_bytes_downloaded"] is None
+    assert record["cloudwatch_bytes_last"] is None
+
+
 @pytest.mark.parametrize("bad", ["0", "9", "121", "abc", "1.5"])
 def test_the_poll_interval_is_checked_without_the_test_override(env, bad):
     proc = env.run(SESSION, "--yes", LAUNCH_ALLOW_FAST_POLL="0", LAUNCH_POLL_SECONDS=bad)

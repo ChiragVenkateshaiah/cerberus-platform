@@ -1,6 +1,8 @@
 {
   "budget_bytes": 30000000000,
   "cdn_logs_collected": true,
+  "cloudwatch_bytes_downloaded": 24000000000,
+  "cloudwatch_bytes_last": 24000000000,
   "curl_requests": 6,
   "hold": true,
   "k6_complete": true,

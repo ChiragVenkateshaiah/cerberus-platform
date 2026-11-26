@@ -173,3 +173,15 @@ test('user data writes the nftables table to results/nft.txt before the done mar
   assert.ok(nft < ud.indexOf('results/done'), 'before the done marker');
   assert.match(ud, /results\/nft\.txt" --only-show-errors \\\n  \|\| echo/, 'a failure does not block done');
 });
+
+test('user data writes a window file per sub-run before its k6 summary, and a failure does not block the run', () => {
+  const ud = read('user_data.sh.tftpl');
+  const start = ud.indexOf('start_ms=$(date +%s%3N)');
+  const win = ud.indexOf('results/$name-$idx.window.json');
+  const summary = ud.indexOf('"/tmp/$name-$idx.json" "s3://$BUILD_BUCKET/results/$name-$idx.json"');
+  assert.ok(start > 0 && start < ud.indexOf('k6 run'), 'start is read before k6 runs');
+  assert.ok(ud.indexOf('end_ms=$(date +%s%3N)') > ud.indexOf('download.js'), 'end is read after k6');
+  assert.ok(win > 0 && win < summary, 'the window is uploaded before the k6 summary');
+  assert.match(ud, /\{"run":"%s-%s","start_ms":%s,"end_ms":%s\}/);
+  assert.match(ud, /\.window\.json" --only-show-errors \\\n\s+\|\| echo "window evidence not written" >&2/, 'a failure does not block the run');
+});

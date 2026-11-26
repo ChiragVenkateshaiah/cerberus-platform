@@ -170,3 +170,70 @@ def test_no_12_digit_runs_in_outputs_or_fixtures(fx, tmp_path):
     assert files
     for path in files:
         assert not RUN12.search(path.read_text()), path.name
+
+
+def test_window_files_are_windows_not_k6_summaries(fx):
+    run = rr.load_runs(fx / "runs")["synthetic-bcd"]
+    assert sorted(run["results"]) == ["b-0", "c-0", "d-0"]  # no "d-0.window" summary
+    assert run["windows"] == {
+        "d-0": (1795862000000, 1795862600000),
+        "d-1": (1795862700000, 1795862760000),
+    }
+    (fx / "runs" / "synthetic-bcd" / "results" / "d-1.window.json").write_text(
+        '{"run":"d-1","start_ms":"x","end_ms":1}'
+    )
+    assert "d-1" not in rr.load_runs(fx / "runs")["synthetic-bcd"]["windows"]
+
+
+def test_run_d_cold_and_warm_hit_ratios(fx, tmp_path):
+    facts = rr.subrun_facts(
+        rr.load_extracts(fx / "extracts")["rows"]["cdn_subrun"], rr.load_runs(fx / "runs")
+    )
+    assert facts["cold"]["ratio"] == pytest.approx(100 / 150)
+    assert facts["warm"]["ratio"] == pytest.approx(49 / 50)
+    out = render(fx, tmp_path)
+    svg = out["cache-offload.svg"].read_text()
+    assert "cold (d-0)" in svg and "66.7%" in svg and "warm (d-1)" in svg and "98.0%" in svg
+    doc = out["launch-day-results.md"].read_text()
+    assert "Cold 66.7%, warm 98.0% [extracts/cdn_subrun.csv]." in doc
+    assert "| `synthetic-bcd` | d-0 | 2026-" in doc
+
+
+def test_missing_subrun_extract_reads_not_measured(fx, tmp_path):
+    (fx / "extracts" / "cdn_subrun.csv").unlink()
+    out = render(fx, tmp_path)
+    assert "not measured" in out["cache-offload.svg"].read_text()
+    assert "Run D cold against warm: not measured" in out["launch-day-results.md"].read_text()
+    assert "87.1%" in re.search(r"<title>([^<]*)", out["cache-offload.svg"].read_text()).group(1)
+
+
+def test_doc_shows_planned_budget_k6_and_cloudwatch_bytes_with_the_quota_statement(fx, tmp_path):
+    doc = render(fx, tmp_path)["launch-day-results.md"].read_text()
+    row = next(
+        line for line in doc.splitlines() if line.startswith("| `synthetic-bcd`") and "GB" in line
+    )
+    assert "25.000 GB" in row and "30.000 GB" in row and "24.000 GB" in row
+    assert "CloudWatch BytesDownloaded [run.json]" in doc
+    assert "of the nftables quota 30.000 GB: within the quota (nft also counts" in doc
+    # Run A has no CloudWatch value in its record
+    arow = next(
+        line for line in doc.splitlines() if line.startswith("| `synthetic-a`") and "GB" in line
+    )
+    assert arow.rstrip().endswith("| not measured |")
+
+
+def test_null_cloudwatch_and_no_summaries_are_not_measured(fx, tmp_path):
+    path = fx / "runs" / "synthetic-bcd" / "run.json"
+    path.write_text(
+        path.read_text().replace(
+            '"cloudwatch_bytes_downloaded": 24000000000', '"cloudwatch_bytes_downloaded": null'
+        )
+    )
+    for p in (fx / "runs" / "synthetic-a" / "results").glob("*.json"):
+        p.unlink()
+    doc = render(fx, tmp_path)["launch-day-results.md"].read_text()
+    brow = next(
+        line for line in doc.splitlines() if line.startswith("| `synthetic-bcd`") and "GB" in line
+    )
+    assert brow.rstrip().endswith("| not measured |")
+    assert "`synthetic-a`: nftables quota comparison not measured" in doc

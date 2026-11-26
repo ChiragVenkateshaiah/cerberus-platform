@@ -2,8 +2,8 @@
 
 READ-ONLY, owner-run. Two subcommands:
 
-  results --session ID [--session ID ...] --exercise ID [--out DIR]
-      Runs the five queries in launch/queries/ over the gold downloads marts
+  results --session ID [--session ID ...] --exercise ID [--out DIR] [--runs DIR]
+      Runs the six queries in launch/queries/ over the gold downloads marts
       (Athena workgroup, database and profile of the data-quality suite) and
       writes observability/launch/extracts/<name>.csv plus manifest.json (the
       run ids, the pull date, the sha256 and row count of each SQL).
@@ -14,7 +14,11 @@ READ-ONLY, owner-run. Two subcommands:
 Every run id must match ^[a-z0-9-]{1,40}$ before it goes into a query. A query
 that returns more than 20,000 rows, a header that differs from the one the
 render expects, or a value that holds a 12-digit run (a possible account
-number) is refused and nothing is written for it. The render
+number) is refused and nothing is written for it. The cdn_subrun query takes the
+sub-run windows from <runs>/<session>/results/<name>-<n>.window.json (written by
+the instance; start_ms and end_ms must be whole epoch milliseconds, 13 digits):
+the ids and times are validated and put in as numbers, never as text. A session
+with no readable window adds no row. The render
 (launch/results_render.py) reads the files and needs no AWS.
 """
 
@@ -40,6 +44,9 @@ import ledger  # noqa: E402
 QUERY_DIR = HERE / "queries"
 EXTRACTS = ROOT / "observability" / "launch" / "extracts"
 RUN_ID = re.compile(r"^[a-z0-9-]{1,40}$")
+SUB_RUN = re.compile(r"^[a-z]-[0-9]{1,2}$")  # <scenario>-<index>, e.g. d-1
+RUNS_DIR = ROOT / "observability" / "launch" / "runs"
+MS_MIN, MS_MAX = 10**12, 10**13 - 1  # 13 digits: a 12-digit value is refused elsewhere
 ACCOUNT = dq.ACCOUNT_RE  # exactly 12 digits, no digit next to them
 MAX_ROWS = 20_000
 PAGE = 1000
@@ -67,6 +74,10 @@ QUERIES = {
         "sessions",
         "run_id pop uri_class requests hits refresh_hits origin_misses bytes_mb",
     ),
+    "cdn_subrun": (
+        "windows",
+        "run_id sub_run requests hits refresh_hits origin_misses hit_ratio",
+    ),
 }
 
 
@@ -84,7 +95,48 @@ def sql_text(name: str) -> str:
     return (QUERY_DIR / f"{name}.sql").read_text()
 
 
-def render_sql(name: str, exercise: str, sessions: list[str]) -> str:
+def load_windows(runs_dir: Path, sessions: list[str]) -> list[tuple[str, str, int, int]]:
+    """(session, sub-run, start_ms, end_ms) from the window files of each session, sorted.
+
+    A file that is unreadable, has a name or a time that does not pass the checks, or
+    whose "run" differs from its file name is skipped: it adds no row.
+    """
+    found = []
+    for session in sorted(set(sessions)):
+        for path in sorted((runs_dir / session / "results").glob("*.window.json")):
+            sub = path.name[: -len(".window.json")]
+            try:
+                item = json.loads(path.read_text())
+                start, end = item["start_ms"], item["end_ms"]
+            except (OSError, ValueError, KeyError, TypeError):
+                continue
+            if not SUB_RUN.match(sub) or item.get("run") != sub:
+                continue
+            if any(type(v) is not int or not MS_MIN <= v <= MS_MAX for v in (start, end)):
+                continue
+            if end < start:
+                continue
+            found.append((session, sub, start, end))
+    return found
+
+
+def windows_sql(windows: list[tuple[str, str, int, int]]) -> str:
+    """The values rows for {windows}: each id and name re-checked, each time an int."""
+    rows = []
+    for session, sub, start, end in windows:
+        check_id(session, "--session")
+        if not SUB_RUN.match(sub):
+            raise PullError("a sub-run name is not valid")
+        rows.append(f"('{session}', '{sub}', {int(start)}, {int(end)})")
+    return ", ".join(rows)
+
+
+def render_sql(
+    name: str,
+    exercise: str,
+    sessions: list[str],
+    windows: list[tuple[str, str, int, int]] | None = None,
+) -> str:
     """The SQL of a query with the run ids put in (each checked first)."""
     check_id(exercise, "--exercise")
     if not sessions:
@@ -92,7 +144,12 @@ def render_sql(name: str, exercise: str, sessions: list[str]) -> str:
     for item in sessions:
         check_id(item, "--session")
     quoted = ", ".join(f"'{item}'" for item in sorted(set(sessions)))
-    return sql_text(name).replace("{run_ids}", quoted).replace("{run_id}", exercise)
+    text = sql_text(name).replace("{run_ids}", quoted).replace("{run_id}", exercise)
+    if "{windows}" in text:
+        if windows is None:  # parse checks only: one fixed sample row
+            windows = [(sorted(set(sessions))[0], "d-0", MS_MIN, MS_MIN + 1)]
+        text = text.replace("{windows}", windows_sql(windows))
+    return text
 
 
 def run_query(athena, sql: str, poll_seconds: float = 1.0) -> list[list[str]]:
@@ -150,12 +207,21 @@ def write_csv(path: Path, header: list[str], data: list[list[str]]) -> None:
 
 
 def pull_results(
-    athena, sessions: list[str], exercise: str, out: Path, today: date | None = None
+    athena,
+    sessions: list[str],
+    exercise: str,
+    out: Path,
+    today: date | None = None,
+    runs_dir: Path | None = None,
 ) -> dict:
     """Run all queries first, then write the files: a refusal leaves nothing half written."""
+    windows = load_windows(runs_dir if runs_dir is not None else RUNS_DIR, sessions)
     checked: dict[str, tuple[str, list[list[str]]]] = {}
     for name in QUERIES:
-        sql = render_sql(name, exercise, sessions)
+        sql = render_sql(name, exercise, sessions, windows)
+        if name == "cdn_subrun" and not windows:  # no window recorded: no query, an empty extract
+            checked[name] = (sql, check_rows(name, [QUERIES[name][1].split()]))
+            continue
         checked[name] = (sql, check_rows(name, run_query(athena, sql)))
     out.mkdir(parents=True, exist_ok=True)
     manifest = {
@@ -233,6 +299,7 @@ def main(argv=None, athena=None, ce=None, today: date | None = None) -> int:
     r.add_argument("--session", action="append", required=True)
     r.add_argument("--exercise", required=True)
     r.add_argument("--out", default=str(EXTRACTS))
+    r.add_argument("--runs", default=str(RUNS_DIR))
     c = sub.add_parser("cost")
     c.add_argument("--out", default=str(EXTRACTS))
     try:
@@ -249,7 +316,9 @@ def main(argv=None, athena=None, ce=None, today: date | None = None) -> int:
                 athena = boto3.Session(profile_name=dq.QUERY_PROFILE, region_name=dq.REGION).client(
                     "athena"
                 )
-            manifest = pull_results(athena, args.session, args.exercise, Path(args.out), today)
+            manifest = pull_results(
+                athena, args.session, args.exercise, Path(args.out), today, Path(args.runs)
+            )
             for name, info in sorted(manifest["queries"].items()):
                 print(f"{name}: {info['rows']} rows")
         else:
