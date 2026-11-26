@@ -193,6 +193,7 @@ DOMAIN="" DIST="" KEYID="" BUCKET=""
 START_MS="" START_ISO="" RELEASE_AT="" RUN_START=$SECONDS
 LEDGER_RECORDED=false
 PROBE_PID="" MINT_SECONDS=$SECONDS UNREADABLE=0 LIMIT=0 CURL_REQUESTS=0
+CW_LAST="" CW_MAX="" # the last readable and the highest BytesDownloaded sum; empty until one is read
 PUB_PEM=""
 FAILED=0
 
@@ -352,7 +353,9 @@ stage1() {
 # run summary and probe P) so cdn_logs_complete can compare them with the log
 # lines; it is null (17.5 reads "unknown") and k6_complete is false when a summary is
 # missing. curl_requests counts the session's own checks: they reach the edge too, so
-# a small run (A) can read a few lines high; 17.7 must say so.
+# a small run (A) can read a few lines high; 17.7 must say so. cloudwatch_bytes_downloaded
+# is the highest CloudWatch BytesDownloaded sum read by the layer 4 poll (null if none was
+# readable); cloudwatch_bytes_last is the last readable one. CloudWatch lags, so both are lower bounds.
 collect_results() {
   [[ -n "$BUCKET" ]] || { log "no build bucket known; nothing to copy out"; return 0; }
   mkdir -p "$RUN_DIR/results" || return 1
@@ -370,10 +373,12 @@ collect_results() {
     --argjson minutes "$MINUTES" --argjson hold "$HOLD_ON" --argjson start "${START_MS:-0}" \
     --argjson end "$(now_ms)" --argjson budget "$BUDGET" --argjson release "${RELEASE_AT:-0}" \
     --argjson curl "$CURL_REQUESTS" --argjson counts "$counts" \
+    --argjson cw_max "${CW_MAX:-null}" --argjson cw_last "${CW_LAST:-null}" \
     '{run_id: $run_id, scenario: $scenario, minutes: $minutes, hold: $hold, window_start_ms: $start,
       window_end_ms: $end, planned_gb: $planned_gb, budget_bytes: $budget, release_at_epoch: $release,
       k6_requests: (if $counts.complete then $counts.k6_requests else null end), k6_requests_by_type: $counts.by_type, k6_complete: $counts.complete,
-      curl_requests: $curl, cdn_logs_collected: false}' >"$RUN_DIR/run.json"
+      curl_requests: $curl, cloudwatch_bytes_downloaded: $cw_max, cloudwatch_bytes_last: $cw_last,
+      cdn_logs_collected: false}' >"$RUN_DIR/run.json"
 }
 
 # Waits for the probe P job (it counts bytes on the same distribution as the
@@ -613,6 +618,8 @@ while ((SECONDS < deadline)); do
     | jq -r '[.Datapoints[].Sum] | add // 0 | floor' 2>/dev/null)" || sum=""
   if [[ "$sum" =~ ^[0-9]+$ ]]; then
     UNREADABLE=0
+    CW_LAST=$sum
+    if [[ -z "$CW_MAX" ]] || ((sum > CW_MAX)); then CW_MAX=$sum; fi
     log "BytesDownloaded since the start: $sum (stop above $LIMIT)"
     if ((sum > LIMIT)); then
       BUDGET_STOP=true

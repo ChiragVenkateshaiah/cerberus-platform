@@ -2,7 +2,8 @@
 
 OFFLINE, no AWS. Reads three things the owner collected:
 
-  observability/launch/runs/<run_id>/   run.json, results/<name>.json, probe-p.json
+  observability/launch/runs/<run_id>/   run.json, results/<name>.json (k6 summaries),
+                                        results/<name>.window.json (sub-run windows), probe-p.json
   observability/launch/ledger.jsonl     the cost ledger (launch/ledger.py)
   observability/launch/extracts/        the CSVs and cost.json of launch/results_pull.py
   launch/cost_baseline.json             the November baseline through 2026-11-24
@@ -70,7 +71,7 @@ EXTRA_STYLE = """
   }
 """
 RUN_ID = re.compile(r"^[a-z0-9-]{1,40}$")
-EXTRACT_NAMES = ("release_window", "isp_minute", "cdn_run", "cdn_minute", "cdn_class")
+EXTRACT_NAMES = ("release_window", "isp_minute", "cdn_run", "cdn_minute", "cdn_class", "cdn_subrun")
 
 
 # ---------------------------------------------------------------- loading
@@ -83,8 +84,22 @@ def read_json(path: Path):
         return None
 
 
+def read_window(path: Path):
+    """(start_ms, end_ms) from a window file, or None when it is not two whole numbers in order."""
+    item = read_json(path)
+    if not isinstance(item, dict):
+        return None
+    start, end = item.get("start_ms"), item.get("end_ms")
+    if any(type(v) is not int or v <= 0 for v in (start, end)) or end < start:
+        return None
+    return start, end
+
+
 def load_runs(directory: Path) -> dict:
-    """run_id -> {"record", "kind", "results": {name: summary}, "probe"}; unreadable parts are None."""
+    """run_id -> {"record", "kind", "results": {name: summary}, "windows": {name: (start_ms, end_ms)}, "probe"}.
+
+    A *.window.json file is a sub-run window, never a k6 summary. Unreadable parts are None or left out.
+    """
     runs = {}
     if not directory.is_dir():
         return runs
@@ -92,8 +107,13 @@ def load_runs(directory: Path) -> dict:
         record = read_json(sub / "run.json")
         if not isinstance(record, dict) or not RUN_ID.match(sub.name):
             continue
-        results = {}
+        results, windows = {}, {}
         for path in sorted((sub / "results").glob("*.json")):
+            if path.name.endswith(".window.json"):
+                window = read_window(path)
+                if window:
+                    windows[path.name[: -len(".window.json")]] = window
+                continue
             summary = read_json(path)
             if isinstance(summary, dict) and isinstance(summary.get("metrics"), dict):
                 results[path.stem] = summary
@@ -102,6 +122,7 @@ def load_runs(directory: Path) -> dict:
             "record": record,
             "kind": "exercise" if record.get("kind") == "exercise" else "session",
             "results": results,
+            "windows": windows,
             "probe": probe
             if isinstance(probe, dict) and isinstance(probe.get("metrics"), dict)
             else None,
@@ -458,6 +479,81 @@ def cost_read(entries: dict, cost, baseline) -> dict:
     }
 
 
+def subrun_facts(rows, runs):
+    """HOLD-run sub-runs from the cdn_subrun extract, with the hit ratio of each; None without rows.
+
+    Run D is a cold patch (d-0, 50 clients at T0) then a warm repeat (d-1, one client).
+    """
+    holds = hold_runs(runs)
+    if not rows or not holds:
+        return None
+    items = []
+    for r in rows:
+        if r.get("run_id") not in holds or not r.get("sub_run"):
+            continue
+        h, rh, m, n = (num(r.get(k)) for k in ("hits", "refresh_hits", "origin_misses", "requests"))
+        if None in (h, rh, m, n):
+            continue
+        looked = h + rh + m
+        window = runs[r["run_id"]].get("windows", {}).get(r["sub_run"])
+        items.append(
+            {
+                "run": r["run_id"],
+                "sub_run": r["sub_run"],
+                "requests": int(n),
+                "hits": int(h),
+                "misses": int(m),
+                "ratio": h / looked if looked else None,
+                "window": window,
+            }
+        )
+    if not items:
+        return None
+    items.sort(key=lambda i: (i["run"], i["sub_run"]))
+    by_name = {i["sub_run"]: i for i in items if i["run"] == holds[0]} or {
+        i["sub_run"]: i for i in items
+    }
+    return {"items": items, "cold": by_name.get("d-0"), "warm": by_name.get("d-1")}
+
+
+def k6_bytes_of(summary) -> float:
+    return sum(
+        num(summary["metrics"].get(k, {}).get("count")) or 0.0
+        for k in ("bytes_build", "bytes_patch", "bytes_licence")
+    )
+
+
+def bytes_facts(runs):
+    """Per session: planned, the nftables budget, k6 bytes (instance, probe P) and the CloudWatch sum."""
+    out = []
+    for rid, run in sorted(runs.items()):
+        if run["kind"] != "session":
+            continue
+        rec = run["record"]
+        planned_gb = dec(rec.get("planned_gb"))
+        budget = num(rec.get("budget_bytes"))
+        cw = num(rec.get("cloudwatch_bytes_downloaded"))
+        instance = (
+            sum(k6_bytes_of(sm) for sm in run["results"].values()) if run["results"] else None
+        )
+        probe = k6_bytes_of(run["probe"]) if run["probe"] else None
+        out.append(
+            {
+                "run": rid,
+                "planned": float(planned_gb * 10**9) if planned_gb is not None else None,
+                "budget": budget if budget and budget > 0 else None,
+                "instance": instance,
+                "probe": probe,
+                "cloudwatch": cw if cw is not None and cw >= 0 else None,
+            }
+        )
+    return out
+
+
+def gb(value) -> str:
+    return NM if value is None else f"{value / 1e9:.3f} GB"
+
+
 def cost_facts(runs, entries, cost, baseline):
     dated = {
         rid: {**item, "date": day_of(runs[rid]) if rid in runs else None}
@@ -472,8 +568,7 @@ def cost_facts(runs, entries, cost, baseline):
         planned += dec(run["record"].get("planned_gb")) or Decimal(0)
         parts = [*run["results"].values(), *([run["probe"]] if run["probe"] else [])]
         for summary in parts:
-            for key in ("bytes_build", "bytes_patch", "bytes_licence"):
-                k6_bytes += num(summary["metrics"].get(key, {}).get("count")) or 0.0
+            k6_bytes += k6_bytes_of(summary)
     attributable = read["attributable"]
     per_gb, basis = None, NM
     if attributable is not None and k6_bytes > 0:
@@ -593,7 +688,7 @@ def chart_isp_heatmap(facts) -> str:
     )
 
 
-def chart_cache(facts) -> str:
+def chart_cache(facts, subrun=None) -> str:
     what = "Cache hit ratio"
     if not facts:
         return nm_chart(what, "It needs a HOLD run and the cdn_class extract.")
@@ -617,6 +712,18 @@ def chart_cache(facts) -> str:
         else "Cache hit ratio per POP"
     )
     sub = "Request-based offload: hits / (hits + refresh hits + misses), by URI class. Single metro, 50 virtual clients. HOLD run only."
+    # Run D: cold (50 clients at T0) against warm (one-client repeat).
+    body.append(txt(20, y + 4, "Run D patch: cold vs warm", "ink t"))
+    for label, key, color in (("cold (d-0)", "cold", "s2"), ("warm (d-1)", "warm", "s1")):
+        item = subrun and subrun.get(key)
+        y += 22
+        body.append(txt(60, y + 12, label, "ink2 st"))
+        if not item or item["ratio"] is None:
+            body.append(txt(150, y + 12, NM, "muted st"))
+            continue
+        body.append(charts.bar(150, y, max(item["ratio"], 0) * 490, 16, color, True))
+        body.append(txt(150 + item["ratio"] * 490 + 8, y + 13, f"{item['ratio']:.1%}", "ink st"))
+    y += 30
     return frame(760, y + 20, title, sub, "\n".join(body))
 
 
@@ -803,6 +910,94 @@ def table(header, rows) -> str:
     return "\n".join(lines)
 
 
+def subrun_doc(subrun) -> list[str]:
+    if not subrun:
+        return [f"Run D cold against warm: {NM} [extracts/cdn_subrun.csv, results/*.window.json]."]
+    rows = []
+    for i in subrun["items"]:
+        w = i["window"]
+        rows.append(
+            (
+                f"`{i['run']}`",
+                i["sub_run"],
+                f"{iso(w[0])} to {iso(w[1])}" if w else NM,
+                f"{i['requests']:,}",
+                f"{i['hits']:,}",
+                f"{i['misses']:,}",
+                f"{i['ratio']:.1%}" if i["ratio"] is not None else NM,
+            )
+        )
+    lines = [
+        "Run D is a cold patch (`d-0`, 50 clients at T0) then a warm repeat (`d-1`, one client). Edge results inside each sub-run window:",
+        "",
+        table(
+            ["Run", "Sub-run", "Window (UTC)", "Requests", "Hits", "Origin misses", "Hit ratio"],
+            rows,
+        ),
+        "",
+        "[extracts/cdn_subrun.csv, results/*.window.json]",
+    ]
+    cold, warm = subrun["cold"], subrun["warm"]
+    if cold and warm and cold["ratio"] is not None and warm["ratio"] is not None:
+        lines += [
+            "",
+            f"Cold {cold['ratio']:.1%}, warm {warm['ratio']:.1%} [extracts/cdn_subrun.csv].",
+        ]
+    else:
+        lines += [
+            "",
+            f"Run D cold against warm: {NM} (`d-0` or `d-1` has no rows) [extracts/cdn_subrun.csv].",
+        ]
+    return lines
+
+
+def bytes_doc(facts) -> list[str]:
+    rows = []
+    notes = []
+    for f in facts:
+        rows.append(
+            (
+                f"`{f['run']}`",
+                gb(f["planned"]),
+                gb(f["budget"]),
+                gb(f["instance"]),
+                gb(f["probe"]),
+                gb(f["cloudwatch"]),
+            )
+        )
+        if f["instance"] is None or f["budget"] is None:
+            notes.append(
+                f"`{f['run']}`: nftables quota comparison {NM} (no k6 summary or no budget)."
+            )
+        else:
+            state = "within" if f["instance"] <= f["budget"] else "over"
+            notes.append(
+                f"`{f['run']}`: instance k6 body bytes {gb(f['instance'])} are {f['instance'] / f['budget']:.1%} of the nftables quota {gb(f['budget'])}: {state} the quota (nft also counts headers, the seed and SSM, so this reads slightly low)."
+            )
+    out = [
+        table(
+            [
+                "Run",
+                "Planned [run.json planned_gb]",
+                "Budget = nftables quota [run.json budget_bytes]",
+                "k6 bytes, instance [results/*.json]",
+                "k6 bytes, probe P [probe-p.json]",
+                "CloudWatch BytesDownloaded [run.json]",
+            ],
+            rows,
+        )
+        if rows
+        else NM,
+        "",
+        "Planned GB include probe P. The budget is the planned instance bytes x 1.10 and is the quota the instance enforced (`launch/plan_bytes.py`). CloudWatch is the highest sum the layer 4 poll read; it lags, so a short run can read low or "
+        + NM
+        + ". It is an independent count of what the edge sent: compare it with k6 bytes of instance and probe P together.",
+        "",
+        *notes,
+    ]
+    return out
+
+
 def render_doc(ctx: dict, img_rel: str) -> str:
     runs, ex = ctx["runs"], ctx["extracts"]
     out = [
@@ -870,6 +1065,7 @@ def render_doc(ctx: dict, img_rel: str) -> str:
         f"all ISPs together peak at {cell(isp and isp['total_peak'], '.2f')} Gbps [extracts/isp_minute.csv]."
     )
     cache = cache_facts(ex["rows"]["cdn_class"], runs)
+    subrun = subrun_facts(ex["rows"]["cdn_subrun"], runs)
     out += [
         "",
         "## 3. Cache offload (single metro, 50 virtual clients)",
@@ -888,10 +1084,12 @@ def render_doc(ctx: dict, img_rel: str) -> str:
             + " [extracts/cdn_class.csv, run.json]."
         )
         out += ["", table(["POP", "URI class", "Hit ratio"], crow)]
+        out += ["", *subrun_doc(subrun)]
     else:
         out.append(
             f"For finance and operations: cache offload is {NM}. It needs a HOLD run and the cdn_class extract."
         )
+        out += ["", *subrun_doc(subrun)]
     ttfb = ttfb_facts(runs, ex["rows"]["cdn_run"])
     out += [
         "",
@@ -981,6 +1179,10 @@ def render_doc(ctx: dict, img_rel: str) -> str:
         ),
         "",
         "[k6 bytes counters, ledger.jsonl, run.json]",
+        "",
+        "### Bytes: planned, quota, k6 and CloudWatch",
+        "",
+        *bytes_doc(bytes_facts(runs)),
     ]
     peak = measured_peak(ex["rows"]["cdn_minute"])
     out += ["", "## 6. Scale", "", f"![Scale]({img_rel}/{IMAGES['scale']})", ""]
@@ -1013,7 +1215,9 @@ def render(ctx: dict, doc: Path, img_dir: Path) -> list[Path]:
     images = {
         "release": chart_release(release_facts(ex["rows"]["release_window"])),
         "isp": chart_isp_heatmap(isp),
-        "cache": chart_cache(cache_facts(ex["rows"]["cdn_class"], runs)),
+        "cache": chart_cache(
+            cache_facts(ex["rows"]["cdn_class"], runs), subrun_facts(ex["rows"]["cdn_subrun"], runs)
+        ),
         "ttfb": chart_ttfb(ttfb_facts(runs, ex["rows"]["cdn_run"])),
         "cost": chart_cost(cost_facts(runs, ctx["ledger"], ex["cost"], ctx["baseline"])),
         "scale": chart_scale(

@@ -71,11 +71,17 @@ for name in $(cat "$SCN/order"); do
   runs=$(python3 -c 'import json, sys; print(len(json.load(open(sys.argv[1]))["runs"]))' "$SCN/$name.json")
   idx=0
   while [ "$idx" -lt "$runs" ]; do
+    start_ms=$(date +%s%3N)
     /opt/cerberus-launch/k6/k6 run --quiet --summary-export "/tmp/$name-$idx.json" \
       -e "SCENARIO_FILE=$SCN/$name.json" -e "SETS_FILE=$SCN/sets.json" -e "RUN_INDEX=$idx" \
       -e "MANIFEST_DIR=$MANIFEST_DIR" -e COOKIE_FILE=/run/cerberus-cookies \
       -e "EDGE_DOMAIN=$EDGE_DOMAIN" -e "MINUTES=$MINUTES" \
       -e "RELEASE_AT=$(cat "$SCN/release_at")" "$SCN/download.js"
+    end_ms=$(date +%s%3N)
+    # The sub-run window (17.7 splits Run D cold and warm by it); a failure must not block the run.
+    printf '{"run":"%s-%s","start_ms":%s,"end_ms":%s}\n' "$name" "$idx" "$start_ms" "$end_ms" \
+      | aws s3 cp - "s3://$BUILD_BUCKET/results/$name-$idx.window.json" --only-show-errors \
+      || echo "window evidence not written" >&2
     aws s3 cp "/tmp/$name-$idx.json" "s3://$BUILD_BUCKET/results/$name-$idx.json" --only-show-errors
     idx=$((idx + 1))
   done
