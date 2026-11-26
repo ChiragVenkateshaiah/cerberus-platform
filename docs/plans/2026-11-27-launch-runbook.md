@@ -1,7 +1,7 @@
 # Runbook: Phase 17.6 live launch runs (Friday 2026-11-27, Saturday 2026-11-28)
 
 Date: 2026-11-26. Mode: owner checklist, derived from the code on `main` after
-#199/#200 (not from memory). Sources: `docs/plans/2026-11-25-launch-day.md`
+#199/#200 and the review-fix, cleanup and results-tooling PRs #202-#204 (not from memory). Sources: `docs/plans/2026-11-25-launch-day.md`
 (plan), `docs/adr/0030-launch-day.md` (ADR), `iam/cerberus-admin/README.md`,
 the `launch-*` Make targets, `orchestration/launch_*.sh`, `launch/ledger.py`,
 `launch/plan_bytes.py`, `launch/scenario.py`, `launch/scenarios/`.
@@ -18,7 +18,7 @@ unverified code constant. Value the code does not state is written `unknown`.
 | Fri 2026-11-27 | Smoke: `make launch-plan`, Run A (`SCENARIO=a`), then 1M-event telemetry exercise | plan section 7 |
 | Sat 2026-11-28 | `PREWARM=1` edge about 4 h before; then Runs B, C, D (`SCENARIO=bcd`) with probe P inside the session; collect logs; 100M-event exercise; `launch-check` | ADR Decision 13; plan section 7 |
 | By Sun 2026-11-29 noon IST | Stage 2 done if `HOLD=1` was used (`launch-check` stays red until then) | ADR Decision 13 |
-| Mon 2026-11-30 | Cost read (17.9), lags about 24 h | plan section 5 |
+| Sun 2026-11-29, Mon 2026-11-30 | Pull the results and the cost, render, commit (section 3, Steps 11 and 12); Cost Explorer lags about 24 h, so pull the cost on Monday | plan section 5; `launch/results_pull.py` |
 | Tue 2026-12-01 | Read-only Cost Explorer confirmation; Budget alert back to $20 | ADR Decision 12; `docs/adr-status.md` |
 
 Exact clock times for each run are not set by the plan or the ADR: `unknown`.
@@ -67,17 +67,20 @@ the cookie value.
 4. [ ] Account Budget alert is $40 (raised 2026-11-25, `docs/adr-status.md`). Return it
    to $20 after the 2026-12-01 read.
 5. [ ] `make launch-baseline` (read-only Cost Explorer; writes
-   `launch/cost_baseline.json`, once; it refuses to overwrite). Expect
-   `baseline written through 2026-11-24: <amount> USD`. Then commit the file
-   (owner/`cerberus-git`). Without it every `launch-session` and `launch-exercise` refuses.
-6. [ ] Open Opus security review of #196/#197/#199: no unresolved Run A blocker.
-   Reviewed 2026-11-26: two findings block Run A. F1: the public key rotates between
-   apply 1 and apply 2, so the cookies stop working. F2: the account-number scan
-   refuses our own chunk names, so a HOLD run loses its logs. Stop until the review-fix
-   PR (branch `17-review-fixes`) is merged and pulled, then repeat the dry runs.
-   No finding blocks the root paste.
+   `launch/cost_baseline.json`, once; it refuses to overwrite). It also creates the empty
+   ledger `observability/launch/ledger.jsonl` (an existing ledger is kept, never truncated).
+   Expect `baseline written through 2026-11-24: <amount> USD`. Then commit both files
+   (owner/`cerberus-git`). Without the baseline every `launch-session` and `launch-exercise`
+   refuses. A missing ledger refuses too (a deleted ledger would hide earlier spend): run
+   `make launch-baseline` again only if the baseline is also missing; otherwise restore the ledger from git.
+6. [ ] Review fixes: the Opus security review findings F1 (key rotation between the two
+   applies) and F2 (the account-number scan refusing our own chunk names) are fixed and merged
+   (#202, #203). Pull `main` and repeat the dry runs (Step 1) before Run A. No finding blocks
+   the root paste.
 6a. [ ] Use ONE checkout for the whole weekend and commit `observability/launch/ledger.jsonl`
-   after each run (review F3): a fresh checkout without the ledger forgets earlier spend and bytes.
+   after each run (review F3): a fresh checkout without the ledger forgets earlier spend and
+   bytes, and the guard refuses without it. Commit the new `observability/launch/runs/<run_id>/`
+   files in the same commit.
 7. [ ] `make launch-plan`: read-only; `launch_init.sh` then `terraform plan` with no load
    generator. Expect a plan that creates the edge and nothing else, exit 0. Stop
    on a permission error (the paste is not attached) or any change outside `dev-launch`.
@@ -104,7 +107,9 @@ Common to every live session (`launch_session.sh`, from the code):
   parameter, remove the private key, via a terraform apply with
   `create_load_gen=false`), copies k6 results to
   `observability/launch/runs/<run_id>/`, then stage 2 (destroy and check) unless
-  `PREWARM` or `HOLD` is set.
+  `PREWARM` or `HOLD` is set. Stage 1 terminates the instance directly (tag
+  `Stack=dev-launch`), then applies. If the stage 1 apply fails twice, or a byte-budget stop ended
+  the run, stage 2 runs even with `HOLD` (`HOLD is ignored: running stage 2 now`).
 - A trap does not survive SIGKILL or power loss: the instance shuts itself down at
   `MINUTES` plus a margin of 30 min (`shutdown_margin_minutes`, unverified).
 - The run id is `s<MMDDHHMMSS>-<scenario>` (UTC) unless `LAUNCH_RUN_ID` is set. Write
@@ -164,8 +169,8 @@ make launch-check                         # must be all zeros before a new sessi
 ```
 make launch-session SCENARIO=a HOLD=1 MINUTES=60
 ```
-Recommended with `HOLD=1` (owner decision; without it use `make launch-session SCENARIO=a`).
-Destroy this edge before the Saturday PREWARM, and within its printed deadline.
+With `HOLD=1` the CDN logs exist (owner may drop `HOLD`: then use `make launch-session SCENARIO=a MINUTES=60`
+and Run A proves nothing about the logs). Destroy this edge before the Saturday PREWARM, and within its printed deadline.
 `MINUTES=60` is a margin for the manual check: after the release time and before the
 session ends, in a second terminal, run
 ```
@@ -173,11 +178,9 @@ curl -s -o /dev/null -w '%{http_code}\n' "https://$(terraform -chdir=terraform/e
 ```
 Expect 403: without a cookie, the signature check comes before the Function.
 Compare the CloudWatch sum with the k6 bytes by hand (review F7).
-Optional `HOLD=1` is the owner's choice. Plan and ADR do not say whether A uses it.
 ADR Decision 13 says logs exist only for a HOLD run, and Run A is said to prove
-the CloudFront log field names (`terraform/envs/dev-launch/README.md`,
-"Unverified"). Without `HOLD=1` Run A proves nothing about logs. The owner decides;
-with `HOLD=1`, run `make launch-destroy` by the printed deadline (24 h).
+the CloudFront log field names (`terraform/envs/dev-launch/README.md`, "Unverified").
+With `HOLD=1`, run `make launch-destroy` by the printed deadline (24 h).
 - Calls: terraform apply 1 (edge, public PEM, no instance), `aws cloudfront wait
   distribution-deployed`, cookie signing, `ssm put-parameter` (SecureString), `s3 cp`
   of scenarios, curl `/license` (expect 403), terraform apply 2 (instance,
@@ -282,9 +285,12 @@ make launch-check
 ```
 make launch-destroy
 ```
+- Stage 1 here needs no terraform state: it terminates an instance tagged `Stack=dev-launch` directly
+  and removes key directories a killed session left behind.
 - Needed after any `HOLD=1` or `PREWARM=1` session, after a crash, or when `launch-check` is red.
   A session without those flags already ran it from the trap.
-- Calls: `ssm delete-parameter` (stage 1, leftover), `launch_init.sh`, `terraform destroy`
+- Calls: stage 1 (terminate any launch instance directly, remove leftover `launch-*` key
+  directories under `$XDG_RUNTIME_DIR`, `ssm delete-parameter`), `launch_init.sh`, `terraform destroy`
   (retry once with `-refresh=false`), then `launch_check.sh`.
 - Expect: `STAGE 1`, `STAGE 2`, `destroy` output, the check lines all `0`, exit 0. Time: allow
   30 minutes (distribution delete duration unverified). Cost: stops billing; about $0.
@@ -349,6 +355,36 @@ make launch-exercise ARGS="--generate 100000000"
 - Run it after `launch-collect` so `downloads_cdn/` exists and the CDN marts build
   (`enable_downloads_cdn`).
 - Keep, stop-if: as Step 5.
+
+### Step 11. Sunday: pull the results (read-only)
+
+After `launch-collect`, the 100M exercise and `launch-destroy` are done. Use the run ids you wrote
+down: Run A id, bcd id and the 100M exercise id.
+```
+make launch-pull-results SESSION="<run A id> <bcd id>" EXERCISE=<100M id>
+```
+- Runs the five queries in `launch/queries/` over the gold downloads marts and writes
+  `observability/launch/extracts/*.csv` and `manifest.json`. Athena uses the `cerberus-transform`
+  profile (set inside `results_pull.py`): `cerberus-admin` cannot `StartQueryExecution`.
+- Every id must match `[a-z0-9-]`. A query over 20,000 rows, a changed header or a value with a
+  12-digit run is refused and nothing is written for it.
+- Stop if: the pull refuses (read the line; do not edit the extracts by hand).
+
+### Step 12. Monday: pull the cost, render, commit
+
+```
+make launch-pull-cost
+make launch-results-render
+```
+- `launch-pull-cost` (read-only Cost Explorer, profile `cerberus-admin`) writes
+  `observability/launch/extracts/cost.json`: the November Usage total and the daily cost by service.
+  Cost Explorer lags about 24 h: run it Monday, and again Tuesday 2026-12-01 for the confirmation.
+- `launch-results-render` needs no AWS. It writes `docs/launch-day-results.md` and
+  `docs/img/launch/*.svg`; a number with no input reads `not measured`.
+- Then commit (owner/`cerberus-git`): the extracts, the charts, `docs/launch-day-results.md` and
+  the run records under `observability/launch/runs/`. `make verify` passes a 13-digit epoch in
+  milliseconds (the scan refuses exactly 12 digits only).
+- Fill section 6 from the rendered doc, never from memory.
 
 ## 4. Stop rules
 
@@ -476,16 +512,20 @@ the ADR Accepted. Fill each from a kept file.
 
 ## 8. Contradictions and gaps found (not fixed)
 
+Checked against `main` after #202-#204: the review findings F1-F3 are fixed and no item below
+is one of them. Items 1-3 and 5 are unchanged; item 4 is still the owner's decision.
+
 1. Plan section 6 (`docs/plans/2026-11-25-launch-day.md` L239-241) keeps a `BytesDownloaded`
    alarm at 450 GB and SNS; ADR Decision 12 (`docs/adr/0030-launch-day.md` L264-265)
    drops them. The ADR wins and the code has no alarm.
 2. Plan section 7 (L253) lists a separate "laptop probe" on Saturday; the code runs probe
    P inside the session (`orchestration/launch_session.sh` L566-571, ADR L87-89). There is no
    separate probe command.
-3. Allowance differs: `launch/ledger.py` L49 `ALLOWANCE_USD = 1.00` (session estimate) and
+3. Allowance differs: `launch/ledger.py` L50 `ALLOWANCE_USD = 1.00` (session estimate) and
    `orchestration/launch_exercise.sh` L66 `ALLOWANCE_USD ... 0.25` (exercise correction). Both
    unverified. Not a stop-rule error, but the ledger mixes the two.
-4. The plan and ADR do not say whether Run A uses `HOLD=1`, yet Run A is the evidence for the
+4. The plan and ADR do not say whether Run A uses `HOLD=1` (this runbook gives `HOLD=1` and the owner may
+   drop it), yet Run A is the evidence for the
    CDN log fields (README "Unverified"). Without HOLD the log bucket is destroyed and no log
    is read.
 5. No script or test checks "signature before the Function" with a no-cookie `/license`
