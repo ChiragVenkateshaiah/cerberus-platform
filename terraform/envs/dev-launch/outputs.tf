@@ -39,3 +39,8 @@ output "public_key_id" {
   description = "The CloudFront public key ID (Key-Pair-Id of the signed cookies)."
   value       = module.launch_edge.public_key_id
 }
+
+output "origin_metric_filter" {
+  description = "S3 request metrics filter ID for patch/ (ADR 0030 Decision 15)."
+  value       = module.launch_edge.origin_metric_filter
+}
