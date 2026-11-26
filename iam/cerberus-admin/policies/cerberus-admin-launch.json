@@ -114,6 +114,8 @@
         "s3:GetBucketLocation",
         "s3:GetBucketVersioning",
         "s3:PutBucketVersioning",
+        "s3:GetMetricsConfiguration",
+        "s3:PutMetricsConfiguration",
         "s3:GetLifecycleConfiguration",
         "s3:PutLifecycleConfiguration",
         "s3:GetEncryptionConfiguration",

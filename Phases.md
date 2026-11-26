@@ -415,6 +415,8 @@ $25 attributable spend. The plan is
       in `docs/plans/` (done 2026-11-25, #188)
 - [ ] 17.1 ADR 0030: launch day, a second event family and a per-session
       delivery edge (via `/decision`)
+      Amended 2026-11-26 (Decision 15): Run D gets a second meter, S3 request
+      metrics on `patch/` ([plan](docs/plans/2026-11-26-origin-count.md))
 - [x] 17.2 Generator `generate_bulk_downloads.py`: deterministic, two-pass
       congestion, unit tests, 10k-event sample (built 2026-11-25, #194)
 - [ ] 17.3 Terraform: `modules/launch_edge` and `envs/dev-launch` (buckets,
