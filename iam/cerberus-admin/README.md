@@ -103,7 +103,7 @@ larger and is not the limit.
 ### Launch policy (17.3a): root paste and detach
 
 `cerberus-admin-launch.json` is a new ninth policy. Nothing in an existing
-file changes. Counted size: 5,081 of 6,144 characters. It holds no Deny, and
+file changes. Counted size: 5,139 of 6,144 characters (5,081 before Decision 15). It holds no Deny, and
 `cerberus-admin` has 8 of 10 managed-policy slots used, so the attach fits.
 Role create, tag and policy actions for `cerberus-launch-*` are already
 covered by `IamRoleMgmt` (`role/cerberus-*`, no permissions boundary).
@@ -119,7 +119,7 @@ export AWS_PROFILE=cerberus-admin
 ACCT=$(aws sts get-caller-identity --query Account --output text)
 F=$(mktemp)
 sed "s/<ACCOUNT_ID>/${ACCT}/g" iam/cerberus-admin/policies/cerberus-admin-launch.json > "$F"
-jq -c . "$F" | tr -d ' \n\t' | wc -c        # expect 5081, limit 6144
+jq -c . "$F" | tr -d ' \n\t' | wc -c        # expect 5139, limit 6144
 cat "$F"
 ```
 
@@ -338,3 +338,11 @@ the name, so that statement uses `key-value-store/*`.
   `cloudfront-keyvaluestore`, `logs`, `s3`, `ssm`, `iam`, `ec2` and
   `freetier`. The paste and the detach after 17.9 are pending; this line is
   updated when they are done.
+- **2026-11-26 (17.1, ADR 0030 Decision 15):** `LaunchBuckets` gained
+  `s3:PutMetricsConfiguration` and `s3:GetMetricsConfiguration`; counted size
+  5,139. Root pasted and attached the policy on 2026-11-26; the
+  `simulate-principal-policy` checks printed `allowed`. A pre-paste
+  `simulate-custom-policy` check must test one statement only (for example
+  `jq -c '{Version, Statement: [.Statement[] | select(.Sid=="LaunchBuckets")]}'`):
+  that API refuses a policy longer than 2,000 characters. Detach after 17.9 is
+  pending.
