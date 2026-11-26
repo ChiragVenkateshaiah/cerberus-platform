@@ -246,7 +246,7 @@ jobs:
           python-version: "3.12"
 
       - name: shellcheck (launch scripts)
-        run: shellcheck orchestration/launch_*.sh
+        run: shellcheck orchestration/launch_*.sh orchestration/lib/*.sh
 
       - name: pytest launch
         run: |

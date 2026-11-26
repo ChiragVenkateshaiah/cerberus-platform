@@ -9,7 +9,7 @@ set -uo pipefail
 #   orchestration/launch_destroy.sh --stage2   stage 2 and check only (launch_session.sh calls it)
 #
 # Stage 1 here terminates any launch instance directly (tag Stack=dev-launch; none is
-# fine) and deletes a leftover cookie parameter. Stage 2 is `terraform
+# fine), removes a leftover key directory and deletes a leftover cookie parameter. Stage 2 is `terraform
 # destroy` with a -refresh=false retry; it removes any instance, the key group,
 # the Function, the KVS and both buckets (force_destroy). Then launch_check.sh
 # must report 0 for everything. A failure at any step exits non-zero and says so
@@ -36,22 +36,9 @@ loud() { printf '\a'; log "!!! $*"; }
 aws_() { aws --region "$REGION" "$@"; }
 tfq() { setsid -w "$TF" -chdir="$ENV_DIR" "$@"; }
 
-# Same scope as terminate_instances in launch_session.sh: instances tagged Stack=dev-launch.
-terminate_instances() {
-  local ids
-  ids="$(aws_ ec2 describe-instances --filters Name=tag:Stack,Values=dev-launch \
-    Name=instance-state-name,Values=pending,running,stopping,stopped \
-    --query 'Reservations[].Instances[].InstanceId' --output text)" || return 1
-  [[ -z "$ids" || "$ids" == "None" ]] && return 0
-  # shellcheck disable=SC2086  # a word per instance ID
-  aws_ ec2 terminate-instances --instance-ids $ids >/dev/null
-}
-
-# A state-lock error leaves the lock behind: print the command, never run it.
-lock_hint() {
-  grep -q 'Error acquiring the state lock' "$1" 2>/dev/null || return 0
-  loud "TERRAFORM STATE LOCK HELD. When no apply runs, free it by hand: terraform -chdir=terraform/envs/dev-launch force-unlock <LOCK_ID> (the ID is in the error above)"
-}
+# terminate_instances, lock_hint, remove_stale_keydirs (shared with launch_session.sh).
+# shellcheck source=orchestration/lib/launch_common.sh
+source "$REPO/orchestration/lib/launch_common.sh"
 
 # Nothing may stop the destroy half-way (see console_session.sh).
 trap '' INT TERM PIPE HUP
@@ -60,6 +47,8 @@ RC=0
 if ! $STAGE2_ONLY; then
   log "STAGE 1: terminate any launch instance, delete a leftover cookie parameter"
   terminate_instances || { loud "DIRECT TERMINATION FAILED: check EC2 by hand"; RC=1; }
+  # A SIGKILLed session leaves its key directory; this never fails the destroy.
+  remove_stale_keydirs || loud "STALE KEY DIRECTORY CLEANUP FAILED: see above"
   if out="$(aws_ ssm delete-parameter --name "$COOKIE_PARAM" 2>&1)"; then
     log "cookie parameter deleted"
   elif grep -q 'ParameterNotFound' <<<"$out"; then

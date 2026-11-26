@@ -113,9 +113,35 @@ report launch_instances "$(val aws_ ec2 describe-instances \
   --query 'length(Reservations[].Instances[])' --output text)"
 report launch_volumes "$(val aws_ ec2 describe-volumes \
   --filters Name=tag:Stack,Values=dev-launch --query 'length(Volumes)' --output text)"
-report launch_spot_requests "$(val aws_ ec2 describe-spot-instance-requests \
-  --filters Name=tag:Stack,Values=dev-launch Name=state,Values=open,active,disabled \
-  --query 'length(SpotInstanceRequests)' --output text)"
+# A Spot request made by aws_instance + instance_market_options is created by
+# RunInstances. The provider probably does not copy the Stack tag to it, so the
+# tag filter alone could read 0 while a request is open. Count three ways and
+# add them up: the tag, the launch security group name, and the ID of a live
+# launch instance. UNVERIFIED: that the tag is not propagated, and that
+# launch.group-name is filled for a VPC request; neither was seen on a real run.
+# Any query that fails makes the whole value `error`, never 0.
+spot_requests() {
+  local sfilter="Name=state,Values=open,active,disabled" total=0 n ids
+  for f in "Name=tag:Stack,Values=dev-launch" "Name=launch.group-name,Values=$NAME"; do
+    n="$(val aws_ ec2 describe-spot-instance-requests --filters "$f" "$sfilter" \
+      --query 'length(SpotInstanceRequests)' --output text)"
+    [[ "$n" =~ ^[0-9]+$ ]] || { echo error; return; }
+    total=$((total + n))
+  done
+  ids="$(val aws_ ec2 describe-instances --filters Name=tag:Stack,Values=dev-launch \
+    --query 'Reservations[].Instances[].InstanceId' --output text)"
+  [[ "$ids" == "error" ]] && { echo error; return; }
+  if [[ -n "$ids" && "$ids" != "None" ]]; then
+    # shellcheck disable=SC2086  # a word per instance ID, joined with commas
+    n="$(val aws_ ec2 describe-spot-instance-requests \
+      --filters "Name=instance-id,Values=$(tr -s ' \t' ',' <<<$ids)" "$sfilter" \
+      --query 'length(SpotInstanceRequests)' --output text)"
+    [[ "$n" =~ ^[0-9]+$ ]] || { echo error; return; }
+    total=$((total + n))
+  fi
+  echo "$total"
+}
+report launch_spot_requests "$(spot_requests)"
 report security_group "$(val aws_ ec2 describe-security-groups \
   --filters Name=group-name,Values="$NAME" --query 'length(SecurityGroups)' --output text)"
 report iam_role "$(present aws_ iam get-role --role-name "$NAME")"
