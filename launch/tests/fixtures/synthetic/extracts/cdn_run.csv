@@ -1,0 +1,6 @@
+run_id,pop,requests,hits,refresh_hits,origin_misses,hit_ratio,bytes_mb,server_ttfb_p50_ms,server_ttfb_p99_ms,logs_status
+synthetic-a,ALL,16,10,1,5,0.625000,939.524,21.000,70.000,complete
+synthetic-a,SEA,16,10,1,5,0.625000,939.524,21.000,70.000,complete
+synthetic-bcd,ALL,3100,2700,100,300,0.870968,12884.901,30.000,180.000,complete
+synthetic-bcd,SEA,2000,1800,50,150,0.900000,8000.000,28.000,150.000,complete
+synthetic-bcd,YVR,1100,900,50,150,0.818182,4884.901,34.000,210.000,complete

@@ -1,0 +1,9 @@
+run_id,pop,uri_class,requests,hits,refresh_hits,origin_misses,bytes_mb
+synthetic-a,SEA,build,8,4,0,4,805.306
+synthetic-a,SEA,patch,3,2,1,0,134.218
+synthetic-bcd,SEA,build,1200,1100,20,80,5000.000
+synthetic-bcd,SEA,other,300,250,20,30,500.000
+synthetic-bcd,SEA,patch,500,450,10,40,2500.000
+synthetic-bcd,YVR,build,800,650,30,120,3000.000
+synthetic-bcd,YVR,other,100,70,10,20,384.901
+synthetic-bcd,YVR,patch,200,180,10,10,1500.000

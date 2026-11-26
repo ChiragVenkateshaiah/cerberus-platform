@@ -1,0 +1,6 @@
+{"at": "2026-11-27T09:50:00Z", "estimate_usd": "3.00", "event": "record", "gb": "1.000", "kind": "session", "run_id": "synthetic-a"}
+{"at": "2026-11-27T10:40:00Z", "event": "correct", "run_id": "synthetic-a", "usd": "2.50"}
+{"at": "2026-11-28T09:50:00Z", "estimate_usd": "8.00", "event": "record", "gb": "25.000", "kind": "session", "run_id": "synthetic-bcd"}
+{"at": "2026-11-28T11:40:00Z", "event": "correct", "run_id": "synthetic-bcd", "usd": "7.25"}
+{"at": "2026-11-28T08:50:00Z", "estimate_usd": "4.00", "event": "record", "gb": "0", "kind": "exercise", "run_id": "synthetic-exercise"}
+{"at": "2026-11-28T09:40:00Z", "event": "correct", "run_id": "synthetic-exercise", "usd": "3.10"}

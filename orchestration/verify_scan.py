@@ -1,5 +1,8 @@
 """List added lines and new files that hold a 12-digit run (a possible account ID).
 
+A run is exactly 12 digits with no digit next to it, so a 13-digit epoch in
+milliseconds passes. A letter next to the run does not make it pass.
+
 It checks the added lines of `git diff -U0 <base>` and every untracked file. It
 prints `file:line` only, never the text, so an account ID can never reach a log.
 It exits 1 when it finds something. A line is allowed when it holds a sha256
@@ -14,7 +17,7 @@ import re
 import subprocess
 import sys
 
-RUN = re.compile(r"\d{12}")
+RUN = re.compile(r"(?<!\d)\d{12}(?!\d)")
 SHA_FIELD = re.compile(r'"sha"\s*:\s*"[0-9a-f]{40}"')
 LOCK_HASH = re.compile(r'^\s*"zh:[0-9a-f]{64}",?\s*$')
 LOCK_FILE = ".terraform.lock.hcl"

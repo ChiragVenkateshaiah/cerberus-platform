@@ -28,3 +28,13 @@ def test_lock_line_with_added_account_number_flagged():
 
 def test_default_path_does_not_allow_zh():
     assert not verify_scan.allowed(ZH)
+
+
+def test_scan_is_digit_bounded():
+    assert verify_scan.RUN.search(RUN12)
+    assert verify_scan.RUN.search("id " + RUN12 + " end")
+    assert verify_scan.RUN.search("acct" + RUN12 + "x")  # letters next to it still flag
+    assert not verify_scan.RUN.search("1" + RUN12)  # 13 digits: an epoch in ms
+    assert not verify_scan.RUN.search(RUN12 + "7")
+    assert not verify_scan.RUN.search("17" + "9" * 11)  # 13 digits
+    assert not verify_scan.RUN.search("1" * 11)  # 11 digits

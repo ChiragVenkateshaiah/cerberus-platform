@@ -1,0 +1,33 @@
+{
+  "daily": [
+    {
+      "date": "2026-11-27",
+      "service": "Amazon CloudFront",
+      "usd": "1.2000"
+    },
+    {
+      "date": "2026-11-27",
+      "service": "Amazon Elastic Compute Cloud - Compute",
+      "usd": "2.0000"
+    },
+    {
+      "date": "2026-11-28",
+      "service": "Amazon CloudFront",
+      "usd": "4.0000"
+    },
+    {
+      "date": "2026-11-28",
+      "service": "Amazon Elastic Compute Cloud - Compute",
+      "usd": "3.5000"
+    },
+    {
+      "date": "2026-11-28",
+      "service": "Amazon EMR",
+      "usd": "6.0000"
+    }
+  ],
+  "daily_from": "2026-11-25",
+  "month": "2026-11",
+  "month_total_usd": "30.2500",
+  "record_type": "Usage"
+}
