@@ -37,3 +37,8 @@ output "public_key_id" {
   description = "The CloudFront public key ID: the Key-Pair-Id of the signed cookies."
   value       = aws_cloudfront_public_key.this.id
 }
+
+output "origin_metric_filter" {
+  description = "S3 request metrics filter ID on the build bucket (FilterId dimension for GetRequests and BytesDownloaded, Decision 15)."
+  value       = aws_s3_bucket_metric.patch.name
+}

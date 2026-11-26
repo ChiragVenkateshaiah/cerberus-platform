@@ -185,3 +185,13 @@ test('user data writes a window file per sub-run before its k6 summary, and a fa
   assert.match(ud, /\{"run":"%s-%s","start_ms":%s,"end_ms":%s\}/);
   assert.match(ud, /\.window\.json" --only-show-errors \\\n\s+\|\| echo "window evidence not written" >&2/, 'a failure does not block the run');
 });
+
+test('the origin meter counts patch/ on the build bucket only (Decision 15)', () => {
+  const main = read('main.tf');
+  const block = main.match(/resource "aws_s3_bucket_metric" "patch" \{([\s\S]*?)\n\}/);
+  assert.ok(block, 'aws_s3_bucket_metric.patch not found');
+  assert.match(block[1], /bucket = aws_s3_bucket\.build\.id/);
+  assert.match(block[1], /name\s+= "cerberus-launch-patch"/);
+  assert.match(block[1], /prefix = "patch\/"/);
+  assert.equal((main.match(/resource "aws_s3_bucket_metric"/g) || []).length, 1);
+});

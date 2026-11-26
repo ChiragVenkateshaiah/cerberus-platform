@@ -55,6 +55,19 @@ resource "aws_s3_bucket" "build" {
   tags = merge(local.tags, { Component = "launch-build" })
 }
 
+# Origin meter for Run D (ADR 0030 Decision 15): S3 request metrics on patch/
+# give BytesDownloaded and GetRequests at 1-minute grain, a second count of
+# origin fetches that does not come from CloudFront's own logs. The
+# configuration lives on the build bucket and goes with it in stage 2.
+resource "aws_s3_bucket_metric" "patch" {
+  bucket = aws_s3_bucket.build.id
+  name   = "cerberus-launch-patch"
+
+  filter {
+    prefix = "patch/"
+  }
+}
+
 resource "aws_s3_bucket" "logs" {
   bucket        = local.logs_bucket_name
   force_destroy = true
