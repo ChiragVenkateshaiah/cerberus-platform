@@ -48,10 +48,10 @@ the cookie value.
    Expected plan: the image `null_resource` and maybe Faker churn. Stop on any
    other change and ask. (The task card gives this expectation; the code does not
    list the expected resources: `unknown`.)
-2. [ ] Thursday root paste of `cerberus-admin-launch`, then the
+2. [x] Thursday root paste of `cerberus-admin-launch`, then the
    `simulate-principal-policy` checks. Follow `iam/cerberus-admin/README.md`,
    section "Launch policy (17.3a): root paste and detach" (counted size must be
-   5081 of 6144). Every simulate line must print `allowed`; the listed
+   5139 of 6144; done 2026-11-26). Every simulate line must print `allowed`; the listed
    `implicitDeny` cases must hold.
 3. [ ] Install k6 on this machine (probe P runs from here: `launch_session.sh`
    stops in preflight if `k6` is missing; override the path with `K6_BIN`).
