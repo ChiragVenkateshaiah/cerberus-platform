@@ -80,6 +80,9 @@ die() { log "STOP: $*"; exit 1; }
 loud() { printf '\a'; log "!!! $*"; }
 mask() { sed -E 's/[0-9]{12}/<account>/g'; }
 aws_() { aws --region "$REGION" "$@"; }
+# terminate_instances and lock_hint (shared with launch_destroy.sh).
+# shellcheck source=orchestration/lib/launch_common.sh
+source "$REPO/orchestration/lib/launch_common.sh"
 tf() { "$TF" -chdir="$ENV_DIR" "$@"; }
 py() { python3 "$LAUNCH_DIR/$1" "${@:2}"; }
 now_ms() { date -u +%s%3N; }
@@ -307,24 +310,7 @@ delete_parameter() {
   fi
 }
 
-# Terminates any launch instance directly when the Terraform apply failed.
-terminate_instances() {
-  local ids
-  ids="$(aws_ ec2 describe-instances --filters Name=tag:Stack,Values=dev-launch \
-    Name=instance-state-name,Values=pending,running,stopping,stopped \
-    --query 'Reservations[].Instances[].InstanceId' --output text)" || return 1
-  [[ -z "$ids" || "$ids" == "None" ]] && return 0
-  # shellcheck disable=SC2086  # a word per instance ID
-  aws_ ec2 terminate-instances --instance-ids $ids >/dev/null
-}
-
 STAGE1_APPLY_FAILED=false
-
-# A state-lock error leaves the lock behind: print the command, never run it.
-lock_hint() {
-  grep -q 'Error acquiring the state lock' "$1" 2>/dev/null || return 0
-  loud "TERRAFORM STATE LOCK HELD. When no apply runs, free it by hand: terraform -chdir=terraform/envs/dev-launch force-unlock <LOCK_ID> (the ID is in the error above)"
-}
 
 stage1() {
   local rc=0 out
