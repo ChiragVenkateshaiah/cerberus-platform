@@ -4,7 +4,8 @@ Date: 2026-11-25
 
 ## Status
 
-Proposed (2026-11-25). This is the Phase 17.1 ADR. It amends
+Proposed (2026-11-25). Amended 2026-11-26 (Decision 15), still Proposed.
+This is the Phase 17.1 ADR. It amends
 [ADR 0011](0011-ci-cd-github-actions-oidc.md) (a fourth Terraform root,
 `dev-launch`) and [ADR 0018](0018-bulk-bronze-json-lines.md) (a second bulk
 prefix, `downloads_bulk/`), and extends
@@ -13,7 +14,8 @@ prefix, `downloads_bulk/`), and extends
 ADR 0002, 0003 and 0024 are not changed. The facts and build steps are in
 [the decision plan](../plans/2026-11-25-launch-day-decision.md). The launch
 plan it corrects is
-[the launch plan](../plans/2026-11-25-launch-day.md).
+[the launch plan](../plans/2026-11-25-launch-day.md). The Decision 15
+amendment is in [the origin-count plan](../plans/2026-11-26-origin-count.md).
 
 ## Context
 
@@ -67,6 +69,24 @@ U = unverified):
   reference](https://servicereference.us-east-1.amazonaws.com/v1/cloudfront/cloudfront.json)).
 - (U) The expected phase cost of $8 to $15 is an estimate (decision plan
   section 6).
+- (V) Amendment 2026-11-26. AWS logs request collapsing so: "the first request
+  is identified as a `Miss` in the `x-edge-result-type` field, and the
+  collapsed requests are identified as a `Hit`". Collapsing applies only to
+  requests that share a cache key ([request
+  collapsing](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/RequestAndResponseBehaviorCustomOrigin.html#request-custom-traffic-spikes)).
+  `x-edge-detailed-result-type` has no collapse value ([log
+  reference](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/standard-logs-reference.html)).
+- (V) The logs are CloudFront reporting on itself and can be 24 h late. A
+  `Miss` is a fetch from the edge to the next tier, not a proven S3 GET.
+- (V) For range requests, "CloudFront might request a larger range than the
+  client requested" ([range
+  GETs](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/RangeGETs.html)).
+  So the verdict counts bytes, not GETs.
+- (V) S3 request metrics (`GetRequests`, `BytesDownloaded`, 1-minute) support
+  a prefix filter. They are "delivered on a best-effort basis... not meant to
+  be a complete accounting", and a data point "might be delayed... or not
+  delivered at all" ([S3
+  metrics](https://docs.aws.amazon.com/AmazonS3/latest/userguide/metrics-dimensions.html)).
 
 Tensions: honesty against spectacle; cost against throughput; least
 privilege against a weekend.
@@ -77,7 +97,8 @@ Where the two differ, the decision plan wins. The disagreements:
 
 - **Origin Shield is removed** (section 4, 17.7 and the article). Run D
   becomes a cold patch for 50 clients at T0, then a warm repeat by one
-  client, to measure origin requests through request collapsing.
+  client, to measure origin requests through request collapsing. Run D has two
+  meters: CloudFront logs and S3 request metrics (Decision 15).
 - **"TTFB by edge POP" becomes "TTFB by source"** (us-east-1 EC2, Bengaluru
   laptop), with the observed `x-edge-location` codes. Hit ratio is
   "single-metro, 50 virtual clients", not global. The test does not follow
@@ -157,6 +178,8 @@ the design in seven places:
      the instance shuts itself down at `MINUTES` plus a margin, with shutdown
      behaviour `terminate`. The margin is set in 17.4 (unverified).
      `launch-destroy` also deletes a leftover parameter.
+   - Amendment 2026-11-26: `launch-check` needs no new type for the S3 metrics
+     configuration (Decision 15). It has no life outside the bucket.
 
    `launch-check` must report 0 over the distribution, Function, KVS, public
    key, key group, cache policy, OAC, log source, destination and delivery,
@@ -296,9 +319,46 @@ the design in seven places:
     a ninth slot. The existing `console-edge` file is not edited. Every
     action is checked against the Service Authorization reference before the
     paste, and by `simulate-custom-policy` (review: `escalate: opus-security`).
+    Amendment 2026-11-26: statement `LaunchBuckets` gains
+    `s3:PutMetricsConfiguration` and `s3:GetMetricsConfiguration`, checked
+    against the Service Authorization reference. (V) `DeleteBucketMetricsConfiguration`
+    is authorised by `s3:PutMetricsConfiguration`
+    ([API reference](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketMetricsConfiguration.html));
+    `ListBucketMetricsConfigurations` and the Terraform refresh use
+    `s3:GetMetricsConfiguration`.
     Root pastes and attaches it by Thursday 2026-11-26 evening IST. If it is
     not pasted by Friday 2026-11-27 noon IST, the phase falls back to
     telemetry only (no edge). The policy is detached after 17.9.
+
+15. **Origin meter (amendment 2026-11-26).** Run D needs a second count of
+    origin (S3) requests that does not come from CloudFront's own logs. The
+    source is one S3 metrics configuration, `cerberus-launch-patch`, with
+    prefix `patch/`, on the build bucket. It is created and destroyed with the
+    bucket. `results_pull` reads `GetRequests` and `BytesDownloaded` (Sum,
+    60 s) per sub-run window. The bucket name is never written to a file. The
+    logs stay as the second meter. The verdict rule counts bytes, because of
+    the range-request fact in Context:
+    - `F` = S3 `BytesDownloaded` for `patch/` over [d-cold start floored to the
+      minute, d-warm end + 3 min] ÷ `chunk_bytes`. Including d-warm is
+      conservative.
+    - `P` = distinct `x-edge-location` in d-cold, from the logs; 1 if no lines
+      arrived.
+    - Quiet guard: S3 `BytesDownloaded` for `patch/` must be 0 in the 3 minutes
+      before d-cold; otherwise `AMBIGUOUS` (Run C shares the prefix).
+    - `INCONCLUSIVE` if `F < 0.95 × 8` (meter lost data).
+    - `PASS` if `F / (8 × P) ≤ 1.25`.
+    - `FAIL` otherwise.
+    - Agreement (shown, not gating): S3 `GetRequests` ≤ log Misses × 1.05 + 1.
+      S3 may be lower (a regional tier, unverified); S3 higher than the logs is
+      a finding about the logs.
+    - Headline: collapse factor = viewer cold requests (k6, 400) ÷ `F`.
+
+    Why 1.25: with 8 chunks one retried fetch gives 1.125, so 1.05 fails on a
+    single retry. 1.25 is still 40× below the no-collapse value of 50. The
+    labels are `PASS`, `FAIL`, `INCONCLUSIVE` and `AMBIGUOUS`. Rejected: logs
+    only (no independence), S3 server access logs (new parser and privacy
+    filter, hours of delay) and CloudTrail data events (new trail, account IDs
+    in every record).
 
 Owner answers of 2026-11-25 are folded into Decisions 12 to 14: the Thursday
 paste with the Friday noon fallback, the 24 h Saturday hold with stage 2 by
@@ -313,11 +373,15 @@ Sunday noon IST, and the end of the Origin Shield comparison.
   with the session.
 - A reusable second event family, and the first per-session edge with a byte
   budget.
+- The collapse claim rests on two meters on opposite sides of the CDN (logs
+  and S3 request metrics).
 
 **Given up**
 
 - Origin Shield evidence, multi-region load, and complete CDN logs.
 - WAF on the edge, for this phase only.
+- Per-key origin proof: S3 request metrics give counts only, and not a
+  complete accounting.
 
 **Costs**
 
@@ -333,10 +397,12 @@ Sunday noon IST, and the end of the Origin Shield comparison.
   attributable, account usage is near $36, which fits a $40 alert only if
   nothing else spends.
 - Free-tier overrun on Functions and KVS reads (2M each) costs cents.
+- The S3 metrics configuration costs under $0.50 (unverified).
 
 **Revisit if**
 
-- An edge becomes standing.
+- An edge becomes standing: also add S3 server access logs with an allowlist
+  filter.
 - Phase 13.1 decides the shared envelope.
 - A two-pass job over 10M events is needed. The 742 s figure in
   `docs/scale-metrics.md` is the 100M state machine, not this job.
@@ -358,3 +424,8 @@ Sunday noon IST, and the end of the Origin Shield comparison.
 - The instance self-shutdown margin beyond `MINUTES` (set in 17.4).
 - The $40 and $25 reading (owner confirms on acceptance).
 - The $8 to $15 phase cost estimate.
+- Whether a regional edge cache sits between the edge and an S3 origin with
+  OAC (S3 GETs could be lower than edge Misses).
+- Whether CloudFront splits a 64 MiB full GET into several origin GETs.
+- The metric start delay after the configuration is created (Run A checks it).
+- The cost of the S3 metrics configuration (under $0.50).
