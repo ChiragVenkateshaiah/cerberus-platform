@@ -135,10 +135,14 @@ preflight() {
   # 10.2d: warn only. The publisher fails open, so a missing grant must not
   # stop a run. The principal ARN stays in this shell and is never written.
   if $STATUS_ENABLED; then
-    local sim
+    local sim acct
+    # The grant is scoped to workspace/*, so the simulation needs a workspace ARN:
+    # without one IAM tests against "*" and reports implicitDeny (a false warning).
+    acct="$(cut -d: -f5 <<<"$who")"
     if sim="$(aws_ iam simulate-principal-policy --policy-source-arn "$who" \
-      --action-names aps:RemoteWrite --query 'EvaluationResults[0].EvalDecision' \
-      --output text 2>/dev/null)"; then
+      --action-names aps:RemoteWrite \
+      --resource-arns "arn:aws:aps:${REGION}:${acct}:workspace/ws-00000000-0000-0000-0000-000000000000" \
+      --query 'EvaluationResults[0].EvalDecision' --output text 2>/dev/null)"; then
       if [[ "$sim" == "allowed" ]]; then
         log "  status publish: aps:RemoteWrite allowed"
       else
