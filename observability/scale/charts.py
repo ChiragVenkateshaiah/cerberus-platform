@@ -235,7 +235,7 @@ def cost_chart():
         f'<text class="tick muted" x="{left + plot_w}" y="{bottom + 32}" text-anchor="end">'
         "per million events, log scale</text>"
     )
-    for r, (step, execution, rec) in enumerate(runs):
+    for r, (step, _execution, rec) in enumerate(runs):
         cost = rec["cost"]
         y = top + r * row
         x = xs(cost["usd_per_million_events"])
