@@ -94,7 +94,8 @@
       "Sid": "CloudwatchAccount",
       "Effect": "Allow",
       "Action": [
-        "cloudwatch:ListDashboards"
+        "cloudwatch:ListDashboards",
+        "cloudwatch:DescribeAlarms"
       ],
       "Resource": "*"
     },
