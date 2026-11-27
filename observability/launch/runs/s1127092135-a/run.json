@@ -1,0 +1,23 @@
+{
+  "run_id": "s1127092135-a",
+  "scenario": "a",
+  "minutes": 60,
+  "hold": true,
+  "window_start_ms": 1795771346255,
+  "window_end_ms": 1795771775499,
+  "planned_gb": "6.845",
+  "budget_bytes": 5315022068,
+  "release_at_epoch": 1795772982,
+  "k6_requests": null,
+  "k6_requests_by_type": {
+    "build": 0,
+    "patch": 0,
+    "licence": 0,
+    "manifest": 0
+  },
+  "k6_complete": false,
+  "curl_requests": 1,
+  "cloudwatch_bytes_downloaded": null,
+  "cloudwatch_bytes_last": null,
+  "cdn_logs_collected": false
+}

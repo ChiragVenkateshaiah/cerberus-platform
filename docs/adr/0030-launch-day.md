@@ -177,6 +177,10 @@ the design in seven places:
      `orchestration/console_session.sh` say the same of a trap that died). So
      the instance shuts itself down at `MINUTES` plus a margin, with shutdown
      behaviour `terminate`. The margin is set in 17.4 (unverified).
+     Amendment 2026-11-27: EC2 refuses `instance_initiated_shutdown_behavior`
+     on a Spot instance (Run A, first try), so the attribute is removed. A
+     one-time Spot instance cannot be stopped, so the OS shutdown is expected
+     to terminate it (unverified; the Run A rerun checks it).
      `launch-destroy` also deletes a leftover parameter.
    - Amendment 2026-11-26: `launch-check` needs no new type for the S3 metrics
      configuration (Decision 15). It has no life outside the bucket.
@@ -422,6 +426,9 @@ Sunday noon IST, and the end of the Origin Shield comparison.
   `DescribeSpotInstanceRequests`.
 - Silver storage size with the larger envelope.
 - The instance self-shutdown margin beyond `MINUTES` (set in 17.4).
+- That an OS shutdown terminates the one-time Spot instance (no
+  `instance_initiated_shutdown_behavior`; Run A rerun: `describe-instances`
+  shows `terminated`, not `stopped`).
 - The $40 and $25 reading (owner confirms on acceptance).
 - The $8 to $15 phase cost estimate.
 - Whether a regional edge cache sits between the edge and an S3 origin with

@@ -195,3 +195,9 @@ test('the origin meter counts patch/ on the build bucket only (Decision 15)', ()
   assert.match(block[1], /prefix = "patch\/"/);
   assert.equal((main.match(/resource "aws_s3_bucket_metric"/g) || []).length, 1);
 });
+
+test('the Spot load generator sets no instance_initiated_shutdown_behavior (EC2 refuses it)', () => {
+  const lg = read('load_gen.tf');
+  assert.match(lg, /market_type = "spot"/);
+  assert.doesNotMatch(lg, /^\s*instance_initiated_shutdown_behavior\s*=/m);
+});
