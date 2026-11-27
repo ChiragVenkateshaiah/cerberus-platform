@@ -168,7 +168,9 @@ def run_time_chart():
         seconds = {s["state"]: s["seconds"] for s in rec["states"]}
         y = top + r * row
         out.append(f'<text class="l ink" x="20" y="{y + 11}">{step} new events</text>')
-        out.append(f'<text class="tick muted" x="20" y="{y + 26}">{execution.rsplit("-", 1)[1]}</text>')
+        out.append(
+            f'<text class="tick muted" x="20" y="{y + 26}">{execution.rsplit("-", 1)[1]}</text>'
+        )
         x = left
         for i, state in enumerate(STATES):
             w = xs(seconds[state]) - left
@@ -302,7 +304,12 @@ def throughput_chart():
     out.append(
         f'<text class="tick muted" x="{left - 8}" y="{top - 12}" text-anchor="end">MB/s</text>'
     )
-    offsets = {"9M Spot interruption": 18, "1M on 137M silver": -12, "10M, 2 × 2 GB": -22, "9M load test": -12}
+    offsets = {
+        "9M Spot interruption": 18,
+        "1M on 137M silver": -12,
+        "10M, 2 × 2 GB": -22,
+        "9M load test": -12,
+    }
     for label, execution, executors in THROUGHPUT_RUNS:
         rec = load(execution)
         state = next(s for s in rec["states"] if s["state"] == "RunTransform")
