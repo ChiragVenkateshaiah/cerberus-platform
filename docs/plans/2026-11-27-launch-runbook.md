@@ -444,7 +444,7 @@ First, always: run `make launch-check` (read-only) and read the counts.
   FAILED`, `STAGE 1 APPLY FAILED`). Renew the credentials in a new shell, then `make
   launch-destroy && make launch-check`. The cookies expire at mint + `MINUTES` anyway.
 - Owner laptop off: nothing keeps running except the instance and the edge. The instance
-  stops itself (MINUTES + 30 min, unverified, shutdown behaviour terminate); its
+  stops itself (MINUTES + 30 min, unverified; a one-time Spot instance is expected to terminate on shutdown, unverified); its
   nftables quota caps the bytes; the cookies expire. The edge and buckets stay until you
   run `make launch-destroy`. Do that as soon as you are back, and no later than the 24 h
   deadline. Cost of waiting is about $0 per the ADR; the unverified part is the

@@ -149,7 +149,10 @@ resource "aws_instance" "load_gen" {
   associate_public_ip_address = true
 
   # `shutdown -h` in user data is the backstop if the session trap dies.
-  instance_initiated_shutdown_behavior = "terminate"
+  # No instance_initiated_shutdown_behavior: EC2 refuses it for Spot
+  # ("Modifying 'instanceInitiatedShutdownBehavior' is not supported for spot
+  # instances", Run A 2026-11-27). A one-time Spot instance cannot be stopped,
+  # so an OS shutdown is expected to terminate it (unverified; Run A checks).
 
   instance_market_options {
     market_type = "spot"
