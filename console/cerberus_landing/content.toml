@@ -68,16 +68,17 @@ checklist_link = "Read the full checklist"
 
 [live]
 title = "Live dashboards"
-body = "During scheduled demos, a Grafana dashboard opens for the session and replays a recorded run from the stored metrics: the cluster growing, work in flight and data read so far. It is not open all day, because that would cost money. This page will link to it while a demo is on."
+body = "During scheduled demos, a Grafana dashboard opens for the session and replays a recorded run from the stored metrics: the cluster growing, work in flight and data read so far. It is not open all day, because that would cost money. While a demo is on, a link to it appears here if JavaScript is on."
+open = "Open the live dashboard (invited sign-in)"
 link = "How the dashboards tell the story"
 
 [terminal]
 title = "Try the terminal"
-body = "Invited visitors will be able to type read-only commands such as status, runs and cost in a browser terminal. The terminal cannot change anything. The sign-in link arrives with the next step of Phase 9."
-link = "Sign in to the terminal"
+body = "Invited visitors can type read-only commands such as status, runs and cost in a browser terminal. The terminal cannot change anything."
+link = "Sign in to the terminal (invite only)"
 
 [footer]
-privacy = "This page uses no cookies, no trackers and no JavaScript."
+privacy = "This page uses no cookies and no trackers. Its one script comes from this site and only checks whether a live dashboard session is open."
 repo = "Source code"
 pages = "Project site"
 dbt = "Data model docs"

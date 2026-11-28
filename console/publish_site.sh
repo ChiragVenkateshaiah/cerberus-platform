@@ -43,7 +43,14 @@ for f in "$DIR"/site.*.css; do
     --content-type "text/css; charset=utf-8" --cache-control "$IMMUTABLE"
 done
 
-# 3. Favicon and charts.
+# 3. The script.
+for f in "$DIR"/site.*.js; do
+  [ -f "$f" ] || fail "no site.*.js in $DIR"
+  aws s3 cp "$f" "s3://$BUCKET/$(basename "$f")" "${S3_FLAGS[@]}" \
+    --content-type "text/javascript; charset=utf-8" --cache-control "$IMMUTABLE"
+done
+
+# 4. Favicon and charts.
 for f in "$DIR"/favicon.*.svg "$DIR"/img/*.svg; do
   [ -f "$f" ] || continue
   key="${f#"$DIR"/}"
@@ -51,16 +58,16 @@ for f in "$DIR"/favicon.*.svg "$DIR"/img/*.svg; do
     --content-type "image/svg+xml" --cache-control "$IMMUTABLE"
 done
 
-# 4. The page goes last, so it never points at a file that is not there yet.
+# 5. The page goes last, so it never points at a file that is not there yet.
 aws s3 cp "$DIR/index.html" "s3://$BUCKET/index.html" "${S3_FLAGS[@]}" \
   --content-type "text/html; charset=utf-8" --cache-control "no-cache"
 
-# 5. One wildcard path (free within 1,000 a month); wait until it is done.
+# 6. One wildcard path (free within 1,000 a month); wait until it is done.
 INV="$(aws cloudfront create-invalidation --distribution-id "$DIST" --paths '/*' \
   --query 'Invalidation.Id' --output text)"
 aws cloudfront wait invalidation-completed --distribution-id "$DIST" --id "$INV"
 
-# 6. Delete stale builder-owned keys, after the invalidation.
+# 7. Delete stale builder-owned keys, after the invalidation.
 REMOTE="$(aws s3api list-objects-v2 --bucket "$BUCKET" --query 'Contents[].Key' --output json)"
 HAD_LIVE=0
 if [[ "$REMOTE" == *'"live.json"'* ]]; then HAD_LIVE=1; fi
@@ -71,7 +78,7 @@ if [ -n "$STALE" ]; then
   done <<<"$STALE"
 fi
 
-# 7. Checks against the public URL.
+# 8. Checks against the public URL.
 HDR="$(mktemp)"
 BODY="$(mktemp)"
 trap 'rm -f "$HDR" "$BODY"' EXIT
@@ -88,6 +95,12 @@ CSS="$(grep -o 'site\.[0-9a-f]\{10\}\.css' "$BODY" | head -n 1 || true)"
 curl -fsS -D "$HDR" -o /dev/null "$URL/$CSS"
 grep -qi '^cache-control:.*immutable' "$HDR" || fail "$CSS is not immutable"
 grep -qi '^content-type:.*text/css' "$HDR" || fail "$CSS is not text/css"
+
+JS="$(grep -o 'site\.[0-9a-f]\{10\}\.js' "$BODY" | head -n 1 || true)"
+[ -n "$JS" ] || fail "index.html names no script"
+curl -fsS -D "$HDR" -o /dev/null "$URL/$JS"
+grep -qi '^cache-control:.*immutable' "$HDR" || fail "$JS is not immutable"
+grep -qi '^content-type:.*text/javascript' "$HDR" || fail "$JS is not text/javascript"
 
 if [ "$HAD_LIVE" -eq 1 ]; then
   aws s3api head-object --bucket "$BUCKET" --key live.json >/dev/null || fail "live.json is gone"

@@ -100,7 +100,7 @@ exercise-check: ## read-only preflight for an exercise: no cluster, empty dev-co
 	orchestration/exercise.sh --check
 
 .PHONY: verify verify-full
-verify: ## OFFLINE, no AWS: the standard checks for a change (ruff, console/status/grafana tests, terraform fmt, shell syntax, account-number scan); skips what is not on the branch
+verify: ## OFFLINE, no AWS: the standard checks for a change (ruff, console/status/grafana tests, terraform fmt, console JavaScript, shell syntax, account-number scan); skips what is not on the branch
 	orchestration/verify.sh
 
 verify-full: ## OFFLINE, Docker: verify plus the alert-rule, e2e and dashboard-render checks
@@ -170,10 +170,10 @@ status: ## READ-ONLY, owner-run: pipeline status from AMP + Step Functions + Ath
 	  $(MAKE) --no-print-directory cerberus CMD=status
 
 .PHONY: console-site console-site-preview console-site-publish
-console-site: ## build the public landing page into console/site-dist (zero JavaScript, no AWS; ADR 0024)
+console-site: ## build the public landing page into console/site-dist (one same-origin script for the live dashboard link; no AWS; ADR 0024)
 	cd console && rm -rf site-dist && uv run --no-project --python 3.12 python -m cerberus_landing build --out site-dist
 
-console-site-preview: ## serve console/site-dist at http://127.0.0.1:8088/ with the edge CSP (run console-site first)
+console-site-preview: ## serve console/site-dist at http://127.0.0.1:8088/ with the edge CSP (run console-site first; no live.json, so the live link stays hidden)
 	cd console && uv run --no-project --python 3.12 python -m cerberus_landing.serve --dir site-dist
 
 console-site-publish: console-site ## AWS WRITE, needs approval: publish console/site-dist to the standing edge (owner fallback for console-site.yml)

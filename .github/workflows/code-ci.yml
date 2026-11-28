@@ -213,10 +213,14 @@ jobs:
       - name: pytest launch_exercise (stubs)
         run: pytest orchestration/test_launch_exercise.py
 
-      # 9.5 (ADR 0024 amendment, 2026-11-12): the terminal's script is plain
-      # JavaScript with no toolchain. Uses the runner's own Node; no setup-node, no npm.
-      - name: terminal.js syntax and unit tests
-        run: node --check console/cerberus_terminal/static/terminal.js && node --test console/tests/js/*.test.js
+      # 9.5 (ADR 0024 amendment, 2026-11-12) and 9.4a: the terminal's script and
+      # the landing page's script are plain JavaScript with no toolchain. Uses the
+      # runner's own Node; no setup-node, no npm.
+      - name: console JavaScript syntax and unit tests
+        run: >-
+          node --check console/cerberus_terminal/static/terminal.js &&
+          node --check console/cerberus_landing/static/site.js &&
+          node --test console/tests/js/*.test.js
 
   # 17.3b (ADR 0030): the launch edge. No AWS: validate runs after
   # init -backend=false, and the node tests use

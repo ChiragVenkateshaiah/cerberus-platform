@@ -26,6 +26,20 @@ def test_document_basics(tmp_path):
     assert skip and skip[0]["href"] == "#main"
 
 
+def test_the_live_link_is_hidden_and_leads_nowhere_without_javascript(tmp_path):
+    p = parse(_built(tmp_path))
+    links = [a for a in p.named("a") if a.get("id") == "live-link"]
+    assert len(links) == 1
+    assert "hidden" in links[0] and "href" not in links[0]
+    assert "invited sign-in" in p.text["a"]
+    # Every link that a reader can see has somewhere to go.
+    for a in p.named("a"):
+        assert "href" in a or "hidden" in a, a
+    # The .link class sets display, which would override the hidden attribute.
+    css = (PKG / "static" / "site.css").read_text(encoding="utf-8")
+    assert re.search(r"\.link\[hidden\] \{\s*display: none;\s*\}", css)
+
+
 def test_one_h1_and_no_skipped_heading_levels(tmp_path):
     p = parse(_built(tmp_path))
     levels = [int(t[1]) for t, _ in p.tags if re.fullmatch(r"h[1-6]", t)]

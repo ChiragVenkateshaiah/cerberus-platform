@@ -198,12 +198,21 @@ outside Terraform (ADR 0024). No email, password or token goes into the repo.
 ## Landing page
 
 `cerberus_landing/` builds the public landing page for the console site (ADR 0024,
-step 8): one `index.html`, one stylesheet, a favicon, the hand-drawn architecture
-diagram and, when they exist, the scale charts. It is stdlib Python and ships no
-JavaScript, no inline style and no inline handler, so it passes the edge CSP as is.
-It reads the run records through `cerberus_console.records`, so its "latest run"
-is the same record as `cerberus run latest`. Phase status comes from `Phases.md`
-and the plain-language text from `cerberus_landing/content.toml`.
+step 8): one `index.html`, one stylesheet, one script, a favicon, the hand-drawn
+architecture diagram and, when they exist, the scale charts. It is stdlib Python
+and ships no inline script, no inline style and no inline handler, so it passes
+the edge CSP as is. The page links to the terminal (`terminal/index.html`, invite
+only). It reads the run records through `cerberus_console.records`, so its
+"latest run" is the same record as `cerberus run latest`. Phase status comes from
+`Phases.md` and the plain-language text from `cerberus_landing/content.toml`.
+
+**The script** (`static/site.js`, step 9.4a, plan
+`docs/plans/2026-11-28-landing-showcase.md`) does one thing: it shows the link to
+the live Grafana dashboard while a session runs. It reads `live.json` from this
+site with no cache, at load and every 60 seconds, and follows the rules in
+"Live session link" below. The link is hidden in the HTML, so without
+JavaScript the page shows nothing dead. The builder allows exactly one empty,
+relative `<script src ... defer>` on the page, and none in an SVG.
 
 ```
 make console-site            # build into console/site-dist/ (no AWS)
@@ -220,6 +229,9 @@ names carry a hash of their content.
 Tests (`tests/test_landing_*.py`) cover determinism, links, the CSP scan (with
 negative fixtures), the `Phases.md` parser, the run cards (including the hostile
 record), the placeholder, accessibility basics and the stylesheet's contrast.
+`tests/test_landing_js_scan.py` scans `site.js` and checks its fields against
+`envs/dev-console`; `tests/js/landing.test.js` (`node --test`) covers when the
+live link shows and hides.
 
 **Publish.** `.github/workflows/console-site.yml` runs on a push to main that
 changes the page's inputs (and on manual dispatch). It builds the site, assumes
@@ -231,9 +243,11 @@ type and cache header per file class:
 |---|---|---|
 | `index.html` | `text/html; charset=utf-8` | `no-cache` |
 | `site.*.css` | `text/css; charset=utf-8` | `public, max-age=31536000, immutable` |
+| `site.*.js` | `text/javascript; charset=utf-8` | `public, max-age=31536000, immutable` |
 | `favicon.*.svg`, `img/*.svg` | `image/svg+xml` | `public, max-age=31536000, immutable` |
 
-It invalidates `/*` once, waits, then deletes only stale keys that match the
+The stylesheet, the script and the images are uploaded before `index.html`. It
+invalidates `/*` once, waits, then deletes only stale keys that match the
 builder's hashed names (`cerberus_landing/publish.py`). `healthz.txt`,
 `live.json` and anything under `terminal/` can never match, so they are never
 deleted. It then checks the live URL. The owner fallback is
@@ -266,6 +280,7 @@ make console-terminal            # build into console/terminal-dist (no AWS)
 make console-terminal-preview    # http://127.0.0.1:8089/terminal/index.html, edge CSP
 make console-terminal-publish    # AWS WRITE, needs approval (owner fallback)
 node --check console/cerberus_terminal/static/terminal.js
+node --check console/cerberus_landing/static/site.js
 node --test console/tests/js/*.test.js
 ```
 
@@ -310,10 +325,12 @@ passes, and destroy deletes it first.
 - `url` is the session's Grafana; `home` is the path of the recorded-runs
   dashboard on that host; `started` and `ends` are UTC, RFC 3339.
 - Served with `Cache-Control: no-cache, max-age=0`.
-- A reader (the landing page's `live.js`) must hide the link when `ends` is in
+- A reader (the landing page's `site.js`) must hide the link when `ends` is in
   the past, when `schema` is not 1, when the file is missing (403 through CloudFront, seen 2026-11-15;
   treat any non-200 as missing) or does not
   parse. A dead trap leaves a stale file, and `ends` is the only guard.
+- `site.js` also requires `url` to be https and `home` to start with exactly one
+  `/`. It labels the link "invited sign-in".
 - The file holds no secret. It is never written to the repo.
 
 ## Live check harness
