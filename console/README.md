@@ -198,21 +198,40 @@ outside Terraform (ADR 0024). No email, password or token goes into the repo.
 ## Landing page
 
 `cerberus_landing/` builds the public landing page for the console site (ADR 0024,
-step 8): one `index.html`, one stylesheet, one script, a favicon, the hand-drawn
-architecture diagram and, when they exist, the scale charts. It is stdlib Python
-and ships no inline script, no inline style and no inline handler, so it passes
-the edge CSP as is. The page links to the terminal (`terminal/index.html`, invite
-only). It reads the run records through `cerberus_console.records`, so its
-"latest run" is the same record as `cerberus run latest`. Phase status comes from
-`Phases.md` and the plain-language text from `cerberus_landing/content.toml`.
+step 8; rebuilt in 9.4c, plan `docs/plans/2026-11-28-landing-showcase.md`): one
+`index.html`, one stylesheet, one script, a favicon, the hand-drawn architecture
+diagram and, when they exist, the scale charts. It is stdlib Python and ships no
+inline script, no inline style and no inline handler, so it passes the edge CSP
+as is. The page links to the terminal (`terminal/index.html`, invite only). It
+reads the run records through `cerberus_console.records`, so its "latest run" is
+the same record as `cerberus run latest`. Phase status comes from `Phases.md` and
+the plain-language text from `cerberus_landing/content.toml`.
 
-**The script** (`static/site.js`, step 9.4a, plan
-`docs/plans/2026-11-28-landing-showcase.md`) does one thing: it shows the link to
-the live Grafana dashboard while a session runs. It reads `live.json` from this
-site with no cache, at load and every 60 seconds, and follows the rules in
-"Live session link" below. The link is hidden in the HTML, so without
-JavaScript the page shows nothing dead. The builder allows exactly one empty,
-relative `<script src ... defer>` on the page, and none in an SVG.
+**Page order.** What it is, and the achievements strip (the featured run and "N of
+M recorded runs succeeded"); "Follow the batch"; the latest run; the scale charts;
+the live dashboard link, the terminal link and one recorded Prometheus figure;
+then two closed folds, the architecture diagram and the build progress.
+
+**Follow the batch.** `journey.py` holds 3 fixed runs (1M, 10M and 100M; the 100M
+run is the featured one) and gives numbers and fixed strings only. `page.py` puts
+every run and station (Arrive, Clean, Model, Answer) in the HTML. Each station
+shows its time and share of the run (an inline SVG bar), the bytes read with the
+measure that counted them, the whole-table totals read after the run, the Athena
+queue time when there is one, and the data checks of that layer. A check that
+ended in a warning is shown as a warning (`journey.WARNINGS`), never with its
+pass words. A figure that no record field holds reads "not recorded".
+**The build fails** if one of the 3 records is missing or unreadable, did not
+succeed, has no state list or holds a failed data check.
+
+**The script** (`static/site.js`) does two things. It shows the picker, station
+and "Next" buttons and then hides all but one run and one station; it writes no
+text, only `hidden` and `aria-pressed`, and moves the focus after "Next". It also
+shows the link to the live Grafana dashboard while a session runs: it reads
+`live.json` from this site with no cache, at load and every 60 seconds, and
+follows the rules in "Live session link" below. All buttons and the live link are
+hidden in the HTML, so without JavaScript every panel shows and nothing is dead.
+The builder allows exactly one empty, relative `<script src ... defer>` on the
+page, and none in an SVG.
 
 ```
 make console-site            # build into console/site-dist/ (no AWS)
@@ -227,11 +246,14 @@ is deterministic: two builds of the same inputs are byte-identical, and asset
 names carry a hash of their content.
 
 Tests (`tests/test_landing_*.py`) cover determinism, links, the CSP scan (with
-negative fixtures), the `Phases.md` parser, the run cards (including the hostile
-record), the placeholder, accessibility basics and the stylesheet's contrast.
-`tests/test_landing_js_scan.py` scans `site.js` and checks its fields against
-`envs/dev-console`; `tests/js/landing.test.js` (`node --test`) covers when the
-live link shows and hides.
+negative fixtures), the `Phases.md` parser, the journey data, what the page claims
+(`test_landing_page.py`: each figure against its record, warnings, "not
+recorded", the redaction scan on hostile records), the latest run, the
+placeholder, accessibility basics (including the page without JavaScript) and the
+stylesheet's contrast, the time bar included. `tests/test_landing_js_scan.py`
+scans `site.js` and checks it against the built page and `envs/dev-console`;
+`tests/js/landing.test.js` (`node --test`) covers the picker, the station buttons,
+"Next" and when the live link shows and hides.
 
 **Publish.** `.github/workflows/console-site.yml` runs on a push to main that
 changes the page's inputs (and on manual dispatch). It builds the site, assumes

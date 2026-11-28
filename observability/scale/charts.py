@@ -197,14 +197,17 @@ def run_time_chart():
             ]
             out.append(
                 f'<text class="tick ink2" x="{dbt_x:.1f}" y="{y + thick + 14}">'
-                f"↑ RunDbt includes {queue:.0f} s of Athena queue time</text>"
+                f"↑ RunDbt: Athena queue time (waiting, not working): {queue:.1f} s,</text>"
+            )
+            out.append(
+                f'<text class="tick ink2" x="{dbt_x:.1f}" y="{y + thick + 29}">'
+                "summed over this step's queries, which can overlap</text>"
             )
     return svg(
         width,
         height,
         "Run time per state",
-        "The clean run at each step of the ladder. Each run starts on a larger silver table: "
-        "1.1M, 37.1M, 137.1M events.",
+        "Silver events before the run: 1M 137.1M, 10M 1.1M, 100M (8.9) 37.1M",
         "\n".join(out) + "\n",
     )
 
@@ -268,8 +271,8 @@ def cost_chart():
         width,
         height,
         "Cost per million events, orchestrated run",
-        "The run costs $0.10–0.52 at every step, so the cost per event falls about 56 times "
-        "from 1M to the 100M demo take.",
+        "Estimated run cost: $0.10–0.52 at every step. Runs differ in day and table size, "
+        "so this is not a scaling test.",
         "\n".join(out) + "\n",
     )
 
@@ -328,8 +331,7 @@ def throughput_chart():
         width,
         height,
         "RunTransform input throughput against executors",
-        "Spark input bytes per second of the step. Throughput follows the input size "
-        "more than the executor count.",
+        "Spark input bytes per second of the step. Input and table sizes differ between runs.",
         "\n".join(out) + "\n",
     )
 

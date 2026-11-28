@@ -2,10 +2,18 @@
 
 import re
 
-from landing_helpers import FIXTURE_RUNS, REAL_RUNS, build_site, parse, write_record
+import pytest
+from landing_helpers import (
+    FIXTURE_RUNS,
+    REAL_RUNS,
+    build_site,
+    journey_records,
+    parse,
+    write_record,
+)
 
 from cerberus_console import records
-from cerberus_landing import build, runs
+from cerberus_landing import build, journey, runs
 
 
 def test_latest_run_matches_the_console_for_the_real_records(tmp_path):
@@ -18,21 +26,23 @@ def test_latest_run_matches_the_console_for_the_real_records(tmp_path):
     assert latest.events in html
 
 
-def test_largest_is_the_succeeded_run_with_most_events(tmp_path):
+def test_the_latest_run_and_the_counts(tmp_path):
     d = tmp_path / "runs"
     write_record(d, "exercise-20261101T100000Z", events_processed=500)
     write_record(d, "exercise-20261102T100000Z", events_processed=9000, status="FAILED")
     write_record(d, "exercise-20261103T100000Z", events_processed=700)
-    latest, largest, total, ok = runs.pick(d)
+    latest, total, ok = runs.pick(d)
     assert latest.execution == "exercise-20261103T100000Z"
-    assert largest.execution == "exercise-20261103T100000Z"
+    assert latest.events == "700"
     assert (total, ok) == (3, 2)
-    assert largest.events == "700"
 
 
 def test_hostile_record_text_never_reaches_the_page(tmp_path):
     out = tmp_path / "site"
-    _, html = build_site(out, runs_dir=FIXTURE_RUNS)
+    d = journey_records(tmp_path / "runs")
+    for path in FIXTURE_RUNS.glob("*.json"):
+        (d / path.name).write_bytes(path.read_bytes())
+    _, html = build_site(out, runs_dir=d)
     assert "hostile-20990101T000000Z" in html  # it is the newest, and a valid token
     for raw in ("\x1b", "\x07", "‮", "\u009b", "52;c", "SGVsbG8", "Svc"):
         assert raw not in html, repr(raw)
@@ -53,17 +63,24 @@ def test_hostile_state_name_is_replaced_by_the_fixed_label(tmp_path):
 
 
 def test_an_invalid_execution_name_links_nowhere(tmp_path):
-    d = tmp_path / "runs"
+    d = journey_records(tmp_path / "runs")
     write_record(d, "ok-20261101T100000Z", execution="../x<script>alert(1)</script>")
     _, html = build_site(tmp_path / "site", runs_dir=d)
     assert "alert(1)" not in html
-    assert "observability/scale/runs/" not in html
+    # The latest run links nowhere; the only record links are the 3 fixed runs.
+    linked = {
+        a["href"].rsplit("/", 1)[1]
+        for a in parse(html).named("a")
+        if "/observability/scale/runs/" in a.get("href", "")
+    }
+    assert linked == {f"{name}.json" for name, _ in journey.RUNS}
+    assert "Open the latest run record" not in html
     latest = runs.pick(d)[0]
     assert latest.execution is None and latest.file_name is None
 
 
 def test_unknown_status_shows_unknown(tmp_path):
-    d = tmp_path / "runs"
+    d = journey_records(tmp_path / "runs")
     write_record(d, "exercise-20261101T100000Z", status="<b>PWNED</b>")
     latest = runs.pick(d)[0]
     assert latest.status == "unknown"
@@ -71,15 +88,14 @@ def test_unknown_status_shows_unknown(tmp_path):
     assert "PWNED" not in html
 
 
-def test_an_empty_runs_directory_says_no_runs(tmp_path):
+def test_an_empty_runs_directory_fails_the_build(tmp_path):
     (tmp_path / "runs").mkdir()
-    _, html = build_site(tmp_path / "site", runs_dir=tmp_path / "runs")
-    assert "No runs recorded yet." in html
-    assert 'class="card"' not in html
+    with pytest.raises(build.BuildError, match="record missing or unreadable"):
+        build_site(tmp_path / "site", runs_dir=tmp_path / "runs")
 
 
 def test_incomplete_cost_says_not_final(tmp_path):
-    d = tmp_path / "runs"
+    d = journey_records(tmp_path / "runs")
     write_record(
         d,
         "exercise-20261101T100000Z",
@@ -91,7 +107,7 @@ def test_incomplete_cost_says_not_final(tmp_path):
 
 
 def test_incomplete_cost_without_a_figure_says_not_final(tmp_path):
-    d = tmp_path / "runs"
+    d = journey_records(tmp_path / "runs")
     write_record(
         d,
         "exercise-20261101T100000Z",
@@ -103,7 +119,7 @@ def test_incomplete_cost_without_a_figure_says_not_final(tmp_path):
 
 
 def test_estimated_cost_is_labelled(tmp_path):
-    d = tmp_path / "runs"
+    d = journey_records(tmp_path / "runs")
     write_record(d, "exercise-20261101T100000Z")
     _, html = build_site(tmp_path / "site", runs_dir=d)
     assert "$1.5000 per million events (estimated)" in html
@@ -122,10 +138,24 @@ def test_formatting():
 
 
 def test_bulk_note_shows_only_for_generator_runs(tmp_path):
-    note = "That time is not in this table."
-    plain = tmp_path / "plain"
+    note = "written beforehand by a data generator (ADR 0018)"
+    plain = journey_records(tmp_path / "plain")
     write_record(plain, "exercise-20261101T100000Z")
     assert note not in build_site(tmp_path / "a", runs_dir=plain)[1]
-    bulk = tmp_path / "bulk"
+    bulk = journey_records(tmp_path / "bulk")
     write_record(bulk, "exercise-20261101T100000Z", generator={"write_seconds": 90.0})
     assert note in build_site(tmp_path / "b", runs_dir=bulk)[1]
+
+
+@pytest.mark.parametrize(
+    ("checks", "text"),
+    [
+        (None, "Data checks passed"),
+        ([{"passed": True}], "Data checks passed"),
+        ([{"passed": True}, {"passed": False}], "Data checks passed, with a warning"),
+        ([{"passed": False}, {}], "Data checks passed, with 2 warnings"),
+    ],
+)
+def test_a_passed_suite_with_warnings_says_so(checks, text):
+    quality = {"passed": True} if checks is None else {"passed": True, "checks": checks}
+    assert runs.view({"data_quality": quality}).checks == text

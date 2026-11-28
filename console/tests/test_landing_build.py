@@ -5,7 +5,14 @@ import shutil
 from pathlib import Path
 
 import pytest
-from landing_helpers import build_site, parse, tree, write_charts, write_record
+from landing_helpers import (
+    build_site,
+    journey_records,
+    parse,
+    tree,
+    write_charts,
+    write_record,
+)
 
 from cerberus_landing import __main__ as cli
 from cerberus_landing import build, page
@@ -22,7 +29,7 @@ def test_two_builds_are_byte_identical(tmp_path):
 
 
 def test_build_id_changes_when_an_input_changes(tmp_path):
-    runs = tmp_path / "runs"
+    runs = journey_records(tmp_path / "runs")
     write_record(runs, "exercise-20261101T100000Z")
     info_a, _ = build_site(tmp_path / "a", runs_dir=runs)
     write_record(runs, "exercise-20261101T100000Z", events_processed=6000)

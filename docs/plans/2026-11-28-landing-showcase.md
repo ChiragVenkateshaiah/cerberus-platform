@@ -101,8 +101,10 @@ Out of scope for both: Phase 17 numbers and `history.json`.
   sizes (`docs/scale-metrics.md`).
 - The 1M run's `RunDbt` time of 286.7 s includes 230.5 s of Athena queue time
   (`docs/scale-metrics.md`).
-- The run cost is an estimate: a day-average rate times the run time. It excludes
-  setup, the generator and teardown (`docs/scale-metrics.md`).
+- The run cost is an estimate: a day-average rate times the run time, plus the
+  run's own Athena queries. It excludes setup, the data generator, the data checks
+  and teardown. The check suite is outside the run: $0.50 on the featured 100M
+  exercise, against a run cost of $0.3657 (`docs/scale-metrics.md`).
 - The newest 100M run is `demo-100m-20261108T135119Z`, not the featured run. It
   stays in the latest-run strip.
 

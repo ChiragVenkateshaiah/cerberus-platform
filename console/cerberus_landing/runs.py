@@ -96,7 +96,14 @@ def _cost(rec: dict) -> str:
 def _checks(rec: dict) -> str:
     passed = records.dig(rec, "data_quality", "passed")
     if passed is True:
-        return "Data checks passed"
+        entries = records.dig(rec, "data_quality", "checks")
+        entries = entries if isinstance(entries, list) else []
+        # "passed" is true for a suite with warnings, so say that they happened.
+        warned = sum(records.dig(c, "passed") is not True for c in entries)
+        if warned == 0:
+            return "Data checks passed"
+        words = "a warning" if warned == 1 else f"{warned} warnings"
+        return f"Data checks passed, with {words}"
     if passed is False:
         return "Data checks failed"
     return "Data checks not run"
@@ -125,21 +132,10 @@ def view(rec: dict) -> RunView:
     )
 
 
-def pick(runs_dir: Path) -> tuple[RunView | None, RunView | None, int, int]:
-    """(latest, largest succeeded, record count, succeeded count)."""
+def pick(runs_dir: Path) -> tuple[RunView | None, int, int]:
+    """(latest, record count, succeeded count)."""
     rs = records.load(runs_dir)
     if not rs.records:
-        return None, None, 0, 0
-    ok = [r for r in rs.records if r.get("status") == "SUCCEEDED"]
-    largest = None
-    best = -1
-    for rec in ok:  # newest first, so a tie keeps the newest
-        events = records.number(rec, "events_processed")
-        if events is not None and events > best:
-            best, largest = events, rec
-    return (
-        view(rs.records[0]),
-        view(largest) if largest is not None else None,
-        len(rs.records),
-        len(ok),
-    )
+        return None, 0, 0
+    ok = sum(r.get("status") == "SUCCEEDED" for r in rs.records)
+    return view(rs.records[0]), len(rs.records), ok

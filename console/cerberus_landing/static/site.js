@@ -1,9 +1,12 @@
 "use strict";
 // The landing page's only script (plan docs/plans/2026-11-28-landing-showcase.md).
-// It shows the link to the live Grafana dashboard while a session runs, and does
-// nothing else. envs/dev-console writes live.json at the site root and deletes it
-// first on destroy. After a dead trap the file stays, so `ends` is the only guard
-// (console/README.md). The checks follow cerberus_live_check/report.py parse_live.
+// It does two things.
+// 1. "Follow the batch": every run and station is already in the page. This shows
+//    the buttons and hides all but the chosen run and station. It writes no text.
+// 2. The link to the live Grafana dashboard while a session runs. envs/dev-console
+//    writes live.json at the site root and deletes it first on destroy. After a
+//    dead trap the file stays, so `ends` is the only guard (console/README.md).
+//    The checks follow cerberus_live_check/report.py parse_live.
 
 const READ_TIMEOUT_MS = 10000; // shorter than CHECK_MS: reads never overlap
 const LIVE_PATH = "live.json";
@@ -71,7 +74,52 @@ function watcher(link, now) {
   };
 }
 
+// Marks one button of a set as chosen and shows only the element it controls.
+function choose(doc, buttons, index) {
+  buttons.forEach((button, i) => {
+    button.setAttribute("aria-pressed", i === index ? "true" : "false");
+    doc.getElementById(button.getAttribute("aria-controls")).hidden = i !== index;
+  });
+}
+
+// The run buttons pick a run. The station buttons and "Next" pick a station, in
+// every run at once, so another run opens at the same station.
+function journey(doc) {
+  const root = doc.getElementById("journey");
+  if (!root) return;
+  const picks = Array.from(root.querySelectorAll("[data-pick]"));
+  const steppers = Array.from(root.querySelectorAll("[data-stepper]"));
+  const rows = steppers.map((stepper) => Array.from(stepper.querySelectorAll("[data-step]")));
+  const station = (index) => rows.forEach((steps) => choose(doc, steps, index));
+
+  picks.forEach((button, i) => button.addEventListener("click", () => choose(doc, picks, i)));
+  rows.forEach((steps, row) => {
+    steps.forEach((step, i) => {
+      step.addEventListener("click", () => station(i));
+      const panel = doc.getElementById(step.getAttribute("aria-controls"));
+      const next = panel.querySelector("[data-next]");
+      next.addEventListener("click", () => {
+        const to = (i + 1) % steps.length;
+        station(to);
+        // The button just pressed is now hidden: move the focus to the new panel,
+        // and bring the stations back into view if they scrolled off the top.
+        const shown = doc.getElementById(steps[to].getAttribute("aria-controls"));
+        shown.focus({ preventScroll: true });
+        if (steppers[row].getBoundingClientRect().top < 0) steppers[row].scrollIntoView();
+      });
+      next.hidden = false;
+    });
+    steppers[row].hidden = false;
+  });
+
+  station(0);
+  // The page marks the featured run's button as the chosen one.
+  choose(doc, picks, picks.findIndex((b) => b.getAttribute("aria-pressed") === "true"));
+  root.querySelector("[data-picker]").hidden = false;
+}
+
 function start() {
+  journey(document);
   const link = document.getElementById("live-link");
   if (!link) return;
   const check = watcher(link, Date.now);
@@ -83,5 +131,5 @@ if (typeof document !== "undefined") {
   start();
 }
 if (typeof module !== "undefined") {
-  module.exports = { CHECK_MS, LIVE_PATH, parseLive, watcher, start };
+  module.exports = { CHECK_MS, LIVE_PATH, parseLive, watcher, journey, start };
 }

@@ -119,6 +119,18 @@ CHECKS = {
         "Each payment status matches that payment's recorded events",
     ),
 }
+# check name -> the plain words for its warning. The words in CHECKS say that a
+# check held, so the page prints those only for a check that passed. A warned
+# check with no words here is only counted. The words say no more than the
+# check's SQL and description in observability/scale/data_quality.py.
+WARNINGS = {
+    "token_digit_runs": (
+        "Some payment tokens hold a run of 13 or more digits, which a data-leak "
+        "scanner could read as card numbers. The check only warns, because older "
+        "tokens with this pattern are accepted."
+    ),
+}
+_WARNING_FOR = {CHECKS[name][1]: words for name, words in WARNINGS.items()}
 _DT_SUFFIX = re.compile(r"\[dt=[^\]]*\]\Z")
 
 
@@ -146,6 +158,7 @@ class Station:
     # check here either passed or ended in a warning.
     checks_passed: tuple[str, ...] | None
     checks_warned: int | None  # known checks here that ended in a warning
+    warnings: tuple[str, ...] | None  # words from WARNINGS for the warned checks that have them
     # Athena only. Both are sums over the state's queries
     # (observability/scale/collect_run_metrics.py), not wall time.
     queue_seconds: int | float | None
@@ -166,6 +179,9 @@ class Run:
     cost_estimated: bool  # False only when the record says so, as in runs.py
     cost_complete: bool | None
     unknown_checks: int | None  # check entries whose name is not in CHECKS
+    # Prometheus: the most series with a sample at any 15 s step of the run, read
+    # at collection (docs/scale-metrics.md, "Peak active series").
+    peak_series: int | None
     file_name: str  # record file under observability/scale/runs/
     stations: tuple[Station, ...]
 
@@ -245,6 +261,11 @@ def _station(rec: dict, name: str, state: str, label: str, run_seconds, checks) 
         ),
         checks_passed=None if here is None else tuple(w for w, ok in here.items() if ok),
         checks_warned=None if here is None else sum(not ok for ok in here.values()),
+        warnings=(
+            None
+            if here is None
+            else tuple(_WARNING_FOR[w] for w, ok in here.items() if not ok and w in _WARNING_FOR)
+        ),
         queue_seconds=_number(athena, "queue_seconds"),
         engine_seconds=_number(athena, "engine_seconds"),
     )
@@ -271,6 +292,7 @@ def _run(rec: dict, execution: str, size: str) -> Run:
         cost_estimated=records.dig(rec, "cost", "estimated") is not False,
         cost_complete=complete if isinstance(complete, bool) else None,
         unknown_checks=unknown,
+        peak_series=_count(rec, "prometheus", "peak_active_series"),
         file_name=f"{execution}.json",
         stations=tuple(
             _station(rec, name, state, label, run_seconds, checks)
