@@ -8,20 +8,26 @@ pointer._
 
 ## Current phase
 
-**As of 2026-11-22:** Phase 9 (demo console) and Phase 10 (pipeline status
-and alerting) are in progress; Phases 11 and 14-16 are partly built.
-Phase 9: the console edge, read-only command set, terminal, Grafana session
-design, safety suite, live-check harness and two console alarms are merged;
-the interactive landing page (9.4), the second live console session (9.2),
-the clean-browser live check (9.6) and the Tool answers plus milestone 9
-(9.7) are open. Phase 10: 10.2 (publisher and AWS transport), 10.3 (status
-dashboard), 10.4a (alert rules) and 10.5a/b (terminal status from AMP) are
-merged; the alert rules are not live in AMP and the terminal status is
-dormant until 10.4b and 10.5c are applied. Phase 11: 11.2a (showcase
-builder) is merged. Phase 14: 14.2 (review core, nine-tool registry, stdio
-MCP server) is merged; 14.3a is on an unmerged branch. Phase 16: 16.2
-(traceability generator) is merged.
-ADRs 0026-0029 are Accepted. See [Phases.md](Phases.md) for the checklist.
+**As of 2026-11-28:** Phase 17 (Launch Day) runs first by owner decision;
+Phase 9's open items pause until Mon 2026-11-30. Phase 17: 17.0, 17.2,
+17.4 and 17.5 are done; ADR 0030 is still Proposed (amended 2026-11-26,
+Decision 15); 17.3 waits for its root paste and `make launch-plan`; 17.6
+live runs started (Run A on 2026-11-27, a BCD session on 2026-11-28; the 1M
+telemetry exercise stopped at data quality, fixed in #212). Phase 10: 10.4b
+(#176) and 10.5c (#191) are merged, the alert rule group is applied to AMP,
+the 10.2 smoke write succeeded and the smoke alert emails arrived on
+2026-11-25 (alert path proven; exercise alerting is proven only by that smoke
+until 10.6). `make status` shows its pipeline section as unavailable: AMP
+refuses PromQL windows from 32 to 95 days (HTTP 422, `[31d]` works), which
+breaks `run_success_share_90d`, `runs_90d`, the rule `CerberusErrorBudgetBurn`
+(most likely dead in the ruler, unverified) and three dashboard panels.
+The ADR 0021 amendment (Accepted 2026-11-28 and merged, #214; not built yet) moves them to 30-day windows and
+SLO 1 to run records; the 10.6 plan is merged (#193), the live runs are not
+done. Phase 10 is in progress. Phase 14: 14.2 is merged; the 14.3a branch
+is not; Bedrock access (Claude Haiku 4.5, us-east-1) is confirmed as of
+2026-11-28. Phase 9: 9.4, 9.2's live session, 9.6 and 9.7 are open.
+ADRs 0026-0029 are Accepted; ADR 0030 is Proposed. See
+[Phases.md](Phases.md) for the checklist.
 
 **Phases 1–8 are all ✅ complete.** Phases 1–7 close the original roadmap;
 Phase 8 was added 2026-10-06 (see [Phases.md](Phases.md) for the subtask
@@ -262,65 +268,62 @@ numbers.
 
 Run `git fetch && git switch main && git pull` first; check `gh pr list`.
 
-1. **8.10 follow-ups.** 8.10 was checked off 2026-11-09 (#139); the take's
-   billed cost merged 2026-11-12 (#143: $0.5176, $0.0052 per million
-   events; 2026-11-08 EKS hours 1.341 are final, about 21% under-read).
-   - **LinkedIn link:** the post was scheduled for 2026-11-11. Ask the user
-     for the link and add it to Phases.md 8.10.
-   - **Charts (user approved):** add the take to the three charts in
-     `observability/scale/charts.py` (guard a missing `cost` in
-     `cost_chart()`, a shared-day note, fix the transform-throughput label
-     overlaps: "9M load test" on a gridline, two 10M labels too close).
-   - **Worktree cleanup (ask the user first):** the merged `cerberus-8.10-*`
-     (including `cerberus-8.10-take-costs`, now superseded by #143),
-     `cerberus-decision-ai-ops-agents`, `cerberus-docs-readme-refresh`,
-     `cerberus-phase-8-10-results` and `cerberus-tooling-end-day-readme`
-     worktrees can go.
-2. **Owner steps, in this order (Phase 9 and 10 are blocked on them):**
-   - Root-paste `cerberus-admin-iam-and-governance` (10.2 `aps:RemoteWrite`
-     and the 10.4b actions, same file), the `console-edge` `DescribeAlarms`
-     paste, then the simulate check.
-   - `make standing-plan`, then `make standing-apply` for PR #176 (10.4b,
-     the alert rules into AMP). Merge #176 right after. No other Terraform
-     PR may merge in between.
-   - `make status-smoke ARGS=--send` once the paste is done (the first real
-     status write, 10.2 smoke).
-   - 10.5c (IAM `aps:QueryMetrics` for `cerberus-console-cli`, the
-     `status.json` zip source block, env vars): security tier, so the
-     reviewer asked for an explicit security decision (ask the owner about
-     an Opus security review). Merge only after #176 is merged.
-   - Disable the `console-check` Cognito user (`enabled_users` is 1) and run
-     the second live console session (E1-E6 via `make console-verify`).
-   - Databricks Free Edition sign-up and the one-hour spike (CLI, bundles,
-     invites, dashboard export), for 11.2b.
-   - Use tmux for long remote runs.
-3. **Open PR and branch to finish:**
-   - #180 (ticks 11.1, 15.1, 16.1, 16.2) and the chain #181 -> #182 -> #183
-     (14.2 review core, tool registry, stdio MCP server) are merged. 14.2 is
-     complete. Register the server by hand with `claude mcp add` (see
-     agents/README.md); that is the first real client test.
-   - New agents load at session start: restart Claude Code after a new
-     agent file lands, or the agent is not listed.
-   - Branch `14.3a-eval-harness` (commit cca1078, no PR): replay cases and
-     the scorer. The Sonnet review asked for four changes: rename
-     `agents/eval` to `agents/agent_eval` (the sandbox blocks shell commands
-     with `eval` in a path, so the owner runs `mv agents/eval
-     agents/agent_eval` in that worktree), split "5 of 6" into detected,
-     symptom-only and correct-negative, add a circularity note, and harden
-     the scorer. 14.3b (sweep) and 14.3c (wiring) are not built; they come
-     after these fixes.
-4. **Phase 10 order (ADR 0021 amendment):** finish 10.4b (#176) and 10.5c,
-   then 10.6 (live check: one passing, one failed exercise; dashboard,
-   terminal and alert), then 10.7. After that: 11.2a-c and 16 (owner answer
-   2026-11-20), then 14.3-14.4 (14.2 is done) -> the rest of Phase 11. Phase 15 waits for
-   9.4, 10.3/10.6, 11.2a-b and 11.5.
-5. **Phase 9 left:** 9.4 interactive page rebuild (separate session), the
-   9.2 live session, the 9.6 clean-browser live check, 9.7 Tool answers and
-   milestone 9.
-   - **Follow-up (small):** `make cerberus status` run locally labels local
-     time as UTC. Convert the Step Functions datetimes to UTC before
-     formatting, and add a test (the 2026-11-13 follow-up changed the local
-     `make cerberus` times; check it covers `status`).
+1. **Phase 17 (deadline: article Sun 2026-11-29, teardown proof Mon
+   2026-11-30). Budget: stop at $25 attributable spend.**
+   - Commit the local launch data: `observability/launch/ledger.jsonl` (six
+     new lines) and the run directories `s1127100843-a`,
+     `dl-1000000-20261127t125900z` (and `s1127092135-a` if it is wanted).
+     The `s1128041638-bcd` record is not in the main checkout; find it.
+   - Re-run the 1M telemetry exercise on `main` (the #212 scan fix), then
+     the 100M telemetry run, then `launch-check` shows 0 resources (17.6).
+   - 17.3: root paste and `make launch-plan`; ADR 0030 acceptance evidence
+     (docs/adr-status.md).
+   - 17.7 results from the run records, 17.8 article (owner publishes by
+     2026-11-29), 17.9 Cost Explorer read on 2026-11-30.
+   - Untracked `terraform/spikes/` in the main checkout: ask the owner.
+2. **Phase 10 (agent work, now unblocked: owner accepted the ADR 0021 amendment, #214):**
+   - Owner accepted the ADR 0021 amendment 2026-11-28 (merged, #214): SLO 1 shown
+     as breached (15 of 17 = 88.2%, trailing 20 runs; failed runs
+     `exercise-20261008T085728Z` and `exercise-20261009T101830Z`), all runs
+     collected, budget alert = at least 2 failed runs and a share over 5%
+     on 30 days. Plan: `docs/plans/2026-11-28-amp-30-day-windows.md`.
+   - Build steps: (1) the 30-day switch and a 31-day cap guard (`queries.py`,
+     `status.json`, rules, dashboard, tests); (2) `make slo`; (3)
+     `aps:ListRules` and `aps:ListAlerts` plus `make alerts-health`.
+   - Later in Phase 10: lineage L1 (extractor) and L2 (hook) for 10.2, then
+     10.6, then 10.7.
+   - Open question: `console-edge` was not root-pasted (the console refused
+     it: "The policy failed legacy parsing", caused by `ApiGatewayStageTags`
+     using `apigateway:TagResource`/`UntagResource`, which are not valid IAM
+     actions). Fix the policy file, then paste.
+   - Do not touch `cerberus status` labels: the local-time/UTC fix is done
+     and tested (`console/tests/test_timezones.py`).
+   - **Owner, Phase 10 (in order, after step 1 is merged):** root paste for
+     the new AMP actions; local apply of the rule group; `make
+     alerts-health`; `make status`; then the 10.6 live runs: first the
+     failed run, then `make exercise ARGS="--generate 1000000
+     --executor-nodes 1 --name live10-6"` (plan: about $0.30-0.60 in
+     total).
+3. **Phase 14 (after Phase 10, ADR 0021 amendment order):**
+   - Bedrock access is confirmed (see 2026-11-28). Still open in ADR 0025:
+     whether Bedrock offers Haiku 5.5 and Sonnet 5.5 in us-east-1, Bedrock
+     prices, and whether AWS credits cover Bedrock spend.
+   - Each Claude model has its own Marketplace product; a new model starts a
+     new subscription on its first call (owner step).
+   - Use `us.` inference profiles, not `global.` (the `global.` call on
+     2026-10-02 ran in ap-southeast-4).
+   - Branch `14.3a-eval-harness` (cca1078): apply the four Sonnet review
+     changes (rename `agents/eval` to `agents/agent_eval` by hand, split
+     "5 of 6", circularity note, harden the scorer), then 14.3b and 14.3c.
+   - The `cerberus-ops-agent` role (Terraform plus the owner's first local
+     apply) comes before any live eval mode. No more Root console calls.
+4. **Phase 9 (resumes Mon 2026-11-30):** 9.4 interactive page rebuild
+   (separate session), the 9.2 live session (disable `console-check` first),
+   9.6 clean-browser live check, 9.7 Tool answers and milestone 9.
+5. **Owner, carried over:** Databricks Free Edition sign-up and the one-hour
+   spike (11.2b); the 8.10 LinkedIn link for Phases.md; worktree cleanup
+   (many merged worktrees under `.claude/worktrees/`, ask first). Use tmux
+   for long remote runs.
 
 **Open from the 2026-10-15 review (Phase 8 follow-ups)** (listed in 8.10's
 "What was not isolated"): bytes written are not measured; Athena computed
@@ -3351,12 +3354,104 @@ the traceability generator and the new workflow. PRs #155-#175, #177-#179
 - **README refreshed** (status, ADR count 29, roadmap, observability,
   Databricks, layout, documentation).
 
+### 2026-11-25 to 2026-11-28
+
+_Phase 17 build and first live runs, the Phase 10 apply and fixes, and the
+Bedrock access check. PRs #176, #186-#213 (merged since 2026-11-22);
+#214 (ADR 0021 amendment, Accepted 2026-11-28) is merged; its build steps are not done._
+
+- **Owner root paste and apply (2026-11-25):** `cerberus-admin-iam-and-governance`
+  (the 10.4b AMP actions and `aps:RemoteWrite`) and
+  `cerberus-admin-orchestration` (`cloudwatch:DescribeAlarms`, moved there
+  from `console-edge` in #187, merged 2026-11-27) were pasted at root; the
+  simulate checks pass. `console-edge` was not pasted: the console refused it
+  ("The policy failed legacy parsing"), caused by `ApiGatewayStageTags`
+  using `apigateway:TagResource` and `UntagResource`, which are not valid
+  IAM actions. How to fix it is an open question. The grants need a
+  resource ARN to simulate; the preflight did not use one and warned (fixed in
+  #211). #176 (10.4b) was applied locally (4 add, 2 change, 1 destroy; the
+  destroy is Faker layer churn), the CI apply was green and it merged
+  2026-11-25. The first real status write worked: `make status-smoke
+  ARGS=--send` returned HTTP 200 and read back, after #189 fixed a
+  `KeyError` on `prometheusEndpoint` (`list_workspaces` returns no endpoint;
+  the URL is built from `workspaceId`). The owner confirmed the smoke alert
+  emails arrived, so the alert path is proven (10.4c).
+- **10.5c (#191, security tier):** `cerberus-console-cli` gets exactly
+  `aps:QueryMetrics` on the one workspace ARN; the AMP URL comes from
+  `prometheus_endpoint` with an exact-host check before signing;
+  `status.json` is in the Lambda zip. Opus security review: approve with
+  conditions, all six built; Sonnet review OK; CI apply green.
+- **10.6 plan (#193):** `docs/plans/2026-11-25-10-6-live-check.md`: a failed
+  run first with no cluster, then a 1M passing run. Lineage was split out: the
+  L1 extractor and L2 hook do not exist. The runs are not done (owner).
+- **`make status` unavailable (2026-11-28):** causes found live: the
+  reader's 5 s shared deadline over 14 sequential queries (first 2.2 s, then
+  0.77 s each; #213 runs them with 8 workers and a 10 s deadline) and AMP
+  refusing every PromQL window from 32 to 95 days (HTTP 422; `[31d]`
+  works), so `run_success_share_90d` and `runs_90d` fail. Also affected: rule
+  `CerberusErrorBudgetBurn` (`[90d]`, most likely dead in the ruler; unverified
+  because `cerberus-admin` lacks `aps:ListRules`) and three dashboard panels.
+  The pipeline section stays unavailable until the 30-day switch is built.
+- **ADR 0021 amendment 2026-11-28, "30-day windows in AMP; SLO 1 from run
+  records" (Accepted 2026-11-28 and merged, #214; not built yet):** owner answers as in "Next
+  up". SLO 1 is defined over the trailing 20 runs, not 90 days. Opus plan and
+  review done.
+- **Done and merged:** the 8.10 demo take on the scale charts (#186; four
+  rows; no take on the throughput chart because its record has no executor
+  count), 9.7 `DescribeAlarms` move (#187), #189, #193, #211, #213. The
+  `cerberus status` local-time/UTC follow-up was already fixed and tested.
+- **Not done:** the 10.6 live runs; 14.3a (needs the owner's `mv agents/eval
+  agents/agent_eval` in that branch's worktree, then three review fixes and
+  14.3b/c); the 8.10 LinkedIn link; the `ApiGatewayStageTags` fix; the 9.2
+  live session; the Databricks sign-up spike; cleanup of the merged
+  `cerberus-8.10-*` worktrees (ask the owner first).
+- **Phase 17 (#188, #190, #192, #194-#210, #212):** Phase 17 and its plan
+  were added 2026-11-25. ADR 0030 (Proposed) and its Decision 15 amendment
+  (S3 request metrics on `patch/` as Run D's second meter). Built: the
+  downloads generator (17.2), the `cerberus-admin-launch` policy and the
+  launch edge Terraform (17.3a/b), session tooling with byte guards, ledger
+  and scenarios (17.4, two rounds of Opus security fixes), the downloads
+  silver job, launch exercise, marts and data quality (17.5), the runbook,
+  results and cost tooling (17.7), and the article draft (17.8).
+- **Phase 17 status (from the merged PRs and docs):** 17.0, 17.2, 17.4 and
+  17.5 are ticked; 17.3 is built but waits for the root paste and `make
+  launch-plan`; ADR 0030 stays Proposed until Run A passes
+  (`docs/adr-status.md`); 17.6 to 17.10 are open. The runbook (#201) and the
+  launch cost baseline with an empty ledger (#208) are merged. Live-run
+  figures below come from the local ledger in the main checkout, which is
+  not committed; they are unverified from the repository.
+- **Phase 17 live runs:** Run A `s1127100843-a` on 2026-11-27: 105 k6
+  requests, 6,316,093,933 bytes from CloudWatch, $1.36 corrected. The Spot
+  load generator needed #210 first. The 1M telemetry exercise
+  `dl-1000000-20261127t125900z` appended 990,776 silver events and dbt
+  passed, but data quality exited 3 (k6 fractions and masked ARNs; fixed in
+  #212). A BCD session `s1128041638-bcd` on 2026-11-28, $1.23 corrected.
+- **Bedrock access check (2026-11-28, read-only from the CLI):** no
+  Bedrock code exists yet; `cerberus-admin` has no Bedrock rights, as ADR
+  0025 intends. CloudTrail showed two console calls that worked on
+  2026-10-02, then failures on 2026-10-05 with
+  `INVALID_PAYMENT_INSTRUMENT` (the Marketplace subscription could not
+  complete). The cause was the payment method, not the region. After the
+  owner enabled international transactions on the card, the Marketplace
+  agreement for Claude Haiku 4.5 was created and accepted at 05:05:20 UTC
+  (status Active), and a console call through
+  `us.anthropic.claude-haiku-4-5` succeeded at 05:16:07 UTC (served from
+  us-east-2). Marketplace agreement events are under the
+  `agreement-marketplace.amazonaws.com` event source, not
+  `aws-marketplace.amazonaws.com`. All calls used the Root user.
+- **Decision (owner): no switch to OpenAI.** Development stays on Claude
+  Code (subscription). API-billed agent loops come from Phase 14 on
+  Bedrock (per-token, IAM, visible to AWS Budgets), as ADR 0025 decided;
+  the direct Anthropic API stays rejected (ADR 0025 Option D).
+
 ## Notes / blockers
 
-- **Open since 2026-11-22:** the owner steps, PR #176 and branch
-  `14.3a-eval-harness` are listed under "Next up". #180-#183 merged on
-  2026-11-22 (Phases.md ticks for 11.1, 15.1, 16.1, 16.2 and 14.2).
-  Not fixed: the standing edge still accepts TLS 1.0 and 1.1.
+- **Open as of 2026-11-28:** the Phase 17 launch data in the main
+  checkout is not committed (`observability/launch/ledger.jsonl` and the
+  run directories under `observability/launch/runs/`), and
+  `terraform/spikes/` is untracked. Branch
+  `14.3a-eval-harness` is open (#214 is merged). #176 merged 2026-11-25 (was open on
+  2026-11-22). Not fixed: the standing edge still accepts TLS 1.0 and 1.1.
 - **Resolved 2026-10-05 (was: open, noted 2026-10-03):** branch
   `phase-7-prometheus-dev-compute` *had* been pushed. PR #47 merged it to
   `main`. The checkout was found on `main` at the start of 2026-10-06.

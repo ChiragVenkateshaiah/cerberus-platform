@@ -150,14 +150,14 @@ layered on top of a platform that already works.
 | 7 | End-to-end platform validation | synthetic payments at scale, Well-Architected review, Prometheus metrics for EKS/Spark | AWS SAA _(parallel track)_ | ✅ Complete |
 | 8 | Scale validation | Apache Iceberg, incremental processing, Spark tuning, node autoscaling + Spot, AWS Budgets | _(course gap — Iceberg and Spark docs)_ | ✅ Complete |
 | 9 | Demo console (UI + terminal) | A serverless browser console (S3 + CloudFront + Cognito + API Gateway + a command Lambda): landing page, a live Grafana per session, and a terminal panel limited to a read-only `cerberus` command set (ADR 0024) | _(CloudFront, Cognito and API Gateway docs)_ | 🔨 In progress |
-| 10 | Pipeline status & alerting | Prometheus exporter for the batch pipeline, PromQL, Grafana dashboards as code, Alertmanager, SLO burn-rate alerts, a terminal status view | _(Prometheus and Grafana docs; Google SRE Workbook, alerting on SLOs)_ | ⬜ Planned |
+| 10 | Pipeline status & alerting | Prometheus exporter for the batch pipeline, PromQL, Grafana dashboards as code, Alertmanager, SLO burn-rate alerts, a terminal status view | _(Prometheus and Grafana docs; Google SRE Workbook, alerting on SLOs)_ | 🔨 In progress |
 | 11 | Databricks interoperability | Unity Catalog federation to AWS Glue (Cerberus's Iceberg tables, no copy), Databricks Terraform provider, serverless SQL and jobs, Lakeflow | _(Databricks Academy; Databricks docs)_ | ⬜ Planned |
 | 12 | Platform tooling in Go | Go, AWS SDK for Go v2, `cerberusctl` CLI | _(Go docs, AWS SDK for Go v2 examples)_ | ⬜ Planned |
 | 13 | Streaming ingestion | Apache Kafka (KRaft, one start/stop EC2 instance), Go producer and consumer | _(Kafka docs; KodeKloud Kafka if available)_ | ⬜ Planned |
 | 14 | AI operations agents | Claude on Amazon Bedrock (Converse API tool use), a local MCP server over the read-only command set, an evaluation set replayed from past runs | _(Amazon Bedrock docs; MCP specification; Anthropic tool-use and evaluation docs)_ | ⬜ Planned |
 | 15 | Public showcase | A sanitised metrics snapshot on the standing edge (S3 + CloudFront), an interactive run explorer, a Databricks partner column from Phase 11 | _(CloudFront docs)_ | ⬜ Planned |
 | 16 | Development traceability | A generated record linking each subtask to its ADR, plan, PR and run record (`history.json`), shown on the site and as a Databricks AI/BI dashboard | _(Git documentation, merge commits; ADR 0029)_ | ⬜ Planned |
-| 17 | Launch Day | A modelled game-launch download surge: CloudFront delivery per session, a second synthetic event family through bronze, silver and gold | _(CloudFront docs; ADR 0030 (Proposed))_ | ⬜ Planned |
+| 17 | Launch Day | A modelled game-launch download surge: CloudFront delivery per session, a second synthetic event family through bronze, silver and gold | _(CloudFront docs; ADR 0030 (Proposed))_ | 🔨 In progress |
 
 🎯 **MVP is complete at the end of Phase 1.**
 
