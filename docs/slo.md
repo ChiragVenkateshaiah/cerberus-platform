@@ -52,7 +52,7 @@ Every SLI below is already published — no code changes for 6.5.
 
 | # | Objective | Class | Window | Error budget | Guarding alarm |
 |---|---|---|---|---|---|
-| 1 | **Pipeline success** — ≥ 95% of orchestrated runs reach `SUCCEEDED` | active | trailing 20 runs (or the active window, whichever is shorter) | 5% (≈ 1 run in 20) | `cerberus-pipeline-run-unsuccessful`; AMP `CerberusErrorBudgetBurn` (error budget, 90 days) |
+| 1 | **Pipeline success** — ≥ 95% of orchestrated runs reach `SUCCEEDED` | active | trailing 20 runs (or the active window, whichever is shorter) | 5% (≈ 1 run in 20) | `cerberus-pipeline-run-unsuccessful`; AMP `CerberusErrorBudgetBurn` (error budget, 30 days) |
 | 2 | **Gold freshness** — gold data is < 24h old ≥ 95% of the time | active | the active window | 5% of window-hours | `cerberus-freshness-gold-data` (fires at 36h) |
 | 3 | **Run latency** — a run completes in < 30 min ≥ 90% of the time | active | trailing 20 runs | 10% | `cerberus-pipeline-execution-slow` (fires at 45 min) |
 | 4 | **Serving query** — the demo query succeeds in < 30s ≥ 99% of runs | active | trailing 20 runs | 1% | (none dedicated — via alarm 1) |
@@ -74,15 +74,19 @@ line — the alarm means "look now", the SLO means "the trend is
 acceptable". A single failure pages but does not necessarily breach.
 
 The AMP alert `CerberusErrorBudgetBurn` (`observability/alerts/status.rules.yaml`)
-guards the budget itself. It fires when more than 5% of runs failed, with at
-least 5 runs. It reads the failed share from the 90-day average of
-`cerberus_run_status`, one sample per run. This differs from the objective's
-"trailing 20 runs": an AMP query spans at most 95 days and the status series have no
-recording rules, so the alert measures 90 days. The two agree only while the last 20 runs all fall
-inside 90 days and no older runs exist. Otherwise the 90-day window holds fewer
-or more runs than the trailing 20. A
-`--force` re-publish of a run counts as a second sample. The CloudWatch alarm
-stays the guard during active windows.
+guards the budget in the short term. AMP refuses query windows of 32d to 95d
+(measured 2026-11-28), so the live alert and the status tile use 30 days. The
+30-day window has held at most 14 runs so far, so it is not the objective's
+"trailing 20 runs". The CloudWatch alarm stays the guard for a single failed
+run during active windows. A `--force` re-publish of a run counts as a second
+sample in AMP.
+
+The authoritative SLO 1 figures come from the run records in
+`observability/scale/runs/*.json` (field `status`), read by the planned
+`make slo`. Collect every run, pass or fail, or the figure is wrong (see
+[scale-metrics.md](scale-metrics.md)). The new alert condition (at least 2
+failed runs and a failed share over 5%) and the grant to read rule health are in
+the [ADR 0021 amendment of 2026-11-28](adr/0021-pipeline-status-and-alerting.md).
 
 ### 2 — Gold freshness
 
@@ -208,6 +212,11 @@ Honest accounting, 2026-09-07:
   method; the trailing-20-runs windows start accumulating meaningful data
   from the next sustained active window (most likely Phase 7's scaled-up
   workload).
+- **2026-11-28, objective 1 is breached.** The 17 run records in
+  `observability/scale/runs/` hold 15 `SUCCEEDED` and 2 `FAILED`: 15 of 17 =
+  88.2%, below the 95% objective over the trailing 20 runs. The two failed runs
+  are `exercise-20261008T085728Z` and `exercise-20261009T101830Z`. This figure
+  comes from reading the records by hand, until `make slo` exists.
 - The always-on objective (6) *is* measurable now — the freshness probe
   has run hourly since 2026-08-27 with the only gap being deliberate
   (the 2026-09-01 `pipeline_active` work did not touch it). It is meeting
