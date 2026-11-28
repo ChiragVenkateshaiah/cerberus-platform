@@ -77,6 +77,13 @@ CHECK_TABLE = {
         "Each payment status matches that payment's recorded events",
     ),
 }
+WARNING_TABLE = {
+    "token_digit_runs": (
+        "Some payment tokens hold a run of 13 or more digits, which a data-leak "
+        "scanner could read as card numbers. The check only warns, because older "
+        "tokens with this pattern are accepted."
+    ),
+}
 LEAKS = (
     "arn:aws:states:us-east-1:123456789012:execution:x",
     "s3://some-bucket/key",
@@ -133,6 +140,7 @@ def fixed_strings() -> set[str]:
     out |= {text for pair in runs.STATES for text in pair}
     out |= {label for totals in journey.TOTALS.values() for label, _ in totals}
     out |= {words for _, words in CHECK_TABLE.values()}
+    out |= set(WARNING_TABLE.values())
     out |= {text for pair in journey.RUNS for text in pair}
     out |= {f"{name}.json" for name, _ in journey.RUNS}
     return out
@@ -175,6 +183,7 @@ def test_run_values_equal_the_record(execution):
     assert run.file_name == f"{execution}.json"
     assert (REAL_RUNS / run.file_name).is_file()
     assert run.unknown_checks == 0
+    assert run.peak_series == rec["prometheus"]["peak_active_series"]
 
 
 @pytest.mark.parametrize("execution", NAMES)
@@ -219,6 +228,11 @@ def test_station_values_equal_the_record(execution):
 
 def test_the_check_table():
     assert journey.CHECKS == CHECK_TABLE
+    assert journey.WARNINGS == WARNING_TABLE
+    # A warned check is one the suite sets to "warn"; its words differ from the pass words.
+    assert set(WARNING_TABLE) <= set(CHECK_TABLE)
+    for name, words in WARNING_TABLE.items():
+        assert CHECK_TABLE[name][1] not in words
 
 
 @pytest.mark.parametrize("execution", NAMES)
@@ -236,6 +250,12 @@ def test_checks_follow_the_record(execution):
     # The accepted token warning is the one check that did not pass in these runs.
     assert [s.checks_warned for s in run.stations] == [0, 1, 0, 0]
     assert CHECK_TABLE["token_digit_runs"][1] not in got["Clean"].checks_passed
+    assert [s.warnings for s in run.stations] == [
+        (),
+        (WARNING_TABLE["token_digit_runs"],),
+        (),
+        (),
+    ]
     assert got["Answer"].checks_passed == ()
 
 
@@ -346,6 +366,8 @@ def test_one_warned_day_means_the_grouped_check_is_a_warning(tmp_path, passed):
     clean = stations(by_name(journey.load(runs_dir_with(tmp_path, change)))[HUNDRED_M])["Clean"]
     assert CHECK_TABLE["new_run"][1] not in clean.checks_passed
     assert clean.checks_warned == 2
+    # The new-batch check has no warning words, so it is counted and not described.
+    assert clean.warnings == (WARNING_TABLE["token_digit_runs"],)
 
 
 @pytest.mark.parametrize("status", [None, "FAILED", "RUNNING", "succeeded", ["PWNED"]])
@@ -444,12 +466,14 @@ def test_missing_values_are_none(tmp_path):
     assert run.cost_complete is None and run.cost_estimated is True
     assert run.date == "date not recorded"
     assert run.unknown_checks is None
+    assert run.peak_series is None
     assert run.bulk is False
     for s in run.stations:
         assert s.share is None
         assert s.bytes_read is None and s.bytes_source is None
         assert s.queue_seconds is None and s.engine_seconds is None
         assert s.checks_passed is None and s.checks_warned is None
+        assert s.warnings is None
         assert all(t.value is None for t in s.totals)
     assert stations(run)["Model"].seconds is None
     assert stations(run)["Clean"].seconds == 511.6
@@ -461,6 +485,7 @@ def set_every_number(rec, value) -> None:
     rec["silver"] = {"events": value, "transactions": value}
     rec["storage_snapshot"]["gold"]["bytes"] = value
     rec["prometheus"]["spark"][journey.SPARK_APP]["spark_input_bytes"] = value
+    rec["prometheus"]["peak_active_series"] = value
     rec["cost"]["run_usd"] = rec["cost"]["usd_per_million_events"] = value
     for st in rec["states"]:
         st["seconds"] = value
@@ -470,7 +495,7 @@ def set_every_number(rec, value) -> None:
 
 
 def counts_of(run):
-    out = [run.events]
+    out = [run.events, run.peak_series]
     for s in run.stations:
         out += [s.bytes_read, *(t.value for t in s.totals)]
     return out

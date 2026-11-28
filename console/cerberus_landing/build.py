@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from html.parser import HTMLParser
 from pathlib import Path
 
-from cerberus_landing import page, phases, runs
+from cerberus_landing import journey, page, phases, runs
 
 PKG = Path(__file__).resolve().parent
 EXPECTED_CHARTS = ("cost-per-million-events", "run-time-per-state", "transform-throughput")
@@ -213,7 +213,11 @@ def build(out: Path, runs_dir: Path, phases_file: Path, charts_dir: Path) -> Bui
     if sorted(c["phases"]) != sorted(f"p{p.number}" for p in plist):
         raise BuildError("content.toml [phases] does not match the phases in Phases.md")
 
-    latest, largest, n_records, n_ok = runs.pick(runs_dir)
+    try:
+        featured_runs = journey.load(runs_dir)
+    except journey.JourneyError as exc:
+        raise BuildError(str(exc)) from exc
+    latest, n_records, n_ok = runs.pick(runs_dir)
     charts, chart_outputs, chart_inputs = _read_charts(charts_dir, c)
 
     css = (PKG / "static" / "site.css").read_bytes()
@@ -246,8 +250,8 @@ def build(out: Path, runs_dir: Path, phases_file: Path, charts_dir: Path) -> Bui
     index = page.render(
         c,
         plist,
+        featured_runs,
         latest,
-        largest,
         n_records,
         n_ok,
         charts,

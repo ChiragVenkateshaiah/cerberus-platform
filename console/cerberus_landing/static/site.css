@@ -4,7 +4,8 @@
    the series colours appear only in the diagram and the status dots.
    Contrast (WCAG AA, computed; test_landing_a11y checks it): the lowest text
    pairs are ink-2 on surface-2 (6.6 light, 8.8 dark) and accent on surface-2
-   (5.3 light, 6.4 dark). Status is always a word; the dots only add colour. */
+   (5.3 light, 6.4 dark). The time bar (--bar on --track) and the warning icon
+   meet 3:1. Status is always a word; the dots and icons only add to it. */
 
 :root {
   color-scheme: light dark;
@@ -21,6 +22,9 @@
   --s-wip: #eda100;
   --s-plan: #898781;
   --s-series: #2a78d6;
+  --bar: #2a78d6;
+  --track: #e8e7e0;
+  --warn: #8a5a00;
 
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -58,6 +62,9 @@
     --s-wip: #c98500;
     --s-plan: #898781;
     --s-series: #3987e5;
+    --bar: #3987e5;
+    --track: #2f2f2c;
+    --warn: #f0b040;
   }
 }
 
@@ -65,6 +72,11 @@
 *::before,
 *::after {
   box-sizing: border-box;
+}
+
+/* Several classes set `display`, which would otherwise show a hidden element. */
+[hidden] {
+  display: none !important;
 }
 
 html {
@@ -83,7 +95,8 @@ body {
 
 h1,
 h2,
-h3 {
+h3,
+h4 {
   margin: 0;
   line-height: 1.2;
   letter-spacing: -0.01em;
@@ -159,14 +172,14 @@ a:hover {
 
 .top .wrap {
   padding-top: var(--sp-6);
-  padding-bottom: var(--sp-8);
+  padding-bottom: var(--sp-3);
 }
 
 .nav {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--sp-1) var(--sp-4);
-  margin: 0 0 var(--sp-6);
+  gap: 0 var(--sp-4);
+  margin: var(--sp-3) 0 0;
   padding: 0;
   list-style: none;
 }
@@ -195,23 +208,13 @@ a:hover {
   color: var(--accent);
 }
 
-.lede {
-  margin-top: var(--sp-4);
-  font-size: var(--step-1);
-  color: var(--ink-2);
-}
-
-.cost {
-  margin-top: var(--sp-3);
-}
-
-/* Key numbers */
+/* The achievements strip: two columns on a phone, the events figure across both */
 
 .stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
-  gap: var(--sp-4);
-  margin: var(--sp-8) 0 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-3);
+  margin: var(--sp-6) 0 0;
   padding: 0;
 }
 
@@ -220,30 +223,40 @@ a:hover {
   flex-direction: column-reverse;
   justify-content: flex-end;
   gap: var(--sp-1);
+  min-width: 0;
   margin: 0;
-  padding: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
   background: var(--surface-2);
   border-radius: var(--radius);
 }
 
+.stat-main,
+.stat-last {
+  grid-column: 1 / -1;
+}
+
 .stat dt {
   font-size: var(--step--1);
+  line-height: 1.4;
   color: var(--ink-2);
 }
 
 .stat dd {
   margin: 0;
-  font-size: var(--step-3);
+  font-size: clamp(var(--step-2), 6.5vw, var(--step-3));
   font-weight: 700;
-  line-height: 1.1;
-  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
   overflow-wrap: anywhere;
+}
+
+.stat-main dd {
+  font-size: clamp(var(--step-3), 10vw, var(--step-4));
 }
 
 /* Sections */
 
 main > section {
-  padding: var(--sp-12) 0 0;
+  padding: var(--sp-8) 0 0;
 }
 
 main > section:last-child {
@@ -256,7 +269,7 @@ main > section > .wrap > h2 {
 
 .intro {
   color: var(--ink-2);
-  margin-bottom: var(--sp-6);
+  margin-bottom: var(--sp-4);
 }
 
 .note {
@@ -265,16 +278,269 @@ main > section > .wrap > h2 {
   color: var(--ink-2);
 }
 
-/* How the data moves */
+/* Follow the batch */
 
-.flow {
+.btn {
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  padding: var(--sp-2) var(--sp-4);
+  font: inherit;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--ink-2);
+  border-radius: var(--sp-2);
+  cursor: pointer;
+}
+
+.btn:hover {
+  border-color: var(--accent);
+}
+
+.btn[aria-pressed="true"] {
+  color: var(--on-accent);
+  background: var(--accent);
+  border-color: var(--accent);
+  font-weight: 700;
+}
+
+.picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
+}
+
+.picker span {
+  margin-right: var(--sp-2);
+  font-size: var(--step--1);
+  font-weight: 650;
+}
+
+.picker .btn {
+  min-width: 4.5rem;
+}
+
+.run + .run {
+  margin-top: var(--sp-8);
+}
+
+.stepper {
   display: grid;
-  gap: var(--sp-8);
-  align-items: start;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sp-2);
+  margin: var(--sp-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stepper .btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: var(--sp-2) var(--sp-1);
+  font-size: var(--step--1);
+}
+
+.stepper .n {
+  font-size: var(--step-1);
+}
+
+.panel {
+  margin-top: var(--sp-3);
+  padding: var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.panel h4 {
+  font-size: var(--step-2);
+}
+
+.panel h4 span {
+  display: block;
+  font-size: var(--step--1);
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--ink-2);
+}
+
+.why {
+  margin-top: var(--sp-3);
+  font-size: var(--step-1);
+}
+
+.partner {
+  margin-top: var(--sp-2);
+  padding-left: var(--sp-3);
+  border-left: 3px solid var(--line);
+  color: var(--ink-2);
+}
+
+.cols {
+  display: grid;
+  gap: 0 var(--sp-8);
+}
+
+.cols > div {
+  min-width: 0;
+}
+
+.label {
+  margin-top: var(--sp-4);
+  font-size: var(--step--1);
+  font-weight: 650;
+  color: var(--ink-2);
+}
+
+.time strong {
+  margin-right: var(--sp-2);
+  font-size: var(--step-3);
+  line-height: 1.2;
+}
+
+.time span {
+  display: inline-block;
+  color: var(--ink-2);
+}
+
+.bar {
+  display: block;
+  margin-top: var(--sp-2);
+}
+
+.bar-track {
+  fill: var(--track);
+}
+
+.bar-mark {
+  fill: var(--bar);
+}
+
+.cols .note {
+  margin-top: var(--sp-2);
+}
+
+.figures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+  gap: var(--sp-3) var(--sp-4);
+  margin: var(--sp-3) 0 0;
+}
+
+.figures > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.figures dt {
+  font-size: var(--step--1);
+  line-height: 1.4;
+  color: var(--ink-2);
+}
+
+.figures dd {
+  margin: 0;
+  font-size: var(--step-1);
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.run-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-8);
+}
+
+.warn {
+  display: flex;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+  padding: var(--sp-3);
+  border: 1px solid var(--warn);
+  border-radius: var(--sp-2);
+  font-size: var(--step--1);
+}
+
+.icon {
+  flex: none;
+  margin-top: 0.2rem;
+}
+
+.icon-shape {
+  fill: var(--warn);
+}
+
+.icon-mark {
+  fill: var(--surface);
+}
+
+summary {
+  min-height: 2.75rem;
+  padding: 0.55rem 0;
+  font-weight: 650;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.passed ul {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--step--1);
+}
+
+.passed li {
+  position: relative;
+  padding-left: 1.5rem;
+}
+
+.passed li::before {
+  content: "\2713" / "";
+  position: absolute;
+  left: 0;
+  font-weight: 700;
+}
+
+.next {
+  display: block;
+  width: 100%;
+  margin-top: var(--sp-4);
+  color: var(--accent);
+}
+
+.notes {
+  margin: var(--sp-4) 0 0;
+  padding-left: 1.2rem;
+  max-width: var(--measure);
+  font-size: var(--step--1);
+  color: var(--ink-2);
+}
+
+/* Folds: the architecture and the build progress */
+
+.fold {
+  border-top: 1px solid var(--line);
+}
+
+.fold:last-child {
+  border-bottom: 1px solid var(--line);
+}
+
+.fold[open] {
+  padding-bottom: var(--sp-4);
 }
 
 .diagram {
-  margin: 0 auto;
+  margin: var(--sp-4) auto 0;
   width: 100%;
   max-width: 26rem;
   padding: var(--sp-4);
@@ -338,79 +604,29 @@ main > section > .wrap > h2 {
   fill: var(--ink-2);
 }
 
-.steps {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  counter-reset: step;
-  display: grid;
-  gap: var(--sp-4);
-}
+/* Latest run and the three "look closer" cards */
 
-.steps li {
-  position: relative;
-  padding-left: 3rem;
-  counter-increment: step;
-}
-
-.steps li::before {
-  content: counter(step);
-  position: absolute;
-  left: 0;
-  top: 0.1rem;
-  width: 2rem;
-  height: 2rem;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--accent);
-  color: var(--on-accent);
-  font-weight: 700;
-  font-size: var(--step--1);
-}
-
-.steps strong {
-  display: block;
-  font-size: var(--step-1);
-}
-
-.steps .tools {
-  display: block;
-  margin-top: var(--sp-1);
-  font-size: var(--step--1);
-  color: var(--ink-2);
-}
-
-.facts {
-  display: grid;
-  gap: var(--sp-4);
-  margin-top: var(--sp-6);
-}
-
-.fact {
+.strip {
+  margin-top: var(--sp-3);
   padding: var(--sp-4);
   background: var(--surface);
-  border: 1px solid var(--line-soft);
+  border: 1px solid var(--line);
   border-radius: var(--radius);
 }
 
-.fact h3 {
-  margin-bottom: var(--sp-2);
+.strip dd {
+  font-size: var(--step-0);
+  line-height: 1.4;
 }
-
-.fact p {
-  color: var(--ink-2);
-}
-
-/* Cards: run records */
 
 .cards {
   display: grid;
-  gap: var(--sp-6);
+  gap: var(--sp-4);
+  margin-top: var(--sp-3);
 }
 
 .card {
-  padding: var(--sp-6);
+  padding: var(--sp-4);
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -421,83 +637,6 @@ main > section > .wrap > h2 {
   margin-bottom: var(--sp-1);
 }
 
-.card .when {
-  color: var(--ink-2);
-  font-size: var(--step--1);
-  margin-bottom: var(--sp-4);
-}
-
-.card .big {
-  display: flex;
-  flex-direction: column-reverse;
-  margin: 0 0 var(--sp-4);
-}
-
-.card .big dd {
-  margin: 0;
-  font-size: var(--step-3);
-  font-weight: 700;
-  line-height: 1.1;
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
-}
-
-.card .big dt {
-  font-size: var(--step--1);
-  color: var(--ink-2);
-}
-
-.facts-list {
-  margin: 0 0 var(--sp-4);
-  padding: 0;
-  list-style: none;
-  display: grid;
-  gap: var(--sp-1);
-}
-
-.pill {
-  display: inline-block;
-  padding: 0 var(--sp-3);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  font-size: var(--step--1);
-  font-weight: 600;
-  color: var(--ink-2);
-}
-
-.scroll {
-  overflow-x: auto;
-  margin-bottom: var(--sp-4);
-  border: 1px solid var(--line-soft);
-  border-radius: var(--sp-2);
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--step--1);
-  font-variant-numeric: tabular-nums;
-}
-
-caption {
-  padding: var(--sp-2) var(--sp-3);
-  text-align: left;
-  font-weight: 650;
-  color: var(--ink-2);
-}
-
-th,
-td {
-  padding: var(--sp-2) var(--sp-3);
-  border-top: 1px solid var(--line-soft);
-  text-align: left;
-}
-
-th[scope="col"]:last-child,
-td:last-child {
-  text-align: right;
-}
-
 .link {
   display: inline-flex;
   align-items: center;
@@ -505,15 +644,11 @@ td:last-child {
   font-weight: 600;
 }
 
-/* The live link starts hidden; the display above would otherwise show it. */
-.link[hidden] {
-  display: none;
-}
-
 /* Charts */
 
 .charts {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--sp-6);
   margin: 0;
   padding: 0;
@@ -521,6 +656,7 @@ td:last-child {
 }
 
 .chart {
+  min-width: 0;
   margin: 0;
   padding: var(--sp-4);
   background: var(--surface);
@@ -528,9 +664,15 @@ td:last-child {
   border-radius: var(--radius);
 }
 
+/* A chart scaled to a phone is unreadable, so it keeps its width and scrolls. */
+.scroll {
+  overflow-x: auto;
+}
+
 .chart img {
   display: block;
-  max-width: 100%;
+  min-width: 47.5rem;
+  max-width: 47.5rem;
   height: auto;
   border-radius: var(--sp-2);
 }
@@ -553,7 +695,7 @@ td:last-child {
 .phases {
   display: grid;
   gap: var(--sp-3);
-  margin: 0;
+  margin: var(--sp-3) 0 0;
   padding: 0;
   list-style: none;
 }
@@ -688,22 +830,57 @@ progress::-moz-progress-bar {
     padding: 0 var(--sp-6);
   }
 
-  .cards {
-    grid-template-columns: repeat(2, 1fr);
+  .stats {
+    grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(0, 1fr));
   }
 
-  .facts {
-    grid-template-columns: repeat(2, 1fr);
+  .stat-main,
+  .stat-last {
+    grid-column: auto;
+  }
+
+  .stat dd,
+  .stat-main dd {
+    font-size: clamp(var(--step-2), 3vw, var(--step-3));
+  }
+
+  .stepper .btn {
+    flex-direction: row;
+    gap: var(--sp-2);
+    font-size: var(--step-0);
+  }
+
+  .panel {
+    padding: var(--sp-6);
+  }
+
+  .next {
+    width: auto;
+    min-width: 12rem;
   }
 }
 
 @media (min-width: 56rem) {
-  .flow {
-    grid-template-columns: minmax(0, 26rem) minmax(0, 1fr);
+  .cols {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .diagram {
-    margin: 0;
+  .cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (forced-colors: active) {
+  .btn[aria-pressed="true"] {
+    border-width: 4px;
+  }
+
+  .bar-mark {
+    fill: CanvasText;
+  }
+
+  .bar-track {
+    fill: Canvas;
   }
 }
 

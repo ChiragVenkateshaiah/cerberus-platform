@@ -26,7 +26,7 @@
 </style>
 <rect class="surface" fill="#fcfcfb" width="760" height="352" rx="8"/>
 <text class="t ink" fill="#0b0b0b" x="20" y="28">Cost per million events, orchestrated run</text>
-<text class="st ink2" fill="#52514e" x="20" y="47">The run costs $0.10–0.52 at every step, so the cost per event falls about 56 times from 1M to the 100M demo take.</text>
+<text class="st ink2" fill="#52514e" x="20" y="47">Estimated run cost: $0.10–0.52 at every step. Runs differ in day and table size, so this is not a scaling test.</text>
 <line class="grid" stroke="#e1e0d9" x1="215.0" y1="70" x2="215.0" y2="274" stroke-width="1"/>
 <text class="tick muted" fill="#898781" x="215.0" y="290" text-anchor="middle">$0.001</text>
 <line class="grid" stroke="#e1e0d9" x1="383.3" y1="70" x2="383.3" y2="274" stroke-width="1"/>

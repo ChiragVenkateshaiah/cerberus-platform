@@ -4,7 +4,7 @@ import json
 from html.parser import HTMLParser
 from pathlib import Path
 
-from cerberus_landing import build
+from cerberus_landing import build, journey
 from cerberus_landing.__main__ import REPO
 from cerberus_landing.build import EXPECTED_CHARTS
 
@@ -24,6 +24,15 @@ def write_charts(directory: Path, names=EXPECTED_CHARTS) -> Path:
     directory.mkdir(parents=True, exist_ok=True)
     for name in names:
         (directory / f"{name}.svg").write_text(CHART.format(t=f"Chart {name}"), encoding="utf-8")
+    return directory
+
+
+def journey_records(directory: Path) -> Path:
+    """Copies the 3 fixed runs of "follow the batch": no page builds without them."""
+    directory.mkdir(parents=True, exist_ok=True)
+    for execution, _ in journey.RUNS:
+        data = (REAL_RUNS / f"{execution}.json").read_bytes()
+        (directory / f"{execution}.json").write_bytes(data)
     return directory
 
 

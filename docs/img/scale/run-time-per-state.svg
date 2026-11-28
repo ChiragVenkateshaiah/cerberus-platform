@@ -26,7 +26,7 @@
 </style>
 <rect class="surface" fill="#fcfcfb" width="760" height="408" rx="8"/>
 <text class="t ink" fill="#0b0b0b" x="20" y="28">Run time per state</text>
-<text class="st ink2" fill="#52514e" x="20" y="47">The clean run at each step of the ladder. Each run starts on a larger silver table: 1.1M, 37.1M, 137.1M events.</text>
+<text class="st ink2" fill="#52514e" x="20" y="47">Silver events before the run: 1M 137.1M, 10M 1.1M, 100M (8.9) 37.1M</text>
 <rect class="s1" fill="#2a78d6" x="215" y="66" width="12" height="12" rx="2"/>
 <text class="l ink2" fill="#52514e" x="232" y="76">InvokeIngestion</text>
 <rect class="s2" fill="#eb6834" x="359" y="66" width="12" height="12" rx="2"/>
@@ -68,7 +68,8 @@
 <path class="s4" fill="#eda100" d="M497.8,110 h26.3 a4,4 0 0 1 4,4 v16 a4,4 0 0 1 -4,4 h-26.3 z"/>
 <line class="gap" stroke="#fcfcfb" x1="497.8" y1="110" x2="497.8" y2="134" stroke-width="2"/>
 <text class="l ink" fill="#0b0b0b" x="536.1" y="126">581 s</text>
-<text class="tick ink2" fill="#52514e" x="343.3" y="148">↑ RunDbt includes 230 s of Athena queue time</text>
+<text class="tick ink2" fill="#52514e" x="343.3" y="148">↑ RunDbt: Athena queue time (waiting, not working): 230.5 s,</text>
+<text class="tick ink2" fill="#52514e" x="343.3" y="163">summed over this step's queries, which can overlap</text>
 <text class="l ink" fill="#0b0b0b" x="20" y="183">10M new events</text>
 <text class="tick muted" fill="#898781" x="20" y="198">20261009T074853Z</text>
 <rect class="s1" fill="#2a78d6" x="215.0" y="172" width="2.3" height="24"/>
