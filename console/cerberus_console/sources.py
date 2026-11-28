@@ -5,7 +5,7 @@ pass fakes. The AWS implementations are in aws.py. The AMP reader (10.5a) is
 called by query name, never with a PromQL string.
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -38,6 +38,13 @@ class AmpReader(Protocol):
         Each series is {step, execution, value}: step and execution are cleaned
         strings or None, value is a finite float or None (NaN). An empty list
         means AMP answered with no data. An unknown name raises.
+        """
+
+    def query_many(self, names: Iterable[str]) -> dict[str, list[dict]]:
+        """{name: series} for all names, fetched in parallel.
+
+        Same result as calling `query` for each name: any failure raises
+        Unavailable, an unknown name raises.
         """
 
 

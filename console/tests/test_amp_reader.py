@@ -7,6 +7,8 @@ replaces SigV4.
 import io
 import json
 import re
+import threading
+import time
 import urllib.error
 import urllib.request
 
@@ -248,7 +250,8 @@ def test_one_failing_name_does_not_poison_the_others():
     assert reader.query("latest_events")[0]["value"] == 1.0
 
 
-def test_all_queries_share_one_5_s_deadline():
+def test_all_queries_share_one_deadline(monkeypatch):
+    monkeypatch.setattr(config, "AMP_DEADLINE_SECONDS", 5.0)
     clock = fakes.Clock()
     inner = fakes.FakeOpener(fakes.amp_body("vector_named"))
 
@@ -266,7 +269,8 @@ def test_all_queries_share_one_5_s_deadline():
     assert {c[1] for c in inner.calls} <= {4.0, 2.0}
 
 
-def test_the_timeout_never_passes_the_time_left():
+def test_the_timeout_never_passes_the_time_left(monkeypatch):
+    monkeypatch.setattr(config, "AMP_DEADLINE_SECONDS", 5.0)
     clock = fakes.Clock()
     inner = fakes.FakeOpener(fakes.amp_body("vector_named"))
 
@@ -455,3 +459,184 @@ def test_failure_paths_leak_no_credential_or_signed_url(err, caplog):
     with caplog.at_level("DEBUG"), pytest.raises(Unavailable):
         bad.query("q")
     assert len(signed) == count
+
+
+# --- query_many: parallel fetch (10.5) --------------------------------------
+
+
+class SleepyOpener:
+    """Thread-safe opener: every call really sleeps `delay` s, then answers."""
+
+    def __init__(self, delay, body=None):
+        self.delay = delay
+        self.body = body or fakes.amp_body("vector_named")
+        self.lock = threading.Lock()
+        self.calls = 0
+
+    def __call__(self, req, timeout=None):
+        time.sleep(self.delay)
+        with self.lock:
+            self.calls += 1
+        return fakes.FakeResponse(self.body)
+
+
+def _real_clock_reader(opener, sign=None):
+    return aws.AwsAmpReader(
+        sign or (lambda url: {"Authorization": "fake"}),
+        BASE,
+        queries_17(),
+        opener=opener,
+    )
+
+
+def queries_17():
+    return {f"q{i}": {"expr": f"up{i}"} for i in range(17)}
+
+
+def test_query_many_beats_the_deadline_that_sequential_calls_miss(monkeypatch):
+    # 17 x 0.05 s = 0.85 s one after another; the deadline is 0.5 s.
+    monkeypatch.setattr(config, "AMP_DEADLINE_SECONDS", 0.5)
+    opener = SleepyOpener(0.05)
+    reader = _real_clock_reader(opener)
+    names = list(queries_17())
+    start = time.monotonic()
+    out = reader.query_many(names)
+    assert time.monotonic() - start < 0.5
+    assert list(out) == names
+    assert all(rows[0]["value"] == 1.0 for rows in out.values())
+    assert opener.calls == 17
+    # the same set, one after another, runs out of time
+    slow = _real_clock_reader(SleepyOpener(0.05))
+    with pytest.raises(Unavailable):
+        for n in names:
+            slow.query(n)
+
+
+def test_query_many_raises_unavailable_if_one_query_fails():
+    body = fakes.amp_body("vector_named")
+
+    def opener(req, timeout=None):
+        if "up3" in req.full_url and "up30" not in req.full_url:
+            raise urllib.error.HTTPError(req.full_url, 403, "denied", {}, io.BytesIO(b"x"))
+        return fakes.FakeResponse(body)
+
+    reader = _real_clock_reader(opener)
+    with pytest.raises(Unavailable):
+        reader.query_many(list(queries_17()))
+
+
+def test_query_many_unknown_name_is_a_key_error_and_makes_no_call():
+    opener = SleepyOpener(0)
+    reader = _real_clock_reader(opener)
+    with pytest.raises(KeyError):
+        reader.query_many(["q1", "nope"])
+    assert opener.calls == 0
+
+
+def test_query_many_is_still_bounded_by_the_deadline():
+    clock = fakes.Clock()
+    tick = threading.Lock()
+
+    def hang(req, timeout=None):
+        with tick:  # worker threads share the fake clock
+            clock.t += timeout  # a hung server: the call ends only at its timeout
+        raise TimeoutError("timed out")
+
+    reader = aws.AwsAmpReader(
+        lambda url: {"Authorization": "fake"},
+        BASE,
+        queries_17(),
+        opener=hang,
+        clock=clock,
+        sleep=lambda s: None,
+    )
+    with pytest.raises(Unavailable):
+        reader.query_many(list(queries_17()))
+    # The fake time spent stays near the deadline: 8 workers, each attempt capped at
+    # AMP_TIMEOUT_SECONDS and by the time left, never one timeout per query.
+    assert clock.t <= (config.AMP_DEADLINE_SECONDS + config.AMP_TIMEOUT_SECONDS) * 8
+
+
+def test_query_many_uses_at_most_max_workers_threads(monkeypatch):
+    monkeypatch.setattr(config, "AMP_MAX_WORKERS", 3)
+    seen, lock, peak = 0, threading.Lock(), 0
+
+    def opener(req, timeout=None):
+        nonlocal seen, peak
+        with lock:
+            seen += 1
+            peak = max(peak, seen)
+        time.sleep(0.03)
+        with lock:
+            seen -= 1
+        return fakes.FakeResponse(fakes.amp_body("vector_named"))
+
+    _real_clock_reader(opener).query_many(list(queries_17()))
+    assert 1 < peak <= 3
+
+
+def test_concurrent_get_or_set_on_one_key_stays_consistent():
+    cache = aws.TTLCache(30)
+    calls, lock = [], threading.Lock()
+    barrier = threading.Barrier(8)
+
+    def loader():
+        with lock:
+            calls.append(1)
+        time.sleep(0.02)
+        return "v"
+
+    results = []
+
+    def work():
+        barrier.wait()
+        results.append(cache.get_or_set("k", loader))
+
+    threads = [threading.Thread(target=work) for _ in range(8)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert results == ["v"] * 8
+    assert 1 <= len(calls) <= 8  # a miss may load twice, never corrupts
+    assert cache.get_or_set("k", lambda: "other") == "v"  # now cached
+    assert len(calls) <= 8
+
+
+def test_the_loader_runs_outside_the_cache_lock():
+    cache = aws.TTLCache(30)
+    # a loader that uses the cache for another key would deadlock if the lock were held
+    assert cache.get_or_set("a", lambda: cache.get_or_set("b", lambda: 1)) == 1
+
+
+def test_threaded_failures_leak_no_credential_or_signed_url(caplog):
+    signed = []
+
+    def sign(url):
+        signed.append(url)
+        return {"Authorization": "fake-token", "X-Amz-Security-Token": "fake-token"}
+
+    err = urllib.error.HTTPError(BASE, 500, "boom", {}, io.BytesIO(b"x"))
+    reader = aws.AwsAmpReader(
+        sign, BASE, queries_17(), opener=Failing(err), clock=fakes.Clock(), sleep=lambda s: None
+    )
+    with caplog.at_level("DEBUG"), pytest.raises(Unavailable) as info:
+        reader.query_many(list(queries_17()))
+    texts = [caplog.text, str(info.value), repr(info.value)]
+    texts += [r.getMessage() for r in caplog.records]
+    for text in texts:
+        for secret in (*SECRETS, *signed):
+            assert secret not in text, text
+
+
+def test_a_bad_base_url_makes_no_call_through_query_many():
+    opener = SleepyOpener(0)
+    reader = aws.AwsAmpReader(
+        lambda url: {"Authorization": "fake"},
+        "https://evil.com/workspaces/ws-x/",
+        queries_17(),
+        opener=opener,
+    )
+    with pytest.raises(Unavailable):
+        reader.query_many(list(queries_17()))
+    assert opener.calls == 0

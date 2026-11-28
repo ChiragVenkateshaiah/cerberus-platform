@@ -16,9 +16,11 @@ import json
 import logging
 import math
 import re
+import threading
 import time
 import urllib.error
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from urllib.parse import quote, urlencode, urlsplit
 
@@ -42,24 +44,30 @@ class TTLCache:
         self._negative_ttl = negative_ttl
         self._items: dict = {}
         self._failures: dict = {}
+        # Guards the two dicts only. Never held while the loader runs, so two
+        # threads that miss on one key may both load (the last write wins).
+        self._lock = threading.Lock()
 
     def get_or_set(self, key, fn):
-        hit = self._items.get(key)
         now = self._clock()
-        if hit is not None and now - hit[0] < self._ttl:
-            return hit[1]
-        failed_at = self._failures.get(key)
-        if failed_at is not None:
-            if now - failed_at < self._negative_ttl:
-                raise Unavailable
-            del self._failures[key]
+        with self._lock:
+            hit = self._items.get(key)
+            if hit is not None and now - hit[0] < self._ttl:
+                return hit[1]
+            failed_at = self._failures.get(key)
+            if failed_at is not None:
+                if now - failed_at < self._negative_ttl:
+                    raise Unavailable
+                self._failures.pop(key, None)
         try:
             value = fn()
         except Exception:
             if self._negative_ttl > 0:
-                self._failures[key] = self._clock()
+                with self._lock:
+                    self._failures[key] = self._clock()
             raise
-        self._items[key] = (now, value)
+        with self._lock:
+            self._items[key] = (now, value)
         return value
 
 
@@ -333,8 +341,10 @@ class AwsAmpReader:
     `query(name)` looks the `expr` up in the loaded query set; an unknown name
     raises KeyError. No visitor input reaches a query. A reply is cached 30 s,
     a failure 60 s. The queries share one deadline (a window that opens at the
-    first fetch after the cache lapsed), so about 14 sequential queries cannot
-    run past AMP_DEADLINE_SECONDS.
+    first fetch after the cache lapsed). `query_many` runs them in parallel
+    threads, so the status queries (17, measured 2026-11-28: about 2.2 s for the
+    first, 0.77 s for each next one) fit inside AMP_DEADLINE_SECONDS. One after
+    another they did not.
 
     `sign(url)` returns the signed request headers; `opener` replaces the default
     opener (no proxy, no redirect).
@@ -356,6 +366,7 @@ class AwsAmpReader:
         self._clock = clock
         self._sleep = sleep
         self._window: float | None = None
+        self._window_lock = threading.Lock()
         self._cache = TTLCache(config.AMP_TTL, clock, negative_ttl=config.AMP_NEGATIVE_TTL)
 
     def query(self, name: str) -> list[dict]:
@@ -364,11 +375,35 @@ class AwsAmpReader:
         expr = self._set[name]["expr"]  # KeyError for an unknown name
         return self._cache.get_or_set(name, lambda: self._fetch(expr))
 
+    def query_many(self, names) -> dict[str, list[dict]]:
+        """{name: series} for every name, fetched in parallel.
+
+        Same result as {n: self.query(n) for n in names}: any Unavailable
+        raises Unavailable, an unknown name raises KeyError (before any fetch).
+        """
+        names = list(names)
+        if self._set is None:
+            self._set = queries.by_name(queries.load())
+        for n in names:
+            self._set[n]  # noqa: B018  (KeyError for an unknown name)
+        if not names:
+            return {}
+        workers = min(config.AMP_MAX_WORKERS, len(names))
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = {n: pool.submit(self.query, n) for n in names}
+            try:
+                return {n: f.result() for n, f in futures.items()}
+            except BaseException:
+                for f in futures.values():
+                    f.cancel()  # queued queries never start; running ones end at the deadline
+                raise
+
     def _remaining(self) -> float:
         now = self._clock()
-        if self._window is None or now - self._window > config.AMP_TTL:
-            self._window = now
-        return config.AMP_DEADLINE_SECONDS - (now - self._window)
+        with self._window_lock:
+            if self._window is None or now - self._window > config.AMP_TTL:
+                self._window = now
+            return config.AMP_DEADLINE_SECONDS - (now - self._window)
 
     def _fetch(self, expr: str) -> list[dict]:
         if not _base_ok(self._base):
@@ -406,17 +441,24 @@ class AwsAmpReader:
 
 
 def _amp_signer(sess):
-    """Headers for one SigV4 GET (service aps) with the session's credentials."""
+    """Headers for one SigV4 GET (service aps) with the session's credentials.
+
+    Safe to call from several threads: the (possibly refreshing) credentials are
+    resolved and frozen under a lock; signing then uses only that private copy.
+    """
+    lock = threading.Lock()
 
     def sign(url: str) -> dict:
         from botocore.auth import SigV4Auth
         from botocore.awsrequest import AWSRequest
 
-        creds = sess.get_credentials()
-        if creds is None:
-            raise Unavailable
+        with lock:
+            creds = sess.get_credentials()
+            if creds is None:
+                raise Unavailable
+            frozen = creds.get_frozen_credentials()
         signed = AWSRequest(method="GET", url=url)
-        SigV4Auth(creds.get_frozen_credentials(), "aps", config.REGION).add_auth(signed)
+        SigV4Auth(frozen, "aps", config.REGION).add_auth(signed)
         return dict(signed.headers)
 
     return sign

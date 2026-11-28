@@ -129,7 +129,7 @@ def _read_pipeline(ctx: Context) -> tuple[dict, dict]:
     amp = ctx.sources.amp()
     entries = queries.by_name(queries.load())
     labels = {n: str(entries.get(n, {}).get("label") or n) for n in PIPELINE_QUERIES}
-    return labels, {n: amp.query(n) for n in PIPELINE_QUERIES}
+    return labels, amp.query_many(PIPELINE_QUERIES)
 
 
 def _first(series: dict, name: str):
