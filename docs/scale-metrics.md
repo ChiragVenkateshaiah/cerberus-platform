@@ -756,6 +756,9 @@ queries' input was caught by `silver_duplicate_keys` and
 
 ## Running the collector
 
+Collect every run, pass or fail. The SLO 1 figures come from these records
+(see [slo.md](slo.md)), so a missing failed run hides a failure.
+
 After a run, before the next one (the S3 sizes and the silver count are a
 snapshot):
 
