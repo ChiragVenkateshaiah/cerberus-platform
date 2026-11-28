@@ -109,3 +109,11 @@ def test_script_never_syncs_or_bulk_deletes():
     text = SCRIPT.read_text(encoding="utf-8")
     assert "--delete" not in text
     assert "sync" not in text
+
+
+@pytest.mark.parametrize("script", ["publish_site.sh", "publish_terminal.sh"])
+def test_s3_rm_takes_no_transfer_only_flags(script):
+    # `aws s3 rm` rejects --no-progress (exit 252), which cp accepts.
+    text = (Path(__file__).resolve().parents[1] / script).read_text()
+    removes = [line.strip() for line in text.splitlines() if line.strip().startswith("aws s3 rm ")]
+    assert removes == ['aws s3 rm "s3://$BUCKET/$key" --only-show-errors']
