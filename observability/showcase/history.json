@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-25T17:03:25Z",
+  "generated_at": "2026-11-28T04:22:07Z",
   "phases": [
     {
       "number": 0,
@@ -55,7 +55,7 @@
     {
       "number": 10,
       "title": "Pipeline status & alerting",
-      "status": "planned"
+      "status": "in progress"
     },
     {
       "number": 11,
@@ -90,7 +90,7 @@
     {
       "number": 17,
       "title": "Launch Day",
-      "status": "planned"
+      "status": "in progress"
     }
   ],
   "subtasks": [
@@ -1227,6 +1227,12 @@
             "title": "9.7 PR 2: two always-on console alarms (ADR 0026)",
             "date": "2026-11-20",
             "merge": "0f6fa0d"
+          },
+          {
+            "number": 187,
+            "title": "9.7: move DescribeAlarms into the orchestration policy",
+            "date": "2026-11-27",
+            "merge": "bac76fe"
           }
         ],
         "runs": []
@@ -1258,7 +1264,20 @@
         "plan": [
           "docs/plans/2026-11-20-pipeline-status-exporter.md"
         ],
-        "pr": [],
+        "pr": [
+          {
+            "number": 189,
+            "title": "10.2: build the AMP URL from workspaceId (smoke KeyError)",
+            "date": "2026-11-25",
+            "merge": "861f9d6"
+          },
+          {
+            "number": 211,
+            "title": "10.2d: the preflight simulates aps:RemoteWrite on a workspace ARN",
+            "date": "2026-11-27",
+            "merge": "fe5fb12"
+          }
+        ],
         "runs": []
       },
       "legacy": false
@@ -1286,7 +1305,18 @@
           "0021"
         ],
         "plan": [],
-        "pr": [],
+        "pr": [
+          {
+            "number": 176,
+            "title": "10.4b: Terraform and IAM that put the status alert rules into AMP",
+            "date": "2026-11-25",
+            "merge": "d1e25a8"
+          },
+          {
+            "number": 214,
+            "pending": true
+          }
+        ],
         "runs": []
       },
       "legacy": false
@@ -1301,10 +1331,20 @@
         "plan": [],
         "pr": [
           {
-            "number": 176,
-            "title": "10.4b: Terraform and IAM that put the status alert rules into AMP",
+            "number": 191,
+            "title": "10.5c: the console reads pipeline status from AMP (security tier)",
             "date": "2026-11-25",
-            "merge": "d1e25a8"
+            "merge": "a6ce223"
+          },
+          {
+            "number": 213,
+            "title": "10.5: run the AMP status queries in parallel (status was Unavailable)",
+            "date": "2026-11-28",
+            "merge": "6240f90"
+          },
+          {
+            "number": 214,
+            "pending": true
           }
         ],
         "runs": []
@@ -1318,8 +1358,17 @@
       "checked": false,
       "links": {
         "adr": [],
-        "plan": [],
-        "pr": [],
+        "plan": [
+          "docs/plans/2026-11-25-10-6-live-check.md"
+        ],
+        "pr": [
+          {
+            "number": 193,
+            "title": "10.6: plan for the pipeline status live check",
+            "date": "2026-11-27",
+            "merge": "e407948"
+          }
+        ],
         "runs": []
       },
       "legacy": false
@@ -2060,12 +2109,19 @@
     {
       "id": "17.6",
       "phase": 17,
-      "title": "Live runs (owner): smoke, then pre-load, release, probe and the 100M-event telemetry; `launch-check` shows 0 resources",
+      "title": "Live runs (owner): smoke, then pre-load, release, probe and the 100M-event telemetry; `launch-check` shows 0 resources Figures from the…",
       "checked": false,
       "links": {
         "adr": [],
         "plan": [],
-        "pr": [],
+        "pr": [
+          {
+            "number": 212,
+            "title": "17.6: DQ scan ignores k6 fractions and masked ARNs; visible exercise prompt",
+            "date": "2026-11-28",
+            "merge": "c6df1b7"
+          }
+        ],
         "runs": []
       },
       "legacy": false
@@ -2577,16 +2633,40 @@
       "merge": "cb8003a"
     },
     {
+      "number": 187,
+      "title": "9.7: move DescribeAlarms into the orchestration policy",
+      "date": "2026-11-27",
+      "merge": "bac76fe"
+    },
+    {
       "number": 188,
       "title": "17.0: add Phase 17 (Launch Day) and its plan",
       "date": "2026-11-25",
       "merge": "d2f4c88"
     },
     {
+      "number": 189,
+      "title": "10.2: build the AMP URL from workspaceId (smoke KeyError)",
+      "date": "2026-11-25",
+      "merge": "861f9d6"
+    },
+    {
+      "number": 191,
+      "title": "10.5c: the console reads pipeline status from AMP (security tier)",
+      "date": "2026-11-25",
+      "merge": "a6ce223"
+    },
+    {
       "number": 192,
       "title": "17.3a: cerberus-admin-launch policy file",
       "date": "2026-11-25",
       "merge": "e4896cf"
+    },
+    {
+      "number": 193,
+      "title": "10.6: plan for the pipeline status live check",
+      "date": "2026-11-27",
+      "merge": "e407948"
     },
     {
       "number": 194,
@@ -2623,6 +2703,24 @@
       "title": "17.4: launch session tooling, byte guards, ledger and scenarios",
       "date": "2026-11-25",
       "merge": "85ada6f"
+    },
+    {
+      "number": 211,
+      "title": "10.2d: the preflight simulates aps:RemoteWrite on a workspace ARN",
+      "date": "2026-11-27",
+      "merge": "fe5fb12"
+    },
+    {
+      "number": 212,
+      "title": "17.6: DQ scan ignores k6 fractions and masked ARNs; visible exercise prompt",
+      "date": "2026-11-28",
+      "merge": "c6df1b7"
+    },
+    {
+      "number": 213,
+      "title": "10.5: run the AMP status queries in parallel (status was Unavailable)",
+      "date": "2026-11-28",
+      "merge": "6240f90"
     }
   ]
 }

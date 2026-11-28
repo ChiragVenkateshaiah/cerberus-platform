@@ -208,8 +208,10 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
       `cerberus-admin` `DescribeAlarms` paste text; the paste is not done
       PR 3 built 2026-11-20: console runbook (emergency levers, invite
       lifecycle), `enabled_users` in `make console-check`, `/start-day` step 5
+      `DescribeAlarms` moved into the orchestration policy (#187, 2026-11-27)
+      and is live for `cerberus-admin` (simulate check passed 2026-11-25)
 
-## Phase 10 — Pipeline status & alerting ⬜
+## Phase 10 — Pipeline status & alerting 🔨
 
 - [x] 10.1 ADR: where pipeline status lives while `dev-compute` is down
       (local stack, AMP, or Grafana Cloud free tier), dashboard tooling,
@@ -234,6 +236,9 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
         state).
       - Lineage (ADR 0021 Q3) stays under 10.2: tick it after PRs A-E, the
         smoke and L1; the live lineage check moves to 10.6.
+      - Owner smoke write succeeded 2026-11-25 (after the AMP URL fix, #189).
+        The exercise preflight now simulates `aps:RemoteWrite` on a
+        workspace ARN (#211, 2026-11-27). L1 is still open.
 - [ ] 10.3 Grafana pipeline-status dashboard, provisioned as code, with a
       reserved "AI review" panel (tag `cerberus-ai`)
       - 10.3a built 2026-11-20 (dashboard JSON and static checks).
@@ -245,15 +250,31 @@ _Predates the per-phase Well-Architected pass. Its deliberate shortcut —
       - 10.4b built 2026-11-21 (Terraform module, topic policy, CI and admin
         IAM, tests). Owner steps pending: root paste, local apply, then the
         10.4c check (runbook in `observability/alerts/README.md`).
+      - #176 merged 2026-11-25 and the rule group is applied to AMP. The
+        10.4c alert-path check is done: the owner confirmed the smoke alert
+        emails arrived on 2026-11-25. AMP refuses PromQL windows of 32 to 95 days
+        (HTTP 422, measured 2026-11-28), so the error-budget rule most
+        likely never evaluates. ADR 0021 amendment (30-day windows, SLO 1 from run records) Accepted
+        2026-11-28 and merged (#214); the budget rule moves to 30 days only
+        after its build steps are done (not built yet).
 - [ ] 10.5 Terminal status view (`make status`) from the named query set
       (same code as `cerberus status`)
-      - 10.5a and 10.5b built 2026-11-21; 10.5c (Terraform: aps:QueryMetrics
-        for cerberus-console-cli, the zip source block, env vars) waits until
-        #176 is applied and merged.
+      - 10.5a and 10.5b built 2026-11-21.
+      - 10.5c merged 2026-11-25 (#191, security tier): `cerberus-console-cli`
+        gets only `aps:QueryMetrics` on the one workspace ARN; Opus security
+        review approved with conditions, all built. The AMP status queries
+        run in parallel (#213, 2026-11-28; `status` was Unavailable). The
+        pipeline section of `make status` stays unavailable until the 30-day
+        window fix (ADR 0021 amendment, #214) is built, because AMP refuses the 90-day
+        queries.
 - [ ] 10.6 Live check: one passing and one deliberately failed exercise,
       shown correctly on the dashboard, in the terminal and as an alert
       - Also: live lineage check (dbt-ol and Spark console output reach the
         lineage bucket), moved from 10.2
+      - Plan merged 2026-11-27 (#193, `docs/plans/2026-11-25-10-6-live-check.md`).
+        The owner runs the failed exercise first, then the passing one; the
+        live runs are pending. Lineage L1 (extractor) and L2 (hook) do not
+        exist yet.
 - [ ] 10.7 Well-Architected pass + ADR
 
 ## Phase 11 — Databricks interoperability ⬜
@@ -338,6 +359,10 @@ amendment, Accepted 2026-11-12); 14.5–14.8 follow after Phase 13._
 - [ ] 14.3 Evaluation: labelled replay set from past runs (failed runs,
       Glue timeouts, Spot interruption, Athena queue time, clean runs) and a
       scored harness
+      Branch `14.3a-eval-harness` (cca1078) not merged. Bedrock access
+      confirmed 2026-11-28: Claude Haiku 4.5 Marketplace agreement Active,
+      one console call in us-east-1 through the `us.` profile succeeded
+      (CloudTrail). The `cerberus-ops-agent` role does not exist yet
 - [ ] 14.4 Run reviewer (first agent, report only): review file, Grafana
       annotation and an "AI review" panel on the Phase 10 run-status dashboard
 - [ ] 14.5 Failure triage: root cause with cited log lines and metric
@@ -403,7 +428,7 @@ only, $0 and has no dependency. It runs after Phase 10 (10.7), before 14.2
       acceptance date
 - [ ] 16.4 Well-Architected pass + ADR
 
-## Phase 17 — Launch Day ⬜
+## Phase 17 — Launch Day 🔨
 
 _Added 2026-11-25, numbered 17 so 10–16 keep their numbers; runs ahead of
 9.4/9.6/9.7 by owner decision. Phase 9's open items (9.2 close-out, 9.4, 9.6,
@@ -429,6 +454,12 @@ $25 attributable spend. The plan is
       and #198; proven live only in 17.6)
 - [ ] 17.6 Live runs (owner): smoke, then pre-load, release, probe and the
       100M-event telemetry; `launch-check` shows 0 resources
+      Figures from the local launch ledger (not committed yet).
+      Run A `s1127100843-a` done 2026-11-27 (105 k6 requests, 6.32 GB from
+      CloudWatch, $1.36 corrected). The 1M telemetry exercise
+      `dl-1000000-20261127t125900z` stopped at data quality (exit 3); the
+      scan fix merged in #212. Session `s1128041638-bcd` ran 2026-11-28
+      ($1.23 corrected)
 - [ ] 17.7 Results document and charts, every number traced to a run record
 - [ ] 17.8 LinkedIn article, owner publishes by Sun 2026-11-29
 - [ ] 17.9 Teardown proof and Cost Explorer read (Mon 2026-11-30)

@@ -15,7 +15,7 @@
 
 ## At a glance
 
-Cerberus moves synthetic payments data through an S3 medallion (bronze, silver, gold), with Spark on EKS, dbt and Athena, on Apache Iceberg. Step Functions orchestrates the runs, Terraform provisions everything, and CloudWatch, Prometheus and Grafana observe it. Every non-obvious choice is an [architecture decision record](docs/adr/) (29 so far), and each phase closes with a Well-Architected review.
+Cerberus moves synthetic payments data through an S3 medallion (bronze, silver, gold), with Spark on EKS, dbt and Athena, on Apache Iceberg. Step Functions orchestrates the runs, Terraform provisions everything, and CloudWatch, Prometheus and Grafana observe it. Every non-obvious choice is an [architecture decision record](docs/adr/) (30 so far), and each phase closes with a Well-Architected review.
 
 ## Headline result: 100 million events, from no compute back to no compute
 
@@ -41,6 +41,7 @@ flowchart LR
     subgraph CI["Delivery"]
         GHA["GitHub Actions + OIDC"] -->|"plan on PR, apply on merge"| STAND["Terraform: dev-standing"]
         HUMAN["make exercise"] -->|"apply, run, destroy"| COMP["Terraform: dev-compute"]
+        LHUMAN["make launch-session"] -->|"per session, then destroy"| LAUNCH["Terraform: dev-launch<br/>CloudFront launch edge (Phase 17)"]
     end
     subgraph RUN["AWS Step Functions run"]
         direction TB
@@ -66,7 +67,7 @@ flowchart LR
     GLD --> ATH
     PROM --> AMP["Amazon Managed Prometheus"] --> GRAF["Local Grafana<br/>4 dashboards"]
     RUN --> CW["CloudWatch dashboard and alarms"] --> SNS["SNS"]
-    RUN -. "Phase 10, planned: run-end status series and alert rules, not yet live (ADR 0021)" .-> AMP
+    RUN -. "Phase 10: run-end status series and alert rules in AMP, smoke-tested, exercise path not yet proven (ADR 0021)" .-> AMP
     SPARK & S3 -. "OpenLineage (not yet for exercises, ADR 0021)" .-> OL["Lineage collector"] -.-> PAGES["GitHub Pages"]
     GLD -. "Phase 11, planned: Glue federation, no copy" .-> DBX["Databricks SQL"]
     COMP -.-> EKS
@@ -95,6 +96,7 @@ Storage and incremental processing follow [ADR 0002](docs/adr/0002-medallion-lay
 | Metrics | Prometheus agent, Amazon Managed Prometheus, Grafana | [0016](docs/adr/0016-prometheus-for-eks-spark.md), [0022](docs/adr/0022-live-observability-for-a-recorded-run.md) |
 | Ops metrics | CloudWatch, SNS | [0014](docs/adr/0014-phase-6-well-architected-review.md) |
 | Lineage | OpenLineage, serverless collector | [0013](docs/adr/0013-lineage-openlineage-serverless-collector.md) |
+| Launch Day delivery | CloudFront per-session edge, S3, k6 load generator on Spot | [0030](docs/adr/0030-launch-day.md) (Proposed) |
 
 ## Scale ladder
 
@@ -121,9 +123,9 @@ Four Grafana dashboards tell the story of a run, three at the level of the run a
 1. **1 · Run Overview: progress, quality, cost.** For anyone, including finance and product: is the run progressing, did it pass, what did it cost.
 2. **2 · Run Health: compute and throughput.** For engineering and operations: nodes, executors and throughput.
 3. **3 · Spark and Cluster Diagnostics.** For platform and Spark engineers.
-4. **4 · Pipeline Status: did the last run pass?** For everyone: the answer to that question in plain words, with the last failure, its failed step and the data-quality result. The dashboard and its named query set are merged; it shows data once the status publisher writes to AMP (Phase 10, not yet live).
+4. **4 · Pipeline Status: did the last run pass?** For everyone: the answer to that question in plain words, with the last failure, its failed step and the data-quality result. The dashboard and its named query set are merged; it shows data once the status publisher writes to AMP. The publisher and the alert rules are applied to AMP and the smoke write worked on 2026-11-25. Panels that use 90-day windows stay empty until the window fix lands, because AMP refuses windows longer than 31 days. The 2026-11-28 ADR 0021 amendment (30-day windows) is accepted but not built yet; no 30-day window is live.
 
-Grafana runs locally in Docker Compose against Amazon Managed Prometheus, so no standing server exists ([ADR 0022](docs/adr/0022-live-observability-for-a-recorded-run.md)). A CloudWatch dashboard and alarms feed an SNS topic (most alarms arm only for scheduled runs). Phase 10 alert rules for failed runs and data-quality errors, with `promtool` tests, are in the repository; they are planned, not yet live in AMP, so exercise alerting does not exist yet (ADR 0021). The terminal status view that reads the same named queries is merged but dormant until its IAM step is applied, and [six SLOs](docs/slo.md) define the reliability targets. Lineage is collected for scheduled runs; exercise lineage is planned (ADR 0021). It is documented in [docs/lineage.md](docs/lineage.md), with a [dbt model DAG](https://chiragvenkateshaiah.github.io/cerberus-platform/dbt/) and a [runtime lineage graph](https://chiragvenkateshaiah.github.io/cerberus-platform/lineage/) on GitHub Pages.
+Grafana runs locally in Docker Compose against Amazon Managed Prometheus, so no standing server exists ([ADR 0022](docs/adr/0022-live-observability-for-a-recorded-run.md)). A CloudWatch dashboard and alarms feed an SNS topic (most alarms arm only for scheduled runs). Phase 10 alert rules for failed runs and data-quality errors, with `promtool` tests, are applied to AMP through Terraform. The alert path is proven only by a smoke alert (the emails arrived on 2026-11-25); alerting for a real exercise is not proven until the Phase 10 live check, and the error-budget rule uses a 90-day window that AMP does not accept, so it most likely does not evaluate (unverified). The terminal status view (`make status`) reads the same named queries from AMP, but its pipeline section stays unavailable until the 30-day switch from the accepted ADR 0021 amendment is built. [Six SLOs](docs/slo.md) define the reliability targets. Lineage is collected for scheduled runs; exercise lineage is planned (ADR 0021). It is documented in [docs/lineage.md](docs/lineage.md), with a [dbt model DAG](https://chiragvenkateshaiah.github.io/cerberus-platform/dbt/) and a [runtime lineage graph](https://chiragvenkateshaiah.github.io/cerberus-platform/lineage/) on GitHub Pages.
 
 ## Data quality and reliability
 
@@ -136,7 +138,7 @@ Grafana runs locally in Docker Compose against Amazon Managed Prometheus, so no 
 - The budget is $20 a month, with alerts at $15 and $20.
 - Between runs nothing billed by the hour exists. The standing layer is pay-per-request services plus S3 storage.
 - CI has no long-lived keys: GitHub Actions authenticates through OIDC ([ADR 0011](docs/adr/0011-ci-cd-github-actions-oidc.md)), and it applies only the standing layer.
-- The admin user runs on least-privilege policies instead of AdministratorAccess: six built from its CloudTrail history, plus two added for the demo console ([iam/cerberus-admin/](iam/cerberus-admin/)).
+- The admin user runs on least-privilege policies instead of AdministratorAccess: six built from its CloudTrail history, plus two added for the demo console and one for Launch Day ([iam/cerberus-admin/](iam/cerberus-admin/)).
 - A Well-Architected review after Phase 8 cut high-risk findings from 23 to 18, between the Phase 7 and Phase 8 milestones ([ADR 0023](docs/adr/0023-phase-8-well-architected-review.md)).
 - The whole build had cost $5.74 gross through 2026-10-02, all covered by credits ([cost and security summary](docs/cost-security-summary.md); a dated figure).
 
@@ -158,14 +160,14 @@ Databricks is a complement, not a replacement. [ADR 0028](docs/adr/0028-databric
 | 7 | End-to-end validation | Done | [0015](docs/adr/0015-phase-7-well-architected-review.md), [0016](docs/adr/0016-prometheus-for-eks-spark.md) |
 | 8 | Scale validation | Done | [0017](docs/adr/0017-iceberg-incremental-processing.md)-[0020](docs/adr/0020-dev-compute-node-autoscaling-and-spot.md), [0022](docs/adr/0022-live-observability-for-a-recorded-run.md), [0023](docs/adr/0023-phase-8-well-architected-review.md) |
 | 9 | Demo console | In progress: interactive landing page, second live Grafana session, clean-browser live check, Well-Architected pass | [0024](docs/adr/0024-demo-console.md), [0026](docs/adr/0026-phase-9-well-architected-review.md) |
-| 10 | Pipeline status and alerting | In progress: alert rules live in AMP, terminal status IAM, live check, Well-Architected pass | [0021](docs/adr/0021-pipeline-status-and-alerting.md) |
+| 10 | Pipeline status and alerting | In progress: publisher, alert rules and terminal view merged and applied; fixing the 90-day AMP windows, the live check and the Well-Architected pass are left | [0021](docs/adr/0021-pipeline-status-and-alerting.md) |
 | 11 | Databricks interoperability | Planned: ADR 0028 accepted, showcase builder merged | [0028](docs/adr/0028-databricks-free-edition.md) |
 | 12 | Platform tooling in Go | Planned | none yet |
 | 13 | Streaming ingestion | Planned | none yet |
 | 14 | AI operations agents | In progress: 14.2 done (review core, tool registry, stdio MCP server); 14.3 next. ADR 0025 accepted 2026-11-08 | [0025](docs/adr/0025-ai-operations-agents.md) |
 | 15 | Public showcase | Planned: ADR 0027 accepted | [0027](docs/adr/0027-public-showcase.md) |
 | 16 | Development traceability | In progress: generator merged (16.1, 16.2); 16.3 site view and 16.4 review left. ADR 0029 accepted | [0029](docs/adr/0029-platform-traceability.md) |
-| 17 | Launch Day | Planned: a modelled game-launch download surge on CloudFront plus synthetic telemetry (models the event, does not replicate it) | [0030](docs/adr/0030-launch-day.md) (Proposed) |
+| 17 | Launch Day | In progress: generator, launch edge Terraform, session tooling and downloads pipeline merged; live runs, results, article and teardown proof left. A modelled game-launch download surge on CloudFront plus synthetic telemetry (models the event, does not replicate it) | [0030](docs/adr/0030-launch-day.md) (Proposed) |
 
 Subtask-level progress is in [Phases.md](Phases.md), and the full plan is in [docs/plan.md](docs/plan.md).
 
@@ -191,8 +193,9 @@ Set `TF_BIN=tofu` to use OpenTofu instead of Terraform.
 
 ```
 terraform/       bootstrap (state backend), modules, envs/dev-standing (CI-managed),
-                 envs/dev-compute (human-run, per exercise)
+                 envs/dev-compute, dev-console and dev-launch (human-run, per session)
 ingestion/       synthetic payments generator and the ingestion Lambda
+launch/          Launch Day session tooling: scenarios, k6 scripts, byte guard, cost ledger, results
 transform/       Spark bronze-to-silver job, bulk generator, dbt project
 orchestration/   state machine definition, ECS runner image, exercise.sh
 observability/   Grafana dashboards, scale harness and run records, freshness probe
@@ -214,6 +217,7 @@ articles/        weekly engineering write-ups
 - [docs/adr/](docs/adr/): architecture decision records
 - [docs/scale-metrics.md](docs/scale-metrics.md): the Phase 8 metric set, cost method and results at each scale step
 - [docs/traceability.md](docs/traceability.md): generated record linking each subtask to its ADR, plan, PR and run record
+- [docs/adr-status.md](docs/adr-status.md): which ADRs are open and why each newly accepted ADR was accepted
 - [docs/slo.md](docs/slo.md): service level objectives and error-budget policy
 - [docs/lineage.md](docs/lineage.md): data lineage at table and column granularity
 - [docs/cost-security-summary.md](docs/cost-security-summary.md): what the build cost, how every caller authenticates, and the accepted residual risks
