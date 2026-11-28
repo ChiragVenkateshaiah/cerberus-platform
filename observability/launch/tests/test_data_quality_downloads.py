@@ -453,6 +453,11 @@ def test_scan_still_counts_real_accounts_and_arns():
     assert dq.scan_text("arn:aws:logs:us-east-1:123456789012:log-group:x") == 1
     assert dq.scan_text("1.5 then 123456789012") == 1
     assert dq.scan_text("arn:aws:iam::x:role/y") == 1
-    after_a_dot = ["x.123456789012", "role.123456789012", "host.123456789012.example", ".123456789012"]
+    after_a_dot = [
+        "x.123456789012",
+        "role.123456789012",
+        "host.123456789012.example",
+        ".123456789012",
+    ]
     for text in after_a_dot:
         assert dq.scan_text(text) == 1, text
