@@ -12,6 +12,7 @@ from pathlib import Path
 # The hashed files the builder writes, and nothing else.
 MANAGED = re.compile(
     r"site\.[0-9a-f]{10}\.css"
+    r"|site\.[0-9a-f]{10}\.js"
     r"|favicon\.[0-9a-f]{10}\.svg"
     r"|img/[a-z0-9-]+\.[0-9a-f]{10}\.svg"
 )

@@ -1,4 +1,4 @@
-/* The landing page's only stylesheet (ADR 0024: no inline style, no script).
+/* The landing page's only stylesheet (ADR 0024: no inline style or script).
    Palette: the scale-chart palette from observability/scale/charts.py (#107),
    copied by hand because that file is not on this branch. One accent (--accent);
    the series colours appear only in the diagram and the status dots.
@@ -503,6 +503,11 @@ td:last-child {
   align-items: center;
   min-height: 2.75rem;
   font-weight: 600;
+}
+
+/* The live link starts hidden; the display above would otherwise show it. */
+.link[hidden] {
+  display: none;
 }
 
 /* Charts */
