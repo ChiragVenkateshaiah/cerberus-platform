@@ -315,7 +315,10 @@ log "launch exercise $RUN_ID -- log: ${LOG#"$REPO"/}"
 preflight
 
 if ! $YES; then
-  read -r -p "Apply dev-compute (about \$0.40/hour until the destroy)? [y/N] " answer
+  # The prompt goes through the masking pipe, which prints whole lines only,
+  # so it is a full line (a read -p prompt stayed hidden on 2026-11-27).
+  echo "Apply dev-compute (about \$0.40/hour until the destroy)? [y/N]"
+  read -r answer
   [[ "$answer" == "y" || "$answer" == "Y" ]] || { log "cancelled"; exit 0; }
 fi
 

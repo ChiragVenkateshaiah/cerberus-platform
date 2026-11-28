@@ -64,8 +64,14 @@ BULK_PREFIX = "downloads_bulk/"
 
 RUN_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
 DAY_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-ACCOUNT_RE = re.compile(r"(?<!\d)\d{12}(?!\d)")
-ARN_RE = re.compile(r"arn:aws[a-z-]*:")
+# A 12-digit run with no digit next to it. A run right after "<digit>." is the
+# fraction of a number (k6 timings such as 0.123456789012), not an account; a run
+# after "x." or "v1x." still counts.
+ACCOUNT_RE = re.compile(r"(?<!\d\.)(?<!\d)\d{12}(?!\d)")
+# Every ARN counts, except when its account field holds no account: the
+# exercise-log mask <ACCOUNT_ID>, "aws" (AWS-managed policies) or empty (S3).
+ARN_RE = re.compile(r"arn:aws[a-z-]*:[a-z0-9-]*:[a-z0-9-]*:([^:/\s\"']*)")
+ARN_NO_ACCOUNT = {"<ACCOUNT_ID>", "aws", ""}
 
 # The generator's constants (generate_bulk_downloads.py; a test compares them).
 THRESHOLD_PCT = 99  # ADR 0030 Decision 13: below 99% the CDN marts are labelled partial
@@ -321,8 +327,9 @@ FROM fct_cdn_requests WHERE run_id = '{run}'"""
 
 
 def scan_text(text):
-    hits = ACCOUNT_RE.findall(text) + ARN_RE.findall(text)
-    return len(hits)
+    """Count possible account numbers and ARNs. An ARN with a 12-digit account counts once."""
+    arns = [field for field in ARN_RE.findall(text) if field not in ARN_NO_ACCOUNT]
+    return len(ACCOUNT_RE.findall(ARN_RE.sub("", text))) + len(arns)
 
 
 def scan_check(paths, explicit, results_text):

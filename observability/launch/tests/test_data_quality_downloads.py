@@ -436,3 +436,23 @@ def test_warnings_do_not_change_the_exit_code(tmp_path, capsys):
     argv += ["--scan", str(out)]
     assert dq.main(argv, session=session) == 0
     assert "WARN" in capsys.readouterr().out
+
+
+def test_scan_ignores_decimal_fractions_and_masked_arns():
+    # k6 timings and masked exercise-log ARNs hold no account (Run A, 2026-11-27).
+    assert dq.scan_text('"p(99)": 132.123456789012, "avg": 0.123456789012') == 0
+    assert dq.scan_text("identity: arn:aws:iam::<ACCOUNT_ID>:user/cerberus-admin") == 0
+    assert dq.scan_text("arn:aws:s3:::cerberus-platform-launch-x/k") == 0
+    assert dq.scan_text("arn:aws:iam::aws:policy/AmazonEKSClusterPolicy") == 0
+    assert dq.scan_text('"window_start_ms": 1795775501234') == 0
+
+
+def test_scan_still_counts_real_accounts_and_arns():
+    assert dq.scan_text("account 123456789012 here") == 1
+    assert dq.scan_text("arn:aws:iam::123456789012:user/x") == 1
+    assert dq.scan_text("arn:aws:logs:us-east-1:123456789012:log-group:x") == 1
+    assert dq.scan_text("1.5 then 123456789012") == 1
+    assert dq.scan_text("arn:aws:iam::x:role/y") == 1
+    after_a_dot = ["x.123456789012", "role.123456789012", "host.123456789012.example", ".123456789012"]
+    for text in after_a_dot:
+        assert dq.scan_text(text) == 1, text
