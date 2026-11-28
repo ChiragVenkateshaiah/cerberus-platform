@@ -78,7 +78,7 @@ REMOTE="$(aws s3api list-objects-v2 --bucket "$BUCKET" --prefix terminal/ --quer
 STALE="$(printf '%s' "$REMOTE" | PYTHONPATH="$HERE" python3 -m cerberus_terminal stale --dir "$DIR")"
 if [ -n "$STALE" ]; then
   while IFS= read -r key; do
-    aws s3 rm "s3://$BUCKET/$key" "${S3_FLAGS[@]}"
+    aws s3 rm "s3://$BUCKET/$key" --only-show-errors
   done <<<"$STALE"
 fi
 

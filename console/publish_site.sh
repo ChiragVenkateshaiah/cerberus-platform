@@ -74,7 +74,7 @@ if [[ "$REMOTE" == *'"live.json"'* ]]; then HAD_LIVE=1; fi
 STALE="$(printf '%s' "$REMOTE" | PYTHONPATH="$HERE" python3 -m cerberus_landing stale --dir "$DIR")"
 if [ -n "$STALE" ]; then
   while IFS= read -r key; do
-    aws s3 rm "s3://$BUCKET/$key" "${S3_FLAGS[@]}"
+    aws s3 rm "s3://$BUCKET/$key" --only-show-errors
   done <<<"$STALE"
 fi
 
