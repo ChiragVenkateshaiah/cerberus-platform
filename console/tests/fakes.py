@@ -205,7 +205,13 @@ class FakeAmp:
         self.asked.append(name)
         return self.results.get(name, [])
 
+    def query_many(self, names):
+        return {n: self.query(n) for n in names}
+
 
 class ExplodingAmp:
     def query(self, name):
+        raise Boom("boom")
+
+    def query_many(self, names):
         raise Boom("boom")

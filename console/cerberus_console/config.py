@@ -79,7 +79,14 @@ AMP_NEGATIVE_TTL = 60
 AMP_TIMEOUT_SECONDS = 4.0  # per attempt
 AMP_ATTEMPTS = 2
 AMP_RETRY_PAUSE_SECONDS = 0.5
-AMP_DEADLINE_SECONDS = 5.0  # all queries of one status, sequential
+# One deadline for all the queries of one status, which run in parallel (10.5).
+# Sequential, 17 queries took about 2.2 s + 16 x 0.77 s and 5 s was too short.
+# Bounds: the console Lambda timeout is 25 s (ADR 0024 rule 8,
+# terraform/modules/console_edge `lambda_timeout_seconds`) and the API Gateway
+# integration limit is 29 s (the AWS default, not checked here), so 10 s leaves
+# room for the Athena sections.
+AMP_DEADLINE_SECONDS = 10.0
+AMP_MAX_WORKERS = 8  # parallel AMP queries
 AMP_READ_MAX = 256 * 1024
 AMP_MAX_SERIES = 100
 STATUS_STEP_ROWS = 12  # rows of the "Time per step" table
