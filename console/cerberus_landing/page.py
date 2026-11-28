@@ -2,8 +2,9 @@
 
 Text from content.toml is author-controlled and goes through html.escape. Text
 that came from the repo's data (run records, Phases.md) goes through
-cerberus_console.sanitize and then html.escape. There is no script, no style
-element or attribute and no event handler anywhere (the edge CSP forbids them).
+cerberus_console.sanitize and then html.escape. The only script is one deferred
+file of this site (static/site.js). There is no inline script, no style element
+or attribute and no event handler anywhere (the edge CSP forbids them).
 """
 
 import html
@@ -24,9 +25,9 @@ def is_allowed_external(url: str) -> bool:
     return any(url == p or url.startswith(p.rstrip("/") + "/") for p in EXTERNAL_PREFIXES)
 
 
-# Step 9.5 sets this to "terminal/index.html". A static link cannot start the
-# sign-in (the PKCE code verifier needs JavaScript), so 9.4 shows no link.
-TERMINAL_HREF: str | None = None
+# The 9.5 terminal page, published on its own by publish_terminal.sh. The sign-in
+# there is for invited users only.
+TERMINAL_HREF = "terminal/index.html"
 
 ADR_DIR = f"{GITHUB}/tree/main/docs/adr"
 ADR_0022 = f"{GITHUB}/blob/main/docs/adr/0022-live-observability-for-a-recorded-run.md"
@@ -45,6 +46,7 @@ PAGE = Template("""<!doctype html>
 <meta name="cerberus-build" content="$build_id">
 <link rel="icon" href="$favicon" type="image/svg+xml">
 <link rel="stylesheet" href="$css">
+<script src="$js" defer></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to the content</a>
@@ -268,6 +270,7 @@ def _live(c: dict) -> str:
 <div class="wrap">
 <h2 id="live-h">{e(lv["title"])}</h2>
 <p class="intro">{e(lv["body"])}</p>
+<p><a class="link" id="live-link" hidden>{e(lv["open"])}</a></p>
 <p><a class="link" href="{ADR_0022}">{e(lv["link"])}</a></p>
 </div>
 </section>"""
@@ -275,13 +278,11 @@ def _live(c: dict) -> str:
 
 def _terminal(c: dict) -> str:
     t = c["terminal"]
-    link = ""
-    if TERMINAL_HREF is not None:
-        link = f'\n<p><a class="link" href="{e(TERMINAL_HREF)}">{e(t["link"])}</a></p>'
     return f"""<section id="terminal" aria-labelledby="terminal-h">
 <div class="wrap">
 <h2 id="terminal-h">{e(t["title"])}</h2>
-<p class="intro">{e(t["body"])}</p>{link}
+<p class="intro">{e(t["body"])}</p>
+<p><a class="link" href="{e(TERMINAL_HREF)}">{e(t["link"])}</a></p>
 </div>
 </section>"""
 
@@ -296,6 +297,7 @@ def render(
     charts: list[Chart],
     arch_svg: str,
     css: str,
+    js: str,
     favicon: str,
     build_id: str,
 ) -> str:
@@ -318,6 +320,7 @@ def render(
         build_id=e(build_id),
         favicon=e(favicon),
         css=e(css),
+        js=e(js),
         nav="\n".join(f'<li><a href="#{i}">{e(t)}</a></li>' for i, t in nav),
         kicker=e(h["kicker"]),
         h1=e(h["title"]),

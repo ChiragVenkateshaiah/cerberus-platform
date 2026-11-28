@@ -16,6 +16,8 @@ Amended 2026-11-12 (Accepted 2026-11-12): hooks for the Phase 14 agents — one 
 
 Amendment 2026-11-20 (Accepted 2026-11-20): 10.2 transport (hand-written remote write, no OpenTelemetry), series names, JSON query set (see Amendment below).
 
+Amendment 2026-11-28 (Accepted 2026-11-28): 30-day windows in AMP, SLO 1 from the run records (see Amendment below).
+
 ## Context
 
 Phase 10 ([plan.md](../plan.md#phase-10--pipeline-status--alerting)) exists
@@ -419,3 +421,57 @@ Status: Accepted (2026-11-20). The plan is [2026-11-20-pipeline-status-exporter.
 
 - In the owner smoke write, then 10.6: AMP accepts literal-only snappy, NaN samples and a v0.1.0 request signed by botocore. `aws iam simulate-principal-policy` returns `implicitDeny` for `aps:RemoteWrite` today, so the root-pasted grant comes first.
 - That the protobuf field numbers are right: the local end-to-end test (PR C) proves them against a real receiver.
+
+## Amendment (2026-11-28): 30-day windows in AMP; SLO 1 from run records
+
+Status: Accepted (2026-11-28; proposed and accepted the same day, owner answers below). The plan is [2026-11-28-amp-30-day-windows.md](../plans/2026-11-28-amp-30-day-windows.md). The original text stays as written, except that four earlier 90-day or 95-day statements are superseded (see Supersedes below).
+
+### Context
+
+- AMP refuses every window from 32d to 95d (measured live 2026-11-28). An instant query with `[90d]` gets HTTP 422 ("queries with long day range (32d to 95d) are currently only supported for range type queries"). The same as a range query gets 422 ("cannot include range selectors and subqueries that exceed 7d in duration"). `[31d]` returns 200 for both. The earlier "query range limit is 95" was wrong.
+- Two status queries (`run_success_share_90d`, `runs_90d`) use `[90d]`, so `make status` shows "unavailable". The budget rule `CerberusErrorBudgetBurn` and three dashboard targets use `[90d]` too.
+- `promtool test rules` has no 32d-95d limit, so CI passed. The budget tests run at 4d and 19d.
+- Rule health is unreadable: `cerberus-admin` has no `aps:ListRules`. The alert-path smoke proves that the ruler and SNS work, not that this rule evaluates. That the budget rule is dead is unverified, but very likely.
+- Run rate: 17 run records (2026-10-06 to 2026-11-08), at most 14 runs in any 30 days. The busiest 30-day window holds 14 runs with 2 failed (14.3%). With the old rule (over 5% and at least 5 runs), one failure in 5 to 19 runs fires. On 30 days the alert would fire on every single failure. That duplicates the CloudWatch page `cerberus-pipeline-run-unsuccessful` and goes beyond the SLO, which allows about 1 run in 20.
+- SLO 1 is not defined over 90 days. `docs/slo.md` sets it over the trailing 20 runs. Only the alert and the two `90d` query entries use 90 days.
+
+### Decision
+
+1. **One window, `[30d]`, for all PromQL evaluated in AMP.** The "`[90d]` exception" and the "90-day error-budget window" of the 2026-11-20 amendment are superseded, and so is the original "90-day window (the query range limit is 95)".
+2. **Names and labels.** `run_success_share_90d` becomes `run_success_share_30d` (label "Runs that passed (30 days)"). `runs_90d` becomes `runs_30d` (label "Runs in 30 days"). The dashboard panel is titled "Share of runs that passed (30 days)". The console JSON keys become `success_share_30d` and `runs_30d`.
+3. **New budget-rule condition.** `CerberusErrorBudgetBurn` fires when failed runs are at least 2 and the failed share is over 5%, on `[30d]`. The failed count is `count x (1 - avg)`, built only from query-set entries. The 5-run minimum is dropped. Severity stays `ticket`. A single failure stays the CloudWatch alarm's job. Two failures in under 40 runs always exceed the 1-in-20 budget; the 5% clause covers months with 40 or more runs.
+4. **SLO 1 is unchanged** (at least 95% over the trailing 20 runs). The authoritative figures come from the run records: a stdlib script `observability/scale/slo_report.py` (`make slo`, offline) reads the top-level `status` of `observability/scale/runs/*.json`. It counts terminal states only, orders runs by `start`, and prints the trailing-20 share and the 90-day share. The AMP 30-day share is the live, near-term signal only.
+5. **Rule health.** Grant `aps:ListRules` and `aps:ListAlerts` (read-only, same workspace ARN) to `cerberus-admin` by one root paste. Add `make alerts-health`, which fails when any rule's health is not `ok` or it has a `lastError`.
+6. **Window guard.** Every entry of `ALLOWED_WINDOWS` in `queries.py` becomes `30d`. A new cap check fails any range selector or subquery over 31d, whatever the metric, over every `expr` in `status.json`, every rule and every dashboard target. A test asserts the dashboard `time.from` is at most 31d.
+
+### Consequences
+
+**Good**
+
+- `make status` works, the budget alert can evaluate, and CI blocks a wide window from coming back.
+
+**Given up**
+
+- The AMP budget view covers 30 days, not 20 runs.
+- The record-based SLO depends on the owner collecting every run, including failed ones (a rule in `docs/scale-metrics.md`).
+- One more manual step (`make slo`) and one more root paste.
+
+**Neutral**
+
+- Renamed JSON keys in the console output and the showcase snapshot.
+- Cost: $0 for all options (a grant, a script and a query change).
+
+**Well-Architected:** Reliability (an alert that cannot evaluate is silent; the health check and the cap close that), Operational Excellence (CI blocks the regression), Security (the new grant is read-only). Cost, Performance and Sustainability: no change.
+
+### Supersedes
+
+- Original "Error budget over runs": "a 90-day window (the query range limit is 95)".
+- 2026-11-20, Decision: "One exception ... `avg_over_time` and `count_over_time` over `[90d]`", and the `[90d]` clause in the query-set lint.
+- Original series design: "AMP accepts a query range of up to 95 days" (30 days stays safe; the real limit is 31 days, see Context).
+- 2026-11-20, Retention: "the 90-day error-budget window" (the 400-day retention itself stands; storage is not the limit, the query engine is).
+
+### Owner answers (2026-11-28)
+
+1. SLO 1 on the records reads 88.2% (15 of 17). `docs/slo.md` "Current standing" shows it as breached and names the two failed runs.
+2. Every orchestrated run since 2026-10-06 is in `observability/scale/runs/`, including failed ones. The runbook rule is: collect every run, pass or fail.
+3. Budget alert: at least 2 failed and over 5%, with no 5-run minimum.

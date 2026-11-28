@@ -3,7 +3,8 @@
 # No AWS, no git writes. It skips a check whose files do not exist on this
 # branch, and it prints at most 15 lines of a failing check.
 #
-#   orchestration/verify.sh           ruff, tests, terraform fmt, shell syntax, scan
+#   orchestration/verify.sh           ruff, tests, terraform fmt, console JS,
+#                                     shell syntax, scan
 #   orchestration/verify.sh --full    also the Docker checks (alerts, e2e, render,
 #                                     downloads silver job) and the dbt gating parse
 #
@@ -84,6 +85,16 @@ if command -v terraform >/dev/null 2>&1; then
   check "terraform fmt" terraform fmt -check -recursive terraform
 else
   skip "terraform fmt" "terraform not installed"
+fi
+
+# 9.4a: the console's two browser scripts (plain JavaScript, no toolchain).
+# `node --check` reads one file per call.
+if command -v node >/dev/null 2>&1; then
+  check "console JS syntax" bash -c 'node --check console/cerberus_terminal/static/terminal.js &&
+    node --check console/cerberus_landing/static/site.js'
+  check "console JS node tests" node --test console/tests/js/*.test.js
+else
+  skip "console JS" "node not installed"
 fi
 
 # 17.3b (ADR 0030): the launch edge. validate needs the provider from the

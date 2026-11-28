@@ -1,5 +1,7 @@
 """The run cards: same record as `cerberus run latest`, nothing raw from data."""
 
+import re
+
 from landing_helpers import FIXTURE_RUNS, REAL_RUNS, build_site, parse, write_record
 
 from cerberus_console import records
@@ -36,7 +38,8 @@ def test_hostile_record_text_never_reaches_the_page(tmp_path):
         assert raw not in html, repr(raw)
     assert build.csp_problems(html) == []
     # The only angle brackets are tags the builder wrote: no markup from data.
-    assert "<script" not in html.lower()
+    assert html.lower().count("<script") == 1  # the page's own script tag
+    assert re.search(r'<script src="site\.[0-9a-f]{10}\.js" defer></script>', html)
 
 
 def test_hostile_state_name_is_replaced_by_the_fixed_label(tmp_path):

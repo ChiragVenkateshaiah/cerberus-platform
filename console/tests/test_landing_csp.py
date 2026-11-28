@@ -1,5 +1,6 @@
 """The built page must pass the edge CSP: no inline script or style, no handlers,
-relative assets only. Includes negative fixtures so the scanner itself is tested.
+relative assets only, and one deferred script of this site. Includes negative
+fixtures so the scanner itself is tested.
 """
 
 import http.client
@@ -11,12 +12,33 @@ from landing_helpers import build_site, write_charts
 
 from cerberus_landing import build, serve
 
-# An independent grep, not the builder's own scanner.
+# An independent grep, not the builder's own scanner. The one allowed script tag
+# is matched whole and removed before the grep.
+SCRIPT_TAG = re.compile(r'<script src="site\.[0-9a-f]{10}\.js" defer></script>')
 BANNED = re.compile(r"<script|<style|style=|\son[a-z]+\s*=|javascript:", re.IGNORECASE)
+OK_SCRIPT = '<script src="site.0123456789.js" defer></script>'
 
 NEGATIVE = {
     "script element": "<p>x</p><script>alert(1)</script>",
-    "script src": '<script src="app.js"></script>',
+    "script src without defer": '<script src="app.js"></script>',
+    "script without src": "<script defer></script>",
+    "script with a body": '<script src="app.js" defer>alert(1)</script>',
+    "script with whitespace body": '<script src="app.js" defer> </script>',
+    "second script": OK_SCRIPT + OK_SCRIPT,
+    "script with async": '<script src="app.js" defer async></script>',
+    "script with a type": '<script src="app.js" defer type="module"></script>',
+    "script with two src": '<script src="a.js" src="b.js" defer></script>',
+    "absolute script": '<script src="https://cdn.example/a.js" defer></script>',
+    "protocol-relative script": '<script src="//cdn.example/a.js" defer></script>',
+    "backslash script": '<script src="\\\\cdn.example\\a.js" defer></script>',
+    "root-relative script": '<script src="/a.js" defer></script>',
+    "parent-path script": '<script src="../a.js" defer></script>',
+    "data url script": '<script src="data:text/javascript,alert(1)" defer></script>',
+    "script not a js file": '<script src="live.json" defer></script>',
+    "empty script src": '<script src="" defer></script>',
+    "unclosed script": '<script src="app.js" defer>',
+    "self-closing script": '<script src="app.js" defer />',
+    "script in an inline svg": f"<svg>{OK_SCRIPT}</svg>",
     "style element": "<style>p{color:red}</style>",
     "style attribute": '<p style="color:red">x</p>',
     "onclick": '<a href="#a" onclick="x()">x</a>',
@@ -55,10 +77,18 @@ def test_scanner_accepts_a_clean_fragment():
     assert build.csp_problems(ok) == []
 
 
+def test_scanner_accepts_one_empty_deferred_script_on_a_page_only():
+    assert build.csp_problems(OK_SCRIPT) == []
+    assert build.csp_problems(f"<svg></svg>{OK_SCRIPT}") == []
+    for kind in ("svg", "chart"):
+        assert build.csp_problems(OK_SCRIPT, kind), kind
+
+
 @pytest.mark.parametrize(
     "bad",
     [
         "<script>x()</script>",
+        '<script src="a.js" defer></script>',
         '<rect onclick="x()"/>',
         '<rect style="fill:red"/>',
         '<a href="https://x.example">x</a>',
@@ -83,7 +113,10 @@ def test_the_built_page_is_clean(tmp_path):
     out = tmp_path / "site"
     _, html = build_site(out, charts_dir=write_charts(tmp_path / "charts"))
     assert build.csp_problems(html) == []
-    assert BANNED.search(html) is None
+    rest, found = SCRIPT_TAG.subn("", html)
+    assert found == 1
+    assert BANNED.search(rest) is None
+    assert (out / re.search(r"site\.[0-9a-f]{10}\.js", html).group()).is_file()
     assert BANNED.search(next(out.glob("site.*.css")).read_text(encoding="utf-8")) is None
 
 
@@ -99,7 +132,7 @@ def test_the_architecture_svg_is_inline_and_clean():
     from cerberus_landing.build import PKG
 
     svg = (PKG / "architecture.svg").read_text(encoding="utf-8")
-    assert build.csp_problems(svg) == []
+    assert build.csp_problems(svg, "svg") == []
     assert "<style" not in svg
     for adr in ("0005", "0009", "0011", "0016", "0017", "0018", "0019", "0022", "0024"):
         assert f"ADR {adr}" in svg, adr

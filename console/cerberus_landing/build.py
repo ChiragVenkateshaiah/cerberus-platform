@@ -21,6 +21,8 @@ CONSOLE = PKG.parent / "cerberus_console"
 CONSOLE_FILES = ("records.py", "sanitize.py", "grammar.py", "config.py")
 _SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")
 _CTRL = re.compile(r"[\t\r\n]")
+# A flat file name: no scheme, no slash and no backslash, so it stays on this site.
+_SCRIPT_SRC = re.compile(r"[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)*\.js")
 _BANNED_TAGS = ("iframe", "object", "embed", "base", "form")
 _URL_ATTRS = ("href", "xlink:href", "src")
 _BANNED_ATTRS = ("srcset", "action", "formaction")
@@ -43,10 +45,15 @@ class _Scan(HTMLParser):
         self.kind = kind
         self.problems: list[str] = []
         self._in_style = False
+        self.in_script = False
+        self._scripts = 0
+        self._svg_depth = 0
 
     def handle_starttag(self, tag, attrs):
+        if tag == "svg":
+            self._svg_depth += 1
         if tag == "script":
-            self.problems.append("script element")
+            self._script(attrs)
         if tag == "style" and self.kind != "chart":
             self.problems.append("style element")
         if tag == "style":
@@ -69,11 +76,35 @@ class _Scan(HTMLParser):
             if name in _URL_ATTRS:
                 self._link(tag, name, value)
 
+    def handle_startendtag(self, tag, attrs):
+        if tag == "script":  # a browser ignores the slash, so what follows is script
+            self.problems.append("self-closing script element")
+        super().handle_startendtag(tag, attrs)
+
     def handle_endtag(self, tag):
         if tag == "style":
             self._in_style = False
+        if tag == "script":
+            self.in_script = False
+        if tag == "svg" and self._svg_depth:
+            self._svg_depth -= 1
+
+    def _script(self, attrs):
+        """The page may hold one `<script src="name.js" defer>`; an SVG holds none."""
+        self.in_script = True
+        self._scripts += 1
+        if self.kind != "page" or self._svg_depth:
+            self.problems.append("script element in an SVG")
+        elif sorted(name for name, _ in attrs) != ["defer", "src"]:
+            self.problems.append("script element without exactly src and defer")
+        elif not _SCRIPT_SRC.fullmatch(dict(attrs)["src"] or ""):
+            self.problems.append("script element whose src is not a relative .js name")
+        elif self._scripts > 1:
+            self.problems.append("second script element")
 
     def handle_data(self, data):
+        if self.in_script:
+            self.problems.append("script element with a body")
         if self._in_style and self.kind == "chart":
             lowered = data.lower()
             if "@import" in lowered:
@@ -93,10 +124,16 @@ class _Scan(HTMLParser):
 
 
 def csp_problems(markup: str, kind: str = "page") -> list[str]:
-    """What would break the edge CSP or the link rules. kind is "page" or "chart"."""
+    """What would break the edge CSP or the link rules.
+
+    kind is "page", "svg" (the diagram that is inlined in the page) or "chart".
+    Only a page may load a script.
+    """
     scan = _Scan(kind)
     scan.feed(markup)
     scan.close()
+    if scan.in_script:
+        scan.problems.append("unclosed script element")
     return scan.problems
 
 
@@ -180,14 +217,15 @@ def build(out: Path, runs_dir: Path, phases_file: Path, charts_dir: Path) -> Bui
     charts, chart_outputs, chart_inputs = _read_charts(charts_dir, c)
 
     css = (PKG / "static" / "site.css").read_bytes()
+    js = (PKG / "static" / "site.js").read_bytes()
     favicon = (PKG / "static" / "favicon.svg").read_bytes()
     arch = (PKG / "architecture.svg").read_text(encoding="utf-8")
-    problems = csp_problems(arch)
+    problems = csp_problems(arch, "svg")
     if problems:
         raise BuildError(f"architecture.svg: {', '.join(problems)}")
 
     # The build id covers every input byte and the builder's own code.
-    inputs = [("content", content_bytes), ("phases", phases_bytes), ("css", css)]
+    inputs = [("content", content_bytes), ("phases", phases_bytes), ("css", css), ("js", js)]
     inputs += [("favicon", favicon), ("architecture", arch.encode("utf-8"))]
     inputs += chart_inputs
     for path in sorted(Path(runs_dir).glob("*.json")):
@@ -203,9 +241,21 @@ def build(out: Path, runs_dir: Path, phases_file: Path, charts_dir: Path) -> Bui
     build_id = h.hexdigest()
 
     css_name = f"site.{_digest(css)}.css"
+    js_name = f"site.{_digest(js)}.js"
     icon_name = f"favicon.{_digest(favicon)}.svg"
     index = page.render(
-        c, plist, latest, largest, n_records, n_ok, charts, arch, css_name, icon_name, build_id
+        c,
+        plist,
+        latest,
+        largest,
+        n_records,
+        n_ok,
+        charts,
+        arch,
+        css_name,
+        js_name,
+        icon_name,
+        build_id,
     )
     problems = csp_problems(index)
     if problems:
@@ -214,6 +264,7 @@ def build(out: Path, runs_dir: Path, phases_file: Path, charts_dir: Path) -> Bui
     files = [
         ("index.html", index.encode("utf-8")),
         (css_name, css),
+        (js_name, js),
         (icon_name, favicon),
         *chart_outputs,
     ]
