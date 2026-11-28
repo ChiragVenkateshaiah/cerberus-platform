@@ -16,7 +16,7 @@ Amended 2026-11-12 (Accepted 2026-11-12): hooks for the Phase 14 agents — one 
 
 Amendment 2026-11-20 (Accepted 2026-11-20): 10.2 transport (hand-written remote write, no OpenTelemetry), series names, JSON query set (see Amendment below).
 
-Amendment 2026-11-28 (Proposed 2026-11-28): 30-day windows in AMP, SLO 1 from the run records (see Amendment below).
+Amendment 2026-11-28 (Accepted 2026-11-28): 30-day windows in AMP, SLO 1 from the run records (see Amendment below).
 
 ## Context
 
@@ -424,7 +424,7 @@ Status: Accepted (2026-11-20). The plan is [2026-11-20-pipeline-status-exporter.
 
 ## Amendment (2026-11-28): 30-day windows in AMP; SLO 1 from run records
 
-Status: Proposed (2026-11-28). The plan is [2026-11-28-amp-30-day-windows.md](../plans/2026-11-28-amp-30-day-windows.md). The original text stays as written, except that four earlier 90-day or 95-day statements are superseded (see Supersedes below).
+Status: Accepted (2026-11-28; proposed and accepted the same day, owner answers below). The plan is [2026-11-28-amp-30-day-windows.md](../plans/2026-11-28-amp-30-day-windows.md). The original text stays as written, except that four earlier 90-day or 95-day statements are superseded (see Supersedes below).
 
 ### Context
 
