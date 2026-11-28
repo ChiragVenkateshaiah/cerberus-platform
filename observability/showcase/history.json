@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-28T04:22:07Z",
+  "generated_at": "2026-11-28T10:55:36Z",
   "phases": [
     {
       "number": 0,
@@ -1314,7 +1314,9 @@
           },
           {
             "number": 214,
-            "pending": true
+            "title": "10.4/10.5: ADR 0021 amendment, 30-day windows in AMP, SLO 1 from run records (Proposed)",
+            "date": "2026-11-28",
+            "merge": "1d86c8e"
           }
         ],
         "runs": []
@@ -1327,7 +1329,9 @@
       "title": "Terminal status view (`make status`) from the named query set (same code as `cerberus status`)",
       "checked": false,
       "links": {
-        "adr": [],
+        "adr": [
+          "0021"
+        ],
         "plan": [],
         "pr": [
           {
@@ -1344,7 +1348,9 @@
           },
           {
             "number": 214,
-            "pending": true
+            "title": "10.4/10.5: ADR 0021 amendment, 30-day windows in AMP, SLO 1 from run records (Proposed)",
+            "date": "2026-11-28",
+            "merge": "1d86c8e"
           }
         ],
         "runs": []
@@ -2721,6 +2727,12 @@
       "title": "10.5: run the AMP status queries in parallel (status was Unavailable)",
       "date": "2026-11-28",
       "merge": "6240f90"
+    },
+    {
+      "number": 214,
+      "title": "10.4/10.5: ADR 0021 amendment, 30-day windows in AMP, SLO 1 from run records (Proposed)",
+      "date": "2026-11-28",
+      "merge": "1d86c8e"
     }
   ]
 }
